@@ -1,0 +1,40 @@
+from celery import Celery
+from app.core.config import settings
+
+celery_app = Celery(
+    "sgi",
+    broker=settings.VALKEY_URL,
+    backend=settings.VALKEY_URL,
+    include=[
+        "app.tasks.notifications",
+        "app.tasks.exports",
+        "app.tasks.reminders",
+    ],
+)
+
+celery_app.conf.update(
+    task_serializer="json",
+    result_serializer="json",
+    accept_content=["json"],
+    timezone="Asia/Dubai",
+    enable_utc=True,
+    task_routes={
+        "app.tasks.notifications.*": {"queue": "notifications"},
+        "app.tasks.exports.*": {"queue": "exports"},
+        "app.tasks.reminders.*": {"queue": "reminders"},
+    },
+    beat_schedule={
+        "crm-followup-check": {
+            "task": "app.tasks.reminders.check_crm_followups",
+            "schedule": 3600.0,
+        },
+        "visa-expiry-alerts": {
+            "task": "app.tasks.reminders.check_visa_expiry",
+            "schedule": 86400.0,
+        },
+        "rental-renewal-alerts": {
+            "task": "app.tasks.reminders.check_rental_renewals",
+            "schedule": 86400.0,
+        },
+    },
+)

@@ -1,0 +1,57 @@
+[project]
+name = "sgi-api"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.136.0",
+    "uvicorn[standard]>=0.30.0",
+    "uvloop>=0.21.0",
+    "httptools>=0.6.0",
+    "sqlalchemy[asyncio]>=2.0.0",
+    "geoalchemy2>=0.15.0",
+    "alembic>=1.13.0",
+    "asyncpg>=0.29.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.0",
+    "celery>=5.4.0",
+    "redis>=5.0.0",
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.9",
+    "minio>=7.2.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "S", "B", "A"]
+ignore = ["S101"]
+
+[tool.mypy]
+strict = true
+python_version = "3.13"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests", "app/routers"]
+python_files = ["test_*.py"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/test_*", "*/migrations/*"]
+
+[tool.coverage.report]
+fail_under = 80

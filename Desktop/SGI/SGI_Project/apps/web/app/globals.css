@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Premium Dubai design tokens ──────────────────────────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:     #F1E9D8;
+  --bg-cream:    #F7F1E1;
+  --bg-paper:    #FBF7EC;
+  --bg-ivory:    #FFFBF0;
+  --bg-inset:    #ECE3CE;
+
+  /* Borders */
+  --line:        #DCCFAF;
+  --line-soft:   #E8DFC4;
+  --line-strong: #C9B98C;
+
+  /* Ink (text) */
+  --ink:   #1A1610;
+  --ink-2: #3D352A;
+  --ink-3: #6B5F4D;
+  --ink-4: #9C907A;
+  --ink-5: #B8AC92;
+
+  /* Gold accent */
+  --gold:       #B8924F;
+  --gold-deep:  #8A6B30;
+  --gold-soft:  #E6D4A6;
+  --gold-ghost: rgba(184,146,79,0.10);
+  --gold-line:  rgba(184,146,79,0.35);
+
+  /* Semantic */
+  --emerald:      #4F6B4E;
+  --emerald-soft: #DCE5DB;
+  --rose:         #8E4F4F;
+  --rose-soft:    #ECDCDC;
+  --azure:        #4A6B82;
+  --azure-soft:   #D7E1E8;
+
+  /* Shadows */
+  --shadow-1: 0 1px 2px rgba(60,40,15,0.04), 0 1px 0 rgba(60,40,15,0.03);
+  --shadow-2: 0 2px 8px rgba(60,40,15,0.06), 0 1px 0 rgba(60,40,15,0.04);
+  --shadow-3: 0 8px 28px rgba(60,40,15,0.10), 0 1px 0 rgba(60,40,15,0.04);
+
+  /* Radius */
+  --r-sm: 4px;
+  --r:    8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+}
+
+/* ── Dark · walnut palette ────────────────────────────────────── */
+.dark {
+  --bg-base:     #110D08;
+  --bg-cream:    #19140D;
+  --bg-paper:    #221C13;
+  --bg-ivory:    #2A2218;
+  --bg-inset:    #14100A;
+
+  --line:        #3A3122;
+  --line-soft:   #2C251A;
+  --line-strong: #4F4530;
+
+  --ink:   #F4ECD7;
+  --ink-2: #D8CFB6;
+  --ink-3: #A89E83;
+  --ink-4: #756B53;
+  --ink-5: #4F4732;
+
+  --gold:       #D9B777;
+  --gold-deep:  #F0CB89;
+  --gold-soft:  #4A3D24;
+  --gold-ghost: rgba(217,183,119,0.12);
+  --gold-line:  rgba(217,183,119,0.35);
+
+  --emerald:      #94B391;
+  --emerald-soft: #2A3528;
+  --rose:         #D6A0A0;
+  --rose-soft:    #3B2424;
+  --azure:        #9DB6C8;
+  --azure-soft:   #1E2A35;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.5);
+  --shadow-3: 0 8px 28px rgba(0,0,0,0.6);
+}
+
+/* ── Base ─────────────────────────────────────────────────────── */
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--bg-base);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+/* ── Typography helpers ───────────────────────────────────────── */
+.font-display {
+  font-family: 'Cormorant Garamond', 'Noto Naskh Arabic', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+.font-ar   { font-family: 'Noto Naskh Arabic', serif; }
+.font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+.tnum      { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+
+.eyebrow {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+  font-weight: 500;
+}
+
+/* ── Card atoms ───────────────────────────────────────────────── */
+.sgi-card {
+  background: var(--bg-paper);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+}
+
+.sgi-card-elevated {
+  background: var(--bg-ivory);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-2);
+}
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+.sgi-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r);
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-family: 'Inter', system-ui, sans-serif;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.sgi-btn-primary {
+  background: var(--ink);
+  color: var(--bg-ivory);
+  border-color: var(--ink);
+}
+.sgi-btn-primary:hover { opacity: 0.88; }
+.sgi-btn-ghost {
+  background: transparent;
+  color: var(--ink-2);
+  border-color: var(--line);
+}
+.sgi-btn-ghost:hover {
+  background: var(--gold-ghost);
+  border-color: var(--gold-line);
+}
+
+/* ── Chips / badges ───────────────────────────────────────────── */
+.sgi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  border: 1px solid var(--line);
+  background: var(--bg-ivory);
+  color: var(--ink-2);
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+}
+.sgi-chip-gold    { background: var(--gold-ghost); border-color: var(--gold-line); color: var(--gold-deep); }
+.sgi-chip-emerald { background: var(--emerald-soft); color: var(--emerald); border-color: transparent; }
+.sgi-chip-rose    { background: var(--rose-soft); color: var(--rose); border-color: transparent; }
+.sgi-chip-azure   { background: var(--azure-soft); color: var(--azure); border-color: transparent; }
