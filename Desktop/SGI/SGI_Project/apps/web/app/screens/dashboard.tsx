@@ -192,15 +192,13 @@ export function ScreenDashboard() {
                 <div className="font-display" style={{ fontSize: 22, marginTop: 4 }}>Where the money is moving</div>
               </div>
               {/* Period selector — functional */}
-              {!isMob && (
-                <div style={{ display: "flex", gap: 2, padding: 3, background: "var(--bg-inset)", borderRadius: "var(--r)" }}>
-                  {(["week","month","quarter"] as Period[]).map(p => (
-                    <button key={p} onClick={() => setPeriod(p)} style={tabStyle(period === p)}>
-                      {pl(PERIOD_LABEL[p])}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div style={{ display: "flex", gap: 2, padding: 3, background: "var(--bg-inset)", borderRadius: "var(--r)" }}>
+                {(["week","month","quarter"] as Period[]).map(p => (
+                  <button key={p} onClick={() => setPeriod(p)} style={tabStyle(period === p)}>
+                    {pl(PERIOD_LABEL[p])}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div style={{ display: "grid", gridTemplateColumns: isMob ? "repeat(3, 1fr)" : "repeat(6, 1fr)", gap: 10 }}>
@@ -300,12 +298,11 @@ export function ScreenDashboard() {
         </div>
 
         {/* ── Bottom row : Activity feed + Leaderboard ───────────────── */}
-        {!isCompact && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1.5fr 1fr", gap: 16 }}>
 
             {/* Activity feed */}
             <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
                 <div>
                   <Eyebrow>Today's activity</Eyebrow>
                   <div className="font-display" style={{ fontSize: 20, marginTop: 3 }}>Live feed</div>
@@ -413,7 +410,6 @@ export function ScreenDashboard() {
             </div>
 
           </div>
-        )}
       </main>
     </div>
   );
