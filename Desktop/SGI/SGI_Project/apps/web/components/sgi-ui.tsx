@@ -105,7 +105,7 @@ export type NavKey =
   | "clients" | "personne" | "societe"
   | "realestate" | "prop" | "contract" | "rental" | "visa"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
-  | "erp" | "workspace" | "audit"
+  | "erp" | "workspace" | "audit" | "finance"
   | "report";
 
 type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number };
@@ -140,6 +140,7 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "erp",         icon: <IcERP /> },
   { type: "item",  key: "workspace",   icon: <IcWorkspace /> },
   { type: "item",  key: "audit",       icon: <IcAudit /> },
+  { type: "item",  key: "finance",     icon: <IcFinance /> },
   { type: "item",  key: "report",      icon: <IcReport /> },
 ];
 
@@ -203,7 +204,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa,
-      erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
+      erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit, finance: t.nav_finance,
       report: t.nav_report,
     };
     return map[key];
