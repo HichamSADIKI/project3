@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { useLang, useT } from "@/components/language-provider";
+import { useBreakpoint } from "@/lib/hooks";
 
 /* ─── Icon wrapper ──────────────────────────────────────────────── */
 export function Ic({ s = 16, children }: { s?: number; children: React.ReactNode }) {
@@ -82,31 +83,51 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
       <LogoMark size={36} />
       <div style={{ lineHeight: 1.1 }}>
         <div className="font-display" style={{ fontSize: 19, letterSpacing: "0.06em", color: "var(--ink)" }}>INFINITY</div>
-        {subtitle && <div style={{ fontSize: 9.5, letterSpacing: "0.28em", color: "var(--ink-3)", marginTop: 2 }}>ZOI REAL ESTATE</div>}
+        {subtitle && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src="/logo-infinity.png"
+            alt="Infinity International Facilities Management"
+            style={{ height: 22, marginTop: 3, objectFit: "contain", objectPosition: "left", maxWidth: 160 }}
+          />
+        )}
       </div>
     </div>
   );
 }
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
-export type NavKey = "dash" | "prop" | "crm" | "contract" | "rental" | "admin" | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "visa" | "finance" | "report";
+export type NavKey =
+  | "dash" | "crm"
+  | "realestate" | "prop" | "contract" | "rental" | "visa"
+  | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
+  | "finance" | "report";
 
-export const NAV: { key: NavKey; icon: React.ReactElement; badge?: number }[] = [
-  { key: "dash",     icon: <IcDash /> },
-  { key: "prop",     icon: <IcProp /> },
-  { key: "crm",       icon: <IcCRM />,       badge: 12 },
-  { key: "contract",  icon: <IcContract /> },
-  { key: "rental",    icon: <IcRental /> },
-  { key: "admin",     icon: <IcAdmin /> },
-  { key: "tourisme",  icon: <IcTourisme /> },
-  { key: "sante",     icon: <IcSante /> },
-  { key: "assurance", icon: <IcAssurance /> },
-  { key: "banques",   icon: <IcBanques /> },
-  { key: "amazon",      icon: <IcAmazon /> },
-  { key: "consultants", icon: <IcConsult /> },
-  { key: "visa",        icon: <IcVisa />,     badge: 3 },
-  { key: "finance",  icon: <IcFinance /> },
-  { key: "report",   icon: <IcReport /> },
+type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number };
+type NavEntry =
+  | ({ type: "item"  } & NavItem)
+  | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] };
+
+const NAV_ENTRIES: NavEntry[] = [
+  { type: "item",  key: "dash",        icon: <IcDash /> },
+  { type: "item",  key: "crm",         icon: <IcCRM />,  badge: 12 },
+  { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
+    children: [
+      { key: "prop",     icon: <IcProp /> },
+      { key: "contract", icon: <IcContract /> },
+      { key: "rental",   icon: <IcRental /> },
+      { key: "visa",     icon: <IcVisa />, badge: 3 },
+    ],
+  },
+  { type: "item",  key: "tourisme",    icon: <IcTourisme /> },
+  { type: "item",  key: "sante",       icon: <IcSante /> },
+  { type: "item",  key: "assurance",   icon: <IcAssurance /> },
+  { type: "item",  key: "banques",     icon: <IcBanques /> },
+  { type: "item",  key: "amazon",      icon: <IcAmazon /> },
+  { type: "item",  key: "consultants", icon: <IcConsult /> },
+  { type: "item",  key: "admin",       icon: <IcAdmin /> },
+  { type: "item",  key: "finance",     icon: <IcFinance /> },
+  { type: "item",  key: "report",      icon: <IcReport /> },
 ];
 
 /* ─── User status ─────────────────────────────────────────────────── */
@@ -139,17 +160,32 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 }) {
   const t = useT();
   const { lang } = useLang();
+  const bp = useBreakpoint();
+  const isMob = bp === "mobile";
+
   const [collapsed, setCollapsed] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [status, setStatus] = useState<UserStatus>("online");
   const [showStatus, setShowStatus] = useState(false);
   const [statusBounds, setStatusBounds] = useState<DOMRect | null>(null);
   const currentStatus = STATUSES.find(s => s.key === status)!;
   const statusLabel = lang === "ar" ? currentStatus.label_ar : lang === "fr" ? currentStatus.label_fr : currentStatus.label_en;
 
+  /* Auto-open the group that contains the active child */
+  useEffect(() => {
+    for (const entry of NAV_ENTRIES) {
+      if (entry.type === "group" && entry.children.some(c => c.key === active)) {
+        setOpenGroup(entry.id);
+        return;
+      }
+    }
+  }, [active]);
+
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
       dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm,
-      contract: t.nav_contract, rental: t.nav_rental,
+      contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa,
@@ -158,177 +194,298 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     return map[key];
   };
 
-  return (
-    <>
-    <aside style={{
-      width: collapsed ? 62 : 232, flexShrink: 0,
-      background: "var(--bg-paper)",
-      borderInlineEnd: "1px solid var(--line-soft)",
-      display: "flex", flexDirection: "column", height: "100%",
-      transition: "width 0.22s ease",
-      overflow: "hidden",
-    }}>
-      <div style={{
-        padding: "16px 12px",
-        borderBottom: "1px solid var(--line-soft)",
-        display: "flex", alignItems: "center",
-        justifyContent: collapsed ? "center" : "space-between", gap: 8,
-        minHeight: 66,
-      }}>
-        {collapsed ? <LogoMark size={32} /> : <Wordmark />}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? "Expand" : "Collapse"}
+  function NavItemRow({ icon, navKey, badge, isActive, isChild = false }: {
+    icon: React.ReactElement; navKey: NavKey; badge?: number; isActive: boolean; isChild?: boolean;
+  }) {
+    const col = collapsed && !isMob;
+    return (
+      <div
+        onClick={() => { onNavigate(navKey); if (isMob) setMobileOpen(false); }}
+        title={col ? navLabel(navKey) : undefined}
+        style={{
+          display: "flex", alignItems: "center", gap: col ? 0 : 11,
+          padding: col ? "10px 0" : isChild ? "8px 10px 8px 32px" : "9px 10px",
+          justifyContent: col ? "center" : undefined,
+          borderRadius: "var(--r)", cursor: "pointer",
+          background: isActive ? "var(--gold-ghost)" : "transparent",
+          color: isActive ? "var(--gold-deep)" : "var(--ink-2)",
+          position: "relative",
+        }}
+      >
+        {isActive && (
+          <div style={{ position: "absolute", insetInlineStart: 0, top: 6, bottom: 6, width: 2, background: "var(--gold)", borderRadius: 2 }} />
+        )}
+        <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: isActive ? "var(--gold-deep)" : "var(--ink-3)", flexShrink: 0, position: "relative" }}>
+          {icon}
+          {col && badge && (
+            <span style={{ position: "absolute", top: -3, insetInlineEnd: -3, width: 7, height: 7, borderRadius: 4, background: "var(--gold)" }} />
+          )}
+        </span>
+        {!col && (
+          <>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 13.5 : 14, fontWeight: 500, lineHeight: 1.2 }}>
+                {navLabel(navKey)}
+              </div>
+            </div>
+            {badge && (
+              <span className="tnum" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "var(--gold)", color: "#1A1610", fontWeight: 600 }}>{badge}</span>
+            )}
+          </>
+        )}
+      </div>
+    );
+  }
+
+  function GroupRow({ entry }: { entry: NavEntry & { type: "group" } }) {
+    const col = collapsed && !isMob;
+    const isGroupActive = entry.children.some(c => c.key === active) || active === entry.groupKey;
+    const isOpen = openGroup === entry.id;
+
+    return (
+      <div>
+        {/* Group header */}
+        <div
+          onClick={() => {
+            onNavigate(entry.groupKey);
+            setOpenGroup(p => p === entry.id ? null : entry.id);
+            if (isMob) setMobileOpen(false);
+          }}
+          title={col ? navLabel(entry.groupKey) : undefined}
           style={{
-            flexShrink: 0, width: 26, height: 26, borderRadius: "var(--r-sm)",
-            display: "grid", placeItems: "center",
-            background: "transparent", border: "1px solid var(--line-soft)",
-            color: "var(--ink-4)", cursor: "pointer", transition: "all 0.15s",
+            display: "flex", alignItems: "center", gap: col ? 0 : 11,
+            padding: col ? "10px 0" : "9px 10px",
+            justifyContent: col ? "center" : undefined,
+            borderRadius: "var(--r)", cursor: "pointer",
+            background: isGroupActive ? "var(--gold-ghost)" : "transparent",
+            color: isGroupActive ? "var(--gold-deep)" : "var(--ink-2)",
+            position: "relative",
           }}
         >
-          {collapsed ? <IcChevR /> : <IcChevL />}
-        </button>
-      </div>
-
-      <nav style={{ flex: 1, padding: collapsed ? "12px 6px" : "14px 10px", display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
-        {!collapsed && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
-        {NAV.map(n => {
-          const isActive = n.key === active;
-          return (
-            <div
-              key={n.key}
-              onClick={() => onNavigate(n.key)}
-              title={collapsed ? navLabel(n.key) : undefined}
-              style={{
-                display: "flex", alignItems: "center", gap: collapsed ? 0 : 11,
-                padding: collapsed ? "10px 0" : "9px 10px",
-                justifyContent: collapsed ? "center" : undefined,
-                borderRadius: "var(--r)", cursor: "pointer",
-                background: isActive ? "var(--gold-ghost)" : "transparent",
-                color: isActive ? "var(--gold-deep)" : "var(--ink-2)",
-                position: "relative",
-              }}
-            >
-              {isActive && (
-                <div style={{ position: "absolute", insetInlineStart: 0, top: 6, bottom: 6, width: 2, background: "var(--gold)", borderRadius: 2 }} />
-              )}
-              <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: isActive ? "var(--gold-deep)" : "var(--ink-3)", flexShrink: 0, position: "relative" }}>
-                {n.icon}
-                {collapsed && n.badge && (
-                  <span style={{ position: "absolute", top: -3, insetInlineEnd: -3, width: 7, height: 7, borderRadius: 4, background: "var(--gold)" }} />
-                )}
-              </span>
-              {!collapsed && (
-                <>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 13.5 : 14, fontWeight: 500, lineHeight: 1.2 }}>
-                      {navLabel(n.key)}
-                    </div>
-                  </div>
-                  {n.badge && (
-                    <span className="tnum" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "var(--gold)", color: "#1A1610", fontWeight: 600 }}>{n.badge}</span>
-                  )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </nav>
-
-      <div style={{ padding: collapsed ? "12px 6px" : 12, borderTop: "1px solid var(--line-soft)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, justifyContent: collapsed ? "center" : undefined }}>
-          {/* Avatar + status dot */}
-          <div
-            onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
-            title={statusLabel}
-            style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}
-          >
-            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600 }}>HS</div>
-            <span style={{ position: "absolute", bottom: 1, insetInlineEnd: 1, width: 9, height: 9, borderRadius: "50%", background: currentStatus.color, border: "2px solid var(--bg-paper)", display: "block" }} />
-          </div>
-          {!collapsed && (
+          {isGroupActive && (
+            <div style={{ position: "absolute", insetInlineStart: 0, top: 6, bottom: 6, width: 2, background: "var(--gold)", borderRadius: 2 }} />
+          )}
+          <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: isGroupActive ? "var(--gold-deep)" : "var(--ink-3)", flexShrink: 0 }}>
+            {entry.icon}
+          </span>
+          {!col && (
             <>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>Hicham Sadiki</div>
-                <button
-                  onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
-                  style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: currentStatus.color, letterSpacing: "0.04em", marginTop: 2 }}
-                >
-                  <span style={{ width: 6, height: 6, borderRadius: 3, background: currentStatus.color, display: "inline-block", flexShrink: 0 }} />
-                  {statusLabel}
-                </button>
+                <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 13.5 : 14, fontWeight: 500, lineHeight: 1.2 }}>
+                  {navLabel(entry.groupKey)}
+                </div>
               </div>
-              {onLogout && (
-                <button
-                  onClick={onLogout}
-                  title={t.logout}
-                  style={{
-                    width: 28, height: 28, borderRadius: "var(--r-sm)",
-                    display: "grid", placeItems: "center",
-                    background: "transparent", border: "1px solid var(--line)",
-                    color: "var(--ink-4)", cursor: "pointer", flexShrink: 0,
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "var(--rose-soft)";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--rose)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--rose)";
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--line)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-4)";
-                  }}
-                >
-                  <IcLogout />
-                </button>
-              )}
+              <span style={{ color: "var(--ink-4)", transition: "transform 0.2s", display: "block", transform: isOpen ? "rotate(180deg)" : "none" }}>
+                <IcChevD />
+              </span>
             </>
           )}
         </div>
-      </div>
-    </aside>
 
-    {/* Status picker dropdown */}
-    {showStatus && statusBounds && (
-      <>
-        <div onClick={() => setShowStatus(false)} style={{ position: "fixed", inset: 0, zIndex: 999 }} />
-        <div style={{
-          position: "fixed",
-          bottom: window.innerHeight - statusBounds.top + 6,
-          left: lang !== "ar" ? statusBounds.left : undefined,
-          right: lang === "ar" ? (window.innerWidth - statusBounds.right) : undefined,
-          width: 200, zIndex: 1000,
-          background: "var(--bg-paper)",
-          border: "1px solid var(--line-soft)",
-          borderRadius: "var(--r)",
-          boxShadow: "var(--shadow-2)",
-          overflow: "hidden",
-        }}>
-          <div style={{ padding: "8px 14px 6px", borderBottom: "1px solid var(--line-soft)", fontSize: 10, color: "var(--ink-4)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
-            {lang === "ar" ? "الحالة" : lang === "fr" ? "Statut" : "Status"}
+        {/* Children */}
+        {!col && isOpen && (
+          <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2 }}>
+            {entry.children.map(child => (
+              <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild />
+            ))}
           </div>
-          {STATUSES.map(s => (
-            <button
-              key={s.key}
-              onClick={() => { setStatus(s.key); setShowStatus(false); }}
-              style={{
-                display: "flex", alignItems: "center", gap: 10,
-                width: "100%", padding: "9px 14px",
-                background: status === s.key ? "var(--gold-ghost)" : "transparent",
-                border: "none", cursor: "pointer",
-                fontSize: 12.5, color: status === s.key ? "var(--gold-deep)" : "var(--ink-2)",
-                textAlign: "start",
-              }}
+        )}
+      </div>
+    );
+  }
+
+  function NavContent() {
+    const col = collapsed && !isMob;
+    return (
+      <>
+        <div style={{ padding: col ? "12px 6px" : "14px 10px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto" }}>
+          {!col && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
+          {NAV_ENTRIES.map(entry => {
+            if (entry.type === "item") {
+              return <NavItemRow key={entry.key} icon={entry.icon} navKey={entry.key} badge={entry.badge} isActive={entry.key === active} />;
+            }
+            return <GroupRow key={entry.id} entry={entry} />;
+          })}
+        </div>
+
+        {/* User footer */}
+        <div style={{ padding: col ? "12px 6px" : 12, borderTop: "1px solid var(--line-soft)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, justifyContent: col ? "center" : undefined }}>
+            <div
+              onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
+              title={statusLabel}
+              style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}
             >
-              <span style={{ width: 10, height: 10, borderRadius: 5, background: s.color, flexShrink: 0, display: "inline-block" }} />
-              <span style={{ flex: 1 }}>{lang === "ar" ? s.label_ar : lang === "fr" ? s.label_fr : s.label_en}</span>
-              {status === s.key && <IcCheck />}
-            </button>
-          ))}
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600 }}>HS</div>
+              <span style={{ position: "absolute", bottom: 1, insetInlineEnd: 1, width: 9, height: 9, borderRadius: "50%", background: currentStatus.color, border: "2px solid var(--bg-paper)", display: "block" }} />
+            </div>
+            {!col && (
+              <>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>Hicham Sadiki</div>
+                  <button
+                    onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: currentStatus.color, letterSpacing: "0.04em", marginTop: 2 }}
+                  >
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: currentStatus.color, display: "inline-block", flexShrink: 0 }} />
+                    {statusLabel}
+                  </button>
+                </div>
+                {onLogout && (
+                  <button
+                    onClick={onLogout}
+                    title={t.logout}
+                    style={{
+                      width: 28, height: 28, borderRadius: "var(--r-sm)",
+                      display: "grid", placeItems: "center",
+                      background: "transparent", border: "1px solid var(--line)",
+                      color: "var(--ink-4)", cursor: "pointer", flexShrink: 0,
+                      transition: "all 0.15s ease",
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "var(--rose-soft)";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--rose)";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--rose)";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--line)";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-4)";
+                    }}
+                  >
+                    <IcLogout />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </div>
       </>
-    )}
+    );
+  }
+
+  /* ── Desktop / Tablet sidebar ── */
+  if (!isMob) {
+    return (
+      <>
+        <aside style={{
+          width: collapsed ? 62 : 232, flexShrink: 0,
+          background: "var(--bg-paper)",
+          borderInlineEnd: "1px solid var(--line-soft)",
+          display: "flex", flexDirection: "column", height: "100%",
+          transition: "width 0.22s ease",
+          overflow: "hidden",
+        }}>
+          {/* Header */}
+          <div style={{
+            padding: "16px 12px",
+            borderBottom: "1px solid var(--line-soft)",
+            display: "flex", alignItems: "center",
+            justifyContent: collapsed ? "center" : "space-between", gap: 8,
+            minHeight: 66, flexShrink: 0,
+          }}>
+            {collapsed ? <LogoMark size={32} /> : <Wordmark />}
+            <button
+              onClick={() => setCollapsed(c => !c)}
+              title={collapsed ? "Expand" : "Collapse"}
+              style={{
+                flexShrink: 0, width: 26, height: 26, borderRadius: "var(--r-sm)",
+                display: "grid", placeItems: "center",
+                background: "transparent", border: "1px solid var(--line-soft)",
+                color: "var(--ink-4)", cursor: "pointer", transition: "all 0.15s",
+              }}
+            >
+              {collapsed ? <IcChevR /> : <IcChevL />}
+            </button>
+          </div>
+          <NavContent />
+        </aside>
+
+        {/* Status picker */}
+        {showStatus && statusBounds && (
+          <>
+            <div onClick={() => setShowStatus(false)} style={{ position: "fixed", inset: 0, zIndex: 999 }} />
+            <div style={{
+              position: "fixed",
+              bottom: window.innerHeight - statusBounds.top + 6,
+              left: lang !== "ar" ? statusBounds.left : undefined,
+              right: lang === "ar" ? (window.innerWidth - statusBounds.right) : undefined,
+              width: 200, zIndex: 1000,
+              background: "var(--bg-paper)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: "var(--r)",
+              boxShadow: "var(--shadow-2)",
+              overflow: "hidden",
+            }}>
+              <div style={{ padding: "8px 14px 6px", borderBottom: "1px solid var(--line-soft)", fontSize: 10, color: "var(--ink-4)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
+                {lang === "ar" ? "الحالة" : lang === "fr" ? "Statut" : "Status"}
+              </div>
+              {STATUSES.map(s => (
+                <button key={s.key} onClick={() => { setStatus(s.key); setShowStatus(false); }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", background: status === s.key ? "var(--gold-ghost)" : "transparent", border: "none", cursor: "pointer", fontSize: 12.5, color: status === s.key ? "var(--gold-deep)" : "var(--ink-2)", textAlign: "start" }}
+                >
+                  <span style={{ width: 10, height: 10, borderRadius: 5, background: s.color, flexShrink: 0, display: "inline-block" }} />
+                  <span style={{ flex: 1 }}>{lang === "ar" ? s.label_ar : lang === "fr" ? s.label_fr : s.label_en}</span>
+                  {status === s.key && <IcCheck />}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </>
+    );
+  }
+
+  /* ── Mobile: hamburger + bottom sheet ── */
+  return (
+    <>
+      {/* Hamburger button */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        style={{
+          position: "fixed", top: 14, insetInlineStart: 14, zIndex: 600,
+          width: 38, height: 38, borderRadius: "var(--r)",
+          display: "grid", placeItems: "center",
+          background: "var(--bg-paper)", border: "1px solid var(--line-soft)",
+          color: "var(--ink-2)", cursor: "pointer", boxShadow: "var(--shadow-1)",
+        }}
+      >
+        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+          <path d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Overlay + bottom sheet */}
+      {mobileOpen && (
+        <>
+          <div
+            onClick={() => setMobileOpen(false)}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 700, backdropFilter: "blur(2px)" }}
+          />
+          <div style={{
+            position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 800,
+            background: "var(--bg-paper)",
+            borderRadius: "14px 14px 0 0",
+            maxHeight: "85vh", display: "flex", flexDirection: "column",
+            boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
+            animation: "slideUp 0.22s ease",
+          }}>
+            {/* Sheet handle + header */}
+            <div style={{ padding: "10px 16px 12px", borderBottom: "1px solid var(--line-soft)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <Wordmark />
+              <button
+                onClick={() => setMobileOpen(false)}
+                style={{ width: 30, height: 30, borderRadius: "var(--r-sm)", display: "grid", placeItems: "center", background: "transparent", border: "1px solid var(--line-soft)", color: "var(--ink-4)", cursor: "pointer" }}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", overflowY: "auto", flex: 1 }}>
+              <NavContent />
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
@@ -340,9 +497,12 @@ export function Topbar({ title, crumb = [], children }: {
   const { theme, toggle } = useTheme();
   const { lang, setLang } = useLang();
   const t = useT();
+  const bp = useBreakpoint();
+  const isMob = bp === "mobile";
   return (
     <header style={{
-      height: 64, flexShrink: 0, paddingInlineStart: 28, paddingInlineEnd: 28,
+      height: 64, flexShrink: 0,
+      paddingInlineStart: isMob ? 62 : 28, paddingInlineEnd: isMob ? 12 : 28,
       background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)",
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
     }}>
