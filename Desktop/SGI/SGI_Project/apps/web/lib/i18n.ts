@@ -17,7 +17,8 @@ export type Translations = {
   nav_orders: string;
   nav_travail: string;
   nav_erp: string; nav_workspace: string; nav_audit: string;
-  nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string;
+  nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_marketing: string;
+  nav_news: string;
   nav_parametres: string;
   nav_report: string;
 
@@ -76,7 +77,8 @@ const ar: Translations = {
   nav_orders: "الطلبات",
   nav_travail: "التوظيف",
   nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة",
-  nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية",
+  nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_marketing: "التسويق",
+  nav_news: "الأخبار",
   nav_parametres: "الإعدادات",
   nav_report: "التقارير",
 
@@ -112,12 +114,12 @@ const ar: Translations = {
   resend: "إعادة الإرسال", back_login: "العودة لتسجيل الدخول",
   need_help: "تحتاج مساعدة؟", contact_support: "تواصل مع الدعم",
 
-  hero_eyebrow: "إنفينيتي المنتقاة · ربيع 2026",
-  hero_title: "عقارات استثنائية في قلب الإمارات.",
-  hero_sub: "منصة متكاملة للعقارات، العملاء، العقود وتأشيرة الإقامة الذهبية — لوكلاء إنفينيتي إنترناشيونال.",
-  hero_s1_n: "1,284", hero_s1_l: "عقار",
-  hero_s2_n: "18",    hero_s2_l: "عاماً في الإمارات",
-  hero_s3_n: "AED 24.5M", hero_s3_l: "حجم مبيعات مايو",
+  hero_eyebrow: "إنفينيتي إنترناشيونال · منصة متكاملة 2026",
+  hero_title: "كل خدماتك —",
+  hero_sub: "إدارة العقارات، السياحة، الصحة، التأمين، البنوك، التجارة الإلكترونية، الاستشارات، الإدارات والتوظيف — من مساحة عمل واحدة لفريق إنفينيتي إنترناشيونال.",
+  hero_s1_n: "9",         hero_s1_l: "قطاع رئيسي",
+  hero_s2_n: "50+",       hero_s2_l: "وكيل ومستشار",
+  hero_s3_n: "AED 24.5M", hero_s3_l: "حجم المعاملات الشهري",
 
   add: "إضافة", export_btn: "تصدير", filter: "تصفية",
   view_all: "عرض الكل", save: "حفظ", cancel: "إلغاء",
@@ -138,7 +140,8 @@ const en: Translations = {
   nav_orders: "Orders",
   nav_travail: "Employment",
   nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit",
-  nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance",
+  nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
+  nav_news: "News",
   nav_parametres: "Settings",
   nav_report: "Reports",
 
@@ -174,12 +177,12 @@ const en: Translations = {
   resend: "Resend email", back_login: "Back to login",
   need_help: "Need help?", contact_support: "Contact support",
 
-  hero_eyebrow: "Infinity Curated · Spring 2026",
-  hero_title: "Real estate, elevated.",
-  hero_sub: "One workspace for properties, leads, contracts and Golden Visa workflows — built for Infinity International's agents.",
-  hero_s1_n: "1,284", hero_s1_l: "Properties",
-  hero_s2_n: "18",    hero_s2_l: "Years in UAE",
-  hero_s3_n: "AED 24.5M", hero_s3_l: "May volume",
+  hero_eyebrow: "Infinity International · Integrated Platform 2026",
+  hero_title: "All your services —",
+  hero_sub: "Real estate, tourism, health, insurance, banking, e-commerce, consulting, administration and employment — one workspace for the Infinity International team.",
+  hero_s1_n: "9",         hero_s1_l: "Core sectors",
+  hero_s2_n: "50+",       hero_s2_l: "Agents & consultants",
+  hero_s3_n: "AED 24.5M", hero_s3_l: "Monthly volume",
 
   add: "Add", export_btn: "Export", filter: "Filter",
   view_all: "View all", save: "Save", cancel: "Cancel",
@@ -200,7 +203,8 @@ const fr: Translations = {
   nav_orders: "Commandes",
   nav_travail: "Travail",
   nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit",
-  nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance",
+  nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
+  nav_news: "Actualités",
   nav_parametres: "Paramètres",
   nav_report: "Rapports",
 
@@ -236,12 +240,12 @@ const fr: Translations = {
   resend: "Renvoyer l'e-mail", back_login: "Retour à la connexion",
   need_help: "Besoin d'aide ?", contact_support: "Contacter le support",
 
-  hero_eyebrow: "Infinity Sélection · Printemps 2026",
-  hero_title: "L'immobilier d'exception aux Émirats.",
-  hero_sub: "Un espace unique pour les propriétés, les prospects, les contrats et le Visa Doré — pour les agents d'Infinity International.",
-  hero_s1_n: "1 284", hero_s1_l: "Propriétés",
-  hero_s2_n: "18",    hero_s2_l: "Ans aux EAU",
-  hero_s3_n: "AED 24,5M", hero_s3_l: "Volume mai",
+  hero_eyebrow: "Infinity International · Plateforme intégrée 2026",
+  hero_title: "Tous vos services —",
+  hero_sub: "Immobilier, tourisme, santé, assurance, banques, e-commerce, consulting, administrations et emploi — un seul espace de travail pour l'équipe Infinity International.",
+  hero_s1_n: "9",         hero_s1_l: "Secteurs principaux",
+  hero_s2_n: "50+",       hero_s2_l: "Agents & consultants",
+  hero_s3_n: "AED 24,5M", hero_s3_l: "Volume mensuel",
 
   add: "Ajouter", export_btn: "Exporter", filter: "Filtrer",
   view_all: "Voir tout", save: "Enregistrer", cancel: "Annuler",

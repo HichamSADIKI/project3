@@ -178,6 +178,17 @@ Prochaine partie recommandée : [description courte]
 
 ---
 
+## Orchestration multi-agents
+
+Pour toute tâche couvrant analyse + dev + tests + audit en même temps, charger le skill **`parallel-agents`** qui définit le pipeline complet 6 phases et les règles de coordination :
+
+```
+Phase 1 : Analyse (Explore)  →  Phase 2 : Dev parallèle  →  Phase 3 : Tests
+Phase 4 : Audit (sécurité + i18n + perf)  →  Phase 5 : Validation TS  →  Phase 6 : GitHub PR
+```
+
+---
+
 ## Anti-patterns à éliminer
 
 | Interdit | Raison |

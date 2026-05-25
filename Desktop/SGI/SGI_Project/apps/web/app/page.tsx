@@ -35,7 +35,9 @@ import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
 import { ScreenTravail } from "./screens/travail";
+import { ScreenMarketing } from "./screens/marketing";
 import { ScreenSectorCRM } from "./screens/sector-crm";
+import { ScreenSectorNews } from "./screens/sector-news";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
 
 export default function App() {
@@ -77,6 +79,15 @@ export default function App() {
         {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" confirmedDeals={confirmedDeals} />}
         {screen === "admin_crm"       && <ScreenSectorCRM sector="admin"       confirmedDeals={confirmedDeals} />}
         {screen === "travail_crm"     && <ScreenSectorCRM sector="travail"     confirmedDeals={confirmedDeals} />}
+        {screen === "realestate_news"  && <ScreenSectorNews sector="realestate" />}
+        {screen === "tourisme_news"    && <ScreenSectorNews sector="tourisme" />}
+        {screen === "sante_news"       && <ScreenSectorNews sector="sante" />}
+        {screen === "assurance_news"   && <ScreenSectorNews sector="assurance" />}
+        {screen === "banques_news"     && <ScreenSectorNews sector="banques" />}
+        {screen === "amazon_news"      && <ScreenSectorNews sector="amazon" />}
+        {screen === "consultants_news" && <ScreenSectorNews sector="consultants" />}
+        {screen === "admin_news"       && <ScreenSectorNews sector="admin" />}
+        {screen === "travail_news"     && <ScreenSectorNews sector="travail" />}
         {screen === "tourisme"  && <ScreenTourisme />}
         {screen === "sante"     && <ScreenSante />}
         {screen === "assurance" && <ScreenAssurance />}
@@ -91,6 +102,7 @@ export default function App() {
         {screen === "hr"        && <ScreenHR />}
         {screen === "it"        && <ScreenIT />}
         {screen === "finance"   && <ScreenFinance />}
+        {screen === "marketing" && <ScreenMarketing />}
         {screen === "report"    && <ScreenReports />}
         {screen === "parametres" && <ScreenParametres />}
         {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}

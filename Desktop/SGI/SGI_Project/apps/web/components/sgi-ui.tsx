@@ -72,6 +72,8 @@ export const IcWorkspace = () => <Ic><rect x="3" y="3" width="18" height="11" rx
 export const IcOrders    = () => <Ic><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ic>;
 export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></Ic>;
 export const IcTravail   = () => <Ic><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M12 12h.01M2 12h20"/></Ic>;
+export const IcMarketing = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/><circle cx="19" cy="5" r="2"/><path d="M19 3v4M17 5h4"/></Ic>;
+export const IcNews      = () => <Ic><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></Ic>;
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
@@ -118,17 +120,17 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm"
-  | "tourisme" | "tourisme_crm"
-  | "sante" | "sante_crm"
-  | "assurance" | "assurance_crm"
-  | "banques" | "banques_crm"
-  | "amazon" | "amazon_crm"
-  | "consultants" | "consultants_crm"
-  | "admin" | "admin_crm"
-  | "travail" | "travail_crm"
+  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news"
+  | "tourisme" | "tourisme_crm" | "tourisme_news"
+  | "sante" | "sante_crm" | "sante_news"
+  | "assurance" | "assurance_crm" | "assurance_news"
+  | "banques" | "banques_crm" | "banques_news"
+  | "amazon" | "amazon_crm" | "amazon_news"
+  | "consultants" | "consultants_crm" | "consultants_news"
+  | "admin" | "admin_crm" | "admin_news"
+  | "travail" | "travail_crm" | "travail_news"
   | "erp" | "workspace" | "audit"
-  | "backoffice" | "hr" | "it" | "finance"
+  | "backoffice" | "hr" | "it" | "finance" | "marketing"
   | "report" | "parametres";
 
 type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey };
@@ -151,55 +153,64 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "contract",       icon: <IcContract /> },
       { key: "rental",         icon: <IcRental /> },
       { key: "visa",           icon: <IcVisa />, badge: 3 },
-      { key: "realestate_crm", icon: <IcCRM /> },
+      { key: "realestate_crm",  icon: <IcCRM /> },
+      { key: "realestate_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
     children: [
-      { key: "tourisme",     icon: <IcTourisme />, labelKey: "dash" },
-      { key: "tourisme_crm", icon: <IcCRM /> },
+      { key: "tourisme",      icon: <IcTourisme />, labelKey: "dash" },
+      { key: "tourisme_crm",  icon: <IcCRM /> },
+      { key: "tourisme_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "sante",       groupKey: "sante",       icon: <IcSante />,
     children: [
-      { key: "sante",     icon: <IcSante />, labelKey: "dash" },
-      { key: "sante_crm", icon: <IcCRM /> },
+      { key: "sante",      icon: <IcSante />, labelKey: "dash" },
+      { key: "sante_crm",  icon: <IcCRM /> },
+      { key: "sante_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "assurance",   groupKey: "assurance",   icon: <IcAssurance />,
     children: [
-      { key: "assurance",     icon: <IcAssurance />, labelKey: "dash" },
-      { key: "assurance_crm", icon: <IcCRM /> },
+      { key: "assurance",      icon: <IcAssurance />, labelKey: "dash" },
+      { key: "assurance_crm",  icon: <IcCRM /> },
+      { key: "assurance_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "banques",     groupKey: "banques",     icon: <IcBanques />,
     children: [
-      { key: "banques",     icon: <IcBanques />, labelKey: "dash" },
-      { key: "banques_crm", icon: <IcCRM /> },
+      { key: "banques",      icon: <IcBanques />, labelKey: "dash" },
+      { key: "banques_crm",  icon: <IcCRM /> },
+      { key: "banques_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "amazon",      groupKey: "amazon",      icon: <IcAmazon />,
     children: [
-      { key: "amazon",     icon: <IcAmazon />, labelKey: "dash" },
-      { key: "amazon_crm", icon: <IcCRM /> },
+      { key: "amazon",      icon: <IcAmazon />, labelKey: "dash" },
+      { key: "amazon_crm",  icon: <IcCRM /> },
+      { key: "amazon_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "consultants", groupKey: "consultants", icon: <IcConsult />,
     children: [
-      { key: "consultants",     icon: <IcConsult />, labelKey: "dash" },
-      { key: "consultants_crm", icon: <IcCRM /> },
+      { key: "consultants",      icon: <IcConsult />, labelKey: "dash" },
+      { key: "consultants_crm",  icon: <IcCRM /> },
+      { key: "consultants_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "admin",       groupKey: "admin",       icon: <IcAdmin />,
     children: [
-      { key: "admin",     icon: <IcAdmin />, labelKey: "dash" },
-      { key: "admin_crm", icon: <IcCRM /> },
+      { key: "admin",      icon: <IcAdmin />, labelKey: "dash" },
+      { key: "admin_crm",  icon: <IcCRM /> },
+      { key: "admin_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "travail",     groupKey: "travail",     icon: <IcTravail />,
     children: [
-      { key: "travail",     icon: <IcTravail />, labelKey: "dash" },
-      { key: "travail_crm", icon: <IcCRM /> },
+      { key: "travail",      icon: <IcTravail />, labelKey: "dash" },
+      { key: "travail_crm",  icon: <IcCRM /> },
+      { key: "travail_news", icon: <IcNews /> },
     ],
   },
   { type: "item",  key: "erp",         icon: <IcERP /> },
@@ -207,9 +218,10 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "audit",       icon: <IcAudit /> },
   { type: "group", id: "backoffice",   groupKey: "backoffice", icon: <IcBackOffice />,
     children: [
-      { key: "hr",      icon: <IcHR /> },
-      { key: "it",      icon: <IcIT /> },
-      { key: "finance", icon: <IcFinance /> },
+      { key: "hr",        icon: <IcHR /> },
+      { key: "it",        icon: <IcIT /> },
+      { key: "finance",   icon: <IcFinance /> },
+      { key: "marketing", icon: <IcMarketing /> },
     ],
   },
   { type: "item",  key: "report",      icon: <IcReport /> },
@@ -276,11 +288,14 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa, travail: t.nav_travail,
-      realestate_crm: t.nav_crm, tourisme_crm: t.nav_crm, sante_crm: t.nav_crm,
-      assurance_crm: t.nav_crm, banques_crm: t.nav_crm, amazon_crm: t.nav_crm,
-      consultants_crm: t.nav_crm, admin_crm: t.nav_crm, travail_crm: t.nav_crm,
+      realestate_crm: t.nav_crm,  tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
+      assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
+      consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
+      realestate_news: t.nav_news, tourisme_news: t.nav_news, sante_news: t.nav_news,
+      assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
+      consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
       erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
-      backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance,
+      backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, marketing: t.nav_marketing,
       report: t.nav_report, parametres: t.nav_parametres,
     };
     return map[key];

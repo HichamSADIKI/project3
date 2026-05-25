@@ -257,3 +257,4 @@ api_key = "sk-..."  # use os.getenv()
 | `test-coverage` | Stratégie tests, couverture, fixtures multi-tenant |
 | `perf-optimizer` | Optimisation performances, caching, N+1 queries |
 | `dev-process` | **Toute demande complexe** : questions → sous-questions → solution → plan → confirmation → dev → déploiement → tests → audit sécurité → validation. Son à chaque étape. |
+| `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. Pipeline 6 phases, règles de coordination, templates de prompts, checklist GitHub. |
