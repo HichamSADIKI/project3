@@ -12,6 +12,7 @@ import { ScreenContracts } from "./screens/contracts";
 import { ScreenGoldenVisa } from "./screens/golden-visa";
 import { ScreenFinance } from "./screens/finance";
 import { ScreenPortal } from "./screens/portal";
+import { ScreenRentals } from "./screens/rentals";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -36,18 +37,6 @@ export default function App() {
         {screen === "visa"     && <ScreenGoldenVisa />}
         {screen === "finance"  && <ScreenFinance />}
         {screen === "report"   && <ScreenReports />}
-      </div>
-    </div>
-  );
-}
-
-function ScreenRentals() {
-  const t = useT();
-  return (
-    <div style={{ flex: 1, display: "grid", placeItems: "center", background: "var(--bg-cream)", color: "var(--ink-3)" }}>
-      <div style={{ textAlign: "center" }}>
-        <div className="font-display" style={{ fontSize: 36, color: "var(--ink-4)" }}>{t.nav_rental}</div>
-        <div style={{ fontSize: 13, marginTop: 8, color: "var(--ink-4)" }}>{t.coming_soon}</div>
       </div>
     </div>
   );

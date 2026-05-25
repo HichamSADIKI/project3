@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useRef } from "react";
-import { Topbar, Eyebrow, Chip, IcFilter, IcPlus, IcCheck, IcClock, IcPhone, IcMail, IcSearch } from "@/components/sgi-ui";
+import { Topbar, Eyebrow, Chip, IcFilter, IcPlus, IcCheck, IcClock, IcPhone, IcMail, IcSearch, IcList, IcGrid } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint, type Breakpoint } from "@/lib/hooks";
 
@@ -461,7 +461,7 @@ function LeadCard({ l, stageKey, onDragStart, onDragEnd, draggingId, onSelect }:
 
 /* ─── KanbanCol ────────────────────────────────────────────────────── */
 
-function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, draggingFromStage, onSelect, isFiltered }: {
+function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, draggingFromStage, onSelect, isFiltered, onAddInStage }: {
   stage: typeof STAGES[0]; leads: Lead[];
   onDragStart: (e: React.DragEvent, id: string, fromStage: string) => void;
   onDragEnd: () => void;
@@ -469,6 +469,7 @@ function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, d
   draggingId: string | null; draggingFromStage: string | null;
   onSelect: (l: Lead, stage: string) => void;
   isFiltered: boolean;
+  onAddInStage: (stage: string) => void;
 }) {
   const { lang } = useLang();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -524,7 +525,7 @@ function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, d
             {isDragOver ? "↓ Drop here" : isFiltered ? "No match" : "—"}
           </div>
         )}
-        <button style={{ padding: "10px 8px", borderRadius: 6, fontSize: 11, background: "transparent", border: "1px dashed var(--line)", color: "var(--ink-4)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0 }}>
+        <button onClick={() => onAddInStage(stage.key)} style={{ padding: "10px 8px", borderRadius: 6, fontSize: 11, background: "transparent", border: "1px dashed var(--line)", color: "var(--ink-4)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4, flexShrink: 0 }}>
           <IcPlus /> Add
         </button>
       </div>
@@ -780,7 +781,7 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "Inter, sans-serif", outline: "none", width: "100%", boxSizing: "border-box",
 };
 
-function AddLeadModal({ onClose, onAdd }: { onClose: () => void; onAdd: (l: Lead) => void }) {
+function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; onAdd: (l: Lead) => void; targetStage?: string }) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -821,7 +822,14 @@ function AddLeadModal({ onClose, onAdd }: { onClose: () => void; onAdd: (l: Lead
         <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <Eyebrow>CRM · New lead</Eyebrow>
-            <div className="font-display" style={{ fontSize: 20, marginTop: 4 }}>Add a lead</div>
+            <div className="font-display" style={{ fontSize: 20, marginTop: 4 }}>
+            Add a lead
+            {targetStage && targetStage !== "new" && (
+              <span style={{ fontSize: 12, fontWeight: 400, color: "var(--ink-4)", marginInlineStart: 8 }}>
+                → {STAGES.find(s => s.key === targetStage)?.en ?? targetStage}
+              </span>
+            )}
+          </div>
           </div>
           <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--ink-3)", fontSize: 18, lineHeight: 1 }}>×</button>
         </div>
@@ -1003,6 +1011,130 @@ function LostReasonModal({ leadName, onConfirm, onClose }: {
   );
 }
 
+/* ─── LeadListView ───────────────────────────────────────────────────── */
+
+function LeadListView({ leads, onSelect }: {
+  leads: Record<string, Lead[]>;
+  onSelect: (l: Lead, stage: string) => void;
+}) {
+  const { lang } = useLang();
+  const [sortKey, setSortKey] = useState<"budget" | "score" | "name" | "days">("score");
+  const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  type FlatLead = Lead & { stageKey: string; stageObj: typeof STAGES[0] };
+  const allLeads: FlatLead[] = STAGES.flatMap(s =>
+    (leads[s.key] ?? []).map(l => ({ ...l, stageKey: s.key, stageObj: s }))
+  );
+
+  const sorted = [...allLeads].sort((a, b) => {
+    const dir = sortDir === "desc" ? -1 : 1;
+    if (sortKey === "budget") return dir * (a.budget - b.budget);
+    if (sortKey === "score")  return dir * (a.score  - b.score);
+    if (sortKey === "days")   return dir * ((a.lastContactDays ?? 0) - (b.lastContactDays ?? 0));
+    return dir * a.name.localeCompare(b.name);
+  });
+
+  function toggleSort(k: typeof sortKey) {
+    if (sortKey === k) setSortDir(d => d === "desc" ? "asc" : "desc");
+    else { setSortKey(k); setSortDir("desc"); }
+  }
+
+  const hdrStyle = (k?: typeof sortKey): React.CSSProperties => ({
+    fontSize: 10.5, letterSpacing: "0.1em", color: k && sortKey === k ? "var(--ink)" : "var(--ink-4)",
+    textTransform: "uppercase", cursor: k ? "pointer" : "default",
+    userSelect: "none", display: "inline-flex", alignItems: "center", gap: 3,
+  });
+
+  const COLS = "2fr 100px 110px 50px 120px 50px 80px 60px";
+
+  return (
+    <div style={{ overflow: "auto", flex: 1 }}>
+      {/* Header row */}
+      <div style={{ display: "grid", gridTemplateColumns: COLS, padding: "10px 18px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-inset)", position: "sticky", top: 0, zIndex: 1 }}>
+        {(["Name · Country", "Budget", "Property", "Score", "Stage", "Agent", "Contact", "Follow-up"] as const).map((label, i) => {
+          const keyMap: (typeof sortKey | undefined)[] = ["name", "budget", undefined, "score", undefined, undefined, "days", undefined];
+          const k = keyMap[i];
+          return (
+            <span key={label} onClick={k ? () => toggleSort(k) : undefined} style={hdrStyle(k)}>
+              {label}
+              {k && sortKey === k && <span style={{ fontSize: 9 }}>{sortDir === "desc" ? "↓" : "↑"}</span>}
+            </span>
+          );
+        })}
+      </div>
+
+      {sorted.length === 0 && (
+        <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: "var(--ink-4)" }}>No leads match your filters</div>
+      )}
+
+      {sorted.map(l => {
+        const scoreColor = l.score >= 80 ? "var(--emerald)" : l.score >= 50 ? "var(--gold)" : "var(--ink-4)";
+        const isCold = (l.lastContactDays ?? 0) > 5;
+        const stageLabel = lang === "ar" ? l.stageObj.ar : lang === "fr" ? l.stageObj.fr : l.stageObj.en;
+        return (
+          <div
+            key={l.id}
+            onClick={() => onSelect(l, l.stageKey)}
+            onMouseEnter={() => setHoveredId(l.id)}
+            onMouseLeave={() => setHoveredId(null)}
+            style={{
+              display: "grid", gridTemplateColumns: COLS, padding: "11px 18px",
+              borderBottom: "1px solid var(--line-soft)", alignItems: "center",
+              cursor: "pointer", fontSize: 12,
+              background: hoveredId === l.id ? "var(--bg-inset)" : "transparent",
+              transition: "background 0.1s",
+            }}
+          >
+            {/* Name + country */}
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontWeight: 600, color: "var(--ink)" }}>{l.name}</span>
+                {l.gold && <Chip tone="gold">GV</Chip>}
+                {isCold && (
+                  <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "rgba(234,88,12,0.1)", color: "#ea580c", border: "1px solid rgba(234,88,12,0.2)" }}>COLD</span>
+                )}
+              </div>
+              <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 1 }}>{l.ctry} · {l.channel}</div>
+            </div>
+
+            {/* Budget */}
+            <span className="font-display tnum" style={{ fontSize: 12.5, color: l.gold ? "var(--gold-deep)" : "var(--ink)" }}>
+              AED {(l.budget / 1_000_000).toFixed(1)}M
+            </span>
+
+            {/* Property */}
+            <span style={{ fontSize: 11, color: "var(--ink-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{l.prop}</span>
+
+            {/* Score badge */}
+            <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 7px", borderRadius: 4, background: scoreColor, color: "#fff", display: "inline-block" }} className="tnum">
+              {l.score}
+            </span>
+
+            {/* Stage pill */}
+            <span style={{ fontSize: 10, padding: "3px 8px", borderRadius: 999, border: "1.5px solid " + l.stageObj.color, color: l.stageObj.color, fontWeight: 600, display: "inline-block", whiteSpace: "nowrap" }}>
+              {stageLabel}
+            </span>
+
+            {/* Agent avatar */}
+            <div style={{ width: 24, height: 24, borderRadius: 12, background: l.agent !== "—" ? "var(--ink)" : "var(--bg-inset)", color: l.agent !== "—" ? "var(--gold)" : "var(--ink-4)", fontSize: 9.5, display: "grid", placeItems: "center", fontWeight: 600, border: l.agent === "—" ? "1px dashed var(--line-strong)" : "none", flexShrink: 0 }}>
+              {l.agent === "—" ? "?" : l.agent}
+            </div>
+
+            {/* Last contact */}
+            <span style={{ fontSize: 11, color: isCold ? "#ea580c" : "var(--ink-4)" }} className="tnum">
+              {l.lastContactDays !== undefined ? (l.lastContactDays === 0 ? "Today" : `${l.lastContactDays}d ago`) : l.days}
+            </span>
+
+            {/* Follow-up dots */}
+            {l.followUp ? <FollowUpTimeline followUp={l.followUp} mode="compact" /> : <span />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ─── ScreenCRM ─────────────────────────────────────────────────────── */
 
 export function ScreenCRM() {
@@ -1011,7 +1143,9 @@ export function ScreenCRM() {
   const bp    = useBreakpoint();
   const isMob = bp === "mobile";
 
+  const [view, setView] = useState<"kanban" | "list">("kanban");
   const [leads, setLeads] = useState<Record<string, Lead[]>>(LEADS_INIT);
+  const [addTargetStage, setAddTargetStage] = useState<string>("new");
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingFromStage, setDraggingFromStage] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<{ lead: Lead; stage: string } | null>(null);
@@ -1069,7 +1203,7 @@ export function ScreenCRM() {
   }
 
   function handleAddLead(lead: Lead) {
-    setLeads(prev => ({ ...prev, new: [lead, ...(prev.new ?? [])] }));
+    setLeads(prev => ({ ...prev, [addTargetStage]: [lead, ...(prev[addTargetStage] ?? [])] }));
   }
 
   function handleMarkLost(reason: string) {
@@ -1101,7 +1235,17 @@ export function ScreenCRM() {
       <Topbar title={t.t_crm} crumb={[`${counts.reduce((a, b) => a + b, 0)} leads`, "AED " + (totalBudget / 1_000_000).toFixed(1) + "M", coldTotal > 0 ? `${coldTotal} cold` : ""]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost" onClick={() => exportCSV(filteredLeads)}><IcFilter />&nbsp;Export CSV</button>}
         {!isMob && <button className="sgi-btn sgi-btn-ghost">Automations · 3 active</button>}
-        {!isMob && <button className="sgi-btn sgi-btn-primary" onClick={() => setAddModalOpen(true)}><IcPlus />&nbsp;{t.add}</button>}
+        {!isMob && (
+          <div style={{ display: "flex", gap: 2, padding: 3, background: "var(--bg-inset)", borderRadius: "var(--r)" }}>
+            <button onClick={() => setView("kanban")} style={{ padding: "4px 8px", borderRadius: 4, border: "none", cursor: "pointer", display: "flex", alignItems: "center", background: view === "kanban" ? "var(--bg-ivory)" : "transparent", color: view === "kanban" ? "var(--ink)" : "var(--ink-3)", boxShadow: view === "kanban" ? "var(--shadow-1)" : "none" }}>
+              <IcGrid />
+            </button>
+            <button onClick={() => setView("list")} style={{ padding: "4px 8px", borderRadius: 4, border: "none", cursor: "pointer", display: "flex", alignItems: "center", background: view === "list" ? "var(--bg-ivory)" : "transparent", color: view === "list" ? "var(--ink)" : "var(--ink-3)", boxShadow: view === "list" ? "var(--shadow-1)" : "none" }}>
+              <IcList />
+            </button>
+          </div>
+        )}
+        {!isMob && <button className="sgi-btn sgi-btn-primary" onClick={() => { setAddTargetStage("new"); setAddModalOpen(true); }}><IcPlus />&nbsp;{t.add}</button>}
       </Topbar>
 
       <FilterBar
@@ -1187,20 +1331,39 @@ export function ScreenCRM() {
             </div>
           )}
 
-          {/* Kanban — tablet: horizontal scroll, desktop: grid */}
-          <div style={{ flex: 1, overflowX: bp === "tablet" ? "auto" : "visible", overflowY: "hidden", minHeight: 0 }}>
-            <div style={{ display: "grid", gridTemplateColumns: bp === "tablet" ? "repeat(6, minmax(200px, 1fr))" : "repeat(6, 1fr)", gap: 10, height: "100%", minHeight: 0 }}>
-              {STAGES.map(s => (
-                <KanbanCol
-                  key={s.key} stage={s} leads={filteredLeads[s.key] ?? []}
-                  onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDrop={handleDrop}
-                  draggingId={draggingId} draggingFromStage={draggingFromStage}
-                  onSelect={(l, stage) => setSelectedLead({ lead: l, stage })}
-                  isFiltered={isFilterActive(filter)}
-                />
-              ))}
+          {/* Kanban OR List view */}
+          {view === "kanban" ? (
+            <div style={{ flex: 1, overflowX: bp === "tablet" ? "auto" : "visible", overflowY: "hidden", minHeight: 0 }}>
+              <div style={{ display: "grid", gridTemplateColumns: bp === "tablet" ? "repeat(6, minmax(200px, 1fr))" : "repeat(6, 1fr)", gap: 10, height: "100%", minHeight: 0 }}>
+                {STAGES.map(s => (
+                  <KanbanCol
+                    key={s.key} stage={s} leads={filteredLeads[s.key] ?? []}
+                    onDragStart={handleDragStart} onDragEnd={handleDragEnd} onDrop={handleDrop}
+                    draggingId={draggingId} draggingFromStage={draggingFromStage}
+                    onSelect={(l, stage) => setSelectedLead({ lead: l, stage })}
+                    isFiltered={isFilterActive(filter)}
+                    onAddInStage={(stg) => { setAddTargetStage(stg); setAddModalOpen(true); }}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="sgi-card" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line-soft)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
+                <div>
+                  <Eyebrow>All leads · {Object.values(filteredLeads).flat().length} showing</Eyebrow>
+                  <div className="font-display" style={{ fontSize: 18, marginTop: 2 }}>Pipeline list</div>
+                </div>
+                <div style={{ fontSize: 11.5, color: "var(--ink-3)" }}>
+                  Click a row to open the detail drawer
+                </div>
+              </div>
+              <LeadListView
+                leads={filteredLeads}
+                onSelect={(l, stage) => setSelectedLead({ lead: l, stage })}
+              />
+            </div>
+          )}
         </main>
       )}
 
@@ -1224,7 +1387,7 @@ export function ScreenCRM() {
       )}
 
       {addModalOpen && (
-        <AddLeadModal onClose={() => setAddModalOpen(false)} onAdd={handleAddLead} />
+        <AddLeadModal onClose={() => setAddModalOpen(false)} onAdd={handleAddLead} targetStage={addTargetStage} />
       )}
     </div>
   );

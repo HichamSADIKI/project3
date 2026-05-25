@@ -1,230 +1,193 @@
-# Skill : dev-process
-# Processus de développement structuré — SGI
+# Skill : dev-process v2
+# Processus de développement optimisé — SGI
 
-## Quand charger ce skill
+## Quand charger
 
-Charge ce skill pour **toute nouvelle demande complexe** : nouvelle fonctionnalité, nouveau module, refactoring majeur, intégration d'API, changement d'architecture.
+Charger pour toute demande de développement non triviale : nouvelle fonctionnalité, nouveau module, refactoring, intégration API, nouveau composant complexe.
 
-Ne pas charger pour : corrections de bugs simples, ajustements de style, modifications de texte.
-
----
-
-## Règle absolue
-
-**Ne jamais coder sans avoir obtenu la confirmation explicite du client à chaque étape.**
-Chaque phase se termine par une question de validation. Le développement ne commence qu'après accord.
+Ne pas charger pour : correction de bug simple, changement de texte, ajustement de couleur.
 
 ---
 
-## Phase 1 — Compréhension de la demande
+## Philosophie v2 — Agir vite, vérifier souvent
 
-### 1.1 Questions générales
+**Une seule confirmation avant de commencer. Ensuite, autonomie totale.**
 
-Poser d'abord 3 à 5 questions larges pour cerner la demande :
-
-- Quel est le besoin métier derrière cette fonctionnalité ?
-- Qui sont les utilisateurs concernés (agents, managers, legal, clients) ?
-- Y a-t-il des contraintes de délai ou de priorité ?
-- Existe-t-il déjà quelque chose de similaire dans l'application ?
-- Quels sont les critères de succès (comment savoir que c'est réussi) ?
-
-### 1.2 Décorticage en sous-questions
-
-Décomposer la demande en blocs indépendants pour réduire la complexité :
-
-```
-Demande principale
-├── Sous-question 1 : données et modèles impactés
-├── Sous-question 2 : composants UI concernés
-├── Sous-question 3 : logique backend (API / service)
-├── Sous-question 4 : règles métier spécifiques SGI
-├── Sous-question 5 : impact multi-tenant, RTL, i18n
-└── Sous-question 6 : tests et sécurité
-```
-
-### 1.3 Proposition de solution
-
-Présenter :
-- L'approche choisie et pourquoi
-- Les alternatives écartées et pourquoi
-- Les risques identifiés
-
-### 1.4 Plan d'actions détaillé
-
-Lister chaque étape avec : fichier(s) impacté(s) · durée estimée · dépendances.
-
-```
-Étape 1 : [description]  → fichier(s) : X, Y
-Étape 2 : [description]  → fichier(s) : Z
-...
-```
-
-> **→ CONFIRMATION REQUISE** : "Ce plan vous convient-il ? Je commence dès votre accord."
+- Plan en 3 lignes → validation → développement autonome partie par partie
+- TypeScript check obligatoire après chaque fichier créé (`0 erreur = on continue`)
+- Screenshot Chrome DevTools après chaque composant UI majeur
+- Livraison incrémentale : chaque partie est fonctionnelle avant de passer à la suivante
+- 2 lignes de résumé max entre chaque partie, pas de récapitulatif complet
 
 ---
 
-## Phase 2 — Développement
+## Workflow
 
-Implémenter étape par étape selon le plan validé.
+### Étape 0 — Lire d'abord (toujours en parallèle)
 
-Règles pendant le développement :
-- Respecter les 3 lois architecturales (multi-tenant, PostGIS, RTL) du CLAUDE.md
-- TypeScript strict : aucun `any` non documenté
-- Aucun `"use client"` inutile
-- Commits en français : `feat(module): description`
+Avant d'écrire une seule ligne, lire tous les fichiers pertinents en un seul message :
 
-À la fin du développement :
-
-```bash
-npx tsc --noEmit   # Vérification TypeScript
-make lint          # ESLint + Ruff
+```
+Read(screen cible) + Read(composants UI réutilisés) + Read(i18n.ts) + Read(sgi-ui.tsx partiel)
 ```
 
-> **→ CONFIRMATION REQUISE** : "Développement terminé. Voici ce qui a été créé : [résumé]. Puis-je lancer le déploiement ?"
-
-Jouer le son de fin d'étape :
-```bash
-afplay /System/Library/Sounds/Glass.aiff
-```
+Identifier : composants existants, patterns utilisés, imports disponibles, données déjà présentes.
 
 ---
 
-## Phase 3 — Déploiement
+### Étape 1 — Plan minimal
 
-Selon l'environnement :
+Présenter sous cette forme exacte, sans texte superflu :
 
-```bash
-# Frontend
-pnpm build --filter=web      # Build de production
-pnpm dev --filter=web        # Vérification locale port 3000
-
-# Backend (si impacté)
-make migrate                 # Migrations Alembic
-make up                      # Restart containers
-make healthcheck             # Vérification santé
-
-# Si nouveau module backend
-make scale n=5               # Vérification scalabilité
+```
+Partie 1 — [livrable précis]  → fichiers : X, Y
+Partie 2 — [livrable précis]  → fichiers : Z
+Partie 3 — [livrable précis]  → fichiers : W
 ```
 
-> **→ CONFIRMATION REQUISE** : "Déploiement effectué. L'application est accessible. Puis-je lancer les tests ?"
-
-Jouer le son de fin d'étape :
-```bash
-afplay /System/Library/Sounds/Glass.aiff
-```
+→ **Confirmation unique**, puis développement sans interruption.
 
 ---
 
-## Phase 4 — Tests
+### Étape 2 — Développer partie par partie
 
-### Tests automatisés
+Pour chaque partie, dans l'ordre :
+
+1. **Écrire le code** — Edit (modification ciblée) ou Write (nouveau fichier)
+2. **TypeScript check** — `npx tsc --noEmit` depuis `apps/web` → 0 erreur obligatoire
+3. **Screenshot** via MCP chrome-devtools (si composant UI visible)
+4. **Annoncer** le résultat en 2 lignes maximum, puis attaquer la partie suivante
+
+---
+
+### Étape 3 — Vérifications obligatoires par fichier
+
+Avant de marquer une partie terminée, vérifier :
+
+- [ ] **CSS logique** — `ms-` `me-` `ps-` `pe-` `start-` `end-` · jamais `ml-` `mr-` `pl-` `pr-` `left-` `right-`
+- [ ] **Multi-tenant** — `company_id` sur toutes nouvelles tables, filtre dans chaque requête
+- [ ] **TypeScript strict** — aucun `any` non documenté, types explicites sur tous les props
+- [ ] **Server Components** — `"use client"` uniquement si hooks React ou event handlers
+- [ ] **Montants AED** — `Intl.NumberFormat("en-AE", { currency: "AED" })` — chiffres latins toujours
+- [ ] **Soft delete** — `deleted_at TIMESTAMPTZ` nullable, jamais de `DELETE FROM`
+- [ ] **i18n** — toutes les chaînes visibles passent par `useT()` / `t.xxx`
+
+---
+
+## Chrome DevTools MCP — Vérification visuelle
+
+Après chaque composant UI majeur (page, modal, panneau), utiliser le MCP chrome-devtools pour :
 
 ```bash
-make test                    # Suite complète
-pnpm vitest run              # Tests unitaires frontend
-pytest tests/routers/test_{module}.py   # Module backend ciblé
-pnpm playwright test         # Tests E2E
+# Naviguer vers la page en développement
+mcp_puppeteer_navigate(url: "http://localhost:3000")
+
+# Screenshot desktop
+mcp_puppeteer_screenshot(name: "desktop")
+
+# Screenshot simulé mobile (viewport réduit)
+mcp_puppeteer_evaluate(script: "window.resizeTo(390, 844)")
+mcp_puppeteer_screenshot(name: "mobile")
+
+# Vérifier la console (erreurs JS, warnings React)
+mcp_puppeteer_evaluate(script: "window.__errors ?? []")
 ```
 
-### Tests manuels (golden path)
+Vérifier sur le screenshot :
+- Layout général et alignement
+- RTL correct si langue arabe
+- Pas de débordement (`overflow` non voulu)
+- Responsive mobile vs desktop
+- Couleurs et contrastes cohérents avec le design system
+- Modals et drawers centrés et fermables
 
-Vérifier dans l'ordre :
-1. Fonctionnement nominal (cas principal)
-2. Cas limites (données vides, valeurs max, champs optionnels)
-3. Changement de langue AR → EN → FR (pas de mélange)
-4. Mode RTL (Arabic) — layout correct, pas de propriétés physiques CSS
-5. Isolation multi-tenant (company_id filtré partout)
-6. Responsive (si applicable)
+---
 
-Couverture minimale requise : **≥ 80% sur la logique métier** (sinon PR bloquée).
+## Patterns d'efficacité
 
-> **→ CONFIRMATION REQUISE** : "Tests passés : [X/X]. Rapport : [résumé]. Puis-je procéder à l'audit sécurité ?"
+### Lecture parallèle (toujours)
+```
+# Un seul message pour N fichiers — jamais séquentiellement
+Read(A) + Read(B) + Read(C)
+```
 
-Jouer le son de fin d'étape :
+### Écriture ciblée
+- `Edit` — modifier : old_string doit être la chaîne minimale unique dans le fichier
+- `Write` — nouveaux fichiers uniquement, ou réécriture complète justifiée
+- Ne jamais réécrire un fichier entier pour changer 3 lignes
+
+### TypeScript check systématique
 ```bash
-afplay /System/Library/Sounds/Glass.aiff
+# Toujours depuis apps/web
+cd /Users/sadiki/Desktop/SGI/SGI_Project/apps/web && npx tsc --noEmit 2>&1
+```
+Des erreurs → corriger immédiatement avant la partie suivante.
+
+### Structure standard d'un nouveau screen
+```
+1. "use client" + imports React + imports sgi-ui + imports hooks
+2. Types TypeScript (type Foo = { ... })
+3. Données/constantes (ITEMS: Foo[], STATUS_MAP, etc.)
+4. Sous-composants utilitaires (du plus simple au plus complexe)
+5. Composant principal (ScreenXxx)
+6. Modals / drawers (si applicables)
+```
+
+### Structure standard d'un modal multi-étapes
+```
+1. Type PropForm avec tous les champs
+2. INIT_FORM constant
+3. Helper components inline (FField, Pills, TagChip)
+4. Composant modal avec useState(step) et useState(form)
+5. Validation canAdvance par étape
+6. Footer Back/Next/Save avec disabled si invalide
 ```
 
 ---
 
-## Phase 5 — Audit sécurité
+## Checklist avant livraison finale
 
-Vérifier systématiquement :
-
-### Multi-tenant
-- [ ] Toutes les requêtes filtrent par `company_id`
-- [ ] RLS activé sur les nouvelles tables
-- [ ] JWT middleware injecte bien `company_id`
-
-### Injections
-- [ ] Aucune interpolation de chaîne dans les requêtes SQL
-- [ ] Paramètres Pydantic v2 validés à l'entrée
-- [ ] Aucun `eval()` côté frontend
-
-### Données sensibles
-- [ ] Aucun secret hardcodé (`os.getenv()` uniquement)
-- [ ] Aucune clé API dans le code ou les commits
-- [ ] `.env` listé dans `.gitignore`
-
-### Authentification
-- [ ] Routes protégées par JWT
-- [ ] Expiration des tokens gérée
-- [ ] Pas d'accès non authentifié aux ressources privées
-
-### Frontend
-- [ ] Aucun XSS possible (pas de `dangerouslySetInnerHTML` non sanitisé)
-- [ ] `"use client"` uniquement là où nécessaire
-- [ ] Données utilisateur jamais exposées côté serveur sans filtre
-
-> **→ CONFIRMATION REQUISE** : "Audit sécurité complété. Points vérifiés : [liste]. [Alertes éventuelles]. Puis-je valider la fonctionnalité ?"
-
-Jouer le son de fin d'étape :
 ```bash
-afplay /System/Library/Sounds/Glass.aiff
+npx tsc --noEmit          # TypeScript : 0 erreur
+```
+
+Si disponible :
+```bash
+make lint                  # ESLint + Ruff
+pnpm vitest run            # Tests unitaires
 ```
 
 ---
 
-## Phase 6 — Validation finale
-
-Résumé complet de la livraison :
+## Résumé de livraison (format standard)
 
 ```
-✅ Fonctionnalité : [nom]
-✅ Fichiers modifiés : [liste]
-✅ Tests : [X passés / X total]
-✅ Couverture : [X%]
-✅ Audit sécurité : [OK / points à surveiller]
-✅ Déploiement : [environnement]
-✅ Commit : [hash ou référence]
-```
-
-Signaler tout point d'attention pour la suite (dette technique, améliorations futures possibles, edge cases connus).
-
-Jouer le son de validation finale :
-```bash
-afplay /System/Library/Sounds/Hero.aiff
+[Partie X terminée]
+Ce qui a été ajouté : [liste en bullets, 1 ligne chacun]
+Prochaine partie recommandée : [description courte]
 ```
 
 ---
 
-## Récapitulatif des sons
+## Sons de progression
 
-| Étape terminée | Commande |
+| Moment | Commande |
 |---|---|
-| Développement | `afplay /System/Library/Sounds/Glass.aiff` |
-| Déploiement | `afplay /System/Library/Sounds/Glass.aiff` |
-| Tests | `afplay /System/Library/Sounds/Glass.aiff` |
-| Audit sécurité | `afplay /System/Library/Sounds/Glass.aiff` |
-| Validation finale | `afplay /System/Library/Sounds/Hero.aiff` |
+| Partie terminée | `afplay /System/Library/Sounds/Glass.aiff` |
+| Livraison finale | `afplay /System/Library/Sounds/Hero.aiff` |
 
 ---
 
-## Anti-patterns à éviter
+## Anti-patterns à éliminer
 
-- Coder sans avoir posé de questions et reçu une confirmation
-- Sauter une phase sous prétexte de rapidité
-- Marquer une phase "terminée" sans avoir joué le son
-- Proposer un plan et commencer à coder dans le même message
-- Committer avec des secrets ou des `console.log` de debug
+| Interdit | Raison |
+|---|---|
+| Réécrire un fichier entier pour 3 lignes | Edit est plus sûr et plus rapide |
+| Lire les fichiers séquentiellement | Lecture parallèle = 3× plus rapide |
+| Passer à la partie suivante avec des erreurs TS | Les erreurs s'accumulent et bloquent |
+| CSS physique `ml-` `mr-` dans un composant partagé | Casse le RTL arabe |
+| `"use client"` par défaut | Les Server Components sont plus performants |
+| Ajouter des features non demandées | Scope creep, complexité inutile |
+| Récapitulatif complet entre chaque partie | Bruit inutile, ralentit la lecture |
+| Commits avec des secrets ou console.log | Risque sécurité |
+| Confirmation à chaque micro-étape | Ralentit inutilement le développement |

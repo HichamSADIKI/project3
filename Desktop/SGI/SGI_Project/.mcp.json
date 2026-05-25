@@ -6,6 +6,13 @@
       "env": {
         "GEMINI_API_KEY": "AIzaSyDn-onC37PGo7xFUO7A8LbjfirHn4A1tLU"
       }
+    },
+    "puppeteer": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-puppeteer"],
+      "env": {
+        "PUPPETEER_LAUNCH_OPTIONS": "{\"headless\": false, \"args\": [\"--no-sandbox\", \"--disable-setuid-sandbox\"]}"
+      }
     }
   }
 }
