@@ -23,6 +23,9 @@ import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
 import { ScreenReports } from "./screens/reports";
+import { ScreenClients } from "./screens/clients";
+import { ScreenClientsPersonne } from "./screens/clients-personne";
+import { ScreenClientsSociete } from "./screens/clients-societe";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -56,6 +59,9 @@ export default function App() {
         {screen === "visa"      && <ScreenGoldenVisa />}
         {screen === "finance"  && <ScreenFinance />}
         {screen === "report"   && <ScreenReports />}
+        {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}
+        {screen === "personne" && <ScreenClientsPersonne />}
+        {screen === "societe"  && <ScreenClientsSociete />}
       </div>
     </div>
   );
