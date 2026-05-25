@@ -18,6 +18,7 @@ export default function App() {
   const [screen, setScreen] = useState<string>("login");
 
   async function handleLogout() {
+    localStorage.setItem("sgi_last_logout", new Date().toISOString());
     await apiLogout();
     setScreen("login");
   }

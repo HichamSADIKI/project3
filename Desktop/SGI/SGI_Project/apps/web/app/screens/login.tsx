@@ -56,10 +56,12 @@ function LeftPanel() {
   const t = useT();
   const { lang } = useLang();
   const [now, setNow] = useState<Date>(() => new Date());
-  const [lastLoginRaw, setLastLoginRaw] = useState<string | null>(null);
+  const [lastLoginRaw,  setLastLoginRaw]  = useState<string | null>(null);
+  const [lastLogoutRaw, setLastLogoutRaw] = useState<string | null>(null);
 
   useEffect(() => {
     setLastLoginRaw(localStorage.getItem("sgi_last_login"));
+    setLastLogoutRaw(localStorage.getItem("sgi_last_logout"));
     const id = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(id);
   }, []);
@@ -146,6 +148,19 @@ function LeftPanel() {
               </span>
             </div>
           )}
+          {lastLogoutRaw && (
+            <div style={{
+              paddingTop: 10, borderTop: "1px solid var(--line-soft)",
+              display: "flex", alignItems: "center", gap: 8,
+              fontSize: 11.5, color: "var(--ink-3)",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--rose)", flexShrink: 0, display: "inline-block" }} />
+              <span>
+                {lang === "ar" ? "آخر تسجيل خروج: " : lang === "fr" ? "Dernière déconnexion : " : "Last logout: "}
+                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{formatLastLogin(lastLogoutRaw)}</span>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -171,14 +186,19 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const [resetEmail,   setResetEmail]   = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
+  const [resetEmail,    setResetEmail]    = useState("");
+  const [resetLoading,  setResetLoading]  = useState(false);
+  const [lastLogoutMob, setLastLogoutMob] = useState<string | null>(null);
 
   const { lang, setLang } = useLang();
 
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const isCompact = bp !== "desktop";
+
+  useEffect(() => {
+    setLastLogoutMob(localStorage.getItem("sgi_last_logout"));
+  }, []);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -352,6 +372,27 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
                   <span>{t.need_access} <span style={{ color: "var(--gold-deep)", cursor: "pointer" }}>{t.contact_manager}</span></span>
                   <span>v 2.4 · stable</span>
                 </div>
+
+                {isCompact && lastLogoutMob && (
+                  <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--ink-3)" }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--rose)", flexShrink: 0, display: "inline-block" }} />
+                    <span>
+                      {lang === "ar" ? "آخر تسجيل خروج: " : lang === "fr" ? "Dernière déconnexion : " : "Last logout: "}
+                      <span style={{ color: "var(--ink)", fontWeight: 500 }}>
+                        {(() => {
+                          const d = new Date(lastLogoutMob);
+                          const t2 = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+                          const today = new Date(); today.setHours(0,0,0,0);
+                          const day   = new Date(d); day.setHours(0,0,0,0);
+                          const diff  = Math.round((today.getTime() - day.getTime()) / 86400000);
+                          if (diff === 0) return lang === "ar" ? `اليوم · ${t2}` : lang === "fr" ? `Aujourd'hui · ${t2}` : `Today · ${t2}`;
+                          if (diff === 1) return lang === "ar" ? `أمس · ${t2}`   : lang === "fr" ? `Hier · ${t2}`         : `Yesterday · ${t2}`;
+                          return `${d.toLocaleDateString(lang === "ar" ? "ar-AE" : lang === "fr" ? "fr-FR" : "en-AE", { day: "numeric", month: "short" })} · ${t2}`;
+                        })()}
+                      </span>
+                    </span>
+                  </div>
+                )}
               </form>
             )}
 
