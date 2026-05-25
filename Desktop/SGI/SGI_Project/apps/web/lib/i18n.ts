@@ -13,7 +13,9 @@ export type Translations = {
   nav_admin: string; nav_tourisme: string; nav_sante: string;
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
-  nav_finance: string; nav_report: string;
+  nav_clients: string; nav_personne: string; nav_societe: string;
+  nav_erp: string; nav_workspace: string; nav_audit: string;
+  nav_report: string;
 
   // Topbar
   search: string;
@@ -66,7 +68,9 @@ const ar: Translations = {
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
-  nav_finance: "المالية", nav_report: "التقارير",
+  nav_clients: "العملاء", nav_personne: "الأشخاص", nav_societe: "الشركات",
+  nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة",
+  nav_report: "التقارير",
 
   search: "بحث...",
 
@@ -122,7 +126,9 @@ const en: Translations = {
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
-  nav_finance: "Finance", nav_report: "Reports",
+  nav_clients: "Clients", nav_personne: "Individuals", nav_societe: "Companies",
+  nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit",
+  nav_report: "Reports",
 
   search: "Search…",
 
@@ -178,7 +184,9 @@ const fr: Translations = {
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
-  nav_finance: "Finance", nav_report: "Rapports",
+  nav_clients: "Clients", nav_personne: "Personnes", nav_societe: "Sociétés",
+  nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit",
+  nav_report: "Rapports",
 
   search: "Rechercher…",
 

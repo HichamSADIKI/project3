@@ -60,6 +60,12 @@ export const IcAssurance = () => <Ic><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8
 export const IcBanques   = () => <Ic><path d="M3 21h18M3 10h18M3 7l9-4 9 4M6 10v11M10 10v11M14 10v11M18 10v11"/></Ic>;
 export const IcAmazon    = () => <Ic><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></Ic>;
 export const IcConsult   = () => <Ic><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/><path d="M17 14.5a3 3 0 1 1 4 2.8V21M19 21h-4"/></Ic>;
+export const IcClients   = () => <Ic><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></Ic>;
+export const IcPersonne  = () => <Ic><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></Ic>;
+export const IcSociete   = () => <Ic><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2M10 6h4M10 10h4M10 14h4M10 18h4"/></Ic>;
+export const IcERP       = () => <Ic><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></Ic>;
+export const IcWorkspace = () => <Ic><rect x="3" y="3" width="18" height="11" rx="2"/><path d="M7 22H17M12 18v4"/><circle cx="12" cy="9" r="2"/><path d="M8 9h1M15 9h1"/></Ic>;
+export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></Ic>;
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
@@ -78,30 +84,29 @@ export function LogoMark({ size = 36 }: { size?: number }) {
 }
 
 export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
+  // eslint-disable-next-line @next/next/no-img-element
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <LogoMark size={36} />
-      <div style={{ lineHeight: 1.1 }}>
-        <div className="font-display" style={{ fontSize: 19, letterSpacing: "0.06em", color: "var(--ink)" }}>INFINITY</div>
-        {subtitle && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src="/logo-infinity.png"
-            alt="Infinity International Facilities Management"
-            style={{ height: 22, marginTop: 3, objectFit: "contain", objectPosition: "left", maxWidth: 160 }}
-          />
-        )}
-      </div>
-    </div>
+    <img
+      src="/logo-infinity-full.webp"
+      alt="Infinity International Facilities Management"
+      style={{
+        height: subtitle ? 56 : 38,
+        objectFit: "contain",
+        objectPosition: "left center",
+        maxWidth: subtitle ? 320 : 200,
+      }}
+    />
   );
 }
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
 export type NavKey =
   | "dash" | "crm"
+  | "clients" | "personne" | "societe"
   | "realestate" | "prop" | "contract" | "rental" | "visa"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
-  | "finance" | "report";
+  | "erp" | "workspace" | "audit"
+  | "report";
 
 type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number };
 type NavEntry =
@@ -111,6 +116,12 @@ type NavEntry =
 const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
   { type: "item",  key: "crm",         icon: <IcCRM />,  badge: 12 },
+  { type: "group", id: "clients",      groupKey: "clients", icon: <IcClients />,
+    children: [
+      { key: "personne", icon: <IcPersonne /> },
+      { key: "societe",  icon: <IcSociete /> },
+    ],
+  },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
       { key: "prop",     icon: <IcProp /> },
@@ -126,7 +137,9 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "amazon",      icon: <IcAmazon /> },
   { type: "item",  key: "consultants", icon: <IcConsult /> },
   { type: "item",  key: "admin",       icon: <IcAdmin /> },
-  { type: "item",  key: "finance",     icon: <IcFinance /> },
+  { type: "item",  key: "erp",         icon: <IcERP /> },
+  { type: "item",  key: "workspace",   icon: <IcWorkspace /> },
+  { type: "item",  key: "audit",       icon: <IcAudit /> },
   { type: "item",  key: "report",      icon: <IcReport /> },
 ];
 
@@ -185,11 +198,13 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
       dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm,
+      clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa,
-      finance: t.nav_finance, report: t.nav_report,
+      erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
+      report: t.nav_report,
     };
     return map[key];
   };

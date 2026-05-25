@@ -11,7 +11,6 @@ import { ScreenProperties } from "./screens/properties";
 import { ScreenCRM } from "./screens/crm";
 import { ScreenContracts } from "./screens/contracts";
 import { ScreenGoldenVisa } from "./screens/golden-visa";
-import { ScreenFinance } from "./screens/finance";
 import { ScreenPortal } from "./screens/portal";
 import { ScreenRentals } from "./screens/rentals";
 import { ScreenAdministrations } from "./screens/administrations";
@@ -23,6 +22,9 @@ import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
 import { ScreenReports } from "./screens/reports";
+import { ScreenERP } from "./screens/erp";
+import { ScreenWorkspace } from "./screens/workspace";
+import { ScreenAudit } from "./screens/audit";
 import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
@@ -57,7 +59,9 @@ export default function App() {
         {screen === "amazon"    && <ScreenAmazon />}
         {screen === "consultants" && <ScreenConsultants />}
         {screen === "visa"      && <ScreenGoldenVisa />}
-        {screen === "finance"  && <ScreenFinance />}
+        {screen === "erp"       && <ScreenERP />}
+        {screen === "workspace" && <ScreenWorkspace />}
+        {screen === "audit"     && <ScreenAudit />}
         {screen === "report"   && <ScreenReports />}
         {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}
         {screen === "personne" && <ScreenClientsPersonne />}
