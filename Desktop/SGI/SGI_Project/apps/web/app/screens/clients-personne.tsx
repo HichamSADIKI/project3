@@ -13,6 +13,24 @@ const IcInvoice  = () => <Ic s={15}><rect x="3" y="3" width="18" height="18" rx=
 const IcPayment  = () => <Ic s={15}><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></Ic>;
 const IcDeal     = () => <Ic s={15}><path d="M3 21V10l9-7 9 7v11"/><path d="M9 21v-6h6v6"/></Ic>;
 const IcOrder    = () => <Ic s={15}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ic>;
+const IcWallet   = () => <Ic s={15}><path d="M20 12V8H6a2 2 0 0 1 0-4h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0 0 4h4v-4z"/></Ic>;
+
+interface WalletTx {
+  id: string; type: "purchase" | "payment";
+  amount: number; aed: number; desc: string; date: string; ref?: string;
+}
+function initBalance(p: Person) {
+  return (p.status === "vip" ? 15000 : p.status === "active" ? 5000 : p.status === "prospect" ? 1000 : 500) + p.deals * 2500;
+}
+function mockWalletTxs(p: Person): WalletTx[] {
+  const b = initBalance(p);
+  const txs: WalletTx[] = [
+    { id: "W-001", type: "purchase", amount: Math.floor(b * 0.6), aed: Math.floor(b * 0.6), desc: "Achat initial de points", date: "2026-01-15" },
+    { id: "W-002", type: "purchase", amount: Math.floor(b * 0.4), aed: Math.floor(b * 0.4), desc: "Recharge portefeuille",    date: "2026-03-10" },
+  ];
+  if (p.deals > 0) txs.push({ id: "W-003", type: "purchase", amount: 500, aed: 500, desc: "Bonus fidélité — deal signé", date: "2026-04-20" });
+  return txs;
+}
 
 type Status = "active" | "prospect" | "vip" | "inactive";
 type Nat    = "ae" | "sa" | "ma" | "fr" | "gb" | "in" | "ru" | "cn";
@@ -140,26 +158,44 @@ const PAY_STATUS: Record<string, { en: string; fr: string; ar: string; color: st
 
 /* ── Detail view ─────────────────────────────────────────────────────── */
 function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Person; onBack: () => void; lang: string; onDealConfirmed?: (deal: ConfirmedDeal) => void }) {
-  const [tab, setTab]           = useState<"deals" | "documents" | "orders" | "invoices" | "payments">("deals");
+  const [tab, setTab]           = useState<"deals" | "documents" | "orders" | "invoices" | "payments" | "wallet">("deals");
   const [showWizard, setShowWizard] = useState(false);
   const [addedDeals, setAddedDeals] = useState<ConfirmedDeal[]>([]);
+  const [invoices, setInvoices]     = useState(() => mockInvoices(person));
+  const [walletBalance, setWalletBalance] = useState(() => initBalance(person));
+  const [walletTxs, setWalletTxs]   = useState<WalletTx[]>(() => mockWalletTxs(person));
+  const [buyAmt, setBuyAmt]         = useState("");
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const scfg = STATUS_CFG[person.status];
 
   const TABS = [
-    { key: "deals",    icon: <IcDeal />,    en: "Deals",     ar: "الصفقات",   fr: "Deals"      },
-    { key: "documents",icon: <IcDoc2 />,    en: "Documents", ar: "الوثائق",   fr: "Documents"  },
-    { key: "orders",   icon: <IcOrder />,   en: "Orders",    ar: "الطلبات",   fr: "Commandes"  },
-    { key: "invoices", icon: <IcInvoice />, en: "Invoices",  ar: "الفواتير",  fr: "Factures"   },
-    { key: "payments", icon: <IcPayment />, en: "Payments",  ar: "المدفوعات", fr: "Paiements"  },
+    { key: "deals",    icon: <IcDeal />,    en: "Deals",        ar: "الصفقات",   fr: "Deals"         },
+    { key: "documents",icon: <IcDoc2 />,    en: "Documents",    ar: "الوثائق",   fr: "Documents"     },
+    { key: "orders",   icon: <IcOrder />,   en: "Orders",       ar: "الطلبات",   fr: "Commandes"     },
+    { key: "invoices", icon: <IcInvoice />, en: "Invoices",     ar: "الفواتير",  fr: "Factures"      },
+    { key: "payments", icon: <IcPayment />, en: "Payments",     ar: "المدفوعات", fr: "Paiements"     },
+    { key: "wallet",   icon: <IcWallet />,  en: "Wallet",       ar: "المحفظة",   fr: "Portefeuille"  },
   ] as const;
 
   const deals    = mockDeals(person);
   const docs     = mockDocuments(person);
   const orders   = mockOrders(person);
-  const invoices = mockInvoices(person);
   const payments = mockPayments(person);
+
+  function handleBuyPoints() {
+    const pts = Math.floor(Number(buyAmt));
+    if (!pts || pts <= 0) return;
+    setWalletBalance(b => b + pts);
+    setWalletTxs(txs => [...txs, { id: `W-${Date.now()}`, type: "purchase", amount: pts, aed: pts, desc: `Achat de ${pts.toLocaleString("en-AE")} points`, date: new Date().toISOString().slice(0, 10) }]);
+    setBuyAmt("");
+  }
+  function handlePayWithPoints(invId: string, amount: number) {
+    const pts = Math.ceil(amount);
+    setWalletBalance(b => b - pts);
+    setInvoices(invs => invs.map(inv => inv.id === invId ? { ...inv, status: "paid" as const } : inv));
+    setWalletTxs(txs => [...txs, { id: `W-${Date.now()}`, type: "payment", amount: pts, aed: pts, desc: `Paiement facture ${invId}`, date: new Date().toISOString().slice(0, 10), ref: invId }]);
+  }
 
   const tl = (o: {en:string;ar:string;fr:string}) => lang === "ar" ? o.ar : lang === "fr" ? o.fr : o.en;
 
@@ -362,6 +398,114 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
                 </tr>
               ))}</tbody>
             </table>
+          )}
+
+          {/* Wallet */}
+          {tab === "wallet" && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 18, padding: "4px 0" }}>
+
+              {/* Balance card */}
+              <div style={{ background: "linear-gradient(135deg, #1A1610 0%, #3D2E0A 60%, #C9A84C 100%)", borderRadius: "var(--r)", padding: "24px 28px", color: "#F5E9C8", position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", insetInlineEnd: -20, top: -20, width: 120, height: 120, borderRadius: "50%", background: "rgba(201,168,76,0.15)" }} />
+                <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", opacity: 0.6, marginBottom: 10 }}>
+                  {lang === "ar" ? "رصيد النقاط" : lang === "fr" ? "Solde de points" : "Points Balance"}
+                </div>
+                <div className="tnum" style={{ fontSize: 42, fontWeight: 800, lineHeight: 1, color: "#F5E9C8" }}>
+                  {walletBalance.toLocaleString("en-AE")}
+                  <span style={{ fontSize: 18, fontWeight: 500, marginInlineStart: 8, opacity: 0.7 }}>pts</span>
+                </div>
+                <div style={{ marginTop: 10, fontSize: 13, opacity: 0.75 }}>
+                  ≡ AED {walletBalance.toLocaleString("en-AE")} &nbsp;·&nbsp; 1 point = 1 AED
+                </div>
+              </div>
+
+              {/* Buy points */}
+              <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "18px 22px" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                  {lang === "ar" ? "شراء نقاط" : lang === "fr" ? "Acheter des points" : "Buy points"}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+                  {[500, 1000, 5000, 10000].map(amt => (
+                    <button key={amt} onClick={() => setBuyAmt(String(amt))}
+                      style={{ padding: "7px 16px", borderRadius: "var(--r)", cursor: "pointer", fontSize: 13, fontWeight: 600, transition: "all .12s",
+                        border: `1.5px solid ${buyAmt === String(amt) ? "var(--gold)" : "var(--line-soft)"}`,
+                        background: buyAmt === String(amt) ? "var(--gold-ghost)" : "var(--bg-cream)",
+                        color: buyAmt === String(amt) ? "var(--gold-deep)" : "var(--ink-2)" }}>
+                      {amt.toLocaleString("en-AE")} AED
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 10 }}>
+                  <input type="number" value={buyAmt} onChange={e => setBuyAmt(e.target.value)}
+                    placeholder={lang === "ar" ? "مبلغ مخصص (AED)…" : lang === "fr" ? "Montant personnalisé (AED)…" : "Custom amount (AED)…"}
+                    style={{ flex: 1, height: 36, padding: "0 12px", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", fontSize: 13, background: "var(--bg-ivory)", color: "var(--ink)", outline: "none" }} />
+                  <button onClick={handleBuyPoints} disabled={!buyAmt || Number(buyAmt) <= 0}
+                    style={{ padding: "0 20px", height: 36, background: "var(--gold)", border: "none", borderRadius: "var(--r)", color: "#1A1610", fontWeight: 700, fontSize: 13, cursor: !buyAmt || Number(buyAmt) <= 0 ? "not-allowed" : "pointer", opacity: !buyAmt || Number(buyAmt) <= 0 ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                    {lang === "ar" ? "شراء" : lang === "fr" ? "Acheter" : "Buy"} →
+                  </button>
+                </div>
+              </div>
+
+              {/* Pay pending invoices */}
+              {invoices.some(inv => inv.status === "pending") && (
+                <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "18px 22px" }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                    {lang === "ar" ? "دفع الفواتير بالنقاط" : lang === "fr" ? "Payer une facture avec les points" : "Pay invoice with points"}
+                  </div>
+                  {invoices.filter(inv => inv.status === "pending").map((inv, i, arr) => {
+                    const canPay = walletBalance >= inv.amount;
+                    return (
+                      <div key={inv.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 0", borderBottom: i < arr.length - 1 ? "1px solid var(--line-soft)" : "none", gap: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{inv.desc}</div>
+                          <div className="tnum" style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 2 }}>
+                            {inv.id} · AED {inv.amount.toLocaleString("en-AE")} · {inv.amount.toLocaleString("en-AE")} pts requis
+                          </div>
+                        </div>
+                        <button onClick={() => handlePayWithPoints(inv.id, inv.amount)} disabled={!canPay}
+                          style={{ flexShrink: 0, padding: "7px 14px", border: "none", borderRadius: "var(--r)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap",
+                            background: canPay ? "var(--emerald)" : "var(--bg-cream)",
+                            color: canPay ? "#fff" : "var(--ink-4)",
+                            cursor: canPay ? "pointer" : "not-allowed", opacity: canPay ? 1 : 0.55 }}>
+                          {canPay
+                            ? (lang === "ar" ? "دفع بالنقاط" : lang === "fr" ? "Payer avec points" : "Pay with points")
+                            : (lang === "ar" ? "رصيد غير كافٍ" : lang === "fr" ? "Solde insuffisant" : "Insufficient balance")}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Transaction history */}
+              <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "18px 22px" }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 14 }}>
+                  {lang === "ar" ? "سجل المعاملات" : lang === "fr" ? "Historique des transactions" : "Transaction history"}
+                </div>
+                {walletTxs.length === 0
+                  ? <div style={{ fontSize: 13, color: "var(--ink-4)", textAlign: "center", padding: "16px 0" }}>—</div>
+                  : [...walletTxs].reverse().map((tx, i) => (
+                    <div key={tx.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 0", borderBottom: i < walletTxs.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
+                      <div style={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", flexShrink: 0, fontSize: 15, fontWeight: 700,
+                        background: tx.type === "purchase" ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.1)",
+                        color: tx.type === "purchase" ? "var(--emerald)" : "var(--rose)" }}>
+                        {tx.type === "purchase" ? "+" : "−"}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>{tx.desc}</div>
+                        <div className="tnum" style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 1 }}>{tx.date}{tx.ref ? ` · ${tx.ref}` : ""}</div>
+                      </div>
+                      <div style={{ textAlign: "end", flexShrink: 0 }}>
+                        <div className="tnum" style={{ fontSize: 13, fontWeight: 700, color: tx.type === "purchase" ? "var(--emerald)" : "var(--rose)" }}>
+                          {tx.type === "purchase" ? "+" : "−"}{tx.amount.toLocaleString("en-AE")} pts
+                        </div>
+                        <div className="tnum" style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>AED {tx.aed.toLocaleString("en-AE")}</div>
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
           )}
         </div>
       </div>
