@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Wordmark, Eyebrow, IcChevR, IcCheck, IcLock, IcClock } from "@/components/sgi-ui";
+import { Eyebrow, IcChevR, IcCheck, IcLock, IcClock } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 import { apiLogin } from "@/lib/auth";
@@ -55,29 +55,59 @@ function LangBar() {
 const FRAME_COLOR = "#C9A870";
 const FRAME_LEN   = 72; /* px length of each arm */
 
-function CornerFrame({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
+function CornerFrame({ pos, size = FRAME_LEN, offset = 28 }: {
+  pos: "tl" | "tr" | "bl" | "br";
+  size?: number;
+  offset?: number;
+}) {
   const top    = pos === "tl" || pos === "tr";
   const left   = pos === "tl" || pos === "bl";
   const style: React.CSSProperties = {
     position: "absolute",
-    top:    top  ? 28 : undefined,
-    bottom: !top ? 28 : undefined,
-    insetInlineStart: left ? 28 : undefined,
-    insetInlineEnd:  !left ? 28 : undefined,
+    top:    top  ? offset : undefined,
+    bottom: !top ? offset : undefined,
+    insetInlineStart: left ? offset : undefined,
+    insetInlineEnd:  !left ? offset : undefined,
     pointerEvents: "none",
   };
-  /* Build an L-shape path: horizontal arm + corner + vertical arm */
-  const h = FRAME_LEN, v = FRAME_LEN, W = h, H = v;
   let d = "";
-  if (pos === "tl") d = `M${h} 0 L0 0 L0 ${v}`;
-  if (pos === "tr") d = `M0 0 L${W} 0 L${W} ${v}`;
-  if (pos === "bl") d = `M${h} ${H} L0 ${H} L0 0`;
-  if (pos === "br") d = `M0 ${H} L${W} ${H} L${W} 0`;
+  if (pos === "tl") d = `M${size} 0 L0 0 L0 ${size}`;
+  if (pos === "tr") d = `M0 0 L${size} 0 L${size} ${size}`;
+  if (pos === "bl") d = `M${size} ${size} L0 ${size} L0 0`;
+  if (pos === "br") d = `M0 ${size} L${size} ${size} L${size} 0`;
   return (
     <div style={style}>
-      <svg width={FRAME_LEN} height={FRAME_LEN} viewBox={`0 0 ${FRAME_LEN} ${FRAME_LEN}`} fill="none" overflow="visible">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="none" overflow="visible">
         <path d={d} stroke={FRAME_COLOR} strokeWidth="1.3" strokeLinecap="square" />
       </svg>
+    </div>
+  );
+}
+
+/* ─── Mobile / tablet brand banner (replaces LeftPanel on compact) ─── */
+function MobileBrandBanner() {
+  return (
+    <div style={{
+      position: "relative",
+      background: "#F5EDE0",
+      padding: "22px 16px 20px",
+      marginBottom: 28,
+      borderRadius: "var(--r)",
+      border: "1px solid rgba(201,168,112,0.35)",
+      overflow: "hidden",
+      flexShrink: 0,
+    }}>
+      <CornerFrame pos="tl" size={44} offset={14} />
+      <CornerFrame pos="tr" size={44} offset={14} />
+      <CornerFrame pos="bl" size={44} offset={14} />
+      <CornerFrame pos="br" size={44} offset={14} />
+      <div style={{ display: "flex", justifyContent: "center", position: "relative", zIndex: 1 }}>
+        <img
+          src="/logo-infinity.png"
+          alt="Infinity International Facilities Management — Proud of UAE"
+          style={{ maxWidth: 260, width: "72%", objectFit: "contain" }}
+        />
+      </div>
     </div>
   );
 }
@@ -271,12 +301,8 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
           background: "var(--bg-paper)",
           overflow: "auto",
         }}>
-          {/* Wordmark replaces the hidden left panel on compact */}
-          {isCompact && (
-            <div style={{ marginBottom: 28, flexShrink: 0 }}>
-              <Wordmark />
-            </div>
-          )}
+          {/* Brand banner replaces the hidden left panel on compact */}
+          {isCompact && <MobileBrandBanner />}
 
           {/* Inner centering wrapper */}
           <div style={{
