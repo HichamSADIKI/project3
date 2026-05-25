@@ -87,7 +87,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
-      src="/logo-infinity-full.webp"
+      src="/logo-infinity-full.png"
       alt="Infinity International Facilities Management"
       style={{
         height: subtitle ? 56 : 38,
