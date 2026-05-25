@@ -16,6 +16,7 @@ type Prop = {
   type: "Sale" | "Rent";
   state: "available" | "offer" | "sold" | "rented";
   tag: string; img: number;
+  imgUrls?: string[];
   floor: number; parking: number;
   agent: string; agentPhone: string;
   desc: string;
@@ -60,6 +61,12 @@ const PROPERTIES: Prop[] = [
   },
 ];
 
+const AGENT_PHONES: Record<string, string> = {
+  "Yasmine Khalil": "+971 50 123 4567",
+  "Omar Rashid":    "+971 55 987 6543",
+  "Sara Mansouri":  "+971 52 456 7890",
+};
+
 const STATE_MAP = {
   available: { en: "Available", ar: "متاح",     fr: "Disponible",   c: "var(--emerald)", tone: "emerald" as const },
   offer:     { en: "Under Offer",ar: "عرض مقدم", fr: "Sous Offre",   c: "var(--gold)",    tone: "gold"    as const },
@@ -68,6 +75,19 @@ const STATE_MAP = {
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
+
+function PropImg({ p, style }: { p: Prop; style?: React.CSSProperties }) {
+  if (p.imgUrls?.[0]) {
+    return (
+      <img
+        src={p.imgUrls[0]}
+        alt={p.t}
+        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...style }}
+      />
+    );
+  }
+  return <PropertyImage variant={p.img} />;
+}
 
 function SelectPill({ label, value, gold, active, onClick }: { label: string; value: string; gold?: boolean; active?: boolean; onClick?: () => void }) {
   return (
@@ -110,7 +130,7 @@ function PropertyHoverCard({ p, x, y }: { p: Prop; x: number; y: number }) {
       borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", overflow: "hidden", pointerEvents: "none",
     }}>
       <div style={{ height: 160, position: "relative" }}>
-        <PropertyImage variant={p.img} />
+        <PropImg p={p} />
         <div style={{ position: "absolute", top: 8, insetInlineStart: 8, display: "flex", gap: 6 }}>
           <Chip tone={p.type === "Sale" ? "gold" : "azure"}>{p.type}</Chip>
           {p.tag !== "—" && <Chip tone="gold">{p.tag}</Chip>}
@@ -160,7 +180,7 @@ function PropertyRow({ p, highlighted, selected, isMob, onSelect }: {
         onMouseLeave={() => setHover(false)}
         onMouseMove={e => setPos({ x: e.clientX, y: e.clientY })}
       >
-        <PropertyImage variant={p.img} />
+        <PropImg p={p} />
         <div style={{ position: "absolute", top: 6, insetInlineStart: 6 }}>
           <Chip tone={p.type === "Sale" ? "gold" : "azure"}>{p.type}</Chip>
         </div>
@@ -212,7 +232,7 @@ function PropertyCard({ p, selected, onSelect }: { p: Prop; selected?: boolean; 
       transition: "box-shadow 0.15s ease, border-color 0.15s ease",
     }}>
       <div style={{ height: 160, position: "relative", flexShrink: 0 }}>
-        <PropertyImage variant={p.img} />
+        <PropImg p={p} />
         <div style={{ position: "absolute", top: 8, insetInlineStart: 8, display: "flex", gap: 5 }}>
           <Chip tone={p.type === "Sale" ? "gold" : "azure"}>{p.type}</Chip>
           {p.tag !== "—" && <Chip tone="gold">{p.tag}</Chip>}
@@ -340,7 +360,7 @@ function DetailPanel({ p }: { p: Prop }) {
       <div style={{ flex: 1, overflow: "auto", background: "var(--bg-cream)" }}>
         {/* Photo */}
         <div style={{ height: 180, position: "relative" }}>
-          <PropertyImage variant={p.img} />
+          <PropImg p={p} />
           <div style={{ position: "absolute", bottom: 8, insetInlineEnd: 8 }}>
             <button className="sgi-btn sgi-btn-ghost" style={{ height: 28, padding: "0 10px", fontSize: 11, background: "var(--bg-ivory)" }}>
               All photos
@@ -477,9 +497,26 @@ async function scrapePropertyFromUrl(url: string): Promise<ScrapedProperty> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ url }),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(15000),
     });
-    if (res.ok) return res.json() as Promise<ScrapedProperty>;
+    if (res.ok) {
+      const raw = await res.json() as Record<string, unknown>;
+      return {
+        titleEn:     String(raw.title_en   ?? ""),
+        price:       String(raw.price      ?? ""),
+        type:        (raw.type as "Sale" | "Rent") ?? "Sale",
+        propType:    String(raw.prop_type  ?? "apartment"),
+        bedrooms:    String(raw.bedrooms   ?? ""),
+        bathrooms:   String(raw.bathrooms  ?? ""),
+        sqft:        String(raw.sqft       ?? ""),
+        emirate:     String(raw.emirate    ?? ""),
+        community:   String(raw.community  ?? ""),
+        desc:        String(raw.description ?? ""),
+        images:      Array.isArray(raw.images) ? raw.images as string[] : [],
+        source:      String(raw.source     ?? ""),
+        fieldsFound: Number(raw.fields_found ?? 0),
+      };
+    }
   } catch { /* backend not available yet — use demo data */ }
 
   // Demo mock: simulate network delay + site detection
@@ -584,6 +621,7 @@ type PropForm = {
   titleAr: string;
   desc: string;
   agent: string;
+  imgUrls: string[];
 };
 
 const INIT_FORM: PropForm = {
@@ -593,6 +631,7 @@ const INIT_FORM: PropForm = {
   sqft: "", floor: "", parking: "1",
   price: "", cheques: "4", tags: [],
   titleEn: "", titleAr: "", desc: "", agent: "Yasmine Khalil",
+  imgUrls: [],
 };
 
 const PROP_TYPES = ["Apartment", "Villa", "Townhouse", "Penthouse", "Office", "Retail"];
@@ -648,7 +687,11 @@ function TagChip({ label, active, onToggle }: { label: string; active: boolean; 
   );
 }
 
-function AddPropertyModal({ onClose }: { onClose: () => void }) {
+function AddPropertyModal({ onClose, onSave, nextRef }: {
+  onClose: () => void;
+  onSave: (p: Prop) => void;
+  nextRef: string;
+}) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<PropForm>(INIT_FORM);
 
@@ -689,6 +732,7 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
       emirate:   scraped.emirate || f.emirate,
       community: scraped.community || f.community,
       desc:      scraped.desc || f.desc,
+      imgUrls:   scraped.images.length > 0 ? scraped.images : f.imgUrls,
       tags:      scraped.type === "Sale" && Number(scraped.price) >= 2_000_000
         ? [...new Set([...f.tags, "Premium"])]
         : f.tags,
@@ -714,6 +758,31 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
       ...f,
       tags: f.tags.includes(tag) ? f.tags.filter(t => t !== tag) : [...f.tags, tag],
     }));
+  }
+
+  function saveProperty() {
+    const priceN = Number(form.price.replace(/[^0-9]/g, ""));
+    const isGV = form.type === "Sale" && priceN >= 2_000_000;
+    const allTags = [...new Set([...form.tags, ...(isGV ? ["Golden Visa"] : [])])];
+    onSave({
+      ref:        nextRef,
+      t:          form.titleEn || "New property",
+      area:       form.community || form.emirate,
+      bd:         Number(form.bedrooms) || 0,
+      ba:         Number(form.bathrooms) || 0,
+      sqft:       Number(form.sqft) || 0,
+      price:      priceN,
+      type:       form.type,
+      state:      form.state,
+      tag:        allTags[0] || "—",
+      img:        1,
+      imgUrls:    form.imgUrls,
+      floor:      Number(form.floor) || 0,
+      parking:    Number(form.parking) || 0,
+      agent:      form.agent,
+      agentPhone: AGENT_PHONES[form.agent] ?? "+971 50 000 0000",
+      desc:       form.desc,
+    });
   }
 
   const priceNum = Number(form.price.replace(/[^0-9]/g, ""));
@@ -1065,7 +1134,7 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
                     ))}
                   </div>
                   <div style={{ marginTop: 8, fontSize: 11, color: "var(--ink-4)" }}>
-                    Reference: <span className="font-mono">INF-2419</span> — auto-assigned on save
+                    Reference: <span className="font-mono">{nextRef}</span> — auto-assigned on save
                   </div>
                 </div>
               </div>
@@ -1092,7 +1161,7 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
               ) : (
                 <button
                   type="button"
-                  onClick={onClose}
+                  onClick={saveProperty}
                   className="sgi-btn sgi-btn-primary"
                   disabled={!canAdvance}
                   style={{ opacity: canAdvance ? 1 : 0.45, cursor: canAdvance ? "pointer" : "not-allowed" }}
@@ -1117,29 +1186,40 @@ export function ScreenProperties() {
   const isMob = bp === "mobile";
   const isCompact = bp !== "desktop";
 
+  const [properties, setProperties] = useState<Prop[]>(PROPERTIES);
   const [view, setView] = useState<"list" | "grid" | "map">("list");
   const [selected, setSelected] = useState<string | null>("INF-2417");
   const [stateFilter, setStateFilter] = useState<string>("all");
   const [showModal, setShowModal] = useState(false);
 
+  const nextRef = "INF-" + (
+    Math.max(...properties.map(p => parseInt(p.ref.replace("INF-", ""), 10)).filter(n => !isNaN(n)), 2418) + 1
+  );
+
+  function handleSave(p: Prop) {
+    setProperties(ps => [p, ...ps]);
+    setSelected(p.ref);
+    setShowModal(false);
+  }
+
   const counters = [
-    { key: "all",       en: "All",          ar: "الكل",     fr: "Tous",        n: 1284, c: "var(--ink-3)" },
-    { key: "available", en: "Available",    ar: "متاح",     fr: "Disponible",  n: 847,  c: "var(--emerald)" },
-    { key: "offer",     en: "Under Offer",  ar: "عرض",      fr: "Sous Offre",  n: 41,   c: "var(--gold)" },
-    { key: "sold",      en: "Sold / Rented",ar: "مُباع / مؤجَّر", fr: "Vendu / Loué", n: 396, c: "var(--ink-4)" },
+    { key: "all",       en: "All",          ar: "الكل",     fr: "Tous",        n: properties.length,                                                                                   c: "var(--ink-3)" },
+    { key: "available", en: "Available",    ar: "متاح",     fr: "Disponible",  n: properties.filter(p => p.state === "available").length,                                              c: "var(--emerald)" },
+    { key: "offer",     en: "Under Offer",  ar: "عرض",      fr: "Sous Offre",  n: properties.filter(p => p.state === "offer").length,                                                  c: "var(--gold)" },
+    { key: "sold",      en: "Sold / Rented",ar: "مُباع / مؤجَّر", fr: "Vendu / Loué", n: properties.filter(p => p.state === "sold" || p.state === "rented").length, c: "var(--ink-4)" },
   ];
 
   const visibleProps = stateFilter === "all"
-    ? PROPERTIES
-    : PROPERTIES.filter(p => p.state === stateFilter || (stateFilter === "sold" && (p.state === "sold" || p.state === "rented")));
+    ? properties
+    : properties.filter(p => p.state === stateFilter || (stateFilter === "sold" && (p.state === "sold" || p.state === "rented")));
 
-  const selProp = selected ? PROPERTIES.find(p => p.ref === selected) : null;
+  const selProp = selected ? properties.find(p => p.ref === selected) : null;
 
   const showDetail = !isCompact && selProp && view !== "map";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <Topbar title={t.t_prop} crumb={["1,284 active", "Dubai · all emirates"]}>
+      <Topbar title={t.t_prop} crumb={[`${properties.length} active`, "Dubai · all emirates"]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcFilter />&nbsp;{t.filter} · 3</button>}
         {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcDownload />&nbsp;{t.export_btn}</button>}
         <button className="sgi-btn sgi-btn-primary" onClick={() => setShowModal(true)}><IcPlus />&nbsp;{t.add}</button>
@@ -1200,7 +1280,7 @@ export function ScreenProperties() {
               {/* Card header */}
               <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line-soft)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
-                  <Eyebrow>Showing {visibleProps.length} of 1,284</Eyebrow>
+                  <Eyebrow>Showing {visibleProps.length} of {properties.length}</Eyebrow>
                   <div className="font-display" style={{ fontSize: 18, marginTop: 2 }}>Featured inventory</div>
                 </div>
                 <div style={{ fontSize: 11.5, color: "var(--ink-3)", display: "flex", alignItems: "center", gap: 6 }}>
@@ -1244,7 +1324,13 @@ export function ScreenProperties() {
         )}
       </main>
 
-      {showModal && <AddPropertyModal onClose={() => setShowModal(false)} />}
+      {showModal && (
+        <AddPropertyModal
+          onClose={() => setShowModal(false)}
+          onSave={handleSave}
+          nextRef={nextRef}
+        />
+      )}
     </div>
   );
 }
