@@ -1,24 +1,24 @@
 "use client";
-import React from "react";
+import React, { useState, useRef } from "react";
 import { useBreakpoint } from "@/lib/hooks";
-import { Topbar, Eyebrow, Chip, StatusDot, Wordmark, IcFilter, IcPlus, IcChevR, IcMore, IcDownload, IcMail } from "@/components/sgi-ui";
+import { Topbar, Eyebrow, Chip, StatusDot, Wordmark, IcFilter, IcPlus, IcChevR, IcMore, IcDownload, IcMail, IcCheck } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 
 type Contract = {
-  ref: string; type: string; parties: string; value: string;
+  ref: string; type: string; parties: string; value: string; valueRaw: number;
   d1: string; d2: string; status: string; sign: string;
   gold?: boolean; highlighted?: boolean;
 };
 
 const CONTRACTS: Contract[] = [
-  { ref: "C-1284", type: "Sale", parties: "Y. Demir → Marina Gate #4502",    value: "AED 4,750,000",    d1: "Signed 12 May", d2: "Funds 28 May", status: "active",   sign: "2/2", gold: true },
-  { ref: "C-1283", type: "Sale", parties: "A. Schmidt → Marina Gate T2",      value: "AED 4,750,000",    d1: "Sent 21 May",   d2: "—",             status: "pending",  sign: "0/2", highlighted: true },
-  { ref: "C-1282", type: "Sale", parties: "Family Tanaka → Bluewaters B12",   value: "AED 11,800,000",   d1: "Sent 19 May",   d2: "—",             status: "pending",  sign: "1/2" },
-  { ref: "C-1281", type: "Rent", parties: "K. Mubarak → JBR Sadaf #2206",     value: "AED 220,000 / yr", d1: "Active until",  d2: "12 Apr 2027",   status: "active",   sign: "2/2" },
-  { ref: "C-1280", type: "Sale", parties: "M. Bin Saud → Saadiyat Villa 32",  value: "AED 28,000,000",   d1: "Signed 04 May", d2: "Funds 22 May",  status: "active",   sign: "2/2", gold: true },
-  { ref: "C-1279", type: "Rent", parties: "L. Russo → Burj Vista 1",          value: "AED 180,000 / yr", d1: "Expires",       d2: "08 Aug 2026",   status: "expiring", sign: "2/2" },
-  { ref: "C-1278", type: "Sale", parties: "H. Wei → Palm Shoreline 12",       value: "AED 8,400,000",    d1: "Draft",         d2: "—",             status: "draft",    sign: "0/2" },
-  { ref: "C-1277", type: "Rent", parties: "P. Lemaire → Marina Promenade",    value: "AED 240,000 / yr", d1: "Active until",  d2: "31 Mar 2027",   status: "active",   sign: "2/2" },
+  { ref: "C-1284", type: "Sale", parties: "Y. Demir → Marina Gate #4502",    value: "AED 4,750,000",    valueRaw: 4_750_000,  d1: "Signed 12 May", d2: "Funds 28 May", status: "active",   sign: "2/2", gold: true },
+  { ref: "C-1283", type: "Sale", parties: "A. Schmidt → Marina Gate T2",      value: "AED 4,750,000",    valueRaw: 4_750_000,  d1: "Sent 21 May",   d2: "—",             status: "pending",  sign: "0/2", highlighted: true },
+  { ref: "C-1282", type: "Sale", parties: "Family Tanaka → Bluewaters B12",   value: "AED 11,800,000",   valueRaw: 11_800_000, d1: "Sent 19 May",   d2: "—",             status: "pending",  sign: "1/2" },
+  { ref: "C-1281", type: "Rent", parties: "K. Mubarak → JBR Sadaf #2206",     value: "AED 220,000 / yr", valueRaw: 220_000,    d1: "Active until",  d2: "12 Apr 2027",   status: "active",   sign: "2/2" },
+  { ref: "C-1280", type: "Sale", parties: "M. Bin Saud → Saadiyat Villa 32",  value: "AED 28,000,000",   valueRaw: 28_000_000, d1: "Signed 04 May", d2: "Funds 22 May",  status: "active",   sign: "2/2", gold: true },
+  { ref: "C-1279", type: "Rent", parties: "L. Russo → Burj Vista 1",          value: "AED 180,000 / yr", valueRaw: 180_000,    d1: "Expires",       d2: "08 Aug 2026",   status: "expiring", sign: "2/2" },
+  { ref: "C-1278", type: "Sale", parties: "H. Wei → Palm Shoreline 12",       value: "AED 8,400,000",    valueRaw: 8_400_000,  d1: "Draft",         d2: "—",             status: "draft",    sign: "0/2" },
+  { ref: "C-1277", type: "Rent", parties: "P. Lemaire → Marina Promenade",    value: "AED 240,000 / yr", valueRaw: 240_000,    d1: "Active until",  d2: "31 Mar 2027",   status: "active",   sign: "2/2" },
 ];
 
 const STATUS_MAP: Record<string, { label: string; tone: "gold" | "emerald" | "rose" | undefined; c: string }> = {
@@ -27,6 +27,202 @@ const STATUS_MAP: Record<string, { label: string; tone: "gold" | "emerald" | "ro
   active:   { label: "Active",   tone: "emerald",  c: "var(--emerald)" },
   expiring: { label: "Expiring", tone: "rose",     c: "var(--rose)" },
 };
+
+/* ─── Filter types & helpers ─────────────────────────────────────────── */
+
+type ContractFilter = {
+  type: "all" | "Sale" | "Rent";
+  status: "all" | "draft" | "pending" | "active" | "expiring";
+  valueRange: "all" | "u1m" | "1m-10m" | "o10m";
+  goldOnly: boolean;
+};
+
+const DEFAULT_CONTRACT_FILTER: ContractFilter = { type: "all", status: "all", valueRange: "all", goldOnly: false };
+
+function isContractFilterActive(f: ContractFilter) {
+  return f.type !== "all" || f.status !== "all" || f.valueRange !== "all" || f.goldOnly;
+}
+
+function applyContractFilters(contracts: Contract[], f: ContractFilter): Contract[] {
+  return contracts.filter(c => {
+    if (f.type !== "all" && c.type !== f.type) return false;
+    if (f.status !== "all" && c.status !== f.status) return false;
+    if (f.valueRange !== "all") {
+      if (f.valueRange === "u1m"   && c.valueRaw >= 1_000_000)  return false;
+      if (f.valueRange === "1m-10m" && (c.valueRaw < 1_000_000 || c.valueRaw >= 10_000_000)) return false;
+      if (f.valueRange === "o10m"  && c.valueRaw < 10_000_000) return false;
+    }
+    if (f.goldOnly && !c.gold) return false;
+    return true;
+  });
+}
+
+const VALUE_OPTS = [
+  { label: "All values",      value: "all"    },
+  { label: "< AED 1M",        value: "u1m"    },
+  { label: "AED 1M – 10M",    value: "1m-10m" },
+  { label: "> AED 10M",       value: "o10m"   },
+];
+
+const CONTRACT_STATUS_OPTS = [
+  { label: "All",      value: "all"      },
+  { label: "Draft",    value: "draft"    },
+  { label: "Awaiting", value: "pending"  },
+  { label: "Active",   value: "active"   },
+  { label: "Expiring", value: "expiring" },
+];
+
+function valueRangeLabel(r: ContractFilter["valueRange"]): string {
+  switch (r) {
+    case "u1m":    return "< AED 1M";
+    case "1m-10m": return "1M – 10M";
+    case "o10m":   return "> AED 10M";
+    default:       return "All";
+  }
+}
+
+/* ─── ContractFilterPill ─────────────────────────────────────────────── */
+
+function ContractFilterPill({
+  label, displayValue, value, opts, isActive, gold, onSelect,
+}: {
+  label: string; displayValue: string; value?: string;
+  opts: { label: string; value: string }[]; isActive?: boolean; gold?: boolean;
+  onSelect: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, minW: 0 });
+
+  function toggle() {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left, minW: Math.max(r.width, 160) });
+    }
+    setOpen(o => !o);
+  }
+  const close = () => setOpen(false);
+  const accent = gold || (isActive ?? false);
+
+  return (
+    <>
+      <div ref={ref} onClick={toggle} style={{
+        display: "flex", flexDirection: "column", gap: 1, padding: "6px 12px",
+        background: accent ? "var(--gold-ghost)" : "var(--bg-paper)",
+        border: `1px solid ${accent ? "var(--gold-line, var(--gold))" : "var(--line-soft)"}`,
+        borderRadius: "var(--r)", cursor: "pointer", minWidth: 96, flexShrink: 0,
+        boxShadow: accent ? "0 0 0 2px color-mix(in srgb,var(--gold) 18%,transparent)" : "none",
+        transition: "box-shadow 0.12s, background 0.12s",
+      }}>
+        <span style={{ fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: accent ? "var(--gold-deep)" : "var(--ink-4)" }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: accent ? "var(--gold-deep)" : "var(--ink)", display: "flex", alignItems: "center", gap: 4 }}>
+          {displayValue}<span style={{ color: "var(--ink-4)", fontSize: 10, marginInlineStart: 1 }}>▾</span>
+        </span>
+      </div>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 500 }} onClick={close} />
+          <div style={{
+            position: "fixed", top: pos.top, left: pos.left, minWidth: pos.minW,
+            zIndex: 501, background: "var(--bg-ivory)", border: "1px solid var(--line-strong)",
+            borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", overflow: "hidden",
+          }}>
+            {opts.map(o => (
+              <div key={o.value}
+                onClick={() => { onSelect(o.value); close(); }}
+                style={{
+                  padding: "9px 14px", cursor: "pointer", fontSize: 13,
+                  display: "flex", alignItems: "center", gap: 10,
+                  background: o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent",
+                  color: o.value === value ? "var(--gold-deep)" : "var(--ink)",
+                  fontWeight: o.value === value ? 600 : 400,
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 12%,transparent)" : "var(--bg-inset)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent"; }}
+              >
+                {o.value === value ? <IcCheck /> : <span style={{ width: 14, display: "inline-block" }} />}
+                {o.label}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ─── ContractSnapshotBar ────────────────────────────────────────────── */
+
+function ContractSnapshotBar({ filter, onChange, total, filtered }: {
+  filter: ContractFilter;
+  onChange: (f: ContractFilter) => void;
+  total: number;
+  filtered: number;
+}) {
+  const bp = useBreakpoint();
+  const isMob = bp === "mobile";
+  const active = isContractFilterActive(filter);
+  const activeCount = [filter.type !== "all", filter.status !== "all", filter.valueRange !== "all", filter.goldOnly].filter(Boolean).length;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMob ? "8px 12px" : "10px 24px", background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)", overflowX: "auto", flexShrink: 0, WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
+
+      <ContractFilterPill
+        label="Type"
+        displayValue={filter.type === "all" ? "Sale + Rent" : filter.type}
+        value={filter.type}
+        isActive={filter.type !== "all"}
+        opts={[{ label: "Sale + Rent", value: "all" }, { label: "Sale", value: "Sale" }, { label: "Rent", value: "Rent" }]}
+        onSelect={v => onChange({ ...filter, type: v as ContractFilter["type"] })}
+      />
+
+      <ContractFilterPill
+        label="Status"
+        displayValue={filter.status === "all" ? "All" : (CONTRACT_STATUS_OPTS.find(o => o.value === filter.status)?.label ?? filter.status)}
+        value={filter.status}
+        isActive={filter.status !== "all"}
+        opts={CONTRACT_STATUS_OPTS}
+        onSelect={v => onChange({ ...filter, status: v as ContractFilter["status"] })}
+      />
+
+      <ContractFilterPill
+        label="Value"
+        displayValue={valueRangeLabel(filter.valueRange)}
+        value={filter.valueRange}
+        isActive={filter.valueRange !== "all"}
+        opts={VALUE_OPTS}
+        onSelect={v => onChange({ ...filter, valueRange: v as ContractFilter["valueRange"] })}
+      />
+
+      <ContractFilterPill
+        label="Golden Visa"
+        displayValue={filter.goldOnly ? "Eligible" : "All"}
+        value={filter.goldOnly ? "yes" : "all"}
+        isActive={filter.goldOnly}
+        gold={filter.goldOnly}
+        opts={[{ label: "All contracts", value: "all" }, { label: "Eligible (≥ 2M AED)", value: "yes" }]}
+        onSelect={v => onChange({ ...filter, goldOnly: v === "yes" })}
+      />
+
+      {active && (
+        <button onClick={() => onChange(DEFAULT_CONTRACT_FILTER)}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.4)", background: "var(--bg-paper)", color: "var(--rose)", whiteSpace: "nowrap", flexShrink: 0 }}>
+          Reset
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{activeCount}</span>
+        </button>
+      )}
+
+      <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
+        {active ? `${filtered} / ${total}` : `${total}`} contracts
+      </div>
+    </div>
+  );
+}
+
+/* ─── SignDots ───────────────────────────────────────────────────────── */
 
 function SignDots({ signed }: { signed: string }) {
   const [s, t] = signed.split("/").map(Number);
@@ -113,34 +309,50 @@ export function ScreenContracts() {
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const isCompact = bp !== "desktop";
+
+  const [filter, setFilter] = useState<ContractFilter>(DEFAULT_CONTRACT_FILTER);
+  const filteredContracts = applyContractFilters(CONTRACTS, filter);
+
+  const COUNTER_STRIPS = [
+    { key: "draft",    en: "Draft",          ar: "مسودة",              fr: "Brouillon",    c: "var(--ink-4)"   },
+    { key: "pending",  en: "Awaiting sign",  ar: "بانتظار التوقيع",   fr: "En attente",   c: "var(--gold)"    },
+    { key: "active",   en: "Active",         ar: "نشط",                fr: "Actif",        c: "var(--emerald)" },
+    { key: "expiring", en: "Expiring · 90d", ar: "ينتهي",             fr: "Expire · 90j", c: "var(--rose)"    },
+    { key: "all",      en: "All",            ar: "الكل",               fr: "Tous",         c: "var(--ink-3)"   },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <Topbar title={t.t_contract} crumb={["48 active", "4 awaiting signature"]}>
+      <Topbar title={t.t_contract} crumb={[`${filteredContracts.length} contracts`, "4 awaiting signature"]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcFilter />&nbsp;{t.filter}</button>}
         <button className="sgi-btn sgi-btn-primary"><IcPlus />&nbsp;{t.new_btn}</button>
       </Topbar>
 
+      <ContractSnapshotBar
+        filter={filter} onChange={setFilter}
+        total={CONTRACTS.length} filtered={filteredContracts.length}
+      />
+
       <main style={{ flex: 1, padding: isMob ? 14 : 24, display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1fr 480px", gap: 16, background: "var(--bg-cream)", overflow: "hidden" }}>
         {/* List */}
         <div className="sgi-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Status counters */}
+          {/* Status counters — sync with Status pill */}
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line-soft)", display: "flex", gap: isMob ? 8 : 18, overflowX: "auto", flexWrap: "nowrap" }}>
-            {[
-              { en: "Draft",          ar: "مسودة",    fr: "Brouillon",     n: 6,   c: "var(--ink-4)" },
-              { en: "Awaiting sign",  ar: "بانتظار التوقيع", fr: "En attente",  n: 4,   c: "var(--gold)",    active: true },
-              { en: "Active",         ar: "نشط",       fr: "Actif",         n: 32,  c: "var(--emerald)" },
-              { en: "Expiring · 90d", ar: "ينتهي",    fr: "Expire · 90j",  n: 8,   c: "var(--rose)" },
-              { en: "Closed",         ar: "مغلق",      fr: "Clôturé",       n: 124, c: "var(--ink-3)" },
-            ].map((s) => (
-              <div key={s.en} style={{ padding: "6px 12px", borderRadius: 6, background: s.active ? "var(--gold-ghost)" : "transparent", borderInlineStart: "2px solid " + s.c, cursor: "pointer", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                  <span className="font-display tnum" style={{ fontSize: 22, color: s.c }}>{s.n}</span>
-                  <span className={lang === "ar" ? "font-ar" : undefined} style={{ fontSize: lang === "ar" ? 13 : 11, color: "var(--ink-3)", fontWeight: 500 }}>
-                    {lang === "ar" ? s.ar : lang === "fr" ? s.fr : s.en}
-                  </span>
+            {COUNTER_STRIPS.map((s) => {
+              const liveCount = s.key === "all" ? CONTRACTS.length : CONTRACTS.filter(c => c.status === s.key).length;
+              const isActive = filter.status === s.key;
+              const label = lang === "ar" ? s.ar : lang === "fr" ? s.fr : s.en;
+              return (
+                <div key={s.key}
+                  onClick={() => setFilter(f => ({ ...f, status: s.key as ContractFilter["status"] }))}
+                  style={{ padding: "6px 12px", borderRadius: 6, background: isActive ? `color-mix(in srgb,${s.c} 10%,transparent)` : "transparent", borderInlineStart: "2px solid " + (isActive ? s.c : "var(--line-soft)"), cursor: "pointer", flexShrink: 0, transition: "background 0.15s, border-color 0.15s" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+                    <span className="font-display tnum" style={{ fontSize: 22, color: isActive ? s.c : "var(--ink-3)" }}>{liveCount}</span>
+                    <span className={lang === "ar" ? "font-ar" : undefined} style={{ fontSize: lang === "ar" ? 13 : 11, color: isActive ? s.c : "var(--ink-4)", fontWeight: isActive ? 600 : 400 }}>{label}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Table header — hidden on mobile */}
@@ -148,7 +360,11 @@ export function ScreenContracts() {
             <span>REF</span><span>PARTIES · PROPERTY</span><span>VALUE</span><span>DATES</span><span>STATUS</span><span>SIGN</span><span></span>
           </div>}
           <div style={{ overflow: "auto", flex: 1 }}>
-            {CONTRACTS.map((c) => <ContractRow key={c.ref} c={c} isMob={isMob} />)}
+            {filteredContracts.length === 0 ? (
+              <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: "var(--ink-4)" }}>No contracts match your filters</div>
+            ) : (
+              filteredContracts.map((c) => <ContractRow key={c.ref} c={c} isMob={isMob} />)
+            )}
           </div>
         </div>
 
