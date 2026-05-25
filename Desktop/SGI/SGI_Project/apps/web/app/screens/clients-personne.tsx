@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { Topbar, Ic, IcPhone, IcMail, IcArrowUp } from "@/components/sgi-ui";
+import { DealWizard, type ConfirmedDeal } from "@/components/deal-wizard";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 
@@ -139,7 +140,9 @@ const PAY_STATUS: Record<string, { en: string; fr: string; ar: string; color: st
 
 /* ── Detail view ─────────────────────────────────────────────────────── */
 function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => void; lang: string }) {
-  const [tab, setTab] = useState<"deals" | "documents" | "orders" | "invoices" | "payments">("deals");
+  const [tab, setTab]           = useState<"deals" | "documents" | "orders" | "invoices" | "payments">("deals");
+  const [showWizard, setShowWizard] = useState(false);
+  const [addedDeals, setAddedDeals] = useState<ConfirmedDeal[]>([]);
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const scfg = STATUS_CFG[person.status];
@@ -240,21 +243,46 @@ function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => 
 
           {/* Deals */}
           {tab === "deals" && (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead><tr style={{ background: "var(--bg-cream)" }}>
-                {["ID", lang==="ar"?"العقار":lang==="fr"?"Bien":"Property", lang==="ar"?"النوع":"Type", lang==="ar"?"المبلغ":lang==="fr"?"Montant":"Amount", lang==="ar"?"الحالة":lang==="fr"?"Statut":"Status", lang==="ar"?"التاريخ":"Date"].map(h => <th key={h} style={thStyle}>{h}</th>)}
-              </tr></thead>
-              <tbody>{deals.map((d, i) => (
-                <tr key={d.id} style={{ borderBottom: i < deals.length-1 ? "1px solid var(--line-soft)" : "none" }}>
-                  <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--ink-4)", fontSize: 11 }}>{d.id}</td>
-                  <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{d.property}</td>
-                  <td style={{ ...tdStyle }}>{d.type}</td>
-                  <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{aed(d.amount)}</td>
-                  <td style={tdStyle}><span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: DEAL_STATUS[d.status].bg, color: DEAL_STATUS[d.status].color }}>{DEAL_STATUS[d.status].en}</span></td>
-                  <td style={tdStyle}>{d.date}</td>
-                </tr>
-              ))}</tbody>
-            </table>
+            <>
+              {/* Add Deal button row */}
+              <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 16px", borderBottom: "1px solid var(--line-soft)" }}>
+                <button onClick={() => setShowWizard(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: "var(--r)", background: "var(--gold)", border: "none", color: "#1A1610", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                  <Ic s={13}><path d="M12 5v14M5 12h14"/></Ic>
+                  {lang === "ar" ? "إضافة صفقة" : lang === "fr" ? "Ajouter un deal" : "Add Deal"}
+                </button>
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead><tr style={{ background: "var(--bg-cream)" }}>
+                  {["ID", lang==="ar"?"العقار":lang==="fr"?"Bien":"Property", lang==="ar"?"النوع":"Type", lang==="ar"?"المبلغ":lang==="fr"?"Montant":"Amount", lang==="ar"?"الحالة":lang==="fr"?"Statut":"Status", lang==="ar"?"التاريخ":"Date"].map(h => <th key={h} style={thStyle}>{h}</th>)}
+                </tr></thead>
+                <tbody>
+                  {/* User-added deals (newest first) */}
+                  {addedDeals.slice().reverse().map((d, i) => (
+                    <tr key={d.crmRef} style={{ borderBottom: "1px solid var(--line-soft)", background: "rgba(200,160,60,0.04)" }}>
+                      <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--azure)", fontSize: 11 }}>{d.crmRef}</td>
+                      <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>
+                        {[d.propType, d.area].filter(Boolean).join(" — ") || "—"}
+                      </td>
+                      <td style={tdStyle}><span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "rgba(200,160,60,0.12)", color: "var(--gold-deep)", border: "1px solid rgba(200,160,60,0.3)", fontWeight: 600 }}>{d.category.toUpperCase()}</span></td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{d.budgetMax > 0 ? aed(d.budgetMax) : d.budgetMin > 0 ? aed(d.budgetMin) : "—"}</td>
+                      <td style={tdStyle}><span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: "rgba(59,130,246,0.1)", color: "var(--azure)" }}>NEW</span></td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{d.date}</td>
+                    </tr>
+                  ))}
+                  {/* Mock deals */}
+                  {deals.map((d, i) => (
+                    <tr key={d.id} style={{ borderBottom: i < deals.length-1 ? "1px solid var(--line-soft)" : "none" }}>
+                      <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--ink-4)", fontSize: 11 }}>{d.id}</td>
+                      <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{d.property}</td>
+                      <td style={{ ...tdStyle }}>{d.type}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{aed(d.amount)}</td>
+                      <td style={tdStyle}><span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: DEAL_STATUS[d.status].bg, color: DEAL_STATUS[d.status].color }}>{DEAL_STATUS[d.status].en}</span></td>
+                      <td style={tdStyle}>{d.date}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
 
           {/* Documents */}
@@ -337,6 +365,17 @@ function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => 
           )}
         </div>
       </div>
+
+      {/* Deal Wizard */}
+      {showWizard && (
+        <DealWizard
+          clientName={lang === "ar" ? person.name_ar : person.name}
+          clientAgent={person.agent}
+          lang={lang}
+          onClose={() => setShowWizard(false)}
+          onConfirm={deal => { setAddedDeals(d => [...d, deal]); setShowWizard(false); }}
+        />
+      )}
     </div>
   );
 }
