@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Sidebar } from "@/components/sgi-ui";
 import { apiLogout } from "@/lib/auth";
 import { useT } from "@/components/language-provider";
+import type { Translations } from "@/lib/i18n";
 import { ScreenLogin } from "./screens/login";
 import { ScreenDashboard } from "./screens/dashboard";
 import { ScreenProperties } from "./screens/properties";
@@ -34,8 +35,14 @@ export default function App() {
         {screen === "prop"     && <ScreenProperties />}
         {screen === "crm"      && <ScreenCRM />}
         {screen === "contract" && <ScreenContracts />}
-        {screen === "rental"   && <ScreenRentals />}
-        {screen === "visa"     && <ScreenGoldenVisa />}
+        {screen === "rental"    && <ScreenRentals />}
+        {screen === "admin"     && <ScreenPlaceholder navKey="nav_admin" />}
+        {screen === "tourisme"  && <ScreenPlaceholder navKey="nav_tourisme" />}
+        {screen === "sante"     && <ScreenPlaceholder navKey="nav_sante" />}
+        {screen === "assurance" && <ScreenPlaceholder navKey="nav_assurance" />}
+        {screen === "banques"   && <ScreenPlaceholder navKey="nav_banques" />}
+        {screen === "amazon"    && <ScreenPlaceholder navKey="nav_amazon" />}
+        {screen === "visa"      && <ScreenGoldenVisa />}
         {screen === "finance"  && <ScreenFinance />}
         {screen === "report"   && <ScreenReports />}
       </div>
@@ -43,14 +50,18 @@ export default function App() {
   );
 }
 
-function ScreenReports() {
+function ScreenPlaceholder({ navKey }: { navKey: keyof Translations }) {
   const t = useT();
   return (
-    <div style={{ flex: 1, display: "grid", placeItems: "center", background: "var(--bg-cream)", color: "var(--ink-3)" }}>
+    <div style={{ flex: 1, display: "grid", placeItems: "center", background: "var(--bg-cream)" }}>
       <div style={{ textAlign: "center" }}>
-        <div className="font-display" style={{ fontSize: 36, color: "var(--ink-4)" }}>{t.nav_report}</div>
+        <div className="font-display" style={{ fontSize: 36, color: "var(--ink-4)" }}>{t[navKey] as string}</div>
         <div style={{ fontSize: 13, marginTop: 8, color: "var(--ink-4)" }}>{t.coming_soon}</div>
       </div>
     </div>
   );
+}
+
+function ScreenReports() {
+  return <ScreenPlaceholder navKey="nav_report" />;
 }

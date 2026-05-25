@@ -9,7 +9,10 @@ export type Translations = {
 
   // Nav
   nav_dash: string; nav_prop: string; nav_crm: string;
-  nav_contract: string; nav_rental: string; nav_visa: string;
+  nav_contract: string; nav_rental: string;
+  nav_admin: string; nav_tourisme: string; nav_sante: string;
+  nav_assurance: string; nav_banques: string; nav_amazon: string;
+  nav_visa: string;
   nav_finance: string; nav_report: string;
 
   // Topbar
@@ -59,7 +62,10 @@ const ar: Translations = {
   workspace: "مساحة العمل", logout: "تسجيل خروج", role: "المدير العام",
 
   nav_dash: "لوحة القيادة", nav_prop: "العقارات", nav_crm: "إدارة العملاء",
-  nav_contract: "العقود", nav_rental: "الإيجارات", nav_visa: "التأشيرة الذهبية",
+  nav_contract: "العقود", nav_rental: "الإيجارات",
+  nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
+  nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون",
+  nav_visa: "التأشيرة الذهبية",
   nav_finance: "المالية", nav_report: "التقارير",
 
   search: "بحث...",
@@ -112,7 +118,10 @@ const en: Translations = {
   workspace: "Workspace", logout: "Log out", role: "Managing Director",
 
   nav_dash: "Dashboard", nav_prop: "Properties", nav_crm: "CRM",
-  nav_contract: "Contracts", nav_rental: "Rentals", nav_visa: "Golden Visa",
+  nav_contract: "Contracts", nav_rental: "Rentals",
+  nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
+  nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon",
+  nav_visa: "Golden Visa",
   nav_finance: "Finance", nav_report: "Reports",
 
   search: "Search…",
@@ -165,7 +174,10 @@ const fr: Translations = {
   workspace: "Espace de travail", logout: "Se déconnecter", role: "Directeur Général",
 
   nav_dash: "Tableau de bord", nav_prop: "Propriétés", nav_crm: "CRM",
-  nav_contract: "Contrats", nav_rental: "Locations", nav_visa: "Visa Doré",
+  nav_contract: "Contrats", nav_rental: "Locations",
+  nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
+  nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone",
+  nav_visa: "Visa Doré",
   nav_finance: "Finance", nav_report: "Rapports",
 
   search: "Rechercher…",

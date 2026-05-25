@@ -52,6 +52,12 @@ export const IcHeart     = () => <Ic><path d="M20.84 4.6a5.5 5.5 0 0 0-7.78 0L12
 export const IcShare     = () => <Ic><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/></Ic>;
 export const IcLock      = () => <Ic><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></Ic>;
 export const IcPin       = () => <Ic><path d="M12 21s-7-7.5-7-12a7 7 0 0 1 14 0c0 4.5-7 12-7 12z"/><circle cx="12" cy="9" r="2.5"/></Ic>;
+export const IcAdmin     = () => <Ic><path d="M2 21h20M3 21V9l9-6 9 6v12M9 21v-7h6v7M12 3v18"/></Ic>;
+export const IcTourisme  = () => <Ic><circle cx="12" cy="12" r="10"/><path d="m16.2 7.8-2.1 6.3-6.4 2.1 2.1-6.3 6.4-2.1z"/></Ic>;
+export const IcSante     = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></Ic>;
+export const IcAssurance = () => <Ic><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Ic>;
+export const IcBanques   = () => <Ic><path d="M3 21h18M3 10h18M3 7l9-4 9 4M6 10v11M10 10v11M14 10v11M18 10v11"/></Ic>;
+export const IcAmazon    = () => <Ic><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></Ic>;
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
@@ -82,15 +88,21 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 }
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
-export type NavKey = "dash" | "prop" | "crm" | "contract" | "rental" | "visa" | "finance" | "report";
+export type NavKey = "dash" | "prop" | "crm" | "contract" | "rental" | "admin" | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "visa" | "finance" | "report";
 
 export const NAV: { key: NavKey; icon: React.ReactElement; badge?: number }[] = [
   { key: "dash",     icon: <IcDash /> },
   { key: "prop",     icon: <IcProp /> },
-  { key: "crm",      icon: <IcCRM />,      badge: 12 },
-  { key: "contract", icon: <IcContract /> },
-  { key: "rental",   icon: <IcRental /> },
-  { key: "visa",     icon: <IcVisa />,     badge: 3 },
+  { key: "crm",       icon: <IcCRM />,       badge: 12 },
+  { key: "contract",  icon: <IcContract /> },
+  { key: "rental",    icon: <IcRental /> },
+  { key: "admin",     icon: <IcAdmin /> },
+  { key: "tourisme",  icon: <IcTourisme /> },
+  { key: "sante",     icon: <IcSante /> },
+  { key: "assurance", icon: <IcAssurance /> },
+  { key: "banques",   icon: <IcBanques /> },
+  { key: "amazon",    icon: <IcAmazon /> },
+  { key: "visa",      icon: <IcVisa />,     badge: 3 },
   { key: "finance",  icon: <IcFinance /> },
   { key: "report",   icon: <IcReport /> },
 ];
@@ -135,7 +147,10 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
       dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm,
-      contract: t.nav_contract, rental: t.nav_rental, visa: t.nav_visa,
+      contract: t.nav_contract, rental: t.nav_rental,
+      admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
+      assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon,
+      visa: t.nav_visa,
       finance: t.nav_finance, report: t.nav_report,
     };
     return map[key];
