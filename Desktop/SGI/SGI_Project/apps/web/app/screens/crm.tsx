@@ -242,10 +242,27 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
   const { lang } = useLang();
   const isMob = bp === "mobile";
   const active = isFilterActive(filter);
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const langBtnRef = useRef<HTMLButtonElement>(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
+
   const nextScore = () => {
     const idx = SCORE_STEPS.indexOf(filter.scoreMin);
     onChange({ ...filter, scoreMin: SCORE_STEPS[(idx + 1) % SCORE_STEPS.length] });
   };
+
+  function openLangMenu() {
+    if (langBtnRef.current) {
+      const r = langBtnRef.current.getBoundingClientRect();
+      setMenuPos({ top: r.bottom + 6, left: r.left });
+    }
+    setShowLangMenu(v => !v);
+  }
+
+  const selectedLang = CLIENT_LANGS.find(l => l.key === filter.clientLang);
+  const langLabel = selectedLang
+    ? (lang === "ar" ? selectedLang.label_ar : lang === "fr" ? selectedLang.label_fr : selectedLang.label_en)
+    : (lang === "ar" ? "اللغة" : lang === "fr" ? "Langue" : "Language");
 
   const chipBase: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 4,
@@ -310,23 +327,17 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
           ❄ Cold
         </button>
 
-        {/* Language chips — vertical divider then flag chips */}
+        {/* Language dropdown button */}
         <div style={{ width: 1, height: 18, background: "var(--line-soft)", flexShrink: 0, marginInline: 2 }} />
-        {CLIENT_LANGS.map(lc => {
-          const label = lang === "ar" ? lc.label_ar : lang === "fr" ? lc.label_fr : lc.label_en;
-          const isOn  = filter.clientLang === lc.key;
-          return (
-            <button
-              key={lc.key}
-              onClick={() => onChange({ ...filter, clientLang: isOn ? "all" : lc.key })}
-              title={label}
-              style={isOn ? { ...chipOn, gap: 4 } : { ...chipBase, gap: 4 }}
-            >
-              <span style={{ fontSize: 14, lineHeight: 1 }}>{lc.flag}</span>
-              {!isMob && <span>{label}</span>}
-            </button>
-          );
-        })}
+        <button
+          ref={langBtnRef}
+          onClick={openLangMenu}
+          style={filter.clientLang !== "all" ? { ...chipOn, gap: 5 } : { ...chipBase, gap: 5 }}
+        >
+          <span style={{ fontSize: 14, lineHeight: 1 }}>{selectedLang ? selectedLang.flag : "🌐"}</span>
+          <span>{langLabel}</span>
+          <span style={{ fontSize: 9, marginInlineStart: 2, opacity: 0.7 }}>▾</span>
+        </button>
 
         {active && (
           <button onClick={() => onChange(DEFAULT_FILTER)}
@@ -342,6 +353,59 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
           </div>
         )}
       </div>
+
+      {/* Language dropdown popup — rendered via portal-like fixed positioning */}
+      {showLangMenu && (
+        <>
+          <div onClick={() => setShowLangMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 299 }} />
+          <div style={{
+            position: "fixed", top: menuPos.top, left: menuPos.left,
+            zIndex: 300, background: "var(--bg-ivory)", borderRadius: "var(--r-md)",
+            border: "1px solid var(--line-soft)", boxShadow: "var(--shadow-3)",
+            minWidth: 180, overflow: "hidden",
+          }}>
+            {/* All option */}
+            <button
+              onClick={() => { onChange({ ...filter, clientLang: "all" }); setShowLangMenu(false); }}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 10,
+                padding: "9px 14px", background: filter.clientLang === "all" ? "var(--bg-inset)" : "transparent",
+                border: "none", borderBottom: "1px solid var(--line-soft)", cursor: "pointer",
+                fontSize: 12, fontFamily: "Inter, sans-serif", color: "var(--ink-3)",
+              }}
+            >
+              <span style={{ fontSize: 15 }}>🌐</span>
+              <span style={{ flex: 1, textAlign: "start" }}>
+                {lang === "ar" ? "الكل" : lang === "fr" ? "Toutes les langues" : "All languages"}
+              </span>
+              {filter.clientLang === "all" && <IcCheck />}
+            </button>
+
+            {CLIENT_LANGS.map(lc => {
+              const label = lang === "ar" ? lc.label_ar : lang === "fr" ? lc.label_fr : lc.label_en;
+              const isOn  = filter.clientLang === lc.key;
+              return (
+                <button
+                  key={lc.key}
+                  onClick={() => { onChange({ ...filter, clientLang: isOn ? "all" : lc.key }); setShowLangMenu(false); }}
+                  style={{
+                    width: "100%", display: "flex", alignItems: "center", gap: 10,
+                    padding: "9px 14px", background: isOn ? "var(--ink)" : "transparent",
+                    border: "none", borderBottom: "1px solid var(--line-soft)", cursor: "pointer",
+                    fontSize: 12, fontFamily: "Inter, sans-serif",
+                    color: isOn ? "var(--gold)" : "var(--ink-2)",
+                    fontWeight: isOn ? 600 : 400,
+                  }}
+                >
+                  <span style={{ fontSize: 15, lineHeight: 1 }}>{lc.flag}</span>
+                  <span style={{ flex: 1, textAlign: "start" }}>{label}</span>
+                  {isOn && <IcCheck />}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
     </div>
   );
 }
