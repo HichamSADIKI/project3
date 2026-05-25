@@ -66,6 +66,8 @@ export const IcSociete   = () => <Ic><path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 
 export const IcERP       = () => <Ic><rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/></Ic>;
 export const IcHR        = () => <Ic><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></Ic>;
 export const IcIT        = () => <Ic><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8h10M7 12h5"/></Ic>;
+export const IcBackOffice= () => <Ic><path d="M2 20h20M4 20V10l8-7 8 7v10"/><path d="M9 20v-6h6v6"/><rect x="10" y="8" width="4" height="4" rx="0.5"/></Ic>;
+export const IcSettings  = () => <Ic><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Ic>;
 export const IcWorkspace = () => <Ic><rect x="3" y="3" width="18" height="11" rx="2"/><path d="M7 22H17M12 18v4"/><circle cx="12" cy="9" r="2"/><path d="M8 9h1M15 9h1"/></Ic>;
 export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></Ic>;
 
@@ -107,8 +109,9 @@ export type NavKey =
   | "clients" | "personne" | "societe"
   | "realestate" | "prop" | "contract" | "rental" | "visa"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
-  | "erp" | "workspace" | "audit" | "hr" | "it" | "finance"
-  | "report";
+  | "erp" | "workspace" | "audit"
+  | "backoffice" | "hr" | "it" | "finance"
+  | "report" | "parametres";
 
 type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number };
 type NavEntry =
@@ -142,10 +145,15 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "erp",         icon: <IcERP /> },
   { type: "item",  key: "workspace",   icon: <IcWorkspace /> },
   { type: "item",  key: "audit",       icon: <IcAudit /> },
-  { type: "item",  key: "hr",          icon: <IcHR /> },
-  { type: "item",  key: "it",          icon: <IcIT /> },
-  { type: "item",  key: "finance",     icon: <IcFinance /> },
+  { type: "group", id: "backoffice",   groupKey: "backoffice", icon: <IcBackOffice />,
+    children: [
+      { key: "hr",      icon: <IcHR /> },
+      { key: "it",      icon: <IcIT /> },
+      { key: "finance", icon: <IcFinance /> },
+    ],
+  },
   { type: "item",  key: "report",      icon: <IcReport /> },
+  { type: "item",  key: "parametres",  icon: <IcSettings /> },
 ];
 
 /* ─── User status ─────────────────────────────────────────────────── */
@@ -208,8 +216,9 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa,
-      erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance,
-      report: t.nav_report,
+      erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
+      backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance,
+      report: t.nav_report, parametres: t.nav_parametres,
     };
     return map[key];
   };
