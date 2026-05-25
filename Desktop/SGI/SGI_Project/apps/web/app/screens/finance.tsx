@@ -173,9 +173,11 @@ function FinanceSnapshotBar({ filter, onChange, ledgerCount }: {
         </button>
       )}
 
-      <div style={{ marginInlineStart: "auto", fontSize: 11, color: "var(--ink-4)", whiteSpace: "nowrap" }} className="tnum">
-        {ledgerCount} transactions · {periodLabel(filter.period)}
-      </div>
+      {!isMob && (
+        <div style={{ marginInlineStart: "auto", fontSize: 11, color: "var(--ink-4)", whiteSpace: "nowrap" }} className="tnum">
+          {ledgerCount} transactions · {periodLabel(filter.period)}
+        </div>
+      )}
     </div>
   );
 }
@@ -366,8 +368,8 @@ export function ScreenFinance() {
                 <div key={a.rank} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: a.rank > 1 ? "1px solid var(--line-soft)" : "none", background: isHighlighted ? "var(--gold-ghost)" : "transparent", borderRadius: isHighlighted ? "var(--r)" : 0, paddingInline: isHighlighted ? 8 : 0, marginInline: isHighlighted ? -8 : 0 }}>
                   <div className="font-display tnum" style={{ fontSize: 17, color: a.rank === 1 ? "var(--gold-deep)" : "var(--ink-4)", width: 20 }}>{a.rank}</div>
                   <div style={{ width: 32, height: 32, borderRadius: 16, background: isHighlighted ? "var(--gold-deep)" : "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontWeight: 600 }}>{a.init}</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: isHighlighted ? 700 : 500, color: isHighlighted ? "var(--gold-deep)" : "var(--ink)" }}>{a.name}</div>
+                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                    <div style={{ fontSize: 13, fontWeight: isHighlighted ? 700 : 500, color: isHighlighted ? "var(--gold-deep)" : "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
                     <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.deals} deals · {a.mom}</div>
                   </div>
                   <div className="font-display tnum" style={{ fontSize: 16, color: isHighlighted ? "var(--gold-deep)" : "var(--ink)" }}>{a.vol}M</div>
@@ -427,7 +429,7 @@ export function ScreenFinance() {
                   <span style={{ width: 22, height: 22, borderRadius: 11, background: tx.type === "in" ? "var(--emerald-soft)" : "var(--rose-soft)", color: tx.type === "in" ? "var(--emerald)" : "var(--rose)", display: "grid", placeItems: "center" }}>
                     {tx.type === "in" ? <IcArrowDown /> : <IcArrowUp />}
                   </span>
-                  <span style={{ flex: 1, color: "var(--ink-2)", minWidth: 0 }}>{tx.ref}</span>
+                  <span style={{ flex: 1, color: "var(--ink-2)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tx.ref}</span>
                   <span className="tnum" style={{ color: tx.a < 0 ? "var(--rose)" : "var(--ink)", fontWeight: 500 }}>
                     {tx.a < 0 ? "−" : "+"} AED {Math.abs(tx.a).toLocaleString()}
                   </span>
