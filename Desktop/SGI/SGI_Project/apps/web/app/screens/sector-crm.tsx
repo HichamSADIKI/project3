@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { IcSearch, IcPlus, IcPhone, IcMail, IcChat, IcMore, IcArrowUp, IcArrowDown, IcCRM } from "@/components/sgi-ui";
+import type { ConfirmedDeal } from "@/components/deal-wizard";
 
 /* ─── Sector config ──────────────────────────────────────────────────── */
 export type Sector =
@@ -72,15 +73,37 @@ interface Lead {
   id: string; name: string; name_ar: string; flag: string;
   service: string; budget: number; stage: PipelineStage;
   score: number; agent: string; date: string; phone: string;
+  isFromClient?: boolean;
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("en-AE", { notation: n >= 1000000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
 const fmtFull = (n: number) => new Intl.NumberFormat("en-AE").format(n);
 
+/* ─── Convert ConfirmedDeal → Lead ──────────────────────────────────── */
+function dealToLead(d: ConfirmedDeal): Lead & { isFromClient: true } {
+  return {
+    id: d.crmRef,
+    name: d.clientName,
+    name_ar: d.clientName,
+    flag: "👤",
+    service: d.propType || d.urgency || "—",
+    budget: d.budgetMax || d.budgetMin || 0,
+    stage: "new" as PipelineStage,
+    score: 60,
+    agent: d.clientAgent,
+    date: d.date,
+    phone: "—",
+    isFromClient: true,
+  };
+}
+
 /* ─── Screen ─────────────────────────────────────────────────────────── */
-export function ScreenSectorCRM({ sector }: { sector: Sector }) {
+export function ScreenSectorCRM({ sector, confirmedDeals = [] }: { sector: Sector; confirmedDeals?: ConfirmedDeal[] }) {
   const meta = SECTORS[sector];
-  const allLeads = genLeads(sector);
+  const clientLeads = confirmedDeals
+    .filter(d => d.category === sector)
+    .map(dealToLead);
+  const allLeads = [...clientLeads, ...genLeads(sector)];
 
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<PipelineStage | "all">("all");
@@ -217,9 +240,12 @@ export function ScreenSectorCRM({ sector }: { sector: Sector }) {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {leads.map(l => (
-                      <div key={l.id} style={{ background: "var(--bg-base)", border: "1px solid var(--border)", borderRadius: "var(--r)", padding: 12 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-1)" }}>{l.flag} {l.name}</div>
-                        <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 2 }}>{l.service}</div>
+                      <div key={l.id} style={{ background: l.isFromClient ? `${meta.color}08` : "var(--bg-base)", border: `1px solid ${l.isFromClient ? meta.color + "40" : "var(--border)"}`, borderRadius: "var(--r)", padding: 12 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-1)" }}>{l.flag} {l.name}</span>
+                          {l.isFromClient && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: meta.color, color: "#fff" }}>CLIENT</span>}
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 0 }}>{l.service}</div>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8 }}>
                           <span className="tnum" style={{ fontSize: 12, fontWeight: 600, color: meta.color }}>AED {fmtFull(l.budget)}</span>
                           <span style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{l.agent.split(" ")[0]}</span>
@@ -251,17 +277,23 @@ export function ScreenSectorCRM({ sector }: { sector: Sector }) {
                   <tr><td colSpan={8} style={{ padding: 32, textAlign: "center", color: "var(--ink-4)", fontSize: 13 }}>Aucun résultat</td></tr>
                 ) : filtered.map((lead, i) => {
                   const sc = STAGE_CFG[lead.stage];
+                  const rowBg = lead.isFromClient ? `${meta.color}08` : "";
                   return (
                     <tr key={lead.id}
-                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--border)" : "none" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-cream)")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "")}>
+                      style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--border)" : "none", background: rowBg }}
+                      onMouseEnter={e => (e.currentTarget.style.background = lead.isFromClient ? `${meta.color}14` : "var(--bg-cream)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = rowBg)}>
                       <td style={{ padding: "11px 14px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           <span style={{ fontSize: 16 }}>{lead.flag}</span>
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-1)" }}>{lead.name}</div>
-                            <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{lead.name_ar} · {lead.id}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                              <span style={{ fontWeight: 600, fontSize: 13, color: "var(--ink-1)" }}>{lead.name}</span>
+                              {lead.isFromClient && (
+                                <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: meta.color, color: "#fff", letterSpacing: "0.05em" }}>CLIENT</span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{lead.id}</div>
                           </div>
                         </div>
                       </td>

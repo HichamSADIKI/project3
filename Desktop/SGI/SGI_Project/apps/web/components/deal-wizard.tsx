@@ -19,6 +19,9 @@ export interface ConfirmedDeal {
   urgency: string;
   notes: string;
   date: string;
+  clientName: string;
+  clientId: string;
+  clientAgent: string;
 }
 
 /* ─── Categories (8 SGI sectors) ────────────────────────────── */
@@ -65,8 +68,9 @@ interface Form {
 const EMPTY: Form = { category: null, propType: "", area: "", budgetMin: "", budgetMax: "", bedrooms: "", surface: "", urgency: "", notes: "" };
 
 /* ─── DealWizard ─────────────────────────────────────────────── */
-export function DealWizard({ clientName, clientAgent, lang, onClose, onConfirm }: {
+export function DealWizard({ clientName, clientId, clientAgent, lang, onClose, onConfirm }: {
   clientName: string;
+  clientId: string;
   clientAgent: string;
   lang: string;
   onClose: () => void;
@@ -128,6 +132,9 @@ export function DealWizard({ clientName, clientAgent, lang, onClose, onConfirm }
       urgency: form.urgency,
       notes: form.notes,
       date: new Date().toISOString().slice(0, 10),
+      clientName,
+      clientId,
+      clientAgent,
     });
     setSuccess(true);
   }

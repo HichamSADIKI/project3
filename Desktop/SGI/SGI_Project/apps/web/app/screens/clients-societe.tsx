@@ -157,7 +157,7 @@ function mockPayments(c: Company) {
 }
 
 /* ─── Company detail view ─────────────────────────────────────── */
-function CompanyDetail({ company, onBack, lang }: { company: Company; onBack: () => void; lang: string }) {
+function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Company; onBack: () => void; lang: string; onDealConfirmed?: (deal: ConfirmedDeal) => void }) {
   const [tab, setTab]               = useState<TabKey>("deals");
   const [showWizard, setShowWizard] = useState(false);
   const [addedDeals, setAddedDeals] = useState<ConfirmedDeal[]>([]);
@@ -449,10 +449,15 @@ function CompanyDetail({ company, onBack, lang }: { company: Company; onBack: ()
       {showWizard && (
         <DealWizard
           clientName={lang === "ar" ? company.name_ar : company.name}
+          clientId={company.id}
           clientAgent={company.agent}
           lang={lang}
           onClose={() => setShowWizard(false)}
-          onConfirm={deal => { setAddedDeals(d => [...d, deal]); setShowWizard(false); }}
+          onConfirm={deal => {
+            setAddedDeals(d => [...d, deal]);
+            onDealConfirmed?.(deal);
+            setShowWizard(false);
+          }}
         />
       )}
     </div>
@@ -460,7 +465,7 @@ function CompanyDetail({ company, onBack, lang }: { company: Company; onBack: ()
 }
 
 /* ─── Main screen ─────────────────────────────────────────────── */
-export function ScreenClientsSociete() {
+export function ScreenClientsSociete({ onDealConfirmed }: { onDealConfirmed?: (deal: ConfirmedDeal) => void } = {}) {
   const { lang } = useLang();
   const t = useT();
   const bp = useBreakpoint();
@@ -482,7 +487,7 @@ export function ScreenClientsSociete() {
   });
 
   const selected = selectedId ? COMPANIES.find(c => c.id === selectedId) : null;
-  if (selected) return <CompanyDetail company={selected} onBack={() => setSelectedId(null)} lang={lang} />;
+  if (selected) return <CompanyDetail company={selected} onBack={() => setSelectedId(null)} lang={lang} onDealConfirmed={onDealConfirmed} />;
 
   const title = lang === "ar" ? t.nav_societe : lang === "fr" ? "Sociétés" : "Companies";
 

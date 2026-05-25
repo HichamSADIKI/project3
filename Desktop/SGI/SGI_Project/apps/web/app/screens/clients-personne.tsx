@@ -139,7 +139,7 @@ const PAY_STATUS: Record<string, { en: string; fr: string; ar: string; color: st
 };
 
 /* ── Detail view ─────────────────────────────────────────────────────── */
-function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => void; lang: string }) {
+function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Person; onBack: () => void; lang: string; onDealConfirmed?: (deal: ConfirmedDeal) => void }) {
   const [tab, setTab]           = useState<"deals" | "documents" | "orders" | "invoices" | "payments">("deals");
   const [showWizard, setShowWizard] = useState(false);
   const [addedDeals, setAddedDeals] = useState<ConfirmedDeal[]>([]);
@@ -370,10 +370,15 @@ function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => 
       {showWizard && (
         <DealWizard
           clientName={lang === "ar" ? person.name_ar : person.name}
+          clientId={person.id}
           clientAgent={person.agent}
           lang={lang}
           onClose={() => setShowWizard(false)}
-          onConfirm={deal => { setAddedDeals(d => [...d, deal]); setShowWizard(false); }}
+          onConfirm={deal => {
+            setAddedDeals(d => [...d, deal]);
+            onDealConfirmed?.(deal);
+            setShowWizard(false);
+          }}
         />
       )}
     </div>
@@ -381,7 +386,7 @@ function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => 
 }
 
 /* ── List view ───────────────────────────────────────────────────────── */
-export function ScreenClientsPersonne() {
+export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (deal: ConfirmedDeal) => void } = {}) {
   const { lang } = useLang();
   const t = useT();
   const bp = useBreakpoint();
@@ -393,7 +398,7 @@ export function ScreenClientsPersonne() {
   const [visaOnly, setVisaOnly] = useState(false);
 
   const selected = selectedId ? PERSONS.find(p => p.id === selectedId) : null;
-  if (selected) return <PersonDetail person={selected} onBack={() => setSelectedId(null)} lang={lang} />;
+  if (selected) return <PersonDetail person={selected} onBack={() => setSelectedId(null)} lang={lang} onDealConfirmed={onDealConfirmed} />;
 
   const filtered = PERSONS.filter(p => {
     const q = search.toLowerCase();

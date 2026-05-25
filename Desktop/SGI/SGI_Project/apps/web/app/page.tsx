@@ -36,9 +36,15 @@ import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
 import { ScreenTravail } from "./screens/travail";
 import { ScreenSectorCRM } from "./screens/sector-crm";
+import type { ConfirmedDeal } from "@/components/deal-wizard";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
+  const [confirmedDeals, setConfirmedDeals] = useState<ConfirmedDeal[]>([]);
+
+  function handleDealConfirmed(deal: ConfirmedDeal) {
+    setConfirmedDeals(prev => [...prev, deal]);
+  }
 
   async function handleLogout() {
     localStorage.setItem("sgi_last_logout", new Date().toISOString());
@@ -62,15 +68,15 @@ export default function App() {
         {screen === "realestate" && <ScreenRealEstate />}
         {screen === "admin"     && <ScreenAdministrations />}
         {screen === "travail"   && <ScreenTravail />}
-        {screen === "realestate_crm"  && <ScreenSectorCRM sector="realestate" />}
-        {screen === "tourisme_crm"    && <ScreenSectorCRM sector="tourisme" />}
-        {screen === "sante_crm"       && <ScreenSectorCRM sector="sante" />}
-        {screen === "assurance_crm"   && <ScreenSectorCRM sector="assurance" />}
-        {screen === "banques_crm"     && <ScreenSectorCRM sector="banques" />}
-        {screen === "amazon_crm"      && <ScreenSectorCRM sector="amazon" />}
-        {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" />}
-        {screen === "admin_crm"       && <ScreenSectorCRM sector="admin" />}
-        {screen === "travail_crm"     && <ScreenSectorCRM sector="travail" />}
+        {screen === "realestate_crm"  && <ScreenSectorCRM sector="realestate"  confirmedDeals={confirmedDeals} />}
+        {screen === "tourisme_crm"    && <ScreenSectorCRM sector="tourisme"    confirmedDeals={confirmedDeals} />}
+        {screen === "sante_crm"       && <ScreenSectorCRM sector="sante"       confirmedDeals={confirmedDeals} />}
+        {screen === "assurance_crm"   && <ScreenSectorCRM sector="assurance"   confirmedDeals={confirmedDeals} />}
+        {screen === "banques_crm"     && <ScreenSectorCRM sector="banques"     confirmedDeals={confirmedDeals} />}
+        {screen === "amazon_crm"      && <ScreenSectorCRM sector="amazon"      confirmedDeals={confirmedDeals} />}
+        {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" confirmedDeals={confirmedDeals} />}
+        {screen === "admin_crm"       && <ScreenSectorCRM sector="admin"       confirmedDeals={confirmedDeals} />}
+        {screen === "travail_crm"     && <ScreenSectorCRM sector="travail"     confirmedDeals={confirmedDeals} />}
         {screen === "tourisme"  && <ScreenTourisme />}
         {screen === "sante"     && <ScreenSante />}
         {screen === "assurance" && <ScreenAssurance />}
@@ -88,8 +94,8 @@ export default function App() {
         {screen === "report"    && <ScreenReports />}
         {screen === "parametres" && <ScreenParametres />}
         {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}
-        {screen === "personne" && <ScreenClientsPersonne />}
-        {screen === "societe"  && <ScreenClientsSociete />}
+        {screen === "personne" && <ScreenClientsPersonne onDealConfirmed={handleDealConfirmed} />}
+        {screen === "societe"  && <ScreenClientsSociete onDealConfirmed={handleDealConfirmed} />}
       </div>
     </div>
   );
