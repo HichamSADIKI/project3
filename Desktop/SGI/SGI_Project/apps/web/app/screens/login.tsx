@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Eyebrow, IcChevR, IcCheck, IcLock, IcClock } from "@/components/sgi-ui";
+import { Wordmark, Eyebrow, IcChevR, IcCheck, IcLock, IcClock } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 import { apiLogin } from "@/lib/auth";
@@ -51,67 +51,6 @@ function LangBar() {
   );
 }
 
-/* ─── Corner frame decoration (Image #2 style) ────────────────────── */
-const FRAME_COLOR = "#C9A870";
-const FRAME_LEN   = 72; /* px length of each arm */
-
-function CornerFrame({ pos, size = FRAME_LEN, offset = 28 }: {
-  pos: "tl" | "tr" | "bl" | "br";
-  size?: number;
-  offset?: number;
-}) {
-  const top    = pos === "tl" || pos === "tr";
-  const left   = pos === "tl" || pos === "bl";
-  const style: React.CSSProperties = {
-    position: "absolute",
-    top:    top  ? offset : undefined,
-    bottom: !top ? offset : undefined,
-    insetInlineStart: left ? offset : undefined,
-    insetInlineEnd:  !left ? offset : undefined,
-    pointerEvents: "none",
-  };
-  let d = "";
-  if (pos === "tl") d = `M${size} 0 L0 0 L0 ${size}`;
-  if (pos === "tr") d = `M0 0 L${size} 0 L${size} ${size}`;
-  if (pos === "bl") d = `M${size} ${size} L0 ${size} L0 0`;
-  if (pos === "br") d = `M0 ${size} L${size} ${size} L${size} 0`;
-  return (
-    <div style={style}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} fill="none" overflow="visible">
-        <path d={d} stroke={FRAME_COLOR} strokeWidth="1.3" strokeLinecap="square" />
-      </svg>
-    </div>
-  );
-}
-
-/* ─── Mobile / tablet brand banner (replaces LeftPanel on compact) ─── */
-function MobileBrandBanner() {
-  return (
-    <div style={{
-      position: "relative",
-      background: "#F5EDE0",
-      padding: "22px 16px 20px",
-      marginBottom: 28,
-      borderRadius: "var(--r)",
-      border: "1px solid rgba(201,168,112,0.35)",
-      overflow: "hidden",
-      flexShrink: 0,
-    }}>
-      <CornerFrame pos="tl" size={44} offset={14} />
-      <CornerFrame pos="tr" size={44} offset={14} />
-      <CornerFrame pos="bl" size={44} offset={14} />
-      <CornerFrame pos="br" size={44} offset={14} />
-      <div style={{ display: "flex", justifyContent: "center", position: "relative", zIndex: 1 }}>
-        <img
-          src="/logo-infinity.png"
-          alt="Infinity International Facilities Management — Proud of UAE"
-          style={{ maxWidth: 260, width: "72%", objectFit: "contain" }}
-        />
-      </div>
-    </div>
-  );
-}
-
 /* ─── Left panel — desktop only ──────────────────────────────────── */
 function LeftPanel() {
   const t = useT();
@@ -132,7 +71,7 @@ function LeftPanel() {
   function formatLastLogin(iso: string): string {
     const d = new Date(iso);
     const t2 = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-    const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const loginDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
     const diff = Math.round((today.getTime() - loginDay.getTime()) / 86400000);
     if (diff === 0) return lang === "ar" ? `اليوم · ${t2}` : lang === "fr" ? `Aujourd'hui · ${t2}` : `Today · ${t2}`;
@@ -142,101 +81,82 @@ function LeftPanel() {
 
   return (
     <div style={{
-      flex: 1.05,
-      padding: "64px 72px",
-      display: "flex",
-      flexDirection: "column",
-      background: "#F5EDE0",          /* warm cream — Image #2 */
-      borderInlineEnd: "1px solid var(--line-soft)",
+      flex: 1.05, padding: "56px 64px",
+      display: "flex", flexDirection: "column",
+      background: "var(--bg-cream)",
+      borderInlineEnd: "1px solid var(--line)",
       position: "relative",
-      overflow: "hidden",
     }}>
-
-      {/* ── 4 corner frames (Image #2) ── */}
-      <CornerFrame pos="tl" />
-      <CornerFrame pos="tr" />
-      <CornerFrame pos="bl" />
-      <CornerFrame pos="br" />
-
-      {/* ── Infinity International logo ── */}
-      <div style={{ display: "flex", justifyContent: "center", flexShrink: 0, marginBottom: 48, position: "relative", zIndex: 1 }}>
-        <img
-          src="/logo-infinity.png"
-          alt="Infinity International Facilities Management — Proud of UAE"
-          style={{ maxWidth: 360, width: "88%", objectFit: "contain" }}
-        />
-      </div>
-
-      {/* ── Hero text + stats ── */}
-      <div style={{ marginTop: "auto", marginBottom: "auto", display: "flex", flexDirection: "column", gap: 24, maxWidth: 500, position: "relative", zIndex: 1 }}>
+      <Wordmark />
+      <div style={{ marginTop: "auto", marginBottom: "auto", display: "flex", flexDirection: "column", gap: 28, maxWidth: 520 }}>
         <Eyebrow>{t.hero_eyebrow}</Eyebrow>
         <div>
-          <div className={lang === "ar" ? "font-ar" : "font-display"}
-            style={{ fontSize: lang === "ar" ? 40 : 50, lineHeight: 1.06, letterSpacing: "-0.01em", color: "#2C2417" }}>
+          <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 44 : 56, lineHeight: 1.05, letterSpacing: "-0.01em" }}>
             {lang === "ar"
               ? t.hero_title
-              : <>{t.hero_title.replace(".", "")} <i style={{ color: "#A07B3C" }}>{lang === "fr" ? "d'exception." : "elevated."}</i></>
+              : <>{t.hero_title.replace(".", "")} <i style={{ color: "var(--gold-deep)" }}>{lang === "fr" ? "d'exception." : "elevated."}</i></>
             }
           </div>
-          <div style={{ fontSize: 13.5, color: "#6B5B47", lineHeight: 1.75, marginTop: 16, maxWidth: 440 }}>
+          <div style={{ fontSize: 14, color: "var(--ink-3)", lineHeight: 1.7, marginTop: 18, maxWidth: 460 }}>
             {t.hero_sub}
           </div>
         </div>
-
-        <div style={{ display: "flex", gap: 24, paddingTop: 20, borderTop: "1px solid rgba(180,150,110,0.35)" }}>
+        <div style={{ display: "flex", gap: 28, paddingTop: 22, borderTop: "1px solid var(--line)" }}>
           {[
             { n: t.hero_s1_n, l: t.hero_s1_l },
             { n: t.hero_s2_n, l: t.hero_s2_l },
             { n: t.hero_s3_n, l: t.hero_s3_l },
           ].map(s => (
             <div key={s.l}>
-              <div className="font-display tnum" style={{ fontSize: 24, color: "#2C2417" }}>{s.n}</div>
-              <div style={{ fontSize: 10, letterSpacing: "0.16em", color: "#8C7560", textTransform: "uppercase", marginTop: 3 }}>{s.l}</div>
+              <div className="font-display tnum" style={{ fontSize: 26, color: "var(--ink)" }}>{s.n}</div>
+              <div style={{ fontSize: 10.5, letterSpacing: "0.16em", color: "var(--ink-4)", textTransform: "uppercase", marginTop: 4 }}>{s.l}</div>
             </div>
           ))}
         </div>
 
-        {/* Live clock */}
+        {/* Live clock + Last login */}
         <div style={{
-          padding: "14px 18px",
-          background: "rgba(255,255,255,0.55)",
-          backdropFilter: "blur(6px)",
+          padding: "16px 20px",
+          background: "var(--bg-paper)",
           borderRadius: "var(--r)",
-          border: "1px solid rgba(180,150,110,0.3)",
-          display: "flex", flexDirection: "column", gap: 10,
+          border: "1px solid var(--line-soft)",
+          display: "flex", flexDirection: "column", gap: 12,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <span style={{ color: "#A07B3C", flexShrink: 0 }}><IcClock /></span>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ color: "var(--gold-deep)", opacity: 0.8, flexShrink: 0 }}><IcClock /></span>
             <div>
-              <div className="font-display tnum" style={{ fontSize: 22, color: "#2C2417", letterSpacing: "0.06em", lineHeight: 1.1 }}>
+              <div className="font-display tnum" style={{ fontSize: 24, color: "var(--ink)", letterSpacing: "0.06em", lineHeight: 1.1 }}>
                 {timeStr}
               </div>
-              <div style={{ fontSize: 10.5, color: "#8C7560", marginTop: 2, textTransform: "capitalize" }}>
+              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3, textTransform: "capitalize" }}>
                 {dateStr}
               </div>
             </div>
           </div>
           {lastLoginRaw && (
             <div style={{
-              paddingTop: 10, borderTop: "1px solid rgba(180,150,110,0.2)",
+              paddingTop: 12, borderTop: "1px solid var(--line-soft)",
               display: "flex", alignItems: "center", gap: 8,
-              fontSize: 11, color: "#6B5B47",
+              fontSize: 11.5, color: "var(--ink-3)",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--emerald)", flexShrink: 0, display: "inline-block" }} />
               <span>
                 {lang === "ar" ? "آخر تسجيل دخول: " : lang === "fr" ? "Dernière connexion : " : "Last login: "}
-                <span style={{ color: "#2C2417", fontWeight: 500 }}>{formatLastLogin(lastLoginRaw)}</span>
+                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{formatLastLogin(lastLoginRaw)}</span>
               </span>
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Footer ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: "#A09080", letterSpacing: "0.1em", position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.08em" }}>
         <span>© 2026 · Infinity International FM</span>
         <span>DUBAI · ABU DHABI · SHARJAH</span>
       </div>
+      <svg width="120" height="120" viewBox="0 0 120 120" style={{ position: "absolute", top: 40, insetInlineEnd: 48, opacity: 0.4 }}>
+        <path d="M10 10 L110 10 L110 30 M10 10 L10 30" stroke="var(--gold)" strokeWidth="1" fill="none" />
+        <path d="M10 110 L110 110 L110 90 M10 110 L10 90" stroke="var(--gold)" strokeWidth="1" fill="none" />
+      </svg>
     </div>
   );
 }
@@ -301,8 +221,12 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
           background: "var(--bg-paper)",
           overflow: "auto",
         }}>
-          {/* Brand banner replaces the hidden left panel on compact */}
-          {isCompact && <MobileBrandBanner />}
+          {/* Wordmark replaces the hidden left panel on compact */}
+          {isCompact && (
+            <div style={{ marginBottom: 28, flexShrink: 0 }}>
+              <Wordmark />
+            </div>
+          )}
 
           {/* Inner centering wrapper */}
           <div style={{
