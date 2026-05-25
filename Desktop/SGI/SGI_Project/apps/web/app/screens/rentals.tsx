@@ -1,7 +1,7 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useBreakpoint } from "@/lib/hooks";
-import { Topbar, Eyebrow, Chip, StatusDot, IcFilter, IcPlus, IcChevR, IcMore, IcDownload, IcMail } from "@/components/sgi-ui";
+import { Topbar, Eyebrow, Chip, StatusDot, IcFilter, IcPlus, IcChevR, IcMore, IcDownload, IcMail, IcCheck } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 
 type Rental = {
@@ -36,6 +36,204 @@ const STATUS_MAP: Record<string, { label_en: string; label_ar: string; label_fr:
   vacant:      { label_en: "Vacant",      label_ar: "شاغر",        label_fr: "Vacant",       tone: undefined,   c: "var(--ink-4)" },
   maintenance: { label_en: "Maintenance", label_ar: "صيانة",       label_fr: "Maintenance",  tone: "azure",     c: "var(--azure)" },
 };
+
+/* ─── Filter types & helpers ─────────────────────────────────────────── */
+
+type RentalFilter = {
+  status: "all" | "active" | "expiring" | "vacant" | "maintenance";
+  agent: "all" | string;
+  rentRange: "all" | "u150k" | "150k-250k" | "o250k";
+  nationality: "all" | string;
+};
+
+const DEFAULT_RENTAL_FILTER: RentalFilter = { status: "all", agent: "all", rentRange: "all", nationality: "all" };
+
+function isRentalFilterActive(f: RentalFilter) {
+  return f.status !== "all" || f.agent !== "all" || f.rentRange !== "all" || f.nationality !== "all";
+}
+
+function applyRentalFilters(rentals: Rental[], f: RentalFilter): Rental[] {
+  return rentals.filter(r => {
+    if (f.status !== "all" && r.status !== f.status) return false;
+    if (f.agent !== "all" && r.agent !== f.agent) return false;
+    if (f.rentRange !== "all") {
+      if (f.rentRange === "u150k"     && r.rentRaw >= 150_000) return false;
+      if (f.rentRange === "150k-250k" && (r.rentRaw < 150_000 || r.rentRaw >= 250_000)) return false;
+      if (f.rentRange === "o250k"     && r.rentRaw < 250_000) return false;
+    }
+    if (f.nationality !== "all" && r.nationality !== f.nationality) return false;
+    return true;
+  });
+}
+
+const RENT_OPTS = [
+  { label: "All rents",          value: "all"       },
+  { label: "< AED 150K / yr",    value: "u150k"     },
+  { label: "AED 150K – 250K",    value: "150k-250k" },
+  { label: "> AED 250K / yr",    value: "o250k"     },
+];
+
+const STATUS_PILL_OPTS = [
+  { label: "All leases",  value: "all"         },
+  { label: "Active",      value: "active"      },
+  { label: "Expiring",    value: "expiring"    },
+  { label: "Vacant",      value: "vacant"      },
+  { label: "Maintenance", value: "maintenance" },
+];
+
+const ALL_AGENTS      = ["Yasmine K.", "Omar R.", "Sara M."];
+const ALL_NATIONALITIES = ["UAE", "FR", "IT", "CN", "JP", "IN"];
+
+function rentRangeLabel(r: RentalFilter["rentRange"]): string {
+  switch (r) {
+    case "u150k":     return "< 150K";
+    case "150k-250k": return "150K – 250K";
+    case "o250k":     return "> 250K";
+    default:          return "All";
+  }
+}
+
+/* ─── RentalFilterPill ───────────────────────────────────────────────── */
+
+function RentalFilterPill({
+  label, displayValue, value, opts, isActive, onSelect,
+}: {
+  label: string; displayValue: string; value?: string;
+  opts: { label: string; value: string }[]; isActive?: boolean;
+  onSelect: (v: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, minW: 0 });
+
+  function toggle() {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left, minW: Math.max(r.width, 160) });
+    }
+    setOpen(o => !o);
+  }
+  const close = () => setOpen(false);
+  const accent = isActive ?? false;
+
+  return (
+    <>
+      <div ref={ref} onClick={toggle} style={{
+        display: "flex", flexDirection: "column", gap: 1, padding: "6px 12px",
+        background: accent ? "var(--gold-ghost)" : "var(--bg-paper)",
+        border: `1px solid ${accent ? "var(--gold-line, var(--gold))" : "var(--line-soft)"}`,
+        borderRadius: "var(--r)", cursor: "pointer", minWidth: 96, flexShrink: 0,
+        boxShadow: accent ? "0 0 0 2px color-mix(in srgb,var(--gold) 18%,transparent)" : "none",
+        transition: "box-shadow 0.12s, background 0.12s",
+      }}>
+        <span style={{ fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: accent ? "var(--gold-deep)" : "var(--ink-4)" }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: accent ? "var(--gold-deep)" : "var(--ink)", display: "flex", alignItems: "center", gap: 4 }}>
+          {displayValue}<span style={{ color: "var(--ink-4)", fontSize: 10, marginInlineStart: 1 }}>▾</span>
+        </span>
+      </div>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 500 }} onClick={close} />
+          <div style={{
+            position: "fixed", top: pos.top, left: pos.left, minWidth: pos.minW,
+            zIndex: 501, background: "var(--bg-ivory)", border: "1px solid var(--line-strong)",
+            borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", overflow: "hidden",
+          }}>
+            {opts.map(o => (
+              <div key={o.value}
+                onClick={() => { onSelect(o.value); close(); }}
+                style={{
+                  padding: "9px 14px", cursor: "pointer", fontSize: 13,
+                  display: "flex", alignItems: "center", gap: 10,
+                  background: o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent",
+                  color: o.value === value ? "var(--gold-deep)" : "var(--ink)",
+                  fontWeight: o.value === value ? 600 : 400,
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 12%,transparent)" : "var(--bg-inset)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent"; }}
+              >
+                {o.value === value ? <IcCheck /> : <span style={{ width: 14, display: "inline-block" }} />}
+                {o.label}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ─── RentalSnapshotBar ──────────────────────────────────────────────── */
+
+function RentalSnapshotBar({ filter, onChange, total, filtered }: {
+  filter: RentalFilter;
+  onChange: (f: RentalFilter) => void;
+  total: number;
+  filtered: number;
+}) {
+  const bp = useBreakpoint();
+  const isMob = bp === "mobile";
+  const active = isRentalFilterActive(filter);
+  const activeCount = [filter.status !== "all", filter.agent !== "all", filter.rentRange !== "all", filter.nationality !== "all"].filter(Boolean).length;
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMob ? "8px 12px" : "10px 24px", background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)", overflowX: "auto", flexShrink: 0, WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
+
+      <RentalFilterPill
+        label="Status"
+        displayValue={filter.status === "all" ? "All leases" : (STATUS_MAP[filter.status]?.label_en ?? filter.status)}
+        value={filter.status}
+        isActive={filter.status !== "all"}
+        opts={STATUS_PILL_OPTS}
+        onSelect={v => onChange({ ...filter, status: v as RentalFilter["status"] })}
+      />
+
+      <RentalFilterPill
+        label="Agent"
+        displayValue={filter.agent === "all" ? "All agents" : filter.agent.split(" ")[0]}
+        value={filter.agent}
+        isActive={filter.agent !== "all"}
+        opts={[{ label: "All agents", value: "all" }, ...ALL_AGENTS.map(a => ({ label: a, value: a }))]}
+        onSelect={v => onChange({ ...filter, agent: v })}
+      />
+
+      <RentalFilterPill
+        label="Rent / yr"
+        displayValue={rentRangeLabel(filter.rentRange)}
+        value={filter.rentRange}
+        isActive={filter.rentRange !== "all"}
+        opts={RENT_OPTS}
+        onSelect={v => onChange({ ...filter, rentRange: v as RentalFilter["rentRange"] })}
+      />
+
+      <RentalFilterPill
+        label="Nationality"
+        displayValue={filter.nationality === "all" ? "All" : filter.nationality}
+        value={filter.nationality}
+        isActive={filter.nationality !== "all"}
+        opts={[{ label: "All nationalities", value: "all" }, ...ALL_NATIONALITIES.map(n => ({ label: n, value: n }))]}
+        onSelect={v => onChange({ ...filter, nationality: v })}
+      />
+
+      {active && (
+        <button onClick={() => onChange(DEFAULT_RENTAL_FILTER)}
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.4)", background: "var(--bg-paper)", color: "var(--rose)", whiteSpace: "nowrap", flexShrink: 0 }}>
+          Reset
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{activeCount}</span>
+        </button>
+      )}
+
+      <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
+        {active ? `${filtered} / ${total}` : `${total}`} leases
+      </div>
+    </div>
+  );
+}
+
+/* ─── RentalRow ──────────────────────────────────────────────────────── */
 
 function RentalRow({ r, isMob, lang }: { r: Rental; isMob?: boolean; lang: string }) {
   const st = STATUS_MAP[r.status];
@@ -111,9 +309,10 @@ export function ScreenRentals() {
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const isCompact = bp !== "desktop";
-  const [activeFilter, setActiveFilter] = useState("active");
+  const [filter, setFilter] = useState<RentalFilter>(DEFAULT_RENTAL_FILTER);
 
-  const sel = RENTALS.find((r) => r.highlighted) ?? RENTALS[0];
+  const filteredRentals = applyRentalFilters(RENTALS, filter);
+  const sel = filteredRentals.find((r) => r.highlighted) ?? filteredRentals[0] ?? RENTALS[0];
   const selSt = STATUS_MAP[sel.status];
   const selLabel = lang === "ar" ? selSt.label_ar : lang === "fr" ? selSt.label_fr : selSt.label_en;
   const monthly = new Intl.NumberFormat("en-AE", { currency: "AED", style: "currency", maximumFractionDigits: 0 }).format(Math.round(sel.rentRaw / 12));
@@ -128,24 +327,32 @@ export function ScreenRentals() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <Topbar title={t.t_rental} crumb={["54 leases", "6 expiring soon"]}>
+      <Topbar title={t.t_rental} crumb={[`${filteredRentals.length} leases`, "6 expiring soon"]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcFilter />&nbsp;{t.filter}</button>}
         <button className="sgi-btn sgi-btn-primary"><IcPlus />&nbsp;{t.new_btn}</button>
       </Topbar>
 
+      <RentalSnapshotBar
+        filter={filter} onChange={setFilter}
+        total={RENTALS.length} filtered={filteredRentals.length}
+      />
+
       <main style={{ flex: 1, padding: isMob ? 14 : 24, display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1fr 480px", gap: 16, background: "var(--bg-cream)", overflow: "hidden" }}>
         {/* List */}
         <div className="sgi-card" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
-          {/* Status counters strip */}
+          {/* Status counters strip — clicking syncs with Status pill */}
           <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line-soft)", display: "flex", gap: isMob ? 8 : 18, overflowX: "auto", flexWrap: "nowrap" }}>
             {counters.map((s) => {
               const label = lang === "ar" ? s.ar : lang === "fr" ? s.fr : s.en;
-              const isActive = activeFilter === s.key;
+              const isActive = filter.status === s.key;
+              const liveCount = s.key === "all" ? RENTALS.length : RENTALS.filter(r => r.status === s.key).length;
               return (
-                <div key={s.key} onClick={() => setActiveFilter(s.key)} style={{ padding: "6px 12px", borderRadius: 6, background: isActive ? "color-mix(in srgb, " + s.c + " 10%, transparent)" : "transparent", borderInlineStart: "2px solid " + s.c, cursor: "pointer", flexShrink: 0 }}>
+                <div key={s.key}
+                  onClick={() => setFilter(f => ({ ...f, status: s.key as RentalFilter["status"] }))}
+                  style={{ padding: "6px 12px", borderRadius: 6, background: isActive ? "color-mix(in srgb, " + s.c + " 10%, transparent)" : "transparent", borderInlineStart: "2px solid " + (isActive ? s.c : "var(--line-soft)"), cursor: "pointer", flexShrink: 0, transition: "background 0.15s, border-color 0.15s" }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
-                    <span className="font-display tnum" style={{ fontSize: 22, color: s.c }}>{s.n}</span>
-                    <span className={lang === "ar" ? "font-ar" : undefined} style={{ fontSize: lang === "ar" ? 13 : 11, color: "var(--ink-3)", fontWeight: 500 }}>{label}</span>
+                    <span className="font-display tnum" style={{ fontSize: 22, color: isActive ? s.c : "var(--ink-3)" }}>{liveCount}</span>
+                    <span className={lang === "ar" ? "font-ar" : undefined} style={{ fontSize: lang === "ar" ? 13 : 11, color: isActive ? s.c : "var(--ink-4)", fontWeight: isActive ? 600 : 400 }}>{label}</span>
                   </div>
                 </div>
               );
@@ -160,7 +367,11 @@ export function ScreenRentals() {
           )}
 
           <div style={{ overflow: "auto", flex: 1 }}>
-            {RENTALS.map((r) => <RentalRow key={r.ref} r={r} isMob={isMob} lang={lang} />)}
+            {filteredRentals.length === 0 ? (
+              <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: "var(--ink-4)" }}>No leases match your filters</div>
+            ) : (
+              filteredRentals.map((r) => <RentalRow key={r.ref} r={r} isMob={isMob} lang={lang} />)
+            )}
           </div>
         </div>
 
