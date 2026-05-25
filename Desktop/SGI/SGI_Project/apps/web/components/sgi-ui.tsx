@@ -58,6 +58,7 @@ export const IcSante     = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></Ic>;
 export const IcAssurance = () => <Ic><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></Ic>;
 export const IcBanques   = () => <Ic><path d="M3 21h18M3 10h18M3 7l9-4 9 4M6 10v11M10 10v11M14 10v11M18 10v11"/></Ic>;
 export const IcAmazon    = () => <Ic><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5M12 22V12"/></Ic>;
+export const IcConsult   = () => <Ic><circle cx="12" cy="7" r="4"/><path d="M5.5 21a8.38 8.38 0 0 1 13 0"/><path d="M17 14.5a3 3 0 1 1 4 2.8V21M19 21h-4"/></Ic>;
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
@@ -88,7 +89,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 }
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
-export type NavKey = "dash" | "prop" | "crm" | "contract" | "rental" | "admin" | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "visa" | "finance" | "report";
+export type NavKey = "dash" | "prop" | "crm" | "contract" | "rental" | "admin" | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "visa" | "finance" | "report";
 
 export const NAV: { key: NavKey; icon: React.ReactElement; badge?: number }[] = [
   { key: "dash",     icon: <IcDash /> },
@@ -101,8 +102,9 @@ export const NAV: { key: NavKey; icon: React.ReactElement; badge?: number }[] = 
   { key: "sante",     icon: <IcSante /> },
   { key: "assurance", icon: <IcAssurance /> },
   { key: "banques",   icon: <IcBanques /> },
-  { key: "amazon",    icon: <IcAmazon /> },
-  { key: "visa",      icon: <IcVisa />,     badge: 3 },
+  { key: "amazon",      icon: <IcAmazon /> },
+  { key: "consultants", icon: <IcConsult /> },
+  { key: "visa",        icon: <IcVisa />,     badge: 3 },
   { key: "finance",  icon: <IcFinance /> },
   { key: "report",   icon: <IcReport /> },
 ];
@@ -149,7 +151,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm,
       contract: t.nav_contract, rental: t.nav_rental,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
-      assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon,
+      assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa,
       finance: t.nav_finance, report: t.nav_report,
     };

@@ -42,6 +42,7 @@ export default function App() {
         {screen === "assurance" && <ScreenPlaceholder navKey="nav_assurance" />}
         {screen === "banques"   && <ScreenPlaceholder navKey="nav_banques" />}
         {screen === "amazon"    && <ScreenPlaceholder navKey="nav_amazon" />}
+        {screen === "consultants" && <ScreenPlaceholder navKey="nav_consultants" />}
         {screen === "visa"      && <ScreenGoldenVisa />}
         {screen === "finance"  && <ScreenFinance />}
         {screen === "report"   && <ScreenReports />}

@@ -11,7 +11,7 @@ export type Translations = {
   nav_dash: string; nav_prop: string; nav_crm: string;
   nav_contract: string; nav_rental: string;
   nav_admin: string; nav_tourisme: string; nav_sante: string;
-  nav_assurance: string; nav_banques: string; nav_amazon: string;
+  nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
   nav_finance: string; nav_report: string;
 
@@ -64,7 +64,7 @@ const ar: Translations = {
   nav_dash: "لوحة القيادة", nav_prop: "العقارات", nav_crm: "إدارة العملاء",
   nav_contract: "العقود", nav_rental: "الإيجارات",
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
-  nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون",
+  nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
   nav_finance: "المالية", nav_report: "التقارير",
 
@@ -120,7 +120,7 @@ const en: Translations = {
   nav_dash: "Dashboard", nav_prop: "Properties", nav_crm: "CRM",
   nav_contract: "Contracts", nav_rental: "Rentals",
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
-  nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon",
+  nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
   nav_finance: "Finance", nav_report: "Reports",
 
@@ -176,7 +176,7 @@ const fr: Translations = {
   nav_dash: "Tableau de bord", nav_prop: "Propriétés", nav_crm: "CRM",
   nav_contract: "Contrats", nav_rental: "Locations",
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
-  nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone",
+  nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
   nav_finance: "Finance", nav_report: "Rapports",
 
