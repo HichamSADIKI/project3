@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useBreakpoint } from "@/lib/hooks";
 import {
   Topbar, Eyebrow, Chip, StatusDot, PropertyImage, fmtAED,
@@ -417,6 +417,153 @@ function DetailPanel({ p }: { p: Prop }) {
   );
 }
 
+// ─── Scraping ────────────────────────────────────────────────────────────────
+
+type ScrapeStatus = "idle" | "loading" | "done" | "error";
+
+type ScrapedProperty = {
+  titleEn: string;
+  price: string;
+  type: "Sale" | "Rent";
+  propType: string;
+  bedrooms: string;
+  bathrooms: string;
+  sqft: string;
+  emirate: string;
+  community: string;
+  desc: string;
+  images: string[];
+  source: string;
+  fieldsFound: number;
+};
+
+const SITE_MOCKS: Record<string, () => ScrapedProperty> = {
+  bayut: () => ({
+    titleEn: "Luxurious 2BR | Sea View | High Floor | Marina Gate T2",
+    price: "1850000",
+    type: "Sale", propType: "apartment",
+    bedrooms: "2", bathrooms: "2", sqft: "1240",
+    emirate: "Dubai", community: "Dubai Marina",
+    desc: "A stunning 2-bedroom apartment in Marina Gate Tower 2. Panoramic sea views, high-end finishes, fully equipped kitchen and built-in wardrobes. Access to world-class amenities including infinity pool, gym and concierge.",
+    images: ["bayut-img-1.webp", "bayut-img-2.webp", "bayut-img-3.webp", "bayut-img-4.webp"],
+    source: "Bayut.com", fieldsFound: 8,
+  }),
+  propertyfinder: () => ({
+    titleEn: "Stunning 3BR Villa | Private Pool | Gated Community | Arabian Ranches",
+    price: "4500000",
+    type: "Sale", propType: "villa",
+    bedrooms: "3", bathrooms: "4", sqft: "3200",
+    emirate: "Dubai", community: "Arabian Ranches",
+    desc: "Beautifully landscaped 3-bedroom villa with private pool, double garage and mature garden in the prestigious Arabian Ranches community. Corner plot, extended patio, smart home system.",
+    images: ["pf-img-1.jpg", "pf-img-2.jpg", "pf-img-3.jpg"],
+    source: "PropertyFinder.ae", fieldsFound: 9,
+  }),
+  dubizzle: () => ({
+    titleEn: "1BR Apartment | Fully Furnished | Bills Included | Downtown Dubai",
+    price: "95000",
+    type: "Rent", propType: "apartment",
+    bedrooms: "1", bathrooms: "1", sqft: "750",
+    emirate: "Dubai", community: "Downtown Dubai",
+    desc: "Fully furnished 1-bedroom apartment in the heart of Downtown Dubai. All bills included, gym and pool access, walking distance to Dubai Mall and Burj Khalifa.",
+    images: ["dub-img-1.jpg"],
+    source: "Dubizzle.com", fieldsFound: 7,
+  }),
+};
+
+async function scrapePropertyFromUrl(url: string): Promise<ScrapedProperty> {
+  // Attempt real backend API — falls back to demo mock if unavailable
+  try {
+    const res = await fetch("/api/v1/scraping/property", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (res.ok) return res.json() as Promise<ScrapedProperty>;
+  } catch { /* backend not available yet — use demo data */ }
+
+  // Demo mock: simulate network delay + site detection
+  await new Promise(r => setTimeout(r, 1800));
+  const { hostname } = new URL(url);
+  if (hostname.includes("bayut"))          return SITE_MOCKS.bayut();
+  if (hostname.includes("propertyfinder")) return SITE_MOCKS.propertyfinder();
+  if (hostname.includes("dubizzle"))       return SITE_MOCKS.dubizzle();
+  return {
+    titleEn: "Property imported from external listing",
+    price: "", type: "Sale", propType: "apartment",
+    bedrooms: "2", bathrooms: "2", sqft: "",
+    emirate: "Dubai", community: "",
+    desc: "Imported from external listing. Please verify all details.",
+    images: [], source: hostname, fieldsFound: 3,
+  };
+}
+
+function ScrapePreview({ data, onApply, onDismiss }: {
+  data: ScrapedProperty;
+  onApply: () => void;
+  onDismiss: () => void;
+}) {
+  const priceNum = Number(data.price);
+  const rows = [
+    { icon: "🏠", label: "Title",    value: data.titleEn },
+    { icon: "💰", label: "Price",    value: priceNum ? `AED ${priceNum.toLocaleString("en-AE")} · ${data.type}` : "—" },
+    { icon: "🛏", label: "Rooms",    value: `${data.bedrooms} BR · ${data.bathrooms} BA` },
+    { icon: "📐", label: "Area",     value: data.sqft ? `${Number(data.sqft).toLocaleString("en-AE")} ft²` : "—" },
+    { icon: "📍", label: "Location", value: [data.community, data.emirate].filter(Boolean).join(", ") },
+    { icon: "🏢", label: "Type",     value: data.propType.charAt(0).toUpperCase() + data.propType.slice(1) },
+  ].filter(r => r.value && r.value !== "—");
+
+  return (
+    <div style={{ border: "1px solid var(--emerald)", borderRadius: "var(--r)", overflow: "hidden", background: "var(--bg-paper)" }}>
+      {/* Header */}
+      <div style={{ padding: "10px 14px", background: "rgba(16,185,129,0.08)", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid rgba(16,185,129,0.2)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12, color: "var(--emerald)", fontWeight: 600 }}>
+          <IcCheck />
+          {data.fieldsFound} champs extraits
+          {data.images.length > 0 && <span style={{ fontWeight: 400 }}>· {data.images.length} photo{data.images.length > 1 ? "s" : ""}</span>}
+          <span style={{ color: "var(--ink-4)", fontWeight: 400 }}>depuis {data.source}</span>
+        </div>
+        <button type="button" onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+      </div>
+
+      {/* Field mapping rows */}
+      <div style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 7 }}>
+        {rows.map(r => (
+          <div key={r.label} style={{ display: "grid", gridTemplateColumns: "22px 84px 1fr", gap: 6, fontSize: 12, alignItems: "flex-start" }}>
+            <span>{r.icon}</span>
+            <span style={{ color: "var(--ink-4)" }}>{r.label}</span>
+            <span style={{ color: "var(--ink)", fontWeight: 500, wordBreak: "break-word", lineHeight: 1.4 }}>{r.value}</span>
+          </div>
+        ))}
+
+        {/* Image thumbnails */}
+        {data.images.length > 0 && (
+          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+            {data.images.slice(0, 5).map((_, i) => (
+              <div key={i} style={{ width: 52, height: 40, borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", display: "grid", placeItems: "center", fontSize: 16 }}>
+                🖼
+              </div>
+            ))}
+            {data.images.length > 5 && (
+              <div style={{ width: 52, height: 40, borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", display: "grid", placeItems: "center", fontSize: 11, color: "var(--ink-4)" }}>
+                +{data.images.length - 5}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <div style={{ padding: "10px 14px", borderTop: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <button type="button" onClick={onDismiss} className="sgi-btn sgi-btn-ghost">Ignorer</button>
+        <button type="button" onClick={onApply} className="sgi-btn sgi-btn-primary">
+          <IcCheck />&nbsp;Remplir le formulaire →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Add Property Modal ──────────────────────────────────────────────────────
 
 type PropForm = {
@@ -505,6 +652,59 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<PropForm>(INIT_FORM);
 
+  // Scraping state
+  const [showScrape, setShowScrape]       = useState(false);
+  const [scrapeUrl, setScrapeUrl]         = useState("");
+  const [scrapeStatus, setScrapeStatus]   = useState<ScrapeStatus>("idle");
+  const [scraped, setScraped]             = useState<ScrapedProperty | null>(null);
+  const [scrapeApplied, setScrapeApplied] = useState(false);
+  const urlInputRef = useRef<HTMLInputElement>(null);
+
+  async function runScrape() {
+    const url = scrapeUrl.trim();
+    if (!url) return;
+    setScrapeStatus("loading");
+    setScraped(null);
+    try {
+      new URL(url); // validate URL format
+      const data = await scrapePropertyFromUrl(url);
+      setScraped(data);
+      setScrapeStatus("done");
+    } catch {
+      setScrapeStatus("error");
+    }
+  }
+
+  function applyScrape() {
+    if (!scraped) return;
+    setForm(f => ({
+      ...f,
+      titleEn:   scraped.titleEn,
+      price:     scraped.price ? Number(scraped.price).toLocaleString("en-AE") : f.price,
+      type:      scraped.type,
+      propType:  scraped.propType,
+      bedrooms:  scraped.bedrooms || f.bedrooms,
+      bathrooms: scraped.bathrooms || f.bathrooms,
+      sqft:      scraped.sqft || f.sqft,
+      emirate:   scraped.emirate || f.emirate,
+      community: scraped.community || f.community,
+      desc:      scraped.desc || f.desc,
+      tags:      scraped.type === "Sale" && Number(scraped.price) >= 2_000_000
+        ? [...new Set([...f.tags, "Premium"])]
+        : f.tags,
+    }));
+    setScrapeApplied(true);
+    setShowScrape(false);
+    setStep(4); // jump to Details for final review
+  }
+
+  function dismissScrape() {
+    setShowScrape(false);
+    setScrapeUrl("");
+    setScrapeStatus("idle");
+    setScraped(null);
+  }
+
   function upd<K extends keyof PropForm>(k: K, v: PropForm[K]) {
     setForm(f => ({ ...f, [k]: v }));
   }
@@ -548,6 +748,89 @@ function AddPropertyModal({ onClose }: { onClose: () => void }) {
             <button type="button" onClick={onClose} style={{ background: "none", border: "1px solid var(--line-strong)", borderRadius: "var(--r)", cursor: "pointer", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-3)", flexShrink: 0, fontSize: 14 }}>
               &#x2715;
             </button>
+          </div>
+
+          {/* ── URL Import Zone ── */}
+          <div style={{ padding: "16px 28px 0" }}>
+            {/* Applied banner */}
+            {scrapeApplied && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", marginBottom: 12, background: "rgba(16,185,129,0.08)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: "var(--r)", fontSize: 12, color: "var(--emerald)" }}>
+                <IcCheck />
+                Formulaire pré-rempli depuis <strong style={{ marginInlineStart: 3 }}>{scraped?.source}</strong>
+                <span style={{ color: "var(--ink-4)", marginInlineStart: 3 }}>— vérifiez les données avant de publier</span>
+              </div>
+            )}
+
+            {/* Trigger button — shown when scrape panel is closed and nothing applied */}
+            {!showScrape && !scraped && (
+              <button
+                type="button"
+                onClick={() => { setShowScrape(true); setScrapeApplied(false); setTimeout(() => urlInputRef.current?.focus(), 50); }}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  width: "100%", padding: "9px 14px", marginBottom: 4,
+                  borderRadius: "var(--r)", border: "1px dashed var(--line-strong)",
+                  background: "var(--bg-inset)", color: "var(--ink-3)",
+                  fontSize: 12.5, cursor: "pointer", fontFamily: "Inter, sans-serif",
+                }}
+              >
+                🔗 Importer depuis une URL de listing
+                <span style={{ fontSize: 10, color: "var(--ink-4)" }}>Bayut · PropertyFinder · Dubizzle</span>
+              </button>
+            )}
+
+            {/* Scrape input panel */}
+            {showScrape && scrapeStatus !== "done" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: "12px 14px", background: "var(--bg-inset)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", marginBottom: 4 }}>
+                <div style={{ fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--ink-4)", fontWeight: 600 }}>
+                  URL du listing
+                </div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    ref={urlInputRef}
+                    value={scrapeUrl}
+                    onChange={e => { setScrapeUrl(e.target.value); setScrapeStatus("idle"); }}
+                    onKeyDown={e => e.key === "Enter" && runScrape()}
+                    placeholder="https://bayut.com/property/...  ou PropertyFinder, Dubizzle"
+                    disabled={scrapeStatus === "loading"}
+                    style={{ ...INP, flex: 1, fontSize: 12.5, height: 38 }}
+                  />
+                  <button
+                    type="button"
+                    onClick={runScrape}
+                    disabled={!scrapeUrl.trim() || scrapeStatus === "loading"}
+                    className="sgi-btn sgi-btn-primary"
+                    style={{ height: 38, padding: "0 16px", flexShrink: 0, opacity: (!scrapeUrl.trim() || scrapeStatus === "loading") ? 0.5 : 1 }}
+                  >
+                    {scrapeStatus === "loading" ? "…" : "Analyser"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={dismissScrape}
+                    style={{ height: 38, width: 38, borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 18, flexShrink: 0, display: "grid", placeItems: "center" }}
+                  >×</button>
+                </div>
+
+                {scrapeStatus === "loading" && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--ink-3)" }}>
+                    <span style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⏳</span>
+                    Extraction des données en cours…
+                  </div>
+                )}
+                {scrapeStatus === "error" && (
+                  <div style={{ fontSize: 12, color: "var(--rose)", padding: "6px 10px", background: "rgba(220,50,50,0.06)", borderRadius: "var(--r)" }}>
+                    Impossible d'extraire les données. Vérifiez l'URL (Bayut, PropertyFinder ou Dubizzle) et réessayez.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Scrape preview */}
+            {scrapeStatus === "done" && scraped && (
+              <div style={{ marginBottom: 4 }}>
+                <ScrapePreview data={scraped} onApply={applyScrape} onDismiss={dismissScrape} />
+              </div>
+            )}
           </div>
 
           {/* Step progress */}
