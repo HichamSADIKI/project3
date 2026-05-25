@@ -114,12 +114,6 @@ type NavEntry =
   | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] };
 
 const NAV_ENTRIES: NavEntry[] = [
-  { type: "group", id: "clients",      groupKey: "clients", icon: <IcClients />,
-    children: [
-      { key: "personne", icon: <IcPersonne /> },
-      { key: "societe",  icon: <IcSociete /> },
-    ],
-  },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
       { key: "prop",     icon: <IcProp /> },
@@ -141,6 +135,12 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "finance",     icon: <IcFinance /> },
   { type: "item",  key: "dash",        icon: <IcDash /> },
   { type: "item",  key: "report",      icon: <IcReport /> },
+  { type: "group", id: "clients",      groupKey: "clients", icon: <IcClients />,
+    children: [
+      { key: "personne", icon: <IcPersonne /> },
+      { key: "societe",  icon: <IcSociete /> },
+    ],
+  },
   { type: "item",  key: "crm",         icon: <IcCRM />,  badge: 12 },
 ];
 
