@@ -17,6 +17,8 @@ type Prop = {
   state: "available" | "offer" | "sold" | "rented";
   tag: string; img: number;
   imgUrls?: string[];
+  propType: string;
+  emirate: string;
   floor: number; parking: number;
   agent: string; agentPhone: string;
   desc: string;
@@ -24,42 +26,107 @@ type Prop = {
 
 const PROPERTIES: Prop[] = [
   {
-    ref: "INF-2418", t: "Marina Gate · Tower 2 #4502",  area: "Dubai Marina",         bd: 3, ba: 4, sqft: 2150, price: 4750000,
-    type: "Sale", state: "available", tag: "Golden Visa", img: 1, floor: 45, parking: 2,
-    agent: "Yasmine Khalil", agentPhone: "+971 50 123 4567",
+    ref: "INF-2418", t: "Marina Gate · Tower 2 #4502",    area: "Dubai Marina",          bd: 3, ba: 4, sqft: 2150, price: 4750000,
+    type: "Sale",  state: "available", tag: "Golden Visa", img: 1, propType: "apartment", emirate: "Dubai",
+    floor: 45, parking: 2, agent: "Yasmine Khalil", agentPhone: "+971 50 123 4567",
     desc: "Spectacular full-marina view from this fully upgraded 3-bedroom. Open-plan kitchen, floor-to-ceiling glazing, private balcony. DLD transfer ready. Mortgage pre-approved.",
   },
   {
-    ref: "INF-2417", t: "Bluewaters Residences B12",     area: "Bluewaters Island",    bd: 4, ba: 5, sqft: 3200, price: 12500000,
-    type: "Sale", state: "offer",     tag: "Premium",    img: 2, floor: 12, parking: 2,
-    agent: "Omar Rashid",    agentPhone: "+971 55 987 6543",
+    ref: "INF-2417", t: "Bluewaters Residences B12",      area: "Bluewaters Island",     bd: 4, ba: 5, sqft: 3200, price: 12500000,
+    type: "Sale",  state: "offer",     tag: "Premium",    img: 2, propType: "apartment", emirate: "Dubai",
+    floor: 12, parking: 2, agent: "Omar Rashid",    agentPhone: "+971 55 987 6543",
     desc: "Rare corner unit facing Ain Dubai and the open sea. Bespoke Miele kitchen, Italian marble throughout, private pool access. Under offer — viewings by appointment only.",
   },
   {
-    ref: "INF-2416", t: "Palm Jumeirah · Shoreline #1202", area: "Palm Jumeirah",      bd: 2, ba: 3, sqft: 1820, price: 350000,
-    type: "Rent", state: "available", tag: "Yearly",     img: 3, floor: 12, parking: 1,
-    agent: "Sara Mansouri",  agentPhone: "+971 52 456 7890",
+    ref: "INF-2416", t: "Palm Jumeirah · Shoreline #1202", area: "Palm Jumeirah",        bd: 2, ba: 3, sqft: 1820, price: 350000,
+    type: "Rent",  state: "available", tag: "Yearly",     img: 3, propType: "apartment", emirate: "Dubai",
+    floor: 12, parking: 1, agent: "Sara Mansouri",  agentPhone: "+971 52 456 7890",
     desc: "Bright 2-bed with partial sea view on the West Crescent. Fully furnished. 4 cheques accepted. Beach access, pool, gym included.",
   },
   {
-    ref: "INF-2415", t: "Downtown · Burj Vista T1 #3401",  area: "Downtown Dubai",    bd: 1, ba: 2, sqft: 980,  price: 2100000,
-    type: "Sale", state: "available", tag: "—",          img: 4, floor: 34, parking: 1,
-    agent: "Yasmine Khalil", agentPhone: "+971 50 123 4567",
+    ref: "INF-2415", t: "Downtown · Burj Vista T1 #3401", area: "Downtown Dubai",        bd: 1, ba: 2, sqft: 980,  price: 2100000,
+    type: "Sale",  state: "available", tag: "—",          img: 4, propType: "apartment", emirate: "Dubai",
+    floor: 34, parking: 1, agent: "Yasmine Khalil", agentPhone: "+971 50 123 4567",
     desc: "Clean 1-bedroom in the iconic Burj Vista with Burj Khalifa view. No agents. Direct from owner. Service charge settled for 2026.",
   },
   {
-    ref: "INF-2414", t: "Saadiyat Beach Villa 32",         area: "Abu Dhabi · Saadiyat", bd: 5, ba: 6, sqft: 5600, price: 28000000,
-    type: "Sale", state: "available", tag: "Golden Visa", img: 5, floor: 1,  parking: 4,
-    agent: "Omar Rashid",    agentPhone: "+971 55 987 6543",
+    ref: "INF-2414", t: "Saadiyat Beach Villa 32",        area: "Abu Dhabi · Saadiyat",  bd: 5, ba: 6, sqft: 5600, price: 28000000,
+    type: "Sale",  state: "available", tag: "Golden Visa", img: 5, propType: "villa",    emirate: "Abu Dhabi",
+    floor: 1,  parking: 4, agent: "Omar Rashid",    agentPhone: "+971 55 987 6543",
     desc: "Beachfront ultra-luxury villa — 5 en-suite bedrooms, private infinity pool, home cinema, 4-car garage. ADGM-registered. Price negotiable for cash buyers.",
   },
   {
-    ref: "INF-2413", t: "JBR · Sadaf 5 #2206",            area: "JBR · Marina",        bd: 2, ba: 2, sqft: 1340, price: 220000,
-    type: "Rent", state: "rented",   tag: "Yearly",     img: 6, floor: 22, parking: 1,
-    agent: "Sara Mansouri",  agentPhone: "+971 52 456 7890",
+    ref: "INF-2413", t: "JBR · Sadaf 5 #2206",           area: "JBR · Marina",          bd: 2, ba: 2, sqft: 1340, price: 220000,
+    type: "Rent",  state: "rented",    tag: "Yearly",     img: 6, propType: "apartment", emirate: "Dubai",
+    floor: 22, parking: 1, agent: "Sara Mansouri",  agentPhone: "+971 52 456 7890",
     desc: "Walk-to-beach 2-bed. Currently occupied — available for renewal Apr 2027. Previous tenant 4 years. Excellent rental yield: 5.8 %.",
   },
 ];
+
+// ─── Filter system ────────────────────────────────────────────────────────────
+
+type FilterState = {
+  listing:    "all" | "Sale" | "Rent";
+  emirate:    "all" | "Dubai" | "Abu Dhabi" | "Sharjah" | "Other";
+  propType:   "all" | string;
+  bedsMin:    number;
+  bedsMax:    number;
+  priceRange: "all" | "u500k" | "500k-1m" | "1m-3m" | "3m-7m" | "7m-15m" | "o15m";
+  goldenVisa: boolean;
+  agent:      "all" | string;
+  sortBy:     "newest" | "price_asc" | "price_desc" | "sqft_desc";
+};
+
+const DEFAULT_FILTER: FilterState = {
+  listing: "all", emirate: "all", propType: "all",
+  bedsMin: 0, bedsMax: 0, priceRange: "all",
+  goldenVisa: false, agent: "all", sortBy: "newest",
+};
+
+const PRICE_RANGES: Record<string, [number, number]> = {
+  "all":     [0, 0],
+  "u500k":   [0, 500_000],
+  "500k-1m": [500_000, 1_000_000],
+  "1m-3m":   [1_000_000, 3_000_000],
+  "3m-7m":   [3_000_000, 7_000_000],
+  "7m-15m":  [7_000_000, 15_000_000],
+  "o15m":    [15_000_000, 0],
+};
+
+function activeFilterCount(f: FilterState): number {
+  return [
+    f.listing !== "all", f.emirate !== "all", f.propType !== "all",
+    f.bedsMin > 0 || f.bedsMax > 0, f.priceRange !== "all",
+    f.goldenVisa, f.agent !== "all",
+  ].filter(Boolean).length;
+}
+
+function applyFilters(props: Prop[], f: FilterState, stateFilter: string): Prop[] {
+  const [pMin, pMax] = PRICE_RANGES[f.priceRange] ?? [0, 0];
+  return props
+    .filter(p => {
+      if (stateFilter !== "all") {
+        const ok = p.state === stateFilter || (stateFilter === "sold" && (p.state === "sold" || p.state === "rented"));
+        if (!ok) return false;
+      }
+      if (f.listing !== "all" && p.type !== f.listing)                              return false;
+      if (f.emirate !== "all" && p.emirate !== f.emirate)                           return false;
+      if (f.propType !== "all" && p.propType !== f.propType)                        return false;
+      if (f.bedsMin > 0 && p.bd < f.bedsMin)                                       return false;
+      if (f.bedsMax > 0 && p.bd > f.bedsMax)                                       return false;
+      if (pMin > 0 && p.price < pMin)                                               return false;
+      if (pMax > 0 && p.price > pMax)                                               return false;
+      if (f.goldenVisa && !(p.type === "Sale" && p.price >= 2_000_000))             return false;
+      if (f.agent !== "all" && p.agent !== f.agent)                                 return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (f.sortBy === "price_asc")  return a.price - b.price;
+      if (f.sortBy === "price_desc") return b.price - a.price;
+      if (f.sortBy === "sqft_desc")  return b.sqft - a.sqft;
+      return 0;
+    });
+}
 
 const AGENT_PHONES: Record<string, string> = {
   "Yasmine Khalil": "+971 50 123 4567",
@@ -76,12 +143,24 @@ const STATE_MAP = {
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
+function isSafeImgUrl(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== "https:") return false;
+    // Reject localhost / private IP ranges
+    if (/^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(hostname)) return false;
+    return true;
+  } catch { return false; }
+}
+
 function PropImg({ p, style }: { p: Prop; style?: React.CSSProperties }) {
-  if (p.imgUrls?.[0]) {
+  const safeUrl = p.imgUrls?.find(isSafeImgUrl);
+  if (safeUrl) {
     return (
       <img
-        src={p.imgUrls[0]}
+        src={safeUrl}
         alt={p.t}
+        referrerPolicy="no-referrer"
         style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", ...style }}
       />
     );
@@ -89,22 +168,142 @@ function PropImg({ p, style }: { p: Prop; style?: React.CSSProperties }) {
   return <PropertyImage variant={p.img} />;
 }
 
-function SelectPill({ label, value, gold, active, onClick }: { label: string; value: string; gold?: boolean; active?: boolean; onClick?: () => void }) {
+// ─── Generic filter pill with fixed-position dropdown ────────────────────────
+
+type FilterOpt = { label: string; value: string };
+
+function FilterPill({
+  label, displayValue, value, opts, isActive, gold, onSelect, renderMenu,
+}: {
+  label: string; displayValue: string; value?: string;
+  opts?: FilterOpt[]; isActive?: boolean; gold?: boolean;
+  onSelect?: (v: string) => void;
+  renderMenu?: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, minW: 0 });
+
+  function toggle() {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left, minW: Math.max(r.width, 160) });
+    }
+    setOpen(o => !o);
+  }
+  const close = () => setOpen(false);
+
+  const active = isActive ?? false;
+  const accent = gold || active;
+
   return (
-    <div onClick={onClick} style={{
-      display: "flex", flexDirection: "column", gap: 1, padding: "6px 12px",
-      background: gold ? "var(--gold-ghost)" : active ? "var(--bg-paper)" : "var(--bg-ivory)",
-      border: "1px solid " + (gold ? "var(--gold-line)" : active ? "var(--line-strong)" : "var(--line-soft)"),
-      borderRadius: "var(--r)", cursor: "pointer", minWidth: 110, flexShrink: 0,
-      boxShadow: active ? "var(--shadow-1)" : "none",
-    }}>
-      <span style={{ fontSize: 9.5, letterSpacing: "0.14em", color: gold ? "var(--gold-deep)" : "var(--ink-4)", textTransform: "uppercase" }}>{label}</span>
-      <span style={{ fontSize: 12.5, fontWeight: 500, color: gold ? "var(--gold-deep)" : "var(--ink)", display: "flex", alignItems: "center", gap: 6 }}>
-        {value} <span style={{ color: "var(--ink-4)" }}><IcChevD /></span>
-      </span>
+    <>
+      <div ref={ref} onClick={toggle} style={{
+        display: "flex", flexDirection: "column", gap: 1, padding: "6px 12px",
+        background: accent ? "var(--gold-ghost)" : "var(--bg-ivory)",
+        border: `1px solid ${accent ? "var(--gold-line)" : "var(--line-soft)"}`,
+        borderRadius: "var(--r)", cursor: "pointer", minWidth: 100, flexShrink: 0,
+        boxShadow: accent ? "0 0 0 2px color-mix(in srgb,var(--gold) 18%,transparent)" : "none",
+        transition: "box-shadow 0.12s, background 0.12s",
+      }}>
+        <span style={{ fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: accent ? "var(--gold-deep)" : "var(--ink-4)" }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: accent ? "var(--gold-deep)" : "var(--ink)", display: "flex", alignItems: "center", gap: 5 }}>
+          {displayValue}<span style={{ color: "var(--ink-4)", fontSize: 10, marginInlineStart: 1 }}><IcChevD /></span>
+        </span>
+      </div>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 500 }} onClick={close} />
+          <div style={{
+            position: "fixed", top: pos.top, left: pos.left, minWidth: pos.minW,
+            zIndex: 501, background: "var(--bg-ivory)", border: "1px solid var(--line-strong)",
+            borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", overflow: "hidden",
+          }}>
+            {renderMenu
+              ? renderMenu(close)
+              : opts?.map(o => (
+                <div key={o.value}
+                  onClick={() => { onSelect?.(o.value); close(); }}
+                  style={{
+                    padding: "9px 14px", cursor: "pointer", fontSize: 13,
+                    display: "flex", alignItems: "center", gap: 10,
+                    background: o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent",
+                    color: o.value === value ? "var(--gold-deep)" : "var(--ink)",
+                    fontWeight: o.value === value ? 600 : 400,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 12%,transparent)" : "var(--bg-inset)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent"; }}
+                >
+                  {o.value === value ? <IcCheck /> : <span style={{ width: 14, display: "inline-block" }} />}
+                  {o.label}
+                </div>
+              ))
+            }
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── Bedrooms range picker ────────────────────────────────────────────────────
+
+const BED_OPTS = [
+  { label: "Studio", bd: 0 }, { label: "1", bd: 1 }, { label: "2", bd: 2 },
+  { label: "3", bd: 3 },      { label: "4", bd: 4 }, { label: "5+", bd: 5 },
+];
+
+function BedsPicker({
+  bedsMin, bedsMax, onChange, close,
+}: { bedsMin: number; bedsMax: number; onChange: (min: number, max: number) => void; close: () => void }) {
+  function pick(bd: number) {
+    if (bedsMin === 0 && bedsMax === 0) { onChange(bd, bd === 5 ? 99 : bd); return; }
+    if (bd < bedsMin || (bedsMin === 0)) { onChange(bd, bd === 5 ? 99 : Math.max(bd, bedsMax)); return; }
+    if (bd > (bedsMax === 99 ? 5 : bedsMax)) { onChange(bedsMin, bd === 5 ? 99 : bd); return; }
+    onChange(0, 0); // reset
+  }
+  function inRange(bd: number) {
+    if (bedsMin === 0 && bedsMax === 0) return false;
+    const hi = bedsMax === 99 ? 99 : bedsMax;
+    return bd >= bedsMin && bd <= hi;
+  }
+  return (
+    <div style={{ padding: 14 }}>
+      <div style={{ fontSize: 10, letterSpacing: "0.12em", color: "var(--ink-4)", textTransform: "uppercase", marginBottom: 10 }}>Bedrooms</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        {BED_OPTS.map(o => (
+          <button key={o.bd} type="button" onClick={() => pick(o.bd)} style={{
+            width: 40, height: 36, borderRadius: "var(--r)", fontSize: 12.5, fontWeight: 500, cursor: "pointer",
+            border: "1.5px solid " + (inRange(o.bd) ? "var(--gold)" : "var(--line-soft)"),
+            background: inRange(o.bd) ? "var(--gold-ghost)" : "var(--bg-paper)",
+            color: inRange(o.bd) ? "var(--gold-deep)" : "var(--ink)",
+          }}>{o.label}</button>
+        ))}
+      </div>
+      {(bedsMin > 0 || bedsMax > 0) && (
+        <button type="button" onClick={() => { onChange(0, 0); close(); }}
+          style={{ marginTop: 10, width: "100%", padding: "6px 0", fontSize: 11.5, background: "none", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", cursor: "pointer", color: "var(--ink-3)" }}>
+          Reset
+        </button>
+      )}
     </div>
   );
 }
+
+// ─── Price range picker ───────────────────────────────────────────────────────
+
+const PRICE_OPTS: FilterOpt[] = [
+  { label: "All prices",        value: "all" },
+  { label: "Under AED 500K",    value: "u500k" },
+  { label: "AED 500K – 1M",    value: "500k-1m" },
+  { label: "AED 1M – 3M",      value: "1m-3m" },
+  { label: "AED 3M – 7M",      value: "3m-7m" },
+  { label: "AED 7M – 15M",     value: "7m-15m" },
+  { label: "Over AED 15M",      value: "o15m" },
+];
 
 function ViewBtn({ children, active, onClick }: { children: React.ReactNode; active?: boolean; onClick?: () => void }) {
   return (
@@ -573,17 +772,17 @@ function ScrapePreview({ data, onApply, onDismiss }: {
           </div>
         ))}
 
-        {/* Image thumbnails */}
-        {data.images.length > 0 && (
+        {/* Image thumbnails — only render safe https:// URLs */}
+        {data.images.filter(isSafeImgUrl).length > 0 && (
           <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
-            {data.images.slice(0, 5).map((_, i) => (
-              <div key={i} style={{ width: 52, height: 40, borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", display: "grid", placeItems: "center", fontSize: 16 }}>
-                🖼
-              </div>
+            {data.images.filter(isSafeImgUrl).slice(0, 5).map((url, i) => (
+              <img key={i} src={url} referrerPolicy="no-referrer" alt=""
+                style={{ width: 52, height: 40, borderRadius: 4, objectFit: "cover", border: "1px solid var(--line-soft)" }}
+              />
             ))}
-            {data.images.length > 5 && (
+            {data.images.filter(isSafeImgUrl).length > 5 && (
               <div style={{ width: 52, height: 40, borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", display: "grid", placeItems: "center", fontSize: 11, color: "var(--ink-4)" }}>
-                +{data.images.length - 5}
+                +{data.images.filter(isSafeImgUrl).length - 5}
               </div>
             )}
           </div>
@@ -777,6 +976,8 @@ function AddPropertyModal({ onClose, onSave, nextRef }: {
       tag:        allTags[0] || "—",
       img:        1,
       imgUrls:    form.imgUrls,
+      propType:   form.propType,
+      emirate:    form.emirate,
       floor:      Number(form.floor) || 0,
       parking:    Number(form.parking) || 0,
       agent:      form.agent,
@@ -1190,6 +1391,7 @@ export function ScreenProperties() {
   const [view, setView] = useState<"list" | "grid" | "map">("list");
   const [selected, setSelected] = useState<string | null>("INF-2417");
   const [stateFilter, setStateFilter] = useState<string>("all");
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER);
   const [showModal, setShowModal] = useState(false);
 
   const nextRef = "INF-" + (
@@ -1202,17 +1404,33 @@ export function ScreenProperties() {
     setShowModal(false);
   }
 
+  function upd<K extends keyof FilterState>(k: K, v: FilterState[K]) {
+    setFilters(f => ({ ...f, [k]: v }));
+  }
+
+  const nActive = activeFilterCount(filters);
+  const allAgents = [...new Set(properties.map(p => p.agent))];
+
   const counters = [
-    { key: "all",       en: "All",          ar: "الكل",     fr: "Tous",        n: properties.length,                                                                                   c: "var(--ink-3)" },
-    { key: "available", en: "Available",    ar: "متاح",     fr: "Disponible",  n: properties.filter(p => p.state === "available").length,                                              c: "var(--emerald)" },
-    { key: "offer",     en: "Under Offer",  ar: "عرض",      fr: "Sous Offre",  n: properties.filter(p => p.state === "offer").length,                                                  c: "var(--gold)" },
-    { key: "sold",      en: "Sold / Rented",ar: "مُباع / مؤجَّر", fr: "Vendu / Loué", n: properties.filter(p => p.state === "sold" || p.state === "rented").length, c: "var(--ink-4)" },
+    { key: "all",       en: "All",          ar: "الكل",           fr: "Tous",        n: properties.length,                                                                       c: "var(--ink-3)" },
+    { key: "available", en: "Available",    ar: "متاح",           fr: "Disponible",  n: properties.filter(p => p.state === "available").length,                                  c: "var(--emerald)" },
+    { key: "offer",     en: "Under Offer",  ar: "عرض",            fr: "Sous Offre",  n: properties.filter(p => p.state === "offer").length,                                      c: "var(--gold)" },
+    { key: "sold",      en: "Sold / Rented",ar: "مُباع / مؤجَّر", fr: "Vendu / Loué",n: properties.filter(p => p.state === "sold" || p.state === "rented").length, c: "var(--ink-4)" },
   ];
 
-  const visibleProps = stateFilter === "all"
-    ? properties
-    : properties.filter(p => p.state === stateFilter || (stateFilter === "sold" && (p.state === "sold" || p.state === "rented")));
+  // Beds display label
+  const bedsLabel = (() => {
+    const { bedsMin: mn, bedsMax: mx } = filters;
+    if (mn === 0 && mx === 0) return "All";
+    const lo = mn === 0 ? "Studio" : String(mn);
+    const hi = mx === 99 ? "5+" : String(mx);
+    return lo === hi ? lo : `${lo} — ${hi}`;
+  })();
 
+  // Price display label
+  const priceLabel = PRICE_OPTS.find(o => o.value === filters.priceRange)?.label ?? "All prices";
+
+  const visibleProps = applyFilters(properties, filters, stateFilter);
   const selProp = selected ? properties.find(p => p.ref === selected) : null;
 
   const showDetail = !isCompact && selProp && view !== "map";
@@ -1220,7 +1438,11 @@ export function ScreenProperties() {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
       <Topbar title={t.t_prop} crumb={[`${properties.length} active`, "Dubai · all emirates"]}>
-        {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcFilter />&nbsp;{t.filter} · 3</button>}
+        {!isMob && (
+          <button className="sgi-btn sgi-btn-ghost" onClick={() => setFilters(DEFAULT_FILTER)}>
+            <IcFilter />&nbsp;{t.filter}{nActive > 0 ? ` · ${nActive}` : ""}
+          </button>
+        )}
         {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcDownload />&nbsp;{t.export_btn}</button>}
         <button className="sgi-btn sgi-btn-primary" onClick={() => setShowModal(true)}><IcPlus />&nbsp;{t.add}</button>
       </Topbar>
@@ -1228,14 +1450,137 @@ export function ScreenProperties() {
       <main style={{ flex: 1, padding: isMob ? 14 : 24, display: "flex", flexDirection: "column", gap: 16, background: "var(--bg-cream)", overflow: "hidden" }}>
 
         {/* Filter ribbon */}
-        <div className="sgi-card" style={{ padding: 14, display: "flex", alignItems: "center", gap: 12, overflowX: "auto", flexWrap: "nowrap" }}>
-          <SelectPill label="Listing" value="Sale + Rent" />
-          <SelectPill label="Emirate" value="Dubai" />
-          {!isMob && <SelectPill label="Type" value="Apartments" />}
-          {!isMob && <SelectPill label="Bedrooms" value="2 — 4" />}
-          <SelectPill label="Price" value="AED 1M — 15M" />
-          <SelectPill label="Golden Visa" value="Eligible" gold />
+        <div className="sgi-card" style={{ padding: "10px 14px", display: "flex", alignItems: "center", gap: 10, overflowX: "auto", flexWrap: "nowrap" }}>
+
+          {/* Listing type */}
+          <FilterPill
+            label="Listing" value={filters.listing} isActive={filters.listing !== "all"}
+            displayValue={filters.listing === "all" ? "Sale + Rent" : filters.listing}
+            opts={[
+              { label: "Sale + Rent", value: "all" },
+              { label: "Sale only",   value: "Sale" },
+              { label: "Rent only",   value: "Rent" },
+            ]}
+            onSelect={v => upd("listing", v as FilterState["listing"])}
+          />
+
+          {/* Emirate */}
+          <FilterPill
+            label="Emirate" value={filters.emirate} isActive={filters.emirate !== "all"}
+            displayValue={filters.emirate === "all" ? "All" : filters.emirate}
+            opts={[
+              { label: "All emirates", value: "all"       },
+              { label: "Dubai",        value: "Dubai"     },
+              { label: "Abu Dhabi",    value: "Abu Dhabi" },
+              { label: "Sharjah",      value: "Sharjah"   },
+              { label: "Other",        value: "Other"     },
+            ]}
+            onSelect={v => upd("emirate", v as FilterState["emirate"])}
+          />
+
+          {/* Property type */}
+          {!isMob && (
+            <FilterPill
+              label="Type" value={filters.propType} isActive={filters.propType !== "all"}
+              displayValue={filters.propType === "all" ? "All types" : filters.propType.charAt(0).toUpperCase() + filters.propType.slice(1)}
+              opts={[
+                { label: "All types",  value: "all"        },
+                { label: "Apartment",  value: "apartment"  },
+                { label: "Villa",      value: "villa"      },
+                { label: "Townhouse",  value: "townhouse"  },
+                { label: "Penthouse",  value: "penthouse"  },
+                { label: "Office",     value: "office"     },
+                { label: "Retail",     value: "retail"     },
+              ]}
+              onSelect={v => upd("propType", v)}
+            />
+          )}
+
+          {/* Bedrooms */}
+          {!isMob && (
+            <FilterPill
+              label="Bedrooms" value="" isActive={filters.bedsMin > 0 || filters.bedsMax > 0}
+              displayValue={bedsLabel}
+              renderMenu={close => (
+                <BedsPicker
+                  bedsMin={filters.bedsMin} bedsMax={filters.bedsMax}
+                  onChange={(mn, mx) => setFilters(f => ({ ...f, bedsMin: mn, bedsMax: mx }))}
+                  close={close}
+                />
+              )}
+            />
+          )}
+
+          {/* Price */}
+          <FilterPill
+            label="Price" value={filters.priceRange} isActive={filters.priceRange !== "all"}
+            displayValue={filters.priceRange === "all" ? "All prices" : priceLabel.replace("AED ", "AED ").replace("All prices", "All")}
+            opts={PRICE_OPTS}
+            onSelect={v => upd("priceRange", v as FilterState["priceRange"])}
+          />
+
+          {/* Golden Visa */}
+          <FilterPill
+            label="Golden Visa" value={filters.goldenVisa ? "yes" : "all"} gold={filters.goldenVisa}
+            isActive={filters.goldenVisa}
+            displayValue={filters.goldenVisa ? "Eligible" : "All"}
+            opts={[
+              { label: "All properties",      value: "all" },
+              { label: "Eligible (≥ 2M AED)", value: "yes" },
+            ]}
+            onSelect={v => upd("goldenVisa", v === "yes")}
+          />
+
+          {/* Agent */}
+          {!isMob && (
+            <FilterPill
+              label="Agent" value={filters.agent} isActive={filters.agent !== "all"}
+              displayValue={filters.agent === "all" ? "All agents" : filters.agent.split(" ")[0]}
+              opts={[
+                { label: "All agents", value: "all" },
+                ...allAgents.map(a => ({ label: a, value: a })),
+              ]}
+              onSelect={v => upd("agent", v)}
+            />
+          )}
+
+          {/* Sort */}
+          {!isMob && (
+            <FilterPill
+              label="Sort" value={filters.sortBy} isActive={filters.sortBy !== "newest"}
+              displayValue={{
+                newest:     "Newest",
+                price_asc:  "Price ↑",
+                price_desc: "Price ↓",
+                sqft_desc:  "Area ↓",
+              }[filters.sortBy]}
+              opts={[
+                { label: "Newest first",  value: "newest"     },
+                { label: "Price: low → high", value: "price_asc"  },
+                { label: "Price: high → low", value: "price_desc" },
+                { label: "Largest area",  value: "sqft_desc"  },
+              ]}
+              onSelect={v => upd("sortBy", v as FilterState["sortBy"])}
+            />
+          )}
+
+          {/* Reset button — visible only when filters are active */}
+          {nActive > 0 && (
+            <button
+              onClick={() => setFilters(DEFAULT_FILTER)}
+              style={{
+                height: 52, padding: "0 12px", borderRadius: "var(--r)", flexShrink: 0,
+                border: "1px solid var(--rose)", background: "rgba(220,50,50,0.06)",
+                color: "var(--rose)", fontSize: 12, fontWeight: 500, cursor: "pointer",
+                display: "flex", alignItems: "center", gap: 5,
+              }}
+            >
+              ✕ Reset{nActive > 1 ? ` (${nActive})` : ""}
+            </button>
+          )}
+
           <div style={{ flex: 1, flexShrink: 0 }} />
+
           {/* View mode toggle */}
           <div style={{ display: "flex", gap: 4, padding: 3, background: "var(--bg-inset)", borderRadius: "var(--r)", flexShrink: 0 }}>
             <ViewBtn active={view === "list"} onClick={() => setView("list")}>

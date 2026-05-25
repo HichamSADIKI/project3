@@ -1,7 +1,13 @@
-from __future__ import annotations
-
+import ipaddress
 from typing import Literal
 from pydantic import BaseModel, HttpUrl, field_validator
+
+# Explicit allowlist — prevents SSRF probing of internal network
+_ALLOWED_HOSTS: frozenset[str] = frozenset({
+    "bayut.com", "www.bayut.com",
+    "propertyfinder.ae", "www.propertyfinder.ae",
+    "dubizzle.com", "uae.dubizzle.com",
+})
 
 
 class ScrapeRequest(BaseModel):
@@ -9,9 +15,23 @@ class ScrapeRequest(BaseModel):
 
     @field_validator("url")
     @classmethod
-    def url_must_be_http(cls, v: HttpUrl) -> HttpUrl:
+    def url_must_be_allowed(cls, v: HttpUrl) -> HttpUrl:
         if v.scheme not in ("http", "https"):
             raise ValueError("URL must use http or https")
+        host = (v.host or "").lower().rstrip(".")
+        # Reject private / loopback / link-local IPs
+        try:
+            addr = ipaddress.ip_address(host)
+            if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+                raise ValueError("Private IP addresses are not allowed")
+        except ValueError as exc:
+            if "not allowed" in str(exc):
+                raise
+            # Not an IP — check against allowlist
+            if host not in _ALLOWED_HOSTS:
+                raise ValueError(
+                    f"Host not allowed. Supported sites: Bayut, PropertyFinder, Dubizzle"
+                )
         return v
 
 
