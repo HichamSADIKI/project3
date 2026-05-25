@@ -131,7 +131,7 @@ export type NavKey =
   | "backoffice" | "hr" | "it" | "finance"
   | "report" | "parametres";
 
-type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number };
+type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey };
 type NavEntry =
   | ({ type: "item"  } & NavItem)
   | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] };
@@ -156,49 +156,49 @@ const NAV_ENTRIES: NavEntry[] = [
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
     children: [
-      { key: "tourisme",     icon: <IcTourisme /> },
+      { key: "tourisme",     icon: <IcTourisme />, labelKey: "dash" },
       { key: "tourisme_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "sante",       groupKey: "sante",       icon: <IcSante />,
     children: [
-      { key: "sante",     icon: <IcSante /> },
+      { key: "sante",     icon: <IcSante />, labelKey: "dash" },
       { key: "sante_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "assurance",   groupKey: "assurance",   icon: <IcAssurance />,
     children: [
-      { key: "assurance",     icon: <IcAssurance /> },
+      { key: "assurance",     icon: <IcAssurance />, labelKey: "dash" },
       { key: "assurance_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "banques",     groupKey: "banques",     icon: <IcBanques />,
     children: [
-      { key: "banques",     icon: <IcBanques /> },
+      { key: "banques",     icon: <IcBanques />, labelKey: "dash" },
       { key: "banques_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "amazon",      groupKey: "amazon",      icon: <IcAmazon />,
     children: [
-      { key: "amazon",     icon: <IcAmazon /> },
+      { key: "amazon",     icon: <IcAmazon />, labelKey: "dash" },
       { key: "amazon_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "consultants", groupKey: "consultants", icon: <IcConsult />,
     children: [
-      { key: "consultants",     icon: <IcConsult /> },
+      { key: "consultants",     icon: <IcConsult />, labelKey: "dash" },
       { key: "consultants_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "admin",       groupKey: "admin",       icon: <IcAdmin />,
     children: [
-      { key: "admin",     icon: <IcAdmin /> },
+      { key: "admin",     icon: <IcAdmin />, labelKey: "dash" },
       { key: "admin_crm", icon: <IcCRM /> },
     ],
   },
   { type: "group", id: "travail",     groupKey: "travail",     icon: <IcTravail />,
     children: [
-      { key: "travail",     icon: <IcTravail /> },
+      { key: "travail",     icon: <IcTravail />, labelKey: "dash" },
       { key: "travail_crm", icon: <IcCRM /> },
     ],
   },
@@ -286,14 +286,14 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     return map[key];
   };
 
-  function NavItemRow({ icon, navKey, badge, isActive, isChild = false }: {
-    icon: React.ReactElement; navKey: NavKey; badge?: number; isActive: boolean; isChild?: boolean;
+  function NavItemRow({ icon, navKey, badge, isActive, isChild = false, labelOverride }: {
+    icon: React.ReactElement; navKey: NavKey; badge?: number; isActive: boolean; isChild?: boolean; labelOverride?: string;
   }) {
     const col = collapsed && !isMob;
     return (
       <div
         onClick={() => { onNavigate(navKey); if (isMob) setMobileOpen(false); }}
-        title={col ? navLabel(navKey) : undefined}
+        title={col ? (labelOverride ?? navLabel(navKey)) : undefined}
         style={{
           display: "flex", alignItems: "center", gap: col ? 0 : 11,
           padding: col ? "10px 0" : isChild ? "8px 10px 8px 32px" : "9px 10px",
@@ -317,7 +317,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
           <>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 13.5 : 14, fontWeight: 500, lineHeight: 1.2 }}>
-                {navLabel(navKey)}
+                {labelOverride ?? navLabel(navKey)}
               </div>
             </div>
             {badge && (
@@ -378,7 +378,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         {!col && isOpen && (
           <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2 }}>
             {entry.children.map(child => (
-              <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild />
+              <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />
             ))}
           </div>
         )}
