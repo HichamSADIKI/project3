@@ -47,7 +47,7 @@ export function ScreenGoldenVisa() {
   const isCompact = bp !== "desktop";
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <Topbar title={t.t_visa} crumb={["18 active applications", "AED 47.2M qualifying"]}>
+      <Topbar title={t.t_visa} crumb={isMob ? [] : ["18 active applications", "AED 47.2M qualifying"]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost">Templates · 6</button>}
         <button className="sgi-btn sgi-btn-primary"><IcPlus />&nbsp;{t.new_btn}</button>
       </Topbar>
@@ -71,9 +71,9 @@ export function ScreenGoldenVisa() {
             )}
             <div style={{ marginTop: 22, display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
               {[["Eligible","9"],["In progress","7"],["At ICA","3"],["Issued · 2026","12"]].map(([l,n]) => (
-                <div key={l} style={{ padding: "12px 14px", background: "rgba(217,183,119,0.10)", borderInlineStart: "2px solid var(--gold)" }}>
-                  <div className="font-display tnum" style={{ fontSize: 28, color: "var(--gold)" }}>{n}</div>
-                  <div style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-5)", marginTop: 2 }}>{l}</div>
+                <div key={l} style={{ padding: isMob ? "8px 10px" : "12px 14px", background: "rgba(217,183,119,0.10)", borderInlineStart: "2px solid var(--gold)" }}>
+                  <div className="font-display tnum" style={{ fontSize: isMob ? 22 : 28, color: "var(--gold)" }}>{n}</div>
+                  <div style={{ fontSize: 10, letterSpacing: "0.10em", textTransform: "uppercase", color: "var(--ink-5)", marginTop: 2 }}>{l}</div>
                 </div>
               ))}
             </div>
@@ -103,7 +103,7 @@ export function ScreenGoldenVisa() {
         </div>
 
         {/* Workflow rail */}
-        <div className="sgi-card" style={{ padding: 24 }}>
+        <div className="sgi-card" style={{ padding: isMob ? 14 : 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
             <div>
               <Eyebrow>Active application · #GV-2412</Eyebrow>
@@ -118,7 +118,7 @@ export function ScreenGoldenVisa() {
           </div>
 
           {/* Scrollable on mobile */}
-          <div style={{ marginTop: 22, overflowX: isMob ? "auto" : undefined }}>
+          <div style={{ marginTop: 22, overflowX: isMob ? "auto" : undefined, WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
             <div style={{ position: "relative", minWidth: isMob ? 560 : undefined }}>
               <div style={{ position: "absolute", insetInlineStart: 18, insetInlineEnd: 18, top: 21, height: 2, background: "var(--line)" }} />
               <div style={{ position: "absolute", insetInlineStart: 18, top: 21, height: 2, width: "calc((100% - 36px) * 0.5)", background: "var(--gold)" }} />
@@ -153,7 +153,7 @@ export function ScreenGoldenVisa() {
           </div>
 
           {/* Stage detail */}
-          <div style={{ marginTop: 24, padding: 20, background: "var(--bg-inset)", borderRadius: "var(--r)", display: "grid", gridTemplateColumns: isMob ? "1fr" : isTab ? "1fr 1fr" : "1fr 1fr 1fr", gap: 18 }}>
+          <div style={{ marginTop: 24, padding: isMob ? 12 : 20, background: "var(--bg-inset)", borderRadius: "var(--r)", display: "grid", gridTemplateColumns: isMob ? "1fr" : isTab ? "1fr 1fr" : "1fr 1fr 1fr", gap: isMob ? 14 : 18 }}>
             <div>
               <Eyebrow>Current stage</Eyebrow>
               <div className="font-display" style={{ fontSize: 18, marginTop: 4 }}>GDRFA · residency request</div>
