@@ -1214,6 +1214,8 @@ const inputStyle: React.CSSProperties = {
 function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; onAdd: (l: Lead) => void; targetStage?: string }) {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const bp    = useBreakpoint();
+  const isMob = bp === "mobile";
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
@@ -1248,7 +1250,7 @@ function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; on
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(26,22,16,0.45)", zIndex: 200, backdropFilter: "blur(3px)" }} />
-      <div style={{ position: "fixed", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", width: 480, background: "var(--bg-ivory)", borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", zIndex: 201, display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "90vh" }}>
+      <div style={{ position: "fixed", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", width: isMob ? "calc(100vw - 28px)" : 480, background: "var(--bg-ivory)", borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", zIndex: 201, display: "flex", flexDirection: "column", overflow: "hidden", maxHeight: "90vh" }}>
         <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <Eyebrow>CRM · New lead</Eyebrow>
@@ -1265,11 +1267,11 @@ function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; on
         </div>
         <div style={{ padding: "20px 22px", display: "flex", flexDirection: "column", gap: 13, overflow: "auto" }}>
           <Field label="Full name *"><input style={inputStyle} value={form.name} onChange={set("name")} placeholder="Anna Schmidt" /></Field>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 12 }}>
             <Field label="Phone"><input style={inputStyle} value={form.phone} onChange={set("phone")} placeholder="+971 50 000 0000" /></Field>
             <Field label="Email"><input style={inputStyle} type="email" value={form.email} onChange={set("email")} placeholder="client@email.com" /></Field>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 12 }}>
             <Field label="Budget (AED) *"><input style={inputStyle} value={form.budget} onChange={set("budget")} placeholder="2 000 000" /></Field>
             <Field label="Country"><input style={inputStyle} value={form.ctry} onChange={set("ctry")} placeholder="🇦🇪 UAE" /></Field>
           </div>
@@ -1397,7 +1399,7 @@ function LostReasonModal({ leadName, onConfirm, onClose }: {
   return (
     <>
       <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(26,22,16,0.5)", zIndex: 300, backdropFilter: "blur(3px)" }} />
-      <div style={{ position: "fixed", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", width: 420, background: "var(--bg-ivory)", borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", zIndex: 301, overflow: "hidden" }}>
+      <div style={{ position: "fixed", top: "50%", insetInlineStart: "50%", transform: "translate(-50%,-50%)", width: "min(420px, calc(100vw - 28px))", background: "var(--bg-ivory)", borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", zIndex: 301, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
@@ -1738,7 +1740,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
       <div style={{
         position: "fixed", top: "50%", insetInlineStart: "50%",
         transform: "translate(-50%,-50%)",
-        width: 560, maxHeight: "85vh",
+        width: "min(560px, calc(100vw - 24px))", maxHeight: "85vh",
         background: "var(--bg-ivory)", borderRadius: "var(--r-md)",
         boxShadow: "var(--shadow-3)", zIndex: 301,
         display: "flex", flexDirection: "column", overflow: "hidden",
