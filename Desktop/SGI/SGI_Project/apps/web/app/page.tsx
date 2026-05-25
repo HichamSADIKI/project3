@@ -19,6 +19,7 @@ import { ScreenTourisme } from "./screens/tourisme";
 import { ScreenSante } from "./screens/sante";
 import { ScreenAssurance } from "./screens/assurance";
 import { ScreenRealEstate } from "./screens/real-estate";
+import { ScreenBanques } from "./screens/banques";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -46,7 +47,7 @@ export default function App() {
         {screen === "tourisme"  && <ScreenTourisme />}
         {screen === "sante"     && <ScreenSante />}
         {screen === "assurance" && <ScreenAssurance />}
-        {screen === "banques"   && <ScreenPlaceholder navKey="nav_banques" />}
+        {screen === "banques"   && <ScreenBanques />}
         {screen === "amazon"    && <ScreenPlaceholder navKey="nav_amazon" />}
         {screen === "consultants" && <ScreenPlaceholder navKey="nav_consultants" />}
         {screen === "visa"      && <ScreenGoldenVisa />}
