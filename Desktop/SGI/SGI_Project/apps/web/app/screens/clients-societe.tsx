@@ -12,10 +12,11 @@ const IcDeal     = () => <Ic s={15}><path d="M3 3h18v4H3zM3 10h18v4H3zM3 17h18v4
 const IcDoc2     = () => <Ic s={15}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></Ic>;
 const IcInvoice  = () => <Ic s={15}><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></Ic>;
 const IcPayment  = () => <Ic s={15}><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></Ic>;
+const IcOrder    = () => <Ic s={15}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ic>;
 
 type Status  = "active" | "prospect" | "vip" | "inactive";
 type Sector  = "realestate" | "investment" | "construction" | "retail" | "hospitality" | "finance" | "other";
-type TabKey  = "deals" | "documents" | "invoices" | "payments";
+type TabKey  = "deals" | "documents" | "orders" | "invoices" | "payments";
 
 interface Company {
   id: string;
@@ -68,6 +69,12 @@ const INV_STATUS = {
 const PAY_STATUS = {
   cleared:    { en: "Cleared",    ar: "مقبولة",    fr: "Encaissé",    color: "var(--emerald)" },
   pending:    { en: "Pending",    ar: "معلق",       fr: "En attente",  color: "var(--gold)"    },
+};
+const ORD_STATUS = {
+  completed:  { en: "Completed",  ar: "مكتمل",     fr: "Complété",    color: "var(--emerald)" },
+  signed:     { en: "Signed",     ar: "موقّع",      fr: "Signé",       color: "var(--azure)"   },
+  pending:    { en: "Pending",    ar: "معلّق",      fr: "En attente",  color: "var(--gold)"    },
+  cancelled:  { en: "Cancelled",  ar: "ملغى",      fr: "Annulé",      color: "var(--rose)"    },
 };
 
 const aed = (n: number) => new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
@@ -130,6 +137,16 @@ function mockInvoices(c: Company) {
   ];
 }
 
+function mockOrders(c: Company) {
+  return [
+    { id: `ORD-${c.id}-001`, type_en: "Property Viewing",   type_ar: "جولة عقارية",   type_fr: "Visite",            desc_en: "Due diligence visit — DIFC Office Tower",     desc_ar: "زيارة العناية الواجبة — برج DIFC",     desc_fr: "Visite due diligence — DIFC Office Tower",     amount: 0,                  status: "completed", date: "2026-03-05" },
+    { id: `ORD-${c.id}-002`, type_en: "MOU",                type_ar: "مذكرة تفاهم",   type_fr: "Protocole d'accord",desc_en: "MOU — Exclusive Partnership 2026",             desc_ar: "مذكرة تفاهم — شراكة حصرية 2026",       desc_fr: "MOU — Partenariat exclusif 2026",              amount: 0,                  status: "signed",    date: "2026-02-01" },
+    { id: `ORD-${c.id}-003`, type_en: "SPA Contract",       type_ar: "عقد SPA",       type_fr: "Contrat SPA",       desc_en: "Sale & Purchase Agreement — Business Bay",     desc_ar: "عقد بيع وشراء — الخليج التجاري",       desc_fr: "Contrat SPA — Business Bay",                   amount: c.annualRevenue * 0.5, status: "signed", date: "2026-03-18" },
+    { id: `ORD-${c.id}-004`, type_en: "DLD Registration",   type_ar: "تسجيل DLD",     type_fr: "Enregistrement DLD",desc_en: "Dubai Land Department registration",           desc_ar: "تسجيل دائرة الأراضي والأملاك",         desc_fr: "Enregistrement Département foncier Dubaï",    amount: 32_800,             status: "completed", date: "2026-03-25" },
+    { id: `ORD-${c.id}-005`, type_en: "Maintenance Order",  type_ar: "أمر صيانة",     type_fr: "Bon de travaux",    desc_en: "Annual FM service contract renewal",           desc_ar: "تجديد عقد خدمات الإدارة السنوي",       desc_fr: "Renouvellement contrat FM annuel",             amount: c.annualRevenue * 0.02, status: "pending", date: "2026-05-01" },
+  ].slice(0, Math.min(c.deals + 2, 5));
+}
+
 function mockPayments(c: Company) {
   return [
     { ref: `PAY-${c.id.toUpperCase()}-001`, date: "2026-03-25", amount: c.annualRevenue * 0.03,   method_en: "Bank Transfer (SWIFT)", method_ar: "تحويل بنكي", method_fr: "Virement SWIFT", status: "cleared" as PayStatus  },
@@ -148,16 +165,18 @@ function CompanyDetail({ company, onBack, lang }: { company: Company; onBack: ()
   const secfg = SECTOR_CFG[company.sector];
   const deals    = mockDeals(company);
   const docs     = mockDocuments(company);
+  const orders   = mockOrders(company);
   const invoices = mockInvoices(company);
   const payments = mockPayments(company);
 
   const lbl = (en: string, ar: string, fr: string) => lang === "ar" ? ar : lang === "fr" ? fr : en;
 
   const TABS: { key: TabKey; icon: React.ReactNode; en: string; ar: string; fr: string }[] = [
-    { key: "deals",    icon: <IcDeal />,    en: "Deals",     ar: "الصفقات",    fr: "Deals"      },
-    { key: "documents",icon: <IcDoc2 />,    en: "Documents", ar: "الوثائق",    fr: "Documents"  },
-    { key: "invoices", icon: <IcInvoice />, en: "Invoices",  ar: "الفواتير",   fr: "Factures"   },
-    { key: "payments", icon: <IcPayment />, en: "Payments",  ar: "المدفوعات",  fr: "Paiements"  },
+    { key: "deals",    icon: <IcDeal />,    en: "Deals",     ar: "الصفقات",   fr: "Deals"      },
+    { key: "documents",icon: <IcDoc2 />,    en: "Documents", ar: "الوثائق",   fr: "Documents"  },
+    { key: "orders",   icon: <IcOrder />,   en: "Orders",    ar: "الطلبات",   fr: "Commandes"  },
+    { key: "invoices", icon: <IcInvoice />, en: "Invoices",  ar: "الفواتير",  fr: "Factures"   },
+    { key: "payments", icon: <IcPayment />, en: "Payments",  ar: "المدفوعات", fr: "Paiements"  },
   ];
 
   const thStyle: React.CSSProperties = {
@@ -298,6 +317,38 @@ function CompanyDetail({ company, onBack, lang }: { company: Company; onBack: ()
                           {lbl(dscfg.en, dscfg.ar, dscfg.fr)}
                         </span>
                       </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          {/* ORDERS */}
+          {tab === "orders" && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {["N°", lbl("Type", "النوع", "Type"), lbl("Description", "الوصف", "Description"), lbl("Amount", "المبلغ", "Montant"), lbl("Status", "الحالة", "Statut"), lbl("Date", "التاريخ", "Date")].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {orders.map((o, i) => {
+                  const ostat = ORD_STATUS[o.status as keyof typeof ORD_STATUS] ?? ORD_STATUS.pending;
+                  return (
+                    <tr key={o.id} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                      <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
+                      <td style={tdStyle}><span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "var(--bg-cream)", color: "var(--ink-4)", border: "1px solid var(--line-soft)" }}>{lbl(o.type_en, o.type_ar, o.type_fr)}</span></td>
+                      <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{lbl(o.desc_en, o.desc_ar, o.desc_fr)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{o.amount > 0 ? aed(o.amount) : "—"}</td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${ostat.color}15`, color: ostat.color }}>
+                          {lbl(ostat.en, ostat.ar, ostat.fr)}
+                        </span>
+                      </td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(o.date)}</td>
                     </tr>
                   );
                 })}

@@ -422,7 +422,14 @@ export function Sidebar({ active, onNavigate, onLogout }: {
             justifyContent: collapsed ? "center" : "space-between", gap: 8,
             minHeight: 66, flexShrink: 0,
           }}>
-            {collapsed ? <LogoMark size={32} /> : <Wordmark />}
+            {collapsed ? <LogoMark size={32} /> : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, minWidth: 0 }}>
+                <Wordmark />
+                <div style={{ fontSize: 10.5, color: "var(--ink-4)", fontWeight: 500, paddingInlineStart: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  Infinity International FM
+                </div>
+              </div>
+            )}
             <button
               onClick={() => setCollapsed(c => !c)}
               title={collapsed ? "Expand" : "Collapse"}

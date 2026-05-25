@@ -11,6 +11,7 @@ const IcDoc2     = () => <Ic s={15}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 
 const IcInvoice  = () => <Ic s={15}><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></Ic>;
 const IcPayment  = () => <Ic s={15}><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></Ic>;
 const IcDeal     = () => <Ic s={15}><path d="M3 21V10l9-7 9 7v11"/><path d="M9 21v-6h6v6"/></Ic>;
+const IcOrder    = () => <Ic s={15}><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ic>;
 
 type Status = "active" | "prospect" | "vip" | "inactive";
 type Nat    = "ae" | "sa" | "ma" | "fr" | "gb" | "in" | "ru" | "cn";
@@ -90,6 +91,15 @@ function mockInvoices(p: Person) {
   ].slice(0, Math.max(2, p.deals + 1));
 }
 
+function mockOrders(p: Person) {
+  return [
+    { id: `ORD-${p.id}-001`, desc_en: "Property Viewing — Marina Gate T3",   desc_ar: "جولة عقارية — بوابة المارينا",     desc_fr: "Visite — Marina Gate T3",    amount: 0,          status: "completed", date: "2026-04-10", type_en: "Viewing",         type_ar: "جولة",         type_fr: "Visite"         },
+    { id: `ORD-${p.id}-002`, desc_en: "SPA — Palm Jumeirah Villa",            desc_ar: "عقد بيع وشراء — فلة النخلة",       desc_fr: "Contrat SPA — Palm Jumeirah", amount: p.budget,    status: "signed",    date: "2026-03-18", type_en: "SPA Contract",    type_ar: "عقد SPA",      type_fr: "Contrat SPA"    },
+    { id: `ORD-${p.id}-003`, desc_en: "DLD Registration",                     desc_ar: "تسجيل دائرة الأراضي",              desc_fr: "Enregistrement DLD",          amount: 16_400,      status: "completed", date: "2026-03-25", type_en: "DLD Reg.",        type_ar: "تسجيل DLD",    type_fr: "Enregistrement" },
+    { id: `ORD-${p.id}-004`, desc_en: "Golden Visa Application",              desc_ar: "طلب التأشيرة الذهبية",             desc_fr: "Demande Visa Doré",           amount: 4_200,        status: p.visa ? "completed" : "pending", date: "2026-04-02", type_en: "Visa",       type_ar: "تأشيرة",       type_fr: "Visa"           },
+  ].slice(0, Math.max(2, p.deals + 1));
+}
+
 function mockPayments(p: Person) {
   return [
     { id: "PAY-0081", method: "Bank Transfer", amount: 246_000, status: "cleared",   date: "2026-03-22", ref: "ENBD-TRF-98234" },
@@ -116,6 +126,12 @@ const INV_STATUS: Record<string, { en: string; fr: string; ar: string; color: st
   pending: { en: "Pending", fr: "En attente",  ar: "معلّقة",    color: "var(--gold)",    bg: "rgba(200,160,60,0.15)" },
   overdue: { en: "Overdue", fr: "En retard",   ar: "متأخرة",    color: "var(--rose)",    bg: "rgba(239,68,68,0.1)"   },
 };
+const ORD_STATUS: Record<string, { en: string; fr: string; ar: string; color: string; bg: string }> = {
+  completed: { en: "Completed", fr: "Complété",   ar: "مكتمل",   color: "var(--emerald)", bg: "rgba(16,185,129,0.1)"  },
+  signed:    { en: "Signed",    fr: "Signé",      ar: "موقّع",    color: "var(--azure)",   bg: "rgba(59,130,246,0.1)"  },
+  pending:   { en: "Pending",   fr: "En attente", ar: "معلّق",    color: "var(--gold)",    bg: "rgba(200,160,60,0.15)" },
+  cancelled: { en: "Cancelled", fr: "Annulé",     ar: "ملغى",    color: "var(--rose)",    bg: "rgba(239,68,68,0.1)"   },
+};
 const PAY_STATUS: Record<string, { en: string; fr: string; ar: string; color: string; bg: string }> = {
   cleared: { en: "Cleared", fr: "Validé",      ar: "مُصفَّى",    color: "var(--emerald)", bg: "rgba(16,185,129,0.1)"  },
   pending: { en: "Pending", fr: "En attente",  ar: "معلّق",     color: "var(--gold)",    bg: "rgba(200,160,60,0.15)" },
@@ -123,20 +139,22 @@ const PAY_STATUS: Record<string, { en: string; fr: string; ar: string; color: st
 
 /* ── Detail view ─────────────────────────────────────────────────────── */
 function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => void; lang: string }) {
-  const [tab, setTab] = useState<"deals" | "documents" | "invoices" | "payments">("deals");
+  const [tab, setTab] = useState<"deals" | "documents" | "orders" | "invoices" | "payments">("deals");
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const scfg = STATUS_CFG[person.status];
 
   const TABS = [
-    { key: "deals",    icon: <IcDeal />,    en: "Deals",     ar: "الصفقات",  fr: "Deals"     },
-    { key: "documents",icon: <IcDoc2 />,    en: "Documents", ar: "الوثائق",  fr: "Documents" },
-    { key: "invoices", icon: <IcInvoice />, en: "Invoices",  ar: "الفواتير", fr: "Factures"  },
-    { key: "payments", icon: <IcPayment />, en: "Payments",  ar: "المدفوعات",fr: "Paiements" },
+    { key: "deals",    icon: <IcDeal />,    en: "Deals",     ar: "الصفقات",   fr: "Deals"      },
+    { key: "documents",icon: <IcDoc2 />,    en: "Documents", ar: "الوثائق",   fr: "Documents"  },
+    { key: "orders",   icon: <IcOrder />,   en: "Orders",    ar: "الطلبات",   fr: "Commandes"  },
+    { key: "invoices", icon: <IcInvoice />, en: "Invoices",  ar: "الفواتير",  fr: "Factures"   },
+    { key: "payments", icon: <IcPayment />, en: "Payments",  ar: "المدفوعات", fr: "Paiements"  },
   ] as const;
 
   const deals    = mockDeals(person);
   const docs     = mockDocuments(person);
+  const orders   = mockOrders(person);
   const invoices = mockInvoices(person);
   const payments = mockPayments(person);
 
@@ -256,6 +274,28 @@ function PersonDetail({ person, onBack, lang }: { person: Person; onBack: () => 
                   <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{d.size}</td>
                 </tr>
               ))}</tbody>
+            </table>
+          )}
+
+          {/* Orders */}
+          {tab === "orders" && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead><tr style={{ background: "var(--bg-cream)" }}>
+                {["N°", lang==="ar"?"النوع":lang==="fr"?"Type":"Type", lang==="ar"?"الوصف":lang==="fr"?"Description":"Description", lang==="ar"?"المبلغ":lang==="fr"?"Montant":"Amount", lang==="ar"?"الحالة":lang==="fr"?"Statut":"Status", lang==="ar"?"التاريخ":"Date"].map(h => <th key={h} style={thStyle}>{h}</th>)}
+              </tr></thead>
+              <tbody>{orders.map((o, i) => {
+                const ostat = ORD_STATUS[o.status] ?? ORD_STATUS.pending;
+                return (
+                  <tr key={o.id} style={{ borderBottom: i < orders.length-1 ? "1px solid var(--line-soft)" : "none" }}>
+                    <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
+                    <td style={tdStyle}><span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "var(--bg-cream)", color: "var(--ink-4)", border: "1px solid var(--line-soft)" }}>{lang==="ar"?o.type_ar:lang==="fr"?o.type_fr:o.type_en}</span></td>
+                    <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{lang==="ar"?o.desc_ar:lang==="fr"?o.desc_fr:o.desc_en}</td>
+                    <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{o.amount > 0 ? aed(o.amount) : "—"}</td>
+                    <td style={tdStyle}><span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: ostat.bg, color: ostat.color }}>{lang==="ar"?ostat.ar:lang==="fr"?ostat.fr:ostat.en}</span></td>
+                    <td style={tdStyle}>{o.date}</td>
+                  </tr>
+                );
+              })}</tbody>
             </table>
           )}
 
