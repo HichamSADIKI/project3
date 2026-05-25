@@ -29,12 +29,13 @@ type FilterState = {
   goldOnly: boolean;
   coldOnly: boolean;
   clientLang: string;
+  budgetRange: "all" | "u2m" | "2m-5m" | "5m-10m" | "o10m";
 };
 
-const DEFAULT_FILTER: FilterState = { query: "", agent: "all", scoreMin: 0, goldOnly: false, coldOnly: false, clientLang: "all" };
+const DEFAULT_FILTER: FilterState = { query: "", agent: "all", scoreMin: 0, goldOnly: false, coldOnly: false, clientLang: "all", budgetRange: "all" };
 
 function isFilterActive(f: FilterState) {
-  return f.query !== "" || f.agent !== "all" || f.scoreMin > 0 || f.goldOnly || f.coldOnly || f.clientLang !== "all";
+  return f.query !== "" || f.agent !== "all" || f.scoreMin > 0 || f.goldOnly || f.coldOnly || f.clientLang !== "all" || f.budgetRange !== "all";
 }
 
 function langFromCtry(ctry: string): string {
@@ -70,6 +71,13 @@ function applyFilters(all: Record<string, Lead[]>, f: FilterState): Record<strin
         if (f.goldOnly && !l.gold) return false;
         if (f.coldOnly && (l.lastContactDays ?? 0) <= 5) return false;
         if (f.clientLang !== "all" && langFromCtry(l.ctry) !== f.clientLang) return false;
+        if (f.budgetRange !== "all") {
+          const b = l.budget;
+          if (f.budgetRange === "u2m"    && b >= 2_000_000) return false;
+          if (f.budgetRange === "2m-5m"  && (b < 2_000_000 || b >= 5_000_000)) return false;
+          if (f.budgetRange === "5m-10m" && (b < 5_000_000 || b >= 10_000_000)) return false;
+          if (f.budgetRange === "o10m"   && b < 10_000_000) return false;
+        }
         return true;
       }),
     ])
@@ -232,6 +240,112 @@ const CLIENT_LANGS = [
 
 const SCORE_STEPS = [0, 40, 60, 75, 90];
 
+const BUDGET_OPTS = [
+  { label: "All budgets",    value: "all"    },
+  { label: "< AED 2M",      value: "u2m"    },
+  { label: "AED 2M – 5M",   value: "2m-5m"  },
+  { label: "AED 5M – 10M",  value: "5m-10m" },
+  { label: "> AED 10M",     value: "o10m"   },
+];
+
+const SCORE_OPTS = [
+  { label: "Any score",  value: "0"  },
+  { label: "Score ≥ 40", value: "40" },
+  { label: "Score ≥ 60", value: "60" },
+  { label: "Score ≥ 75", value: "75" },
+  { label: "Score ≥ 90", value: "90" },
+];
+
+function budgetLabel(range: FilterState["budgetRange"]): string {
+  switch (range) {
+    case "u2m":    return "< AED 2M";
+    case "2m-5m":  return "2M – 5M";
+    case "5m-10m": return "5M – 10M";
+    case "o10m":   return "> AED 10M";
+    default:       return "All";
+  }
+}
+
+/* ─── CrmFilterPill ─────────────────────────────────────────────────── */
+
+function CrmFilterPill({
+  label, displayValue, value, opts, isActive, gold, onSelect, renderMenu,
+}: {
+  label: string; displayValue: string; value?: string;
+  opts?: { label: string; value: string }[]; isActive?: boolean; gold?: boolean;
+  onSelect?: (v: string) => void;
+  renderMenu?: (close: () => void) => React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, minW: 0 });
+
+  function toggle() {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, left: r.left, minW: Math.max(r.width, 160) });
+    }
+    setOpen(o => !o);
+  }
+  const close = () => setOpen(false);
+  const accent = gold || (isActive ?? false);
+
+  return (
+    <>
+      <div ref={ref} onClick={toggle} style={{
+        display: "flex", flexDirection: "column", gap: 1, padding: "6px 12px",
+        background: accent ? "var(--gold-ghost)" : "var(--bg-paper)",
+        border: `1px solid ${accent ? "var(--gold-line, var(--gold))" : "var(--line-soft)"}`,
+        borderRadius: "var(--r)", cursor: "pointer", minWidth: 96, flexShrink: 0,
+        boxShadow: accent ? "0 0 0 2px color-mix(in srgb,var(--gold) 18%,transparent)" : "none",
+        transition: "box-shadow 0.12s, background 0.12s",
+      }}>
+        <span style={{ fontSize: 9.5, letterSpacing: "0.14em", textTransform: "uppercase", color: accent ? "var(--gold-deep)" : "var(--ink-4)" }}>
+          {label}
+        </span>
+        <span style={{ fontSize: 12.5, fontWeight: 500, color: accent ? "var(--gold-deep)" : "var(--ink)", display: "flex", alignItems: "center", gap: 4 }}>
+          {displayValue}
+          <span style={{ color: "var(--ink-4)", fontSize: 10, marginInlineStart: 1 }}>▾</span>
+        </span>
+      </div>
+
+      {open && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 500 }} onClick={close} />
+          <div style={{
+            position: "fixed", top: pos.top, left: pos.left, minWidth: pos.minW,
+            zIndex: 501, background: "var(--bg-ivory)", border: "1px solid var(--line-strong)",
+            borderRadius: "var(--r-md)", boxShadow: "var(--shadow-3)", overflow: "hidden",
+          }}>
+            {renderMenu
+              ? renderMenu(close)
+              : opts?.map(o => (
+                <div key={o.value}
+                  onClick={() => { onSelect?.(o.value); close(); }}
+                  style={{
+                    padding: "9px 14px", cursor: "pointer", fontSize: 13,
+                    display: "flex", alignItems: "center", gap: 10,
+                    background: o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent",
+                    color: o.value === value ? "var(--gold-deep)" : "var(--ink)",
+                    fontWeight: o.value === value ? 600 : 400,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 12%,transparent)" : "var(--bg-inset)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = o.value === value ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent"; }}
+                >
+                  {o.value === value ? <IcCheck /> : <span style={{ width: 14, display: "inline-block" }} />}
+                  {o.label}
+                </div>
+              ))
+            }
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/* ─── FilterBar ─────────────────────────────────────────────────────── */
+
 function FilterBar({ filter, onChange, totalCount, filteredCount }: {
   filter: FilterState;
   onChange: (f: FilterState) => void;
@@ -242,43 +356,29 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
   const { lang } = useLang();
   const isMob = bp === "mobile";
   const active = isFilterActive(filter);
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const langBtnRef = useRef<HTMLButtonElement>(null);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
-
-  const nextScore = () => {
-    const idx = SCORE_STEPS.indexOf(filter.scoreMin);
-    onChange({ ...filter, scoreMin: SCORE_STEPS[(idx + 1) % SCORE_STEPS.length] });
-  };
-
-  function openLangMenu() {
-    if (langBtnRef.current) {
-      const r = langBtnRef.current.getBoundingClientRect();
-      setMenuPos({ top: r.bottom + 6, left: r.left });
-    }
-    setShowLangMenu(v => !v);
-  }
 
   const selectedLang = CLIENT_LANGS.find(l => l.key === filter.clientLang);
   const langLabel = selectedLang
     ? (lang === "ar" ? selectedLang.label_ar : lang === "fr" ? selectedLang.label_fr : selectedLang.label_en)
     : (lang === "ar" ? "اللغة" : lang === "fr" ? "Langue" : "Language");
 
-  const chipBase: React.CSSProperties = {
+  const coldChipBase: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 4,
     padding: "4px 10px", borderRadius: 999, fontSize: 11,
     fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid var(--line-soft)",
     background: "var(--bg-paper)", color: "var(--ink-3)", whiteSpace: "nowrap", flexShrink: 0,
   };
-  const chipOn: React.CSSProperties = {
-    ...chipBase, background: "var(--ink)", color: "var(--gold)", borderColor: "var(--ink)",
-  };
+
+  const activeCount = [
+    filter.agent !== "all", filter.budgetRange !== "all", filter.scoreMin > 0,
+    filter.goldOnly, filter.coldOnly, filter.clientLang !== "all",
+  ].filter(Boolean).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)", flexShrink: 0 }}>
 
       {/* Search row */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMob ? "8px 12px" : "8px 24px 4px" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMob ? "8px 12px" : "8px 24px 6px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "6px 12px", borderRadius: 999, border: "1px solid " + (filter.query ? "var(--ink)" : "var(--line-soft)"), background: "var(--bg-paper)", flex: 1 }}>
           <IcSearch />
           <input
@@ -292,7 +392,6 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
               style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
           )}
         </div>
-        {/* Count — mobile: inline with search */}
         {isMob && (
           <div style={{ fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
             {active ? `${filteredCount}/${totalCount}` : totalCount}
@@ -300,112 +399,119 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
         )}
       </div>
 
-      {/* Chips row — scrollable on mobile */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: isMob ? "4px 12px 8px" : "0 24px 8px", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
+      {/* Snapshot pill row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: isMob ? "4px 12px 10px" : "0 24px 10px", overflowX: "auto", WebkitOverflowScrolling: "touch" as React.CSSProperties["WebkitOverflowScrolling"] }}>
 
-        {/* Agent toggle */}
-        <div style={{ display: "flex", gap: 2, background: "var(--bg-inset)", borderRadius: 999, padding: 2, flexShrink: 0 }}>
-          {(["all", "YK", "OB"] as const).map(a => (
-            <button key={a} onClick={() => onChange({ ...filter, agent: a })}
-              style={{ padding: "3px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Inter, sans-serif", border: "none", cursor: "pointer", fontWeight: filter.agent === a ? 700 : 400, background: filter.agent === a ? "var(--ink)" : "transparent", color: filter.agent === a ? "var(--gold)" : "var(--ink-3)", transition: "all 0.15s", whiteSpace: "nowrap" }}>
-              {a === "all" ? "All" : a}
-            </button>
-          ))}
-        </div>
+        {/* Agent */}
+        <CrmFilterPill
+          label="Agent"
+          displayValue={filter.agent === "all" ? "All agents" : filter.agent}
+          value={filter.agent}
+          isActive={filter.agent !== "all"}
+          opts={[
+            { label: "All agents", value: "all" },
+            { label: "YK",         value: "YK"  },
+            { label: "OB",         value: "OB"  },
+          ]}
+          onSelect={v => onChange({ ...filter, agent: v as FilterState["agent"] })}
+        />
 
-        <button onClick={nextScore} style={filter.scoreMin > 0 ? chipOn : chipBase}>
-          Score ≥ {filter.scoreMin > 0 ? filter.scoreMin : "—"}
-        </button>
+        {/* Budget */}
+        <CrmFilterPill
+          label="Budget"
+          displayValue={budgetLabel(filter.budgetRange)}
+          value={filter.budgetRange}
+          isActive={filter.budgetRange !== "all"}
+          opts={BUDGET_OPTS}
+          onSelect={v => onChange({ ...filter, budgetRange: v as FilterState["budgetRange"] })}
+        />
 
-        <button onClick={() => onChange({ ...filter, goldOnly: !filter.goldOnly })}
-          style={filter.goldOnly ? chipOn : chipBase}>
-          ★ Gold
-        </button>
+        {/* Score */}
+        <CrmFilterPill
+          label="Score"
+          displayValue={filter.scoreMin > 0 ? `≥ ${filter.scoreMin}` : "Any"}
+          value={String(filter.scoreMin)}
+          isActive={filter.scoreMin > 0}
+          opts={SCORE_OPTS}
+          onSelect={v => onChange({ ...filter, scoreMin: parseInt(v, 10) })}
+        />
 
+        {/* Golden Visa */}
+        <CrmFilterPill
+          label="Golden Visa"
+          displayValue={filter.goldOnly ? "Eligible" : "All"}
+          value={filter.goldOnly ? "yes" : "all"}
+          isActive={filter.goldOnly}
+          gold={filter.goldOnly}
+          opts={[
+            { label: "All leads",          value: "all" },
+            { label: "Eligible (≥ 2M AED)", value: "yes" },
+          ]}
+          onSelect={v => onChange({ ...filter, goldOnly: v === "yes" })}
+        />
+
+        {/* Language */}
+        <CrmFilterPill
+          label="Language"
+          displayValue={selectedLang ? `${selectedLang.flag} ${langLabel}` : "All"}
+          value={filter.clientLang}
+          isActive={filter.clientLang !== "all"}
+          renderMenu={close => (
+            <>
+              <div
+                onClick={() => { onChange({ ...filter, clientLang: "all" }); close(); }}
+                style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 10, background: filter.clientLang === "all" ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent", color: filter.clientLang === "all" ? "var(--gold-deep)" : "var(--ink)", fontWeight: filter.clientLang === "all" ? 600 : 400 }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-inset)"; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = filter.clientLang === "all" ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent"; }}
+              >
+                {filter.clientLang === "all" ? <IcCheck /> : <span style={{ width: 14, display: "inline-block" }} />}
+                <span style={{ fontSize: 15 }}>🌐</span>
+                {lang === "ar" ? "الكل" : lang === "fr" ? "Toutes les langues" : "All languages"}
+              </div>
+              {CLIENT_LANGS.map(lc => {
+                const lbl = lang === "ar" ? lc.label_ar : lang === "fr" ? lc.label_fr : lc.label_en;
+                const isOn = filter.clientLang === lc.key;
+                return (
+                  <div key={lc.key}
+                    onClick={() => { onChange({ ...filter, clientLang: isOn ? "all" : lc.key }); close(); }}
+                    style={{ padding: "9px 14px", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", gap: 10, background: isOn ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent", color: isOn ? "var(--gold-deep)" : "var(--ink)", fontWeight: isOn ? 600 : 400 }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "var(--bg-inset)"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? "color-mix(in srgb,var(--gold) 8%,transparent)" : "transparent"; }}
+                  >
+                    {isOn ? <IcCheck /> : <span style={{ width: 14, display: "inline-block" }} />}
+                    <span style={{ fontSize: 15, lineHeight: 1 }}>{lc.flag}</span>
+                    {lbl}
+                  </div>
+                );
+              })}
+            </>
+          )}
+        />
+
+        {/* Cold — simple toggle chip */}
         <button onClick={() => onChange({ ...filter, coldOnly: !filter.coldOnly })}
-          style={filter.coldOnly ? { ...chipOn, color: "#ea580c", borderColor: "#ea580c", background: "rgba(234,88,12,0.08)" } : chipBase}>
+          style={filter.coldOnly
+            ? { ...coldChipBase, background: "rgba(234,88,12,0.08)", color: "#ea580c", borderColor: "rgba(234,88,12,0.4)" }
+            : coldChipBase}>
           ❄ Cold
         </button>
 
-        {/* Language dropdown button */}
-        <div style={{ width: 1, height: 18, background: "var(--line-soft)", flexShrink: 0, marginInline: 2 }} />
-        <button
-          ref={langBtnRef}
-          onClick={openLangMenu}
-          style={filter.clientLang !== "all" ? { ...chipOn, gap: 5 } : { ...chipBase, gap: 5 }}
-        >
-          <span style={{ fontSize: 14, lineHeight: 1 }}>{selectedLang ? selectedLang.flag : "🌐"}</span>
-          <span>{langLabel}</span>
-          <span style={{ fontSize: 9, marginInlineStart: 2, opacity: 0.7 }}>▾</span>
-        </button>
-
+        {/* Reset with badge */}
         {active && (
           <button onClick={() => onChange(DEFAULT_FILTER)}
-            style={{ ...chipBase, color: "var(--rose)", borderColor: "var(--rose)" }}>
+            style={{ ...coldChipBase, color: "var(--rose)", borderColor: "rgba(220,50,50,0.4)", gap: 5 }}>
             Reset
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{activeCount}</span>
           </button>
         )}
 
-        {/* Count — desktop/tablet */}
+        {/* Lead count — desktop */}
         {!isMob && (
           <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
             {active ? `${filteredCount} / ${totalCount}` : `${totalCount}`} leads
           </div>
         )}
       </div>
-
-      {/* Language dropdown popup — rendered via portal-like fixed positioning */}
-      {showLangMenu && (
-        <>
-          <div onClick={() => setShowLangMenu(false)} style={{ position: "fixed", inset: 0, zIndex: 299 }} />
-          <div style={{
-            position: "fixed", top: menuPos.top, left: menuPos.left,
-            zIndex: 300, background: "var(--bg-ivory)", borderRadius: "var(--r-md)",
-            border: "1px solid var(--line-soft)", boxShadow: "var(--shadow-3)",
-            minWidth: 180, overflow: "hidden",
-          }}>
-            {/* All option */}
-            <button
-              onClick={() => { onChange({ ...filter, clientLang: "all" }); setShowLangMenu(false); }}
-              style={{
-                width: "100%", display: "flex", alignItems: "center", gap: 10,
-                padding: "9px 14px", background: filter.clientLang === "all" ? "var(--bg-inset)" : "transparent",
-                border: "none", borderBottom: "1px solid var(--line-soft)", cursor: "pointer",
-                fontSize: 12, fontFamily: "Inter, sans-serif", color: "var(--ink-3)",
-              }}
-            >
-              <span style={{ fontSize: 15 }}>🌐</span>
-              <span style={{ flex: 1, textAlign: "start" }}>
-                {lang === "ar" ? "الكل" : lang === "fr" ? "Toutes les langues" : "All languages"}
-              </span>
-              {filter.clientLang === "all" && <IcCheck />}
-            </button>
-
-            {CLIENT_LANGS.map(lc => {
-              const label = lang === "ar" ? lc.label_ar : lang === "fr" ? lc.label_fr : lc.label_en;
-              const isOn  = filter.clientLang === lc.key;
-              return (
-                <button
-                  key={lc.key}
-                  onClick={() => { onChange({ ...filter, clientLang: isOn ? "all" : lc.key }); setShowLangMenu(false); }}
-                  style={{
-                    width: "100%", display: "flex", alignItems: "center", gap: 10,
-                    padding: "9px 14px", background: isOn ? "var(--ink)" : "transparent",
-                    border: "none", borderBottom: "1px solid var(--line-soft)", cursor: "pointer",
-                    fontSize: 12, fontFamily: "Inter, sans-serif",
-                    color: isOn ? "var(--gold)" : "var(--ink-2)",
-                    fontWeight: isOn ? 600 : 400,
-                  }}
-                >
-                  <span style={{ fontSize: 15, lineHeight: 1 }}>{lc.flag}</span>
-                  <span style={{ flex: 1, textAlign: "start" }}>{label}</span>
-                  {isOn && <IcCheck />}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      )}
     </div>
   );
 }
