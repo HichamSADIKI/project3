@@ -28,12 +28,25 @@ type FilterState = {
   scoreMin: number;
   goldOnly: boolean;
   coldOnly: boolean;
+  clientLang: string;
 };
 
-const DEFAULT_FILTER: FilterState = { query: "", agent: "all", scoreMin: 0, goldOnly: false, coldOnly: false };
+const DEFAULT_FILTER: FilterState = { query: "", agent: "all", scoreMin: 0, goldOnly: false, coldOnly: false, clientLang: "all" };
 
 function isFilterActive(f: FilterState) {
-  return f.query !== "" || f.agent !== "all" || f.scoreMin > 0 || f.goldOnly || f.coldOnly;
+  return f.query !== "" || f.agent !== "all" || f.scoreMin > 0 || f.goldOnly || f.coldOnly || f.clientLang !== "all";
+}
+
+function langFromCtry(ctry: string): string {
+  if (ctry.includes("🇦🇪") || ctry.includes("🇸🇦") || ctry.includes("UAE") || ctry.includes("KSA")) return "ar";
+  if (ctry.includes("🇫🇷") || ctry.includes("FRA")) return "fr";
+  if (ctry.includes("🇷🇺") || ctry.includes("RUS")) return "ru";
+  if (ctry.includes("🇨🇳") || ctry.includes("CHN")) return "zh";
+  if (ctry.includes("🇩🇪") || ctry.includes("DEU")) return "de";
+  if (ctry.includes("🇮🇹") || ctry.includes("ITA")) return "it";
+  if (ctry.includes("🇯🇵") || ctry.includes("JPN")) return "ja";
+  if (ctry.includes("🇹🇷") || ctry.includes("TUR")) return "tr";
+  return "en";
 }
 
 function applyFilters(all: Record<string, Lead[]>, f: FilterState): Record<string, Lead[]> {
@@ -56,6 +69,7 @@ function applyFilters(all: Record<string, Lead[]>, f: FilterState): Record<strin
         if (f.scoreMin > 0 && l.score < f.scoreMin) return false;
         if (f.goldOnly && !l.gold) return false;
         if (f.coldOnly && (l.lastContactDays ?? 0) <= 5) return false;
+        if (f.clientLang !== "all" && langFromCtry(l.ctry) !== f.clientLang) return false;
         return true;
       }),
     ])
@@ -204,6 +218,18 @@ function exportCSV(filteredLeads: Record<string, Lead[]>) {
 
 /* ─── FilterBar ─────────────────────────────────────────────────────── */
 
+const CLIENT_LANGS = [
+  { key: "ar", flag: "🇦🇪", label_en: "Arabic",   label_fr: "Arabe",    label_ar: "عربي"    },
+  { key: "en", flag: "🇬🇧", label_en: "English",  label_fr: "Anglais",  label_ar: "إنجليزي" },
+  { key: "fr", flag: "🇫🇷", label_en: "French",   label_fr: "Français", label_ar: "فرنسي"   },
+  { key: "ru", flag: "🇷🇺", label_en: "Russian",  label_fr: "Russe",    label_ar: "روسي"    },
+  { key: "zh", flag: "🇨🇳", label_en: "Chinese",  label_fr: "Chinois",  label_ar: "صيني"    },
+  { key: "de", flag: "🇩🇪", label_en: "German",   label_fr: "Allemand", label_ar: "ألماني"  },
+  { key: "it", flag: "🇮🇹", label_en: "Italian",  label_fr: "Italien",  label_ar: "إيطالي"  },
+  { key: "tr", flag: "🇹🇷", label_en: "Turkish",  label_fr: "Turc",     label_ar: "تركي"    },
+  { key: "ja", flag: "🇯🇵", label_en: "Japanese", label_fr: "Japonais", label_ar: "ياباني"  },
+];
+
 const SCORE_STEPS = [0, 40, 60, 75, 90];
 
 function FilterBar({ filter, onChange, totalCount, filteredCount }: {
@@ -213,6 +239,7 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
   filteredCount: number;
 }) {
   const bp    = useBreakpoint();
+  const { lang } = useLang();
   const isMob = bp === "mobile";
   const active = isFilterActive(filter);
   const nextScore = () => {
@@ -282,6 +309,24 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
           style={filter.coldOnly ? { ...chipOn, color: "#ea580c", borderColor: "#ea580c", background: "rgba(234,88,12,0.08)" } : chipBase}>
           ❄ Cold
         </button>
+
+        {/* Language chips — vertical divider then flag chips */}
+        <div style={{ width: 1, height: 18, background: "var(--line-soft)", flexShrink: 0, marginInline: 2 }} />
+        {CLIENT_LANGS.map(lc => {
+          const label = lang === "ar" ? lc.label_ar : lang === "fr" ? lc.label_fr : lc.label_en;
+          const isOn  = filter.clientLang === lc.key;
+          return (
+            <button
+              key={lc.key}
+              onClick={() => onChange({ ...filter, clientLang: isOn ? "all" : lc.key })}
+              title={label}
+              style={isOn ? { ...chipOn, gap: 4 } : { ...chipBase, gap: 4 }}
+            >
+              <span style={{ fontSize: 14, lineHeight: 1 }}>{lc.flag}</span>
+              {!isMob && <span>{label}</span>}
+            </button>
+          );
+        })}
 
         {active && (
           <button onClick={() => onChange(DEFAULT_FILTER)}
