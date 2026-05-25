@@ -921,8 +921,27 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
 }) {
   const { lang } = useLang();
   const bp = useBreakpoint();
-  const [noteMode, setNoteMode] = useState(false);
-  const [noteText, setNoteText] = useState("");
+  const [noteMode,    setNoteMode]    = useState(false);
+  const [noteText,    setNoteText]    = useState("");
+  const [metaQuery,   setMetaQuery]   = useState(lead.name);
+  const [metaResults, setMetaResults] = useState<MetaProfile[]>([]);
+  const [metaLoading, setMetaLoading] = useState(false);
+  const [metaSearched,setMetaSearched]= useState(false);
+  const [metaAdded,   setMetaAdded]   = useState<Set<string>>(new Set());
+
+  function runMetaSearch() {
+    if (!metaQuery.trim() || metaLoading) return;
+    setMetaLoading(true); setMetaSearched(false); setMetaResults([]);
+    setTimeout(() => {
+      setMetaResults(mockMetaSearch(metaQuery.trim()));
+      setMetaLoading(false); setMetaSearched(true);
+    }, 1200);
+  }
+
+  function addMetaToCRM(p: MetaProfile) {
+    onMetaSearch(p.name);
+    setMetaAdded(prev => new Set([...prev, p.id]));
+  }
 
   const drawerWidth = bp === "mobile" ? "100vw" : bp === "tablet" ? 360 : 440;
   const scoreColor = lead.score >= 80 ? "var(--emerald)" : lead.score >= 50 ? "var(--gold)" : "var(--ink-4)";
@@ -993,52 +1012,147 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
             )}
           </div>
 
-          {/* Meta Contact */}
-          <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <IcMetaLogo />
-                <Eyebrow>Meta Contact</Eyebrow>
+          {/* ── Meta Snapshot Connector (Communication) ── */}
+          <div style={{ background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid rgba(162,89,255,0.25)", overflow: "hidden" }}>
+
+            {/* Header */}
+            <div style={{ padding: "10px 14px", background: "linear-gradient(135deg,rgba(162,89,255,0.07),rgba(0,129,251,0.05))", borderBottom: "1px solid rgba(162,89,255,0.15)", display: "flex", alignItems: "center", gap: 8 }}>
+              <IcMetaLogo />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>Meta Snapshot Connector</div>
+                <div style={{ fontSize: 9.5, color: "var(--ink-4)", marginTop: 1 }}>Facebook · Instagram · WhatsApp</div>
+              </div>
+            </div>
+
+            {/* Search bar */}
+            <div style={{ padding: "10px 12px", borderBottom: "1px solid var(--line-soft)", display: "flex", gap: 6 }}>
+              <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, padding: "7px 10px", borderRadius: "var(--r)", border: "1.5px solid " + (metaQuery ? "var(--ink)" : "var(--line-soft)"), background: "var(--bg-cream)" }}>
+                <IcSearch />
+                <input
+                  value={metaQuery}
+                  onChange={e => setMetaQuery(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && runMetaSearch()}
+                  placeholder="Nom du contact…"
+                  style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--ink)", fontFamily: "Inter, sans-serif" }}
+                />
+                {metaQuery && (
+                  <button onClick={() => { setMetaQuery(""); setMetaResults([]); setMetaSearched(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
+                )}
               </div>
               <button
-                onClick={() => onMetaSearch(lead.name)}
-                style={{ fontSize: 10, color: "#a259ff", background: "rgba(162,89,255,0.08)", border: "1px solid rgba(162,89,255,0.3)", borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 600 }}>
-                Snapshot ↗
+                onClick={runMetaSearch}
+                disabled={!metaQuery.trim() || metaLoading}
+                style={{ padding: "0 12px", borderRadius: "var(--r)", background: metaQuery.trim() && !metaLoading ? "var(--ink)" : "var(--bg-inset)", color: metaQuery.trim() && !metaLoading ? "var(--gold)" : "var(--ink-4)", border: "none", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: metaQuery.trim() && !metaLoading ? "pointer" : "not-allowed", fontWeight: 600, flexShrink: 0 }}>
+                {metaLoading ? "…" : "Chercher"}
               </button>
             </div>
 
-            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-              {/* WhatsApp */}
-              {lead.phone && (
-                <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
-                  <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                    <IcWhatsApp />
-                    <span style={{ fontSize: 9.5 }}>WhatsApp</span>
-                  </button>
-                </a>
+            {/* Results area */}
+            <div style={{ maxHeight: 320, overflowY: "auto", padding: metaResults.length || metaLoading || metaSearched ? "10px 12px" : 0, display: "flex", flexDirection: "column", gap: 8 }}>
+
+              {/* Loading */}
+              {metaLoading && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "16px 0", justifyContent: "center" }}>
+                  <style>{`@keyframes sgi-spin2{to{transform:rotate(360deg)}}`}</style>
+                  <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid var(--line-strong)", borderTopColor: "#0081fb", animation: "sgi-spin2 0.8s linear infinite" }} />
+                  <div style={{ fontSize: 11, color: "var(--ink-4)" }}>Recherche Meta en cours…</div>
+                </div>
               )}
 
-              {/* Messenger */}
-              <a href={`https://m.me/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
-                <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.07)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                  <IcMessenger />
-                  <span style={{ fontSize: 9.5 }}>Messenger</span>
-                </button>
-              </a>
+              {/* No results */}
+              {!metaLoading && metaSearched && metaResults.length === 0 && (
+                <div style={{ padding: "14px 0", textAlign: "center", fontSize: 11, color: "var(--ink-4)" }}>
+                  Aucun profil trouvé pour « {metaQuery} »
+                </div>
+              )}
 
-              {/* Instagram DM */}
-              <a href={`https://ig.me/m/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
-                <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.07)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-                  <IcInstagramDM />
-                  <span style={{ fontSize: 9.5 }}>Instagram</span>
-                </button>
-              </a>
+              {/* Idle hint */}
+              {!metaLoading && !metaSearched && (
+                <div style={{ padding: "12px 0", textAlign: "center", fontSize: 11, color: "var(--ink-4)" }}>
+                  Appuyez sur Chercher pour trouver les profils Meta de ce contact
+                </div>
+              )}
 
-              {/* Facebook Search */}
-              <a href={`https://www.facebook.com/search/people/?q=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
-                <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.05)", border: "1px solid rgba(24,119,242,0.2)", color: "#1877f2", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, opacity: 0.8 }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                  <span style={{ fontSize: 9.5 }}>Facebook</span>
+              {/* Result cards */}
+              {!metaLoading && metaResults.map((p, i) => {
+                const initials  = p.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+                const isAdded   = metaAdded.has(p.id);
+                const confColor = p.confidence >= 80 ? "var(--emerald)" : p.confidence >= 60 ? "var(--gold-deep)" : "var(--ink-4)";
+                const confBg    = p.confidence >= 80 ? "rgba(16,185,129,0.1)" : p.confidence >= 60 ? "var(--gold-ghost)" : "var(--bg-inset)";
+                return (
+                  <div key={p.id} style={{ padding: 10, background: "var(--bg-ivory)", borderRadius: "var(--r)", border: "1px solid " + (i === 0 ? "var(--gold-line,var(--gold))" : "var(--line-soft)"), display: "flex", flexDirection: "column", gap: 8, boxShadow: i === 0 ? "0 0 0 2px color-mix(in srgb,var(--gold) 8%,transparent)" : "none" }}>
+                    {/* Profile row */}
+                    <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 18, flexShrink: 0, background: i === 0 ? "linear-gradient(135deg,#0081fb,#a259ff)" : "var(--bg-inset)", color: i === 0 ? "#fff" : "var(--ink-4)", fontSize: 12, fontWeight: 700, display: "grid", placeItems: "center", border: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                        {initials}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink)" }}>{p.name}</span>
+                          <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 999, background: confBg, color: confColor, fontWeight: 700 }}>{p.confidence}% match</span>
+                          {i === 0 && <span style={{ fontSize: 9, padding: "1px 6px", borderRadius: 999, background: "rgba(162,89,255,0.1)", color: "#a259ff", border: "1px solid rgba(162,89,255,0.2)", fontWeight: 700 }}>Meilleur résultat</span>}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.location} · {p.bio}</div>
+                        {p.mutualInterests && <div style={{ fontSize: 10, color: "var(--azure)", marginTop: 1 }}>Intérêts: {p.mutualInterests}</div>}
+                      </div>
+                    </div>
+                    {/* Platform badges */}
+                    <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                      {p.platforms.map(pl => <PlatformBadge key={pl} p={pl} name={p.name} phone={p.phone} />)}
+                      {p.phone && <span className="tnum" style={{ fontSize: 10, padding: "2px 7px", borderRadius: 999, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", color: "var(--ink-3)" }}>{p.phone}</span>}
+                    </div>
+                    {/* Action buttons */}
+                    <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+                      {p.platforms.includes("whatsapp") && p.phone && (
+                        <a href={`https://wa.me/${p.phone.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 80 }}>
+                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcWhatsApp /> WhatsApp</button>
+                        </a>
+                      )}
+                      {p.platforms.includes("facebook") && (
+                        <a href={`https://m.me/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 80 }}>
+                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcMessenger /> Messenger</button>
+                        </a>
+                      )}
+                      {p.platforms.includes("instagram") && (
+                        <a href={`https://ig.me/m/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 80 }}>
+                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcInstagramDM /> Instagram</button>
+                        </a>
+                      )}
+                      <button
+                        onClick={() => addMetaToCRM(p)}
+                        disabled={isAdded}
+                        style={{ flex: 1, minWidth: 90, padding: "7px 0", borderRadius: "var(--r)", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: isAdded ? "default" : "pointer", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: isAdded ? "var(--bg-inset)" : "var(--ink)", color: isAdded ? "var(--emerald)" : "var(--gold)", border: isAdded ? "1px solid rgba(16,185,129,0.3)" : "none" }}>
+                        {isAdded ? <>✓ Ajouté</> : <><IcPlus /> Ajouter au CRM</>}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {metaSearched && metaResults.length > 0 && (
+                <div style={{ fontSize: 9.5, color: "var(--ink-4)", textAlign: "center", paddingBottom: 4 }}>
+                  Via Meta Snapshot · Profils publics · Conforme RGPD
+                </div>
+              )}
+            </div>
+
+            {/* Quick links footer — always visible */}
+            <div style={{ padding: "8px 12px", borderTop: "1px solid var(--line-soft)", display: "flex", gap: 5, flexWrap: "wrap", background: "var(--bg-cream)" }}>
+              {lead.phone && (
+                <a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
+                  <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.25)", color: "#25d366", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcWhatsApp /><span style={{ fontSize: 9 }}>WhatsApp</span></button>
+                </a>
+              )}
+              <a href={`https://m.me/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
+                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.07)", border: "1px solid rgba(24,119,242,0.2)", color: "#1877f2", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcMessenger /><span style={{ fontSize: 9 }}>Messenger</span></button>
+              </a>
+              <a href={`https://ig.me/m/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
+                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.07)", border: "1px solid rgba(225,48,108,0.2)", color: "#e1306c", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcInstagramDM /><span style={{ fontSize: 9 }}>Instagram</span></button>
+              </a>
+              <a href={`https://www.facebook.com/search/people/?q=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
+                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.05)", border: "1px solid rgba(24,119,242,0.18)", color: "#1877f2", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  <span style={{ fontSize: 9 }}>Facebook</span>
                 </button>
               </a>
             </div>
