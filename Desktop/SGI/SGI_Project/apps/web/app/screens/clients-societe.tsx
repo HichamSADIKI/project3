@@ -4,24 +4,32 @@ import { Topbar, Ic, IcPhone, IcMail } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 
-const IcSearch2 = () => <Ic s={15}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></Ic>;
-const IcPlus2   = () => <Ic s={15}><path d="M12 5v14M5 12h14"/></Ic>;
-const IcGlobe   = () => <Ic s={14}><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Ic>;
+const IcSearch2  = () => <Ic s={15}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></Ic>;
+const IcPlus2    = () => <Ic s={15}><path d="M12 5v14M5 12h14"/></Ic>;
+const IcGlobe    = () => <Ic s={14}><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Ic>;
+const IcBack     = () => <Ic s={16}><path d="m15 18-6-6 6-6"/></Ic>;
+const IcDeal     = () => <Ic s={15}><path d="M3 3h18v4H3zM3 10h18v4H3zM3 17h18v4H3z"/></Ic>;
+const IcDoc2     = () => <Ic s={15}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></Ic>;
+const IcInvoice  = () => <Ic s={15}><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></Ic>;
+const IcPayment  = () => <Ic s={15}><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></Ic>;
 
 type Status  = "active" | "prospect" | "vip" | "inactive";
 type Sector  = "realestate" | "investment" | "construction" | "retail" | "hospitality" | "finance" | "other";
+type TabKey  = "deals" | "documents" | "invoices" | "payments";
 
 interface Company {
   id: string;
   name: string; name_ar: string;
   country: string; flag: string;
   sector: Sector;
-  contact: string; phone: string; email: string; website?: string;
+  contact: string; contactRole: string;
+  phone: string; email: string; website?: string;
   annualRevenue: number;
   deals: number;
   status: Status;
   agent: string;
   vatNo?: string;
+  tradeLicense?: string;
 }
 
 const SECTOR_CFG: Record<Sector, { en: string; ar: string; fr: string; color: string }> = {
@@ -41,36 +49,342 @@ const STATUS_CFG: Record<Status, { en: string; ar: string; fr: string; color: st
   inactive: { en: "Inactive",  ar: "غير نشطة",    fr: "Inactive",  color: "var(--ink-4)"  },
 };
 
+const DEAL_STATUS = {
+  won:        { en: "Won",        ar: "مُنجز",     fr: "Gagné",       color: "var(--emerald)" },
+  active:     { en: "Active",     ar: "نشط",       fr: "En cours",    color: "var(--azure)"   },
+  negotiation:{ en: "Negotiation",ar: "تفاوض",     fr: "Négociation", color: "var(--gold)"    },
+  lost:       { en: "Lost",       ar: "خسر",       fr: "Perdu",       color: "var(--rose)"    },
+};
+const DOC_STATUS = {
+  verified:   { en: "Verified",   ar: "موثق",      fr: "Vérifié",     color: "var(--emerald)" },
+  pending:    { en: "Pending",    ar: "معلق",       fr: "En attente",  color: "var(--gold)"    },
+  expired:    { en: "Expired",    ar: "منتهي",      fr: "Expiré",      color: "var(--rose)"    },
+};
+const INV_STATUS = {
+  paid:       { en: "Paid",       ar: "مدفوعة",    fr: "Payée",       color: "var(--emerald)" },
+  pending:    { en: "Pending",    ar: "معلقة",      fr: "En attente",  color: "var(--gold)"    },
+  overdue:    { en: "Overdue",    ar: "متأخرة",     fr: "En retard",   color: "var(--rose)"    },
+};
+const PAY_STATUS = {
+  cleared:    { en: "Cleared",    ar: "مقبولة",    fr: "Encaissé",    color: "var(--emerald)" },
+  pending:    { en: "Pending",    ar: "معلق",       fr: "En attente",  color: "var(--gold)"    },
+};
+
 const aed = (n: number) => new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
+const fmt  = (d: string) => new Date(d).toLocaleDateString("en-AE", { day: "2-digit", month: "short", year: "numeric" });
 
 const COMPANIES: Company[] = [
-  { id: "c001", name: "Al Maktoum Holding",          name_ar: "مجموعة آل مكتوم القابضة",    country: "UAE", flag: "🇦🇪", sector: "investment",   contact: "Sultan Al Maktoum",    phone: "+971 4 123 4567", email: "info@amholding.ae",     website: "amholding.ae",     annualRevenue: 18_400_000, deals: 4, status: "vip",      agent: "Yasmine K.", vatNo: "100345678900003" },
-  { id: "c002", name: "Gulf Properties LLC",          name_ar: "شركة الخليج للعقارات",        country: "UAE", flag: "🇦🇪", sector: "realestate",   contact: "Mariam Al Suwaidi",    phone: "+971 4 987 6543", email: "m.suwaidi@gulfprop.ae", website: "gulfprop.ae",      annualRevenue: 7_800_000,  deals: 6, status: "vip",      agent: "Omar B.",    vatNo: "100567890100003" },
-  { id: "c003", name: "Invest Maroc SARL",            name_ar: "إنفيست المغرب",               country: "Morocco", flag: "🇲🇦", sector: "investment", contact: "Mehdi Bensouda",      phone: "+212 5 22 34 56 78", email: "m.bensouda@investma.com", annualRevenue: 5_200_000, deals: 3, status: "active",    agent: "Omar B."    },
-  { id: "c004", name: "Riyadh Development Co.",       name_ar: "شركة الرياض للتطوير",         country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Turki Al Faisal",   phone: "+966 11 234 5678", email: "t.faisal@rdc.sa",        website: "rdc.sa",           annualRevenue: 9_100_000,  deals: 2, status: "active",   agent: "Yasmine K.", vatNo: "300123456700003" },
-  { id: "c005", name: "Dubai Hospitality Group",      name_ar: "مجموعة دبي للضيافة",          country: "UAE", flag: "🇦🇪", sector: "hospitality",  contact: "Khalid Al Qasimi",     phone: "+971 4 567 8901", email: "k.qasimi@dhg.ae",       website: "dhg.ae",           annualRevenue: 12_500_000, deals: 5, status: "vip",      agent: "Reem M.",    vatNo: "100987654300003" },
-  { id: "c006", name: "Casablanca Real Estate SA",    name_ar: "الدار البيضاء للعقارات",      country: "Morocco", flag: "🇲🇦", sector: "realestate", contact: "Leila Chraibi",       phone: "+212 5 22 98 76 54", email: "l.chraibi@crsa.ma",      annualRevenue: 3_400_000,  deals: 2, status: "active",   agent: "Adel H."    },
-  { id: "c007", name: "Emirates Financial Partners",  name_ar: "شركاء الإمارات الماليون",     country: "UAE", flag: "🇦🇪", sector: "finance",      contact: "Ahmad Al Muhairi",     phone: "+971 2 345 6789", email: "a.muhairi@efp.ae",      website: "efp.ae",           annualRevenue: 6_700_000,  deals: 3, status: "active",   agent: "Nadia K.",   vatNo: "100234567800003" },
-  { id: "c008", name: "Vision Construct KSA",         name_ar: "رؤية للإنشاء المملكة",        country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Nora Al Turki",     phone: "+966 12 456 7890", email: "n.turki@vcksa.sa",       website: "vcksa.sa",         annualRevenue: 4_800_000,  deals: 1, status: "prospect", agent: "Adel H."    },
-  { id: "c009", name: "Mena Retail Holdings",         name_ar: "مينا القابضة للتجزئة",        country: "UAE", flag: "🇦🇪", sector: "retail",       contact: "Sara Al Dhaheri",      phone: "+971 4 678 9012", email: "s.dhaheri@mena-retail.ae",website: "mena-retail.ae",  annualRevenue: 8_200_000,  deals: 2, status: "active",   agent: "Reem M.",    vatNo: "100876543200003" },
-  { id: "c010", name: "Infinity Maroc Partners",      name_ar: "إنفينيتي شركاء المغرب",       country: "Morocco", flag: "🇲🇦", sector: "investment", contact: "Rachid El Fassi",     phone: "+212 5 37 12 34 56", email: "r.elfassi@imp.ma",       annualRevenue: 2_900_000,  deals: 1, status: "prospect", agent: "Yasmine K." },
-  { id: "c011", name: "Al Ain Properties PJSC",       name_ar: "شركة العين للعقارات",         country: "UAE", flag: "🇦🇪", sector: "realestate",   contact: "Hamdan Al Nahyan",     phone: "+971 3 789 0123", email: "h.alnahyan@aap.ae",     website: "aap.ae",           annualRevenue: 14_300_000, deals: 7, status: "vip",      agent: "Yasmine K.", vatNo: "100765432100003" },
-  { id: "c012", name: "Saudi Luxury Hospitality Co.", name_ar: "شركة الضيافة الفاخرة السعودية",country: "KSA", flag: "🇸🇦", sector: "hospitality", contact: "Faisal Al Saud",       phone: "+966 11 890 1234", email: "f.alsaud@slhc.sa",       website: "slhc.sa",          annualRevenue: 11_600_000, deals: 3, status: "vip",      agent: "Omar B."    },
+  { id: "c001", name: "Al Maktoum Holding",          name_ar: "مجموعة آل مكتوم القابضة",    country: "UAE", flag: "🇦🇪", sector: "investment",   contact: "Sultan Al Maktoum",    contactRole: "CEO",                 phone: "+971 4 123 4567", email: "info@amholding.ae",     website: "amholding.ae",     annualRevenue: 18_400_000, deals: 4, status: "vip",      agent: "Yasmine K.", vatNo: "100345678900003", tradeLicense: "DED-2019-00345" },
+  { id: "c002", name: "Gulf Properties LLC",          name_ar: "شركة الخليج للعقارات",        country: "UAE", flag: "🇦🇪", sector: "realestate",   contact: "Mariam Al Suwaidi",    contactRole: "Managing Director",   phone: "+971 4 987 6543", email: "m.suwaidi@gulfprop.ae", website: "gulfprop.ae",      annualRevenue: 7_800_000,  deals: 6, status: "vip",      agent: "Omar B.",    vatNo: "100567890100003", tradeLicense: "DED-2017-00892" },
+  { id: "c003", name: "Invest Maroc SARL",            name_ar: "إنفيست المغرب",               country: "Morocco", flag: "🇲🇦", sector: "investment", contact: "Mehdi Bensouda",      contactRole: "General Manager",     phone: "+212 5 22 34 56 78", email: "m.bensouda@investma.com", annualRevenue: 5_200_000, deals: 3, status: "active",    agent: "Omar B."    },
+  { id: "c004", name: "Riyadh Development Co.",       name_ar: "شركة الرياض للتطوير",         country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Turki Al Faisal",   contactRole: "Chairman",            phone: "+966 11 234 5678", email: "t.faisal@rdc.sa",        website: "rdc.sa",           annualRevenue: 9_100_000,  deals: 2, status: "active",   agent: "Yasmine K.", vatNo: "300123456700003" },
+  { id: "c005", name: "Dubai Hospitality Group",      name_ar: "مجموعة دبي للضيافة",          country: "UAE", flag: "🇦🇪", sector: "hospitality",  contact: "Khalid Al Qasimi",     contactRole: "President",           phone: "+971 4 567 8901", email: "k.qasimi@dhg.ae",       website: "dhg.ae",           annualRevenue: 12_500_000, deals: 5, status: "vip",      agent: "Reem M.",    vatNo: "100987654300003", tradeLicense: "DED-2015-01234" },
+  { id: "c006", name: "Casablanca Real Estate SA",    name_ar: "الدار البيضاء للعقارات",      country: "Morocco", flag: "🇲🇦", sector: "realestate", contact: "Leila Chraibi",       contactRole: "Director",            phone: "+212 5 22 98 76 54", email: "l.chraibi@crsa.ma",      annualRevenue: 3_400_000,  deals: 2, status: "active",   agent: "Adel H."    },
+  { id: "c007", name: "Emirates Financial Partners",  name_ar: "شركاء الإمارات الماليون",     country: "UAE", flag: "🇦🇪", sector: "finance",      contact: "Ahmad Al Muhairi",     contactRole: "Partner",             phone: "+971 2 345 6789", email: "a.muhairi@efp.ae",      website: "efp.ae",           annualRevenue: 6_700_000,  deals: 3, status: "active",   agent: "Nadia K.",   vatNo: "100234567800003" },
+  { id: "c008", name: "Vision Construct KSA",         name_ar: "رؤية للإنشاء المملكة",        country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Nora Al Turki",     contactRole: "Operations Director", phone: "+966 12 456 7890", email: "n.turki@vcksa.sa",       website: "vcksa.sa",         annualRevenue: 4_800_000,  deals: 1, status: "prospect", agent: "Adel H."    },
+  { id: "c009", name: "Mena Retail Holdings",         name_ar: "مينا القابضة للتجزئة",        country: "UAE", flag: "🇦🇪", sector: "retail",       contact: "Sara Al Dhaheri",      contactRole: "CEO",                 phone: "+971 4 678 9012", email: "s.dhaheri@mena-retail.ae",website: "mena-retail.ae",  annualRevenue: 8_200_000,  deals: 2, status: "active",   agent: "Reem M.",    vatNo: "100876543200003", tradeLicense: "DED-2020-00567" },
+  { id: "c010", name: "Infinity Maroc Partners",      name_ar: "إنفينيتي شركاء المغرب",       country: "Morocco", flag: "🇲🇦", sector: "investment", contact: "Rachid El Fassi",     contactRole: "Founding Partner",    phone: "+212 5 37 12 34 56", email: "r.elfassi@imp.ma",       annualRevenue: 2_900_000,  deals: 1, status: "prospect", agent: "Yasmine K." },
+  { id: "c011", name: "Al Ain Properties PJSC",       name_ar: "شركة العين للعقارات",         country: "UAE", flag: "🇦🇪", sector: "realestate",   contact: "Hamdan Al Nahyan",     contactRole: "Vice Chairman",       phone: "+971 3 789 0123", email: "h.alnahyan@aap.ae",     website: "aap.ae",           annualRevenue: 14_300_000, deals: 7, status: "vip",      agent: "Yasmine K.", vatNo: "100765432100003", tradeLicense: "DED-2012-00189" },
+  { id: "c012", name: "Saudi Luxury Hospitality Co.", name_ar: "شركة الضيافة الفاخرة السعودية",country: "KSA", flag: "🇸🇦", sector: "hospitality", contact: "Faisal Al Saud",       contactRole: "Executive Director",  phone: "+966 11 890 1234", email: "f.alsaud@slhc.sa",       website: "slhc.sa",          annualRevenue: 11_600_000, deals: 3, status: "vip",      agent: "Omar B."    },
 ];
 
-const AGENTS = ["All agents", "Yasmine K.", "Omar B.", "Reem M.", "Adel H.", "Nadia K."];
+const AGENTS  = ["All agents", "Yasmine K.", "Omar B.", "Reem M.", "Adel H.", "Nadia K."];
 const SECTORS = ["all", ...Object.keys(SECTOR_CFG)] as const;
 
+/* ─── Mock data generators ───────────────────────────────────── */
+type DealStatus = keyof typeof DEAL_STATUS;
+type DocStatus  = keyof typeof DOC_STATUS;
+type InvStatus  = keyof typeof INV_STATUS;
+type PayStatus  = keyof typeof PAY_STATUS;
+
+function mockDeals(c: Company) {
+  const bases = [
+    { prop: "Marina Gate Tower 3 — Unit 4502", type_en: "Sale", type_ar: "بيع", type_fr: "Vente", amount: 3_800_000, date: "2026-03-18", status: "won" as DealStatus },
+    { prop: "Business Bay Office Floor 12", type_en: "Commercial", type_ar: "تجاري", type_fr: "Commercial", amount: 6_200_000, date: "2026-04-02", status: "active" as DealStatus },
+    { prop: "DIFC Grade A Office — Suite 800", type_en: "Long-Term Rental", type_ar: "إيجار طويل", type_fr: "Location longue durée", amount: 980_000, date: "2026-02-14", status: "negotiation" as DealStatus },
+    { prop: "Palm Jumeirah Villa — Signature", type_en: "Sale", type_ar: "بيع", type_fr: "Vente", amount: 12_500_000, date: "2025-11-20", status: "won" as DealStatus },
+    { prop: "Downtown Dubai — Penthouse 5201", type_en: "Sale", type_ar: "بيع", type_fr: "Vente", amount: 8_700_000, date: "2026-01-05", status: "active" as DealStatus },
+    { prop: "JBR — Retail Podium Level 2", type_en: "Commercial Rental", type_ar: "إيجار تجاري", type_fr: "Location commerciale", amount: 450_000, date: "2025-09-30", status: "won" as DealStatus },
+    { prop: "Abu Dhabi — Saadiyat Island Villa", type_en: "Sale", type_ar: "بيع", type_fr: "Vente", amount: 5_400_000, date: "2026-05-01", status: "negotiation" as DealStatus },
+  ];
+  return bases.slice(0, Math.min(c.deals, bases.length));
+}
+
+function mockDocuments(c: Company) {
+  const docs = [
+    { name_en: "Trade License", name_ar: "رخصة تجارية", name_fr: "Licence commerciale", ref: c.tradeLicense ?? "DED-2023-00001", date: "2026-01-15", exp: "2027-01-14", status: "verified" as DocStatus },
+    { name_en: "VAT Registration Certificate", name_ar: "شهادة التسجيل الضريبي", name_fr: "Certificat TVA", ref: c.vatNo ?? "N/A", date: "2023-06-01", exp: "2026-12-31", status: "verified" as DocStatus },
+    { name_en: "MOA / Articles of Incorporation", name_ar: "عقد التأسيس", name_fr: "Actes constitutifs", ref: "MOA-2021-7734", date: "2021-03-10", exp: undefined, status: "verified" as DocStatus },
+    { name_en: "Board Resolution — Property Acquisition", name_ar: "قرار مجلس الإدارة", name_fr: "Résolution du conseil", ref: "BR-2026-04", date: "2026-04-08", exp: undefined, status: "pending" as DocStatus },
+    { name_en: "Power of Attorney", name_ar: "توكيل رسمي", name_fr: "Procuration", ref: "POA-UAE-2025-118", date: "2025-11-22", exp: "2026-11-21", status: "verified" as DocStatus },
+    { name_en: "MOU — Infinity International", name_ar: "مذكرة تفاهم", name_fr: "Protocole d'accord", ref: "MOU-INF-2026-003", date: "2026-02-01", exp: "2026-08-01", status: "verified" as DocStatus },
+  ];
+  return docs.slice(0, c.deals + 2);
+}
+
+function mockInvoices(c: Company) {
+  return [
+    { ref: `INV-${c.id.toUpperCase()}-001`, date: "2026-03-20", due: "2026-04-20", amount: c.annualRevenue * 0.03, status: "paid" as InvStatus,    desc_en: "Commission — Q1 2026", desc_fr: "Commission — T1 2026", desc_ar: "عمولة — الربع الأول 2026" },
+    { ref: `INV-${c.id.toUpperCase()}-002`, date: "2026-04-15", due: "2026-05-15", amount: c.annualRevenue * 0.025, status: "paid" as InvStatus,   desc_en: "Advisory Fees — April", desc_fr: "Honoraires — Avril", desc_ar: "رسوم استشارية — أبريل" },
+    { ref: `INV-${c.id.toUpperCase()}-003`, date: "2026-05-10", due: "2026-06-10", amount: c.annualRevenue * 0.04,  status: "pending" as InvStatus, desc_en: "Commission — Q2 2026", desc_fr: "Commission — T2 2026", desc_ar: "عمولة — الربع الثاني 2026" },
+  ];
+}
+
+function mockPayments(c: Company) {
+  return [
+    { ref: `PAY-${c.id.toUpperCase()}-001`, date: "2026-03-25", amount: c.annualRevenue * 0.03,   method_en: "Bank Transfer (SWIFT)", method_ar: "تحويل بنكي", method_fr: "Virement SWIFT", status: "cleared" as PayStatus  },
+    { ref: `PAY-${c.id.toUpperCase()}-002`, date: "2026-04-20", amount: c.annualRevenue * 0.025,  method_en: "Bank Transfer (SWIFT)", method_ar: "تحويل بنكي", method_fr: "Virement SWIFT", status: "cleared" as PayStatus  },
+    { ref: `PAY-${c.id.toUpperCase()}-003`, date: "2026-05-20", amount: c.annualRevenue * 0.04,   method_en: "Corporate Cheque", method_ar: "شيك شركة", method_fr: "Chèque d'entreprise", status: "pending" as PayStatus },
+  ];
+}
+
+/* ─── Company detail view ─────────────────────────────────────── */
+function CompanyDetail({ company, onBack, lang }: { company: Company; onBack: () => void; lang: string }) {
+  const [tab, setTab] = useState<TabKey>("deals");
+  const bp   = useBreakpoint();
+  const isMob = bp === "mobile";
+
+  const scfg  = STATUS_CFG[company.status];
+  const secfg = SECTOR_CFG[company.sector];
+  const deals    = mockDeals(company);
+  const docs     = mockDocuments(company);
+  const invoices = mockInvoices(company);
+  const payments = mockPayments(company);
+
+  const lbl = (en: string, ar: string, fr: string) => lang === "ar" ? ar : lang === "fr" ? fr : en;
+
+  const TABS: { key: TabKey; icon: React.ReactNode; en: string; ar: string; fr: string }[] = [
+    { key: "deals",    icon: <IcDeal />,    en: "Deals",     ar: "الصفقات",    fr: "Deals"      },
+    { key: "documents",icon: <IcDoc2 />,    en: "Documents", ar: "الوثائق",    fr: "Documents"  },
+    { key: "invoices", icon: <IcInvoice />, en: "Invoices",  ar: "الفواتير",   fr: "Factures"   },
+    { key: "payments", icon: <IcPayment />, en: "Payments",  ar: "المدفوعات",  fr: "Paiements"  },
+  ];
+
+  const thStyle: React.CSSProperties = {
+    padding: "9px 14px", fontSize: 10.5, color: "var(--ink-4)", fontWeight: 600,
+    letterSpacing: "0.07em", textTransform: "uppercase", textAlign: "start",
+    borderBottom: "1px solid var(--line-soft)", background: "var(--bg-cream)",
+  };
+  const tdStyle: React.CSSProperties = { padding: "11px 14px", fontSize: 12.5, color: "var(--ink-2)" };
+
+  return (
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+      {/* Topbar with back */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: isMob ? "12px" : "14px 24px", background: "var(--bg-paper)", borderBottom: "1px solid var(--line-soft)", flexShrink: 0 }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "none", color: "var(--ink-3)", fontSize: 12, cursor: "pointer" }}>
+          <IcBack />
+          {lbl("Back", "رجوع", "Retour")}
+        </button>
+        <span style={{ fontSize: 11, color: "var(--ink-4)" }}>/</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{lang === "ar" ? company.name_ar : company.name}</span>
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", padding: isMob ? "12px" : "24px 32px", background: "var(--bg-cream)" }}>
+
+        {/* Company card */}
+        <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: isMob ? "16px" : "24px 28px", marginBottom: 20 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 18, flexWrap: "wrap" }}>
+            {/* Logo avatar */}
+            <div style={{ width: 60, height: 60, borderRadius: "var(--r)", background: `${secfg.color}15`, display: "grid", placeItems: "center", color: secfg.color, fontWeight: 800, fontSize: 22, flexShrink: 0 }}>
+              {company.name[0]}
+            </div>
+
+            <div style={{ flex: 1, minWidth: 180 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
+                <div className="font-display" style={{ fontSize: 18, fontWeight: 700, color: "var(--ink)" }}>
+                  {lang === "ar" ? company.name_ar : company.name}
+                </div>
+                <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 9px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>{lang === "ar" ? scfg.ar : lang === "fr" ? scfg.fr : scfg.en}</span>
+                <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 9px", borderRadius: 999, background: `${secfg.color}12`, color: secfg.color }}>
+                  {lang === "ar" ? secfg.ar : lang === "fr" ? secfg.fr : secfg.en}
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)", marginBottom: 14 }}>{company.flag} {company.country}{company.tradeLicense ? ` · ${company.tradeLicense}` : ""}</div>
+
+              {/* Info grid */}
+              <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "repeat(3, auto)", gap: isMob ? "8px" : "20px 40px", rowGap: 10 }}>
+                {[
+                  { icon: "👤", label: lbl("Contact", "جهة الاتصال", "Contact"), val: `${company.contact} · ${company.contactRole}` },
+                  { icon: "📞", label: lbl("Phone", "الهاتف", "Téléphone"), val: company.phone },
+                  { icon: "✉️", label: lbl("Email", "البريد", "E-mail"), val: company.email },
+                  ...(company.website ? [{ icon: "🌐", label: lbl("Website", "الموقع", "Site web"), val: company.website }] : []),
+                  ...(company.vatNo   ? [{ icon: "🏛", label: lbl("VAT No.", "الرقم الضريبي", "N° TVA"), val: company.vatNo }] : []),
+                  { icon: "💰", label: lbl("Annual Revenue", "الإيرادات السنوية", "CA annuel"), val: aed(company.annualRevenue) },
+                  { icon: "🤝", label: lbl("Agent", "الوكيل", "Agent"), val: company.agent },
+                ].map(info => (
+                  <div key={info.label}>
+                    <div style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 2, textTransform: "uppercase", letterSpacing: "0.06em" }}>{info.label}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--ink)", fontWeight: 500 }}>{info.val}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Tab bar */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+          {TABS.map(t => (
+            <button key={t.key} onClick={() => setTab(t.key)}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "8px 16px", borderRadius: "var(--r)", fontSize: 12.5, fontWeight: tab === t.key ? 600 : 400,
+                border: "none", cursor: "pointer",
+                background: tab === t.key ? "var(--gold)" : "var(--bg-paper)",
+                color: tab === t.key ? "#1A1610" : "var(--ink-3)",
+                boxShadow: tab === t.key ? "none" : "inset 0 0 0 1px var(--line-soft)",
+              }}>
+              {t.icon}
+              {lang === "ar" ? t.ar : lang === "fr" ? t.fr : t.en}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
+
+          {/* DEALS */}
+          {tab === "deals" && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {[lbl("Property", "العقار", "Propriété"), lbl("Type", "النوع", "Type"), lbl("Amount", "المبلغ", "Montant"), lbl("Date", "التاريخ", "Date"), lbl("Status", "الحالة", "Statut")].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {deals.map((d, i) => {
+                  const dscfg = DEAL_STATUS[d.status];
+                  return (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                      <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{d.prop}</td>
+                      <td style={tdStyle}>{lbl(d.type_en, d.type_ar, d.type_fr)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{aed(d.amount)}</td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(d.date)}</td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${dscfg.color}15`, color: dscfg.color }}>
+                          {lbl(dscfg.en, dscfg.ar, dscfg.fr)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          {/* DOCUMENTS */}
+          {tab === "documents" && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {[lbl("Document", "الوثيقة", "Document"), lbl("Reference", "المرجع", "Référence"), lbl("Date", "التاريخ", "Date"), lbl("Expiry", "الانتهاء", "Expiration"), lbl("Status", "الحالة", "Statut")].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {docs.map((d, i) => {
+                  const dscfg = DOC_STATUS[d.status];
+                  return (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                      <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{lbl(d.name_en, d.name_ar, d.name_fr)}</td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }} className="tnum">{d.ref}</td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(d.date)}</td>
+                      <td style={{ ...tdStyle, color: d.exp ? "var(--ink-4)" : "var(--ink-4)" }}>{d.exp ? fmt(d.exp) : "—"}</td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${dscfg.color}15`, color: dscfg.color }}>
+                          {lbl(dscfg.en, dscfg.ar, dscfg.fr)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          {/* INVOICES */}
+          {tab === "invoices" && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {[lbl("Invoice", "الفاتورة", "Facture"), lbl("Description", "الوصف", "Description"), lbl("Date", "التاريخ", "Date"), lbl("Due date", "تاريخ الاستحقاق", "Échéance"), lbl("Amount", "المبلغ", "Montant"), lbl("Status", "الحالة", "Statut")].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {invoices.map((inv, i) => {
+                  const iscfg = INV_STATUS[inv.status];
+                  return (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "var(--azure)" }} className="tnum">{inv.ref}</td>
+                      <td style={tdStyle}>{lbl(inv.desc_en, inv.desc_ar, inv.desc_fr)}</td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(inv.date)}</td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(inv.due)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{aed(inv.amount)}</td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${iscfg.color}15`, color: iscfg.color }}>
+                          {lbl(iscfg.en, iscfg.ar, iscfg.fr)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+
+          {/* PAYMENTS */}
+          {tab === "payments" && (
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr>
+                  {[lbl("Reference", "المرجع", "Référence"), lbl("Date", "التاريخ", "Date"), lbl("Amount", "المبلغ", "Montant"), lbl("Method", "الطريقة", "Méthode"), lbl("Status", "الحالة", "Statut")].map(h => (
+                    <th key={h} style={thStyle}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p, i) => {
+                  const pscfg = PAY_STATUS[p.status];
+                  return (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "var(--azure)" }} className="tnum">{p.ref}</td>
+                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(p.date)}</td>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{aed(p.amount)}</td>
+                      <td style={tdStyle}>{lbl(p.method_en, p.method_ar, p.method_fr)}</td>
+                      <td style={tdStyle}>
+                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${pscfg.color}15`, color: pscfg.color }}>
+                          {lbl(pscfg.en, pscfg.ar, pscfg.fr)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main screen ─────────────────────────────────────────────── */
 export function ScreenClientsSociete() {
   const { lang } = useLang();
   const t = useT();
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
 
-  const [search,  setSearch]  = useState("");
-  const [status,  setStatus]  = useState<Status | "all">("all");
-  const [sector,  setSector]  = useState<Sector | "all">("all");
-  const [agent,   setAgent]   = useState("All agents");
+  const [search,     setSearch]     = useState("");
+  const [status,     setStatus]     = useState<Status | "all">("all");
+  const [sector,     setSector]     = useState<Sector | "all">("all");
+  const [agent,      setAgent]      = useState("All agents");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const filtered = COMPANIES.filter(c => {
     const q = search.toLowerCase();
@@ -80,6 +394,9 @@ export function ScreenClientsSociete() {
     const matchAgent  = agent === "All agents" || c.agent === agent;
     return matchSearch && matchStatus && matchSector && matchAgent;
   });
+
+  const selected = selectedId ? COMPANIES.find(c => c.id === selectedId) : null;
+  if (selected) return <CompanyDetail company={selected} onBack={() => setSelectedId(null)} lang={lang} />;
 
   const title = lang === "ar" ? t.nav_societe : lang === "fr" ? "Sociétés" : "Companies";
 
@@ -144,13 +461,12 @@ export function ScreenClientsSociete() {
         {/* Cards grid / table */}
         <div style={{ flex: 1, overflowY: "auto", padding: isMob ? "12px" : "20px 24px" }}>
           {isMob ? (
-            /* Mobile: card stack */
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {filtered.map(c => {
-                const scfg = STATUS_CFG[c.status];
+                const scfg  = STATUS_CFG[c.status];
                 const secfg = SECTOR_CFG[c.sector];
                 return (
-                  <div key={c.id} style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "14px 16px" }}>
+                  <div key={c.id} onClick={() => setSelectedId(c.id)} style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "14px 16px", cursor: "pointer" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
                       <div style={{ width: 38, height: 38, borderRadius: "var(--r-sm)", background: `${secfg.color}15`, display: "grid", placeItems: "center", color: secfg.color, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>
                         {c.name[0]}
@@ -167,7 +483,6 @@ export function ScreenClientsSociete() {
               })}
             </div>
           ) : (
-            /* Desktop: full table */
             <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
@@ -190,7 +505,9 @@ export function ScreenClientsSociete() {
                     const scfg  = STATUS_CFG[c.status];
                     const secfg = SECTOR_CFG[c.sector];
                     return (
-                      <tr key={c.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--line-soft)" : "none", cursor: "pointer" }}
+                      <tr key={c.id}
+                        onClick={() => setSelectedId(c.id)}
+                        style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--line-soft)" : "none", cursor: "pointer" }}
                         onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = "var(--bg-cream)"}
                         onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = "transparent"}
                       >
@@ -212,10 +529,7 @@ export function ScreenClientsSociete() {
                         </td>
                         <td style={{ padding: "13px 16px" }}>
                           <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", marginBottom: 3 }}>{c.contact}</div>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--ink-4)" }}><IcPhone />{c.phone}</div>
-                            {c.website && <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--azure)" }}><IcGlobe />{c.website}</div>}
-                          </div>
+                          <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{c.contactRole}</div>
                         </td>
                         <td style={{ padding: "13px 16px" }}>
                           <div className="tnum" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{aed(c.annualRevenue)}</div>

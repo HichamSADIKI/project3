@@ -73,16 +73,25 @@ export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element
   return (
     <div style={{
-      width: size, height: size, borderRadius: 4,
-      border: "1px solid var(--gold)", display: "grid", placeItems: "center",
-      color: "var(--gold)", flexShrink: 0,
+      width: size, height: size, borderRadius: 6,
+      background: "#fff", overflow: "hidden",
+      display: "flex", alignItems: "center", justifyContent: "flex-start",
+      flexShrink: 0,
     }}>
-      <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 24 24"
-        fill="none" stroke="currentColor" strokeWidth="1.2">
-        <path d="M4 20V4M20 20V4M4 4l16 16M20 4l-8 8" />
-      </svg>
+      <img
+        src="/logo-infinity-mark.png"
+        alt="Infinity"
+        style={{
+          height: size * 1.1,
+          width: "auto",
+          objectFit: "cover",
+          objectPosition: "left center",
+          marginInlineStart: -(size * 0.05),
+        }}
+      />
     </div>
   );
 }
