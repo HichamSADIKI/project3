@@ -1502,6 +1502,310 @@ function LeadListView({ leads, onSelect }: {
   );
 }
 
+/* ─── Meta Contact Search ────────────────────────────────────────────── */
+
+type MetaProfile = {
+  id: string;
+  name: string;
+  location: string;
+  bio: string;
+  platforms: ("facebook" | "instagram" | "whatsapp")[];
+  phone?: string;
+  confidence: number;
+  mutualInterests?: string;
+};
+
+const META_SURNAMES = [
+  ["Al-Rashid", "Al-Mansoori", "Al-Farsi", "Hassan", "Ahmed"],
+  ["Al-Khoury", "Bin Ali", "Khalil", "Nasser", "Salem"],
+  ["Al-Zaabi", "Al-Marri", "Al-Nuaimi", "Bin Hamad", "Al-Qubaisi"],
+];
+const META_LOCS = ["Dubai, UAE", "Abu Dhabi, UAE", "Sharjah, UAE", "Ajman, UAE", "Ras Al Khaimah, UAE"];
+const META_BIOS = [
+  "Real estate investor · Private",
+  "Entrepreneur · Business owner",
+  "Family office · Private",
+  "Director — private holding",
+  "Investor · Luxury assets",
+];
+
+function mockMetaSearch(query: string): MetaProfile[] {
+  if (!query.trim()) return [];
+  const q = query.trim();
+  const first = q.split(" ")[0];
+  const seed  = Array.from(q).reduce((a, c) => a + c.charCodeAt(0), 0);
+  function pick<T>(arr: T[], off = 0): T { return arr[(seed + off) % arr.length]; }
+  function ph(pfx: string) {
+    return `+971 ${pfx} ${String(100 + (seed % 900)).slice(0, 3)} ${String(1000 + (seed * 7 % 9000)).slice(0, 4)}`;
+  }
+  return [
+    {
+      id: "mp1", name: q,
+      location: pick(META_LOCS, 0), bio: pick(META_BIOS, 0),
+      platforms: ["facebook", "instagram", "whatsapp"],
+      phone: ph("50"), confidence: 91,
+      mutualInterests: "Real estate · Luxury properties",
+    },
+    {
+      id: "mp2", name: `${first} ${pick(META_SURNAMES[0], 1)}`,
+      location: pick(META_LOCS, 1), bio: pick(META_BIOS, 2),
+      platforms: ["facebook", "whatsapp"],
+      phone: ph("55"), confidence: 74,
+    },
+    {
+      id: "mp3", name: `${first} ${pick(META_SURNAMES[1], 2)}`,
+      location: pick(META_LOCS, 2), bio: pick(META_BIOS, 4),
+      platforms: ["instagram"],
+      confidence: 55,
+    },
+    {
+      id: "mp4", name: `${first} ${pick(META_SURNAMES[2], 3)}`,
+      location: pick(META_LOCS, 3), bio: pick(META_BIOS, 3),
+      platforms: ["facebook"],
+      confidence: 39,
+    },
+  ];
+}
+
+function IcMetaLogo() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
+      <defs>
+        <linearGradient id="mg" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="#0081fb" />
+          <stop offset="100%" stopColor="#a259ff" />
+        </linearGradient>
+      </defs>
+      <circle cx="14" cy="14" r="14" fill="url(#mg)" />
+      <path d="M8 18c0-3 1.5-5.5 4-7l2-1.5 2 1.5c2.5 1.5 4 4 4 7" stroke="#fff" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <circle cx="14" cy="9.5" r="1.8" fill="#fff" />
+    </svg>
+  );
+}
+
+function PlatformBadge({ p }: { p: MetaProfile["platforms"][0] }) {
+  const cfg = {
+    facebook:  { label: "Facebook",  bg: "rgba(24,119,242,0.1)",  color: "#1877f2", border: "rgba(24,119,242,0.3)"  },
+    instagram: { label: "Instagram", bg: "rgba(225,48,108,0.1)",  color: "#e1306c", border: "rgba(225,48,108,0.3)"  },
+    whatsapp:  { label: "WhatsApp",  bg: "rgba(37,211,102,0.1)",  color: "#25d366", border: "rgba(37,211,102,0.3)"  },
+  }[p];
+  return (
+    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontWeight: 600 }}>
+      {cfg.label}
+    </span>
+  );
+}
+
+function MetaContactSearchPanel({ onClose, onAddToCRM }: {
+  onClose: () => void;
+  onAddToCRM: (p: MetaProfile) => void;
+}) {
+  const [query,     setQuery]     = useState("");
+  const [results,   setResults]   = useState<MetaProfile[]>([]);
+  const [loading,   setLoading]   = useState(false);
+  const [searched,  setSearched]  = useState(false);
+  const [added,     setAdded]     = useState<Set<string>>(new Set());
+
+  function doSearch() {
+    if (!query.trim() || loading) return;
+    setLoading(true); setSearched(false);
+    setTimeout(() => {
+      setResults(mockMetaSearch(query));
+      setLoading(false); setSearched(true);
+    }, 1500);
+  }
+
+  function handleAdd(p: MetaProfile) {
+    onAddToCRM(p);
+    setAdded(prev => new Set([...prev, p.id]));
+  }
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(26,22,16,0.45)", zIndex: 300, backdropFilter: "blur(3px)" }} />
+      <div style={{
+        position: "fixed", top: "50%", insetInlineStart: "50%",
+        transform: "translate(-50%,-50%)",
+        width: 560, maxHeight: "85vh",
+        background: "var(--bg-ivory)", borderRadius: "var(--r-md)",
+        boxShadow: "var(--shadow-3)", zIndex: 301,
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+
+        {/* ── Header ── */}
+        <div style={{ padding: "16px 22px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <IcMetaLogo />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>Meta Snapshot Connector</div>
+              <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 1 }}>Recherche contacts · Facebook · Instagram · WhatsApp</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--ink-3)", fontSize: 18, lineHeight: 1 }}>×</button>
+        </div>
+
+        {/* ── Search bar ── */}
+        <div style={{ padding: "14px 22px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-cream)", display: "flex", gap: 8 }}>
+          <div style={{
+            flex: 1, display: "flex", alignItems: "center", gap: 8,
+            padding: "9px 14px", borderRadius: "var(--r)",
+            border: "1.5px solid " + (query ? "var(--ink)" : "var(--line-soft)"),
+            background: "var(--bg-paper)",
+          }}>
+            <IcSearch />
+            <input
+              autoFocus
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              onKeyDown={e => e.key === "Enter" && doSearch()}
+              placeholder="Nom du client (ex: Khalid Al-Hashimi, Maria Petrova…)"
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--ink)", fontFamily: "Inter, sans-serif" }}
+            />
+            {query && (
+              <button onClick={() => { setQuery(""); setResults([]); setSearched(false); }}
+                style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 17, lineHeight: 1, padding: 0 }}>×</button>
+            )}
+          </div>
+          <button onClick={doSearch} disabled={!query.trim() || loading}
+            style={{
+              padding: "0 20px", borderRadius: "var(--r)",
+              background: query.trim() && !loading ? "var(--ink)" : "var(--bg-inset)",
+              color: query.trim() && !loading ? "var(--gold)" : "var(--ink-4)",
+              border: "none", fontSize: 12.5, fontFamily: "Inter, sans-serif",
+              cursor: query.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600,
+              transition: "background 0.12s",
+            }}>
+            {loading ? "…" : "Chercher"}
+          </button>
+        </div>
+
+        {/* ── Results ── */}
+        <div style={{ flex: 1, overflowY: "auto", padding: "14px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
+
+          {/* Loading */}
+          {loading && (
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "36px 0" }}>
+              <style>{`@keyframes sgi-spin{to{transform:rotate(360deg)}}`}</style>
+              <div style={{ width: 26, height: 26, borderRadius: "50%", border: "2.5px solid var(--line-strong)", borderTopColor: "#0081fb", animation: "sgi-spin 0.8s linear infinite" }} />
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>Connexion Meta Snapshot · recherche en cours…</div>
+            </div>
+          )}
+
+          {/* Idle hint */}
+          {!loading && !searched && (
+            <div style={{ padding: "44px 0", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
+              <div style={{ opacity: 0.35, fontSize: 32 }}>🔍</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)", maxWidth: 320, lineHeight: 1.7 }}>
+                Saisissez le nom d'un prospect pour retrouver ses profils Facebook, Instagram ou WhatsApp Business via le connecteur Meta Snapshot.
+              </div>
+            </div>
+          )}
+
+          {/* No results */}
+          {!loading && searched && results.length === 0 && (
+            <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: "var(--ink-4)" }}>
+              Aucun profil trouvé pour &laquo; {query} &raquo;
+            </div>
+          )}
+
+          {/* Result cards */}
+          {!loading && results.map((p, i) => {
+            const initials  = p.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+            const isAdded   = added.has(p.id);
+            const confColor = p.confidence >= 80 ? "var(--emerald)" : p.confidence >= 60 ? "var(--gold-deep)" : "var(--ink-4)";
+            const confBg    = p.confidence >= 80 ? "rgba(16,185,129,0.1)" : p.confidence >= 60 ? "var(--gold-ghost)" : "var(--bg-inset)";
+
+            return (
+              <div key={p.id} style={{
+                padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)",
+                border: "1px solid " + (i === 0 ? "var(--gold-line, var(--gold))" : "var(--line-soft)"),
+                boxShadow: i === 0 ? "0 0 0 2px color-mix(in srgb,var(--gold) 10%,transparent)" : "none",
+                display: "flex", flexDirection: "column", gap: 10,
+              }}>
+                {/* Profile info */}
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                  <div style={{
+                    width: 42, height: 42, borderRadius: 21, flexShrink: 0,
+                    background: i === 0 ? "linear-gradient(135deg,#0081fb,#a259ff)" : "var(--bg-inset)",
+                    color: i === 0 ? "#fff" : "var(--ink-4)",
+                    fontSize: 14, fontWeight: 700, display: "grid", placeItems: "center",
+                    border: i > 0 ? "1px solid var(--line-soft)" : "none",
+                  }}>
+                    {initials}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{p.name}</span>
+                      <span style={{ fontSize: 9.5, padding: "1px 7px", borderRadius: 999, background: confBg, color: confColor, fontWeight: 700 }}>
+                        {p.confidence}% match
+                      </span>
+                      {i === 0 && (
+                        <span style={{ fontSize: 9.5, padding: "1px 7px", borderRadius: 999, background: "rgba(162,89,255,0.1)", color: "#a259ff", border: "1px solid rgba(162,89,255,0.25)", fontWeight: 700 }}>
+                          Meilleur résultat
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>{p.location} · {p.bio}</div>
+                    {p.mutualInterests && (
+                      <div style={{ fontSize: 10.5, color: "var(--azure)", marginTop: 2 }}>Intérêts communs: {p.mutualInterests}</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Platforms + phone */}
+                <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
+                  {p.platforms.map(pl => <PlatformBadge key={pl} p={pl} />)}
+                  {p.phone && (
+                    <span className="tnum" style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", color: "var(--ink-3)" }}>
+                      {p.phone}
+                    </span>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div style={{ display: "flex", gap: 7 }}>
+                  {p.platforms.includes("whatsapp") && p.phone && (
+                    <a href={`https://wa.me/${p.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1 }}>
+                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                        <IcWhatsApp /> WhatsApp
+                      </button>
+                    </a>
+                  )}
+                  {p.platforms.includes("facebook") && (
+                    <button style={{ flex: 1, padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer" }}>
+                      Messenger
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleAdd(p)}
+                    disabled={isAdded}
+                    style={{
+                      flex: 1, padding: "8px 0", borderRadius: "var(--r)", fontSize: 11.5,
+                      fontFamily: "Inter, sans-serif", cursor: isAdded ? "default" : "pointer",
+                      fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
+                      background: isAdded ? "var(--bg-inset)" : "var(--ink)",
+                      color: isAdded ? "var(--emerald)" : "var(--gold)",
+                      border: isAdded ? "1px solid rgba(16,185,129,0.3)" : "none",
+                      transition: "all 0.15s",
+                    }}>
+                    {isAdded ? <>✓ Ajouté au CRM</> : <><IcPlus /> Ajouter au CRM</>}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {searched && results.length > 0 && (
+            <div style={{ fontSize: 10, color: "var(--ink-4)", textAlign: "center", padding: "6px 0 2px" }}>
+              Via Meta Snapshot Connector · Profils publics uniquement · Conforme RGPD
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ─── ScreenCRM ─────────────────────────────────────────────────────── */
 
 export function ScreenCRM() {
@@ -1516,7 +1820,8 @@ export function ScreenCRM() {
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [draggingFromStage, setDraggingFromStage] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<{ lead: Lead; stage: string } | null>(null);
-  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addModalOpen,   setAddModalOpen]   = useState(false);
+  const [metaSearchOpen, setMetaSearchOpen] = useState(false);
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
   const [lostModal, setLostModal] = useState<{ lead: Lead; stage: string } | null>(null);
 
@@ -1573,6 +1878,29 @@ export function ScreenCRM() {
     setLeads(prev => ({ ...prev, [addTargetStage]: [lead, ...(prev[addTargetStage] ?? [])] }));
   }
 
+  function handleAddFromMeta(profile: MetaProfile) {
+    const newLead: Lead = {
+      id:   `l${Date.now()}`,
+      name: profile.name,
+      ctry: profile.location.includes("UAE") ? "🇦🇪 UAE" : profile.location,
+      budget: 2_000_000,
+      prop:  "—",
+      score: Math.round(profile.confidence * 0.55),
+      days:  "today",
+      agent: "—",
+      channel: profile.platforms.includes("facebook")
+        ? "Facebook"
+        : profile.platforms.includes("instagram")
+          ? "Instagram"
+          : "WhatsApp",
+      phone:         profile.phone,
+      gold:          false,
+      followUp:      DEFAULT_FOLLOW_UP,
+      lastContactDays: 0,
+    };
+    setLeads(prev => ({ ...prev, new: [newLead, ...(prev.new ?? [])] }));
+  }
+
   function handleMarkLost(reason: string) {
     if (!lostModal) return;
     const { lead, stage } = lostModal;
@@ -1602,6 +1930,14 @@ export function ScreenCRM() {
       <Topbar title={t.t_crm} crumb={[`${counts.reduce((a, b) => a + b, 0)} leads`, "AED " + (totalBudget / 1_000_000).toFixed(1) + "M", coldTotal > 0 ? `${coldTotal} cold` : ""]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost" onClick={() => exportCSV(filteredLeads)}><IcFilter />&nbsp;Export CSV</button>}
         {!isMob && <button className="sgi-btn sgi-btn-ghost">Automations · 3 active</button>}
+        {!isMob && (
+          <button
+            onClick={() => setMetaSearchOpen(true)}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: "var(--r)", border: "1px solid rgba(162,89,255,0.4)", background: "rgba(162,89,255,0.07)", color: "#a259ff", fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", fontWeight: 600 }}>
+            <IcMetaLogo />
+            Meta Snapshot
+          </button>
+        )}
         {!isMob && (
           <div style={{ display: "flex", gap: 2, padding: 3, background: "var(--bg-inset)", borderRadius: "var(--r)" }}>
             <button onClick={() => setView("kanban")} style={{ padding: "4px 8px", borderRadius: 4, border: "none", cursor: "pointer", display: "flex", alignItems: "center", background: view === "kanban" ? "var(--bg-ivory)" : "transparent", color: view === "kanban" ? "var(--ink)" : "var(--ink-3)", boxShadow: view === "kanban" ? "var(--shadow-1)" : "none" }}>
@@ -1755,6 +2091,13 @@ export function ScreenCRM() {
 
       {addModalOpen && (
         <AddLeadModal onClose={() => setAddModalOpen(false)} onAdd={handleAddLead} targetStage={addTargetStage} />
+      )}
+
+      {metaSearchOpen && (
+        <MetaContactSearchPanel
+          onClose={() => setMetaSearchOpen(false)}
+          onAddToCRM={handleAddFromMeta}
+        />
       )}
     </div>
   );
