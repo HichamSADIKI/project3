@@ -30,6 +30,7 @@ import { ScreenHR } from "./screens/hr";
 import { ScreenIT } from "./screens/it";
 import { ScreenBackOffice } from "./screens/backoffice";
 import { ScreenParametres } from "./screens/parametres";
+import { ScreenOrders } from "./screens/orders";
 import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
@@ -53,6 +54,7 @@ export default function App() {
         {screen === "dash"     && <ScreenDashboard />}
         {screen === "prop"     && <ScreenProperties />}
         {screen === "crm"      && <ScreenCRM />}
+        {screen === "orders"   && <ScreenOrders />}
         {screen === "contract" && <ScreenContracts />}
         {screen === "rental"    && <ScreenRentals />}
         {screen === "realestate" && <ScreenRealEstate />}

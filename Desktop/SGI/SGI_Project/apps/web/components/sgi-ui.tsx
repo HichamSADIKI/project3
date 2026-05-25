@@ -69,6 +69,7 @@ export const IcIT        = () => <Ic><rect x="2" y="3" width="20" height="14" rx
 export const IcBackOffice= () => <Ic><path d="M2 20h20M4 20V10l8-7 8 7v10"/><path d="M9 20v-6h6v6"/><rect x="10" y="8" width="4" height="4" rx="0.5"/></Ic>;
 export const IcSettings  = () => <Ic><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></Ic>;
 export const IcWorkspace = () => <Ic><rect x="3" y="3" width="18" height="11" rx="2"/><path d="M7 22H17M12 18v4"/><circle cx="12" cy="9" r="2"/><path d="M8 9h1M15 9h1"/></Ic>;
+export const IcOrders    = () => <Ic><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ic>;
 export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></Ic>;
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
@@ -114,7 +115,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
 export type NavKey =
-  | "dash" | "crm"
+  | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
   | "realestate" | "prop" | "contract" | "rental" | "visa"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
@@ -135,7 +136,8 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "societe",  icon: <IcSociete /> },
     ],
   },
-  { type: "item",  key: "crm",         icon: <IcCRM />,  badge: 12 },
+  { type: "item",  key: "crm",         icon: <IcCRM />,    badge: 12 },
+  { type: "item",  key: "orders",      icon: <IcOrders />, badge: 7 },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
       { key: "prop",     icon: <IcProp /> },
@@ -219,7 +221,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
-      dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm,
+      dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm, orders: t.nav_orders,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
