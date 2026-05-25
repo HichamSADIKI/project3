@@ -910,13 +910,14 @@ function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, d
 
 /* ─── LeadDetailDrawer ──────────────────────────────────────────────── */
 
-function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, onFollowUpMark, onMarkLost }: {
+function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, onFollowUpMark, onMarkLost, onMetaSearch }: {
   lead: Lead; stage: string;
   onClose: () => void;
   onNotesChange: (id: string, stage: string, notes: string) => void;
   onActivityAdd: (id: string, stage: string, a: Activity) => void;
   onFollowUpMark: (id: string, stage: string, step: keyof FollowUp) => void;
   onMarkLost: () => void;
+  onMetaSearch: (name: string) => void;
 }) {
   const { lang } = useLang();
   const bp = useBreakpoint();
@@ -990,6 +991,57 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
                 </button>
               </a>
             )}
+          </div>
+
+          {/* Meta Contact */}
+          <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <IcMetaLogo />
+                <Eyebrow>Meta Contact</Eyebrow>
+              </div>
+              <button
+                onClick={() => onMetaSearch(lead.name)}
+                style={{ fontSize: 10, color: "#a259ff", background: "rgba(162,89,255,0.08)", border: "1px solid rgba(162,89,255,0.3)", borderRadius: 5, padding: "3px 9px", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 600 }}>
+                Snapshot ↗
+              </button>
+            </div>
+
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              {/* WhatsApp */}
+              {lead.phone && (
+                <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
+                  <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                    <IcWhatsApp />
+                    <span style={{ fontSize: 9.5 }}>WhatsApp</span>
+                  </button>
+                </a>
+              )}
+
+              {/* Messenger */}
+              <a href={`https://m.me/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
+                <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.07)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <IcMessenger />
+                  <span style={{ fontSize: 9.5 }}>Messenger</span>
+                </button>
+              </a>
+
+              {/* Instagram DM */}
+              <a href={`https://ig.me/m/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
+                <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.07)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
+                  <IcInstagramDM />
+                  <span style={{ fontSize: 9.5 }}>Instagram</span>
+                </button>
+              </a>
+
+              {/* Facebook Search */}
+              <a href={`https://www.facebook.com/search/people/?q=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 90 }}>
+                <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.05)", border: "1px solid rgba(24,119,242,0.2)", color: "#1877f2", fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, opacity: 0.8 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                  <span style={{ fontSize: 9.5 }}>Facebook</span>
+                </button>
+              </a>
+            </div>
           </div>
 
           {/* Profile Enrichment */}
@@ -2164,6 +2216,7 @@ export function ScreenCRM() {
           onActivityAdd={handleActivityAdd}
           onFollowUpMark={handleFollowUpMark}
           onMarkLost={() => setLostModal(selectedLead)}
+          onMetaSearch={openMetaSearch}
         />
       )}
 
