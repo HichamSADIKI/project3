@@ -35,6 +35,7 @@ import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
 import { ScreenTravail } from "./screens/travail";
+import { ScreenSectorCRM } from "./screens/sector-crm";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -61,6 +62,15 @@ export default function App() {
         {screen === "realestate" && <ScreenRealEstate />}
         {screen === "admin"     && <ScreenAdministrations />}
         {screen === "travail"   && <ScreenTravail />}
+        {screen === "realestate_crm"  && <ScreenSectorCRM sector="realestate" />}
+        {screen === "tourisme_crm"    && <ScreenSectorCRM sector="tourisme" />}
+        {screen === "sante_crm"       && <ScreenSectorCRM sector="sante" />}
+        {screen === "assurance_crm"   && <ScreenSectorCRM sector="assurance" />}
+        {screen === "banques_crm"     && <ScreenSectorCRM sector="banques" />}
+        {screen === "amazon_crm"      && <ScreenSectorCRM sector="amazon" />}
+        {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" />}
+        {screen === "admin_crm"       && <ScreenSectorCRM sector="admin" />}
+        {screen === "travail_crm"     && <ScreenSectorCRM sector="travail" />}
         {screen === "tourisme"  && <ScreenTourisme />}
         {screen === "sante"     && <ScreenSante />}
         {screen === "assurance" && <ScreenAssurance />}

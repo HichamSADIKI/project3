@@ -118,9 +118,15 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "prop" | "contract" | "rental" | "visa"
-  | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
-  | "travail"
+  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm"
+  | "tourisme" | "tourisme_crm"
+  | "sante" | "sante_crm"
+  | "assurance" | "assurance_crm"
+  | "banques" | "banques_crm"
+  | "amazon" | "amazon_crm"
+  | "consultants" | "consultants_crm"
+  | "admin" | "admin_crm"
+  | "travail" | "travail_crm"
   | "erp" | "workspace" | "audit"
   | "backoffice" | "hr" | "it" | "finance"
   | "report" | "parametres";
@@ -139,23 +145,63 @@ const NAV_ENTRIES: NavEntry[] = [
     ],
   },
   { type: "item",  key: "crm",         icon: <IcCRM />,    badge: 12 },
-  { type: "item",  key: "orders",      icon: <IcOrders />, badge: 7 },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
-      { key: "prop",     icon: <IcProp /> },
-      { key: "contract", icon: <IcContract /> },
-      { key: "rental",   icon: <IcRental /> },
-      { key: "visa",     icon: <IcVisa />, badge: 3 },
+      { key: "prop",           icon: <IcProp /> },
+      { key: "contract",       icon: <IcContract /> },
+      { key: "rental",         icon: <IcRental /> },
+      { key: "visa",           icon: <IcVisa />, badge: 3 },
+      { key: "realestate_crm", icon: <IcCRM /> },
     ],
   },
-  { type: "item",  key: "tourisme",    icon: <IcTourisme /> },
-  { type: "item",  key: "sante",       icon: <IcSante /> },
-  { type: "item",  key: "assurance",   icon: <IcAssurance /> },
-  { type: "item",  key: "banques",     icon: <IcBanques /> },
-  { type: "item",  key: "amazon",      icon: <IcAmazon /> },
-  { type: "item",  key: "consultants", icon: <IcConsult /> },
-  { type: "item",  key: "admin",       icon: <IcAdmin /> },
-  { type: "item",  key: "travail",     icon: <IcTravail /> },
+  { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
+    children: [
+      { key: "tourisme",     icon: <IcTourisme /> },
+      { key: "tourisme_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "sante",       groupKey: "sante",       icon: <IcSante />,
+    children: [
+      { key: "sante",     icon: <IcSante /> },
+      { key: "sante_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "assurance",   groupKey: "assurance",   icon: <IcAssurance />,
+    children: [
+      { key: "assurance",     icon: <IcAssurance /> },
+      { key: "assurance_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "banques",     groupKey: "banques",     icon: <IcBanques />,
+    children: [
+      { key: "banques",     icon: <IcBanques /> },
+      { key: "banques_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "amazon",      groupKey: "amazon",      icon: <IcAmazon />,
+    children: [
+      { key: "amazon",     icon: <IcAmazon /> },
+      { key: "amazon_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "consultants", groupKey: "consultants", icon: <IcConsult />,
+    children: [
+      { key: "consultants",     icon: <IcConsult /> },
+      { key: "consultants_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "admin",       groupKey: "admin",       icon: <IcAdmin />,
+    children: [
+      { key: "admin",     icon: <IcAdmin /> },
+      { key: "admin_crm", icon: <IcCRM /> },
+    ],
+  },
+  { type: "group", id: "travail",     groupKey: "travail",     icon: <IcTravail />,
+    children: [
+      { key: "travail",     icon: <IcTravail /> },
+      { key: "travail_crm", icon: <IcCRM /> },
+    ],
+  },
   { type: "item",  key: "erp",         icon: <IcERP /> },
   { type: "item",  key: "workspace",   icon: <IcWorkspace /> },
   { type: "item",  key: "audit",       icon: <IcAudit /> },
@@ -230,6 +276,9 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
       visa: t.nav_visa, travail: t.nav_travail,
+      realestate_crm: t.nav_crm, tourisme_crm: t.nav_crm, sante_crm: t.nav_crm,
+      assurance_crm: t.nav_crm, banques_crm: t.nav_crm, amazon_crm: t.nav_crm,
+      consultants_crm: t.nav_crm, admin_crm: t.nav_crm, travail_crm: t.nav_crm,
       erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
       backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance,
       report: t.nav_report, parametres: t.nav_parametres,
