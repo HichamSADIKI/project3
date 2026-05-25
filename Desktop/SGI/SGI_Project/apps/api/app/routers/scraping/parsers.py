@@ -198,23 +198,84 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
 # ── PropertyFinder parser ─────────────────────────────────────────────────────
 
 def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
-    """Extract from PropertyFinder listing HTML via JSON-LD + meta tags."""
-    return _parse_generic_html(html, "PropertyFinder.ae", _pf_meta_parser)
+    """Extract from PropertyFinder listing HTML via __NEXT_DATA__ + meta fallback."""
+    result: dict = {"source": "PropertyFinder.ae", "images": [], "type": "Sale", "prop_type": "apartment"}  # type: ignore[type-arg]
 
+    # Primary: __NEXT_DATA__ contains the full structured property object
+    nd_m = re.search(r'id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>', html, re.S)
+    if nd_m:
+        try:
+            nd = json.loads(nd_m.group(1))
+            prop = nd["props"]["pageProps"]["propertyResult"]["property"]
 
-def _pf_meta_parser(meta_desc: str) -> dict:  # type: ignore[type-arg]
-    """PropertyFinder meta: '3 Bedroom Villa for Sale in Arabian Ranches — AED 4,500,000'"""
-    result: dict = {}  # type: ignore[type-arg]
-    beds_m = re.search(r"(\d+)\s+Bedroom", meta_desc, re.I)
-    type_m = re.search(r"Bedroom\s+([\w]+)\s+for\s+(Sale|Rent)", meta_desc, re.I)
-    loc_m  = re.search(r"(?:Sale|Rent)\s+in\s+([^—–-]+)", meta_desc, re.I)
-    price_m = re.search(r"AED\s*([\d,]+)", meta_desc)
-    if beds_m:  result["bedrooms"] = beds_m.group(1)
-    if type_m:
-        result["prop_type"]  = normalise_prop_type(type_m.group(1))
-        result["type"]       = "Rent" if "rent" in type_m.group(2).lower() else "Sale"
-    if loc_m:   result["community"] = loc_m.group(1).strip().rstrip(",. ")
-    if price_m: result["price"] = price_m.group(1).replace(",", "")
+            result["title_en"] = (prop.get("title") or "").strip()
+            result["description"] = (prop.get("description") or "")[:2000]
+
+            price_obj = prop.get("price") or {}
+            if price_obj.get("value"):
+                result["price"] = str(int(price_obj["value"]))
+
+            result["bedrooms"]  = _safe_int(prop.get("bedrooms"))
+            result["bathrooms"] = _safe_int(prop.get("bathrooms"))
+
+            size_obj = prop.get("size") or {}
+            if size_obj.get("value"):
+                sqft_val = size_obj["value"]
+                if size_obj.get("unit", "sqft").lower() == "sqm":
+                    sqft_val = int(float(sqft_val) * 10.764)
+                result["sqft"] = str(int(sqft_val))
+
+            # category_id: 1 = buy (Sale), 2 = rent
+            result["type"] = "Rent" if prop.get("category_id") == 2 else "Sale"
+
+            prop_type_raw = prop.get("property_type") or ""
+            result["prop_type"] = normalise_prop_type(prop_type_raw)
+
+            # Location tree: CITY → COMMUNITY → SUBCOMMUNITY → TOWER
+            loc_tree = prop.get("location_tree") or []
+            emirate_candidates = [n.get("name", "") for n in loc_tree]
+            result["emirate"] = normalise_emirate(emirate_candidates)
+            community_nodes = [n for n in loc_tree if n.get("type") in ("COMMUNITY", "SUBCOMMUNITY")]
+            if community_nodes:
+                result["community"] = community_nodes[0]["name"]
+
+            # Images: use 'full' size from images.property array
+            imgs_dict = prop.get("images") or {}
+            prop_imgs = imgs_dict.get("property") or []
+            result["images"] = [
+                img["full"] for img in prop_imgs[:8] if isinstance(img, dict) and img.get("full")
+            ]
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+    # Fallback: meta description for any missing fields
+    meta_m = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{10,500})["\']', html)
+    if not meta_m:
+        meta_m = re.search(r'<meta\s+content=["\']([^"\']{10,500})["\']\s+name=["\']description["\']', html)
+    if meta_m:
+        meta_desc = meta_m.group(1).replace("&amp;", "&")
+        if not result.get("description"):
+            result["description"] = meta_desc
+        sqft_m = re.search(r"([\d,]+)\s*sqft", meta_desc)
+        if sqft_m and not result.get("sqft"):
+            result["sqft"] = sqft_m.group(1).replace(",", "")
+        if not result.get("price"):
+            pm = re.search(r"AED\s*([\d,]+)", meta_desc)
+            if pm:
+                result["price"] = pm.group(1).replace(",", "")
+
+    # OG title fallback
+    if not result.get("title_en"):
+        og_title = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', html)
+        if og_title:
+            result["title_en"] = og_title.group(1).strip()
+
+    # OG image fallback
+    if not result.get("images"):
+        og_img = re.search(r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html)
+        if og_img:
+            result["images"] = [og_img.group(1)]
+
     return result
 
 
@@ -242,11 +303,13 @@ def _parse_generic_html(
             data = json.loads(block.strip())
             graph = data.get("@graph", [data])
             for item in graph:
-                t = item.get("@type", "")
-                if t not in {
+                raw_t = item.get("@type", "")
+                types = raw_t if isinstance(raw_t, list) else [raw_t]
+                KNOWN = {
                     "Product", "Apartment", "House", "Accommodation",
                     "RealEstateListing", "LodgingBusiness", "SingleFamilyResidence",
-                }:
+                }
+                if not any(str(t) in KNOWN for t in types):
                     continue
                 if not result.get("title_en"):
                     result["title_en"] = (item.get("name") or item.get("headline") or "").strip()
