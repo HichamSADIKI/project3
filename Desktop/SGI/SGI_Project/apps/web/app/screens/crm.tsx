@@ -1580,6 +1580,11 @@ function mockMetaSearch(query: string): MetaProfile[] {
   ];
 }
 
+/* Génère un slug URL à partir d'un nom (ex: "Khalid Al-Hashimi" → "khalid.al-hashimi") */
+function metaSlug(name: string): string {
+  return name.toLowerCase().replace(/[\s']+/g, ".").replace(/[^a-z0-9.]/g, "").replace(/\.{2,}/g, ".");
+}
+
 function IcMetaLogo() {
   return (
     <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
@@ -1596,17 +1601,46 @@ function IcMetaLogo() {
   );
 }
 
-function PlatformBadge({ p }: { p: MetaProfile["platforms"][0] }) {
+function IcMessenger() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2C6.477 2 2 6.145 2 11.243c0 2.908 1.46 5.5 3.75 7.19v3.067l2.873-1.575A10.23 10.23 0 0 0 12 21.25c5.523 0 10-4.145 10-9.243S17.477 2 12 2zm1.018 12.352-2.545-2.712-4.97 2.712 5.507-5.843 2.609 2.712 4.908-2.712-5.509 5.843z"/>
+    </svg>
+  );
+}
+
+function IcInstagramDM() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+    </svg>
+  );
+}
+
+/* Badge cliquable pointant vers le profil ou la recherche de la personne */
+function PlatformBadge({ p, name, phone }: { p: MetaProfile["platforms"][0]; name: string; phone?: string }) {
   const cfg = {
     facebook:  { label: "Facebook",  bg: "rgba(24,119,242,0.1)",  color: "#1877f2", border: "rgba(24,119,242,0.3)"  },
     instagram: { label: "Instagram", bg: "rgba(225,48,108,0.1)",  color: "#e1306c", border: "rgba(225,48,108,0.3)"  },
     whatsapp:  { label: "WhatsApp",  bg: "rgba(37,211,102,0.1)",  color: "#25d366", border: "rgba(37,211,102,0.3)"  },
   }[p];
-  return (
-    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontWeight: 600 }}>
+
+  const slug = metaSlug(name);
+  const href =
+    p === "facebook"  ? `https://www.facebook.com/search/people/?q=${encodeURIComponent(name)}` :
+    p === "instagram" ? `https://www.instagram.com/${slug}/` :
+    phone             ? `https://wa.me/${phone.replace(/\D/g, "")}` : undefined;
+
+  const badge = (
+    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}`, fontWeight: 600, cursor: href ? "pointer" : "default" }}>
       {cfg.label}
     </span>
   );
+  return href
+    ? <a href={href} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>{badge}</a>
+    : badge;
 }
 
 function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
@@ -1778,35 +1812,53 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
                   </div>
                 </div>
 
-                {/* Platforms + phone */}
+                {/* Platforms + phone — badges cliquables */}
                 <div style={{ display: "flex", gap: 5, flexWrap: "wrap", alignItems: "center" }}>
-                  {p.platforms.map(pl => <PlatformBadge key={pl} p={pl} />)}
+                  {p.platforms.map(pl => <PlatformBadge key={pl} p={pl} name={p.name} phone={p.phone} />)}
                   {p.phone && (
-                    <span className="tnum" style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", color: "var(--ink-3)" }}>
-                      {p.phone}
-                    </span>
+                    <a href={`tel:${p.phone}`} style={{ textDecoration: "none" }}>
+                      <span className="tnum" style={{ fontSize: 10, padding: "2px 8px", borderRadius: 999, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", color: "var(--ink-3)", cursor: "pointer" }}>
+                        {p.phone}
+                      </span>
+                    </a>
                   )}
                 </div>
 
-                {/* Actions */}
-                <div style={{ display: "flex", gap: 7 }}>
+                {/* Actions — tous actifs */}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {/* WhatsApp */}
                   {p.platforms.includes("whatsapp") && p.phone && (
-                    <a href={`https://wa.me/${p.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1 }}>
+                    <a href={`https://wa.me/${p.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 100 }}>
                       <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                         <IcWhatsApp /> WhatsApp
                       </button>
                     </a>
                   )}
+
+                  {/* Messenger */}
                   {p.platforms.includes("facebook") && (
-                    <button style={{ flex: 1, padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer" }}>
-                      Messenger
-                    </button>
+                    <a href={`https://m.me/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 100 }}>
+                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                        <IcMessenger /> Messenger
+                      </button>
+                    </a>
                   )}
+
+                  {/* Instagram DM */}
+                  {p.platforms.includes("instagram") && (
+                    <a href={`https://ig.me/m/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 100 }}>
+                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                        <IcInstagramDM /> Instagram
+                      </button>
+                    </a>
+                  )}
+
+                  {/* Ajouter au CRM */}
                   <button
                     onClick={() => handleAdd(p)}
                     disabled={isAdded}
                     style={{
-                      flex: 1, padding: "8px 0", borderRadius: "var(--r)", fontSize: 11.5,
+                      flex: 1, minWidth: 110, padding: "8px 0", borderRadius: "var(--r)", fontSize: 11.5,
                       fontFamily: "Inter, sans-serif", cursor: isAdded ? "default" : "pointer",
                       fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                       background: isAdded ? "var(--bg-inset)" : "var(--ink)",
@@ -1814,7 +1866,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
                       border: isAdded ? "1px solid rgba(16,185,129,0.3)" : "none",
                       transition: "all 0.15s",
                     }}>
-                    {isAdded ? <>✓ Ajouté au CRM</> : <><IcPlus /> Ajouter au CRM</>}
+                    {isAdded ? <>✓ Ajouté</> : <><IcPlus /> Ajouter au CRM</>}
                   </button>
                 </div>
               </div>
