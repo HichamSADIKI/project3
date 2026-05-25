@@ -1,6 +1,6 @@
 "use client";
-import React, { useState } from "react";
-import { Wordmark, Eyebrow, IcChevR, IcCheck, IcLock } from "@/components/sgi-ui";
+import React, { useState, useEffect } from "react";
+import { Wordmark, Eyebrow, IcChevR, IcCheck, IcLock, IcClock } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 import { apiLogin } from "@/lib/auth";
@@ -55,6 +55,30 @@ function LangBar() {
 function LeftPanel() {
   const t = useT();
   const { lang } = useLang();
+  const [now, setNow] = useState<Date>(() => new Date());
+  const [lastLoginRaw, setLastLoginRaw] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLastLoginRaw(localStorage.getItem("sgi_last_login"));
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const locale = lang === "ar" ? "ar-AE" : lang === "fr" ? "fr-FR" : "en-AE";
+  const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  function formatLastLogin(iso: string): string {
+    const d = new Date(iso);
+    const t2 = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const loginDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((today.getTime() - loginDay.getTime()) / 86400000);
+    if (diff === 0) return lang === "ar" ? `اليوم · ${t2}` : lang === "fr" ? `Aujourd'hui · ${t2}` : `Today · ${t2}`;
+    if (diff === 1) return lang === "ar" ? `أمس · ${t2}` : lang === "fr" ? `Hier · ${t2}` : `Yesterday · ${t2}`;
+    return `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })} · ${t2}`;
+  }
+
   return (
     <div style={{
       flex: 1.05, padding: "56px 64px",
@@ -89,7 +113,42 @@ function LeftPanel() {
             </div>
           ))}
         </div>
+
+        {/* Live clock + Last login */}
+        <div style={{
+          padding: "16px 20px",
+          background: "var(--bg-paper)",
+          borderRadius: "var(--r)",
+          border: "1px solid var(--line-soft)",
+          display: "flex", flexDirection: "column", gap: 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ color: "var(--gold-deep)", opacity: 0.8, flexShrink: 0 }}><IcClock /></span>
+            <div>
+              <div className="font-display tnum" style={{ fontSize: 24, color: "var(--ink)", letterSpacing: "0.06em", lineHeight: 1.1 }}>
+                {timeStr}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3, textTransform: "capitalize" }}>
+                {dateStr}
+              </div>
+            </div>
+          </div>
+          {lastLoginRaw && (
+            <div style={{
+              paddingTop: 12, borderTop: "1px solid var(--line-soft)",
+              display: "flex", alignItems: "center", gap: 8,
+              fontSize: 11.5, color: "var(--ink-3)",
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--emerald)", flexShrink: 0, display: "inline-block" }} />
+              <span>
+                {lang === "ar" ? "آخر تسجيل دخول: " : lang === "fr" ? "Dernière connexion : " : "Last login: "}
+                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{formatLastLogin(lastLoginRaw)}</span>
+              </span>
+            </div>
+          )}
+        </div>
       </div>
+
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.08em" }}>
         <span>© 2026 · Infinity International FM</span>
         <span>DUBAI · ABU DHABI · SHARJAH</span>
@@ -127,6 +186,7 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
     setLoginLoading(true);
     try {
       await apiLogin(loginVal.trim(), password);
+      localStorage.setItem("sgi_last_login", new Date().toISOString());
       onLogin();
     } catch {
       setLoginError(t.error_creds);

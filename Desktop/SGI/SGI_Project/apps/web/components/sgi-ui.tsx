@@ -95,6 +95,17 @@ export const NAV: { key: NavKey; icon: React.ReactElement; badge?: number }[] = 
   { key: "report",   icon: <IcReport /> },
 ];
 
+/* ─── User status ─────────────────────────────────────────────────── */
+type UserStatus = "online" | "available" | "busy" | "away" | "offline";
+
+const STATUSES: { key: UserStatus; color: string; label_en: string; label_ar: string; label_fr: string }[] = [
+  { key: "online",    color: "var(--emerald)", label_en: "Online",    label_ar: "متصل",      label_fr: "En ligne"   },
+  { key: "available", color: "var(--azure)",   label_en: "Available", label_ar: "متاح",       label_fr: "Disponible" },
+  { key: "busy",      color: "var(--gold)",    label_en: "Busy",      label_ar: "مشغول",      label_fr: "Occupé"     },
+  { key: "away",      color: "#F59E0B",        label_en: "Away",      label_ar: "بعيد",       label_fr: "Absent"     },
+  { key: "offline",   color: "var(--ink-4)",   label_en: "Offline",   label_ar: "غير متصل",   label_fr: "Hors ligne" },
+];
+
 /* ─── Logout icon ─────────────────────────────────────────────────── */
 function IcLogout() {
   return (
@@ -115,6 +126,11 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   const t = useT();
   const { lang } = useLang();
   const [collapsed, setCollapsed] = useState(false);
+  const [status, setStatus] = useState<UserStatus>("online");
+  const [showStatus, setShowStatus] = useState(false);
+  const [statusBounds, setStatusBounds] = useState<DOMRect | null>(null);
+  const currentStatus = STATUSES.find(s => s.key === status)!;
+  const statusLabel = lang === "ar" ? currentStatus.label_ar : lang === "fr" ? currentStatus.label_fr : currentStatus.label_en;
 
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
@@ -126,6 +142,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   };
 
   return (
+    <>
     <aside style={{
       width: collapsed ? 62 : 232, flexShrink: 0,
       background: "var(--bg-paper)",
@@ -203,12 +220,26 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
       <div style={{ padding: collapsed ? "12px 6px" : 12, borderTop: "1px solid var(--line-soft)" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, justifyContent: collapsed ? "center" : undefined }}>
-          <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600, flexShrink: 0 }}>HS</div>
+          {/* Avatar + status dot */}
+          <div
+            onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
+            title={statusLabel}
+            style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}
+          >
+            <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600 }}>HS</div>
+            <span style={{ position: "absolute", bottom: 1, insetInlineEnd: 1, width: 9, height: 9, borderRadius: "50%", background: currentStatus.color, border: "2px solid var(--bg-paper)", display: "block" }} />
+          </div>
           {!collapsed && (
             <>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>Hicham Sadiki</div>
-                <div style={{ fontSize: 10.5, color: "var(--ink-4)", letterSpacing: "0.04em" }}>{t.role}</div>
+                <button
+                  onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: currentStatus.color, letterSpacing: "0.04em", marginTop: 2 }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: 3, background: currentStatus.color, display: "inline-block", flexShrink: 0 }} />
+                  {statusLabel}
+                </button>
               </div>
               {onLogout && (
                 <button
@@ -240,6 +271,48 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         </div>
       </div>
     </aside>
+
+    {/* Status picker dropdown */}
+    {showStatus && statusBounds && (
+      <>
+        <div onClick={() => setShowStatus(false)} style={{ position: "fixed", inset: 0, zIndex: 999 }} />
+        <div style={{
+          position: "fixed",
+          bottom: window.innerHeight - statusBounds.top + 6,
+          left: lang !== "ar" ? statusBounds.left : undefined,
+          right: lang === "ar" ? (window.innerWidth - statusBounds.right) : undefined,
+          width: 200, zIndex: 1000,
+          background: "var(--bg-paper)",
+          border: "1px solid var(--line-soft)",
+          borderRadius: "var(--r)",
+          boxShadow: "var(--shadow-2)",
+          overflow: "hidden",
+        }}>
+          <div style={{ padding: "8px 14px 6px", borderBottom: "1px solid var(--line-soft)", fontSize: 10, color: "var(--ink-4)", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600 }}>
+            {lang === "ar" ? "الحالة" : lang === "fr" ? "Statut" : "Status"}
+          </div>
+          {STATUSES.map(s => (
+            <button
+              key={s.key}
+              onClick={() => { setStatus(s.key); setShowStatus(false); }}
+              style={{
+                display: "flex", alignItems: "center", gap: 10,
+                width: "100%", padding: "9px 14px",
+                background: status === s.key ? "var(--gold-ghost)" : "transparent",
+                border: "none", cursor: "pointer",
+                fontSize: 12.5, color: status === s.key ? "var(--gold-deep)" : "var(--ink-2)",
+                textAlign: "start",
+              }}
+            >
+              <span style={{ width: 10, height: 10, borderRadius: 5, background: s.color, flexShrink: 0, display: "inline-block" }} />
+              <span style={{ flex: 1 }}>{lang === "ar" ? s.label_ar : lang === "fr" ? s.label_fr : s.label_en}</span>
+              {status === s.key && <IcCheck />}
+            </button>
+          ))}
+        </div>
+      </>
+    )}
+    </>
   );
 }
 
