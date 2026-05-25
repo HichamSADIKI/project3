@@ -34,6 +34,7 @@ import { ScreenOrders } from "./screens/orders";
 import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
+import { ScreenTravail } from "./screens/travail";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -59,6 +60,7 @@ export default function App() {
         {screen === "rental"    && <ScreenRentals />}
         {screen === "realestate" && <ScreenRealEstate />}
         {screen === "admin"     && <ScreenAdministrations />}
+        {screen === "travail"   && <ScreenTravail />}
         {screen === "tourisme"  && <ScreenTourisme />}
         {screen === "sante"     && <ScreenSante />}
         {screen === "assurance" && <ScreenAssurance />}

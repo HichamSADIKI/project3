@@ -71,6 +71,7 @@ export const IcSettings  = () => <Ic><circle cx="12" cy="12" r="3"/><path d="M19
 export const IcWorkspace = () => <Ic><rect x="3" y="3" width="18" height="11" rx="2"/><path d="M7 22H17M12 18v4"/><circle cx="12" cy="9" r="2"/><path d="M8 9h1M15 9h1"/></Ic>;
 export const IcOrders    = () => <Ic><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></Ic>;
 export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></Ic>;
+export const IcTravail   = () => <Ic><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M12 12h.01M2 12h20"/></Ic>;
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
@@ -119,6 +120,7 @@ export type NavKey =
   | "clients" | "personne" | "societe"
   | "realestate" | "prop" | "contract" | "rental" | "visa"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "admin"
+  | "travail"
   | "erp" | "workspace" | "audit"
   | "backoffice" | "hr" | "it" | "finance"
   | "report" | "parametres";
@@ -153,6 +155,7 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "amazon",      icon: <IcAmazon /> },
   { type: "item",  key: "consultants", icon: <IcConsult /> },
   { type: "item",  key: "admin",       icon: <IcAdmin /> },
+  { type: "item",  key: "travail",     icon: <IcTravail /> },
   { type: "item",  key: "erp",         icon: <IcERP /> },
   { type: "item",  key: "workspace",   icon: <IcWorkspace /> },
   { type: "item",  key: "audit",       icon: <IcAudit /> },
@@ -226,7 +229,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
-      visa: t.nav_visa,
+      visa: t.nav_visa, travail: t.nav_travail,
       erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
       backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance,
       report: t.nav_report, parametres: t.nav_parametres,
