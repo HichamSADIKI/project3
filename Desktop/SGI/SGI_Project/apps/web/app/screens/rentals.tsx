@@ -226,22 +226,24 @@ function RentalSnapshotBar({ filter, onChange, total, filtered }: {
         </button>
       )}
 
-      <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
-        {active ? `${filtered} / ${total}` : `${total}`} leases
-      </div>
+      {!isMob && (
+        <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
+          {active ? `${filtered} / ${total}` : `${total}`} leases
+        </div>
+      )}
     </div>
   );
 }
 
 /* ─── RentalRow ──────────────────────────────────────────────────────── */
 
-function RentalRow({ r, isMob, lang }: { r: Rental; isMob?: boolean; lang: string }) {
+function RentalRow({ r, isMob, lang, onSelect }: { r: Rental; isMob?: boolean; lang: string; onSelect?: () => void }) {
   const st = STATUS_MAP[r.status];
   const label = lang === "ar" ? st.label_ar : lang === "fr" ? st.label_fr : st.label_en;
 
   if (isMob) {
     return (
-      <div style={{ padding: "12px 16px", background: r.highlighted ? "var(--gold-ghost)" : "transparent", borderBottom: "1px solid var(--line-soft)", cursor: "pointer", position: "relative" }}>
+      <div onClick={onSelect} style={{ padding: "12px 16px", background: r.highlighted ? "var(--gold-ghost)" : "transparent", borderBottom: "1px solid var(--line-soft)", cursor: "pointer", position: "relative" }}>
         {r.highlighted && <div style={{ position: "absolute", insetInlineStart: 0, top: 0, bottom: 0, width: 2, background: "var(--gold)" }} />}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -310,6 +312,7 @@ export function ScreenRentals() {
   const isMob = bp === "mobile";
   const isCompact = bp !== "desktop";
   const [filter, setFilter] = useState<RentalFilter>(DEFAULT_RENTAL_FILTER);
+  const [selRental, setSelRental] = useState<Rental | null>(null);
 
   const filteredRentals = applyRentalFilters(RENTALS, filter);
   const sel = filteredRentals.find((r) => r.highlighted) ?? filteredRentals[0] ?? RENTALS[0];
@@ -327,7 +330,7 @@ export function ScreenRentals() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, overflow: "hidden" }}>
-      <Topbar title={t.t_rental} crumb={[`${filteredRentals.length} leases`, "6 expiring soon"]}>
+      <Topbar title={t.t_rental} crumb={isMob ? [] : [`${filteredRentals.length} leases`, "6 expiring soon"]}>
         {!isMob && <button className="sgi-btn sgi-btn-ghost"><IcFilter />&nbsp;{t.filter}</button>}
         <button className="sgi-btn sgi-btn-primary"><IcPlus />&nbsp;{t.new_btn}</button>
       </Topbar>
@@ -370,10 +373,101 @@ export function ScreenRentals() {
             {filteredRentals.length === 0 ? (
               <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: "var(--ink-4)" }}>No leases match your filters</div>
             ) : (
-              filteredRentals.map((r) => <RentalRow key={r.ref} r={r} isMob={isMob} lang={lang} />)
+              filteredRentals.map((r) => <RentalRow key={r.ref} r={r} isMob={isMob} lang={lang} onSelect={isMob ? () => setSelRental(r) : undefined} />)
             )}
           </div>
         </div>
+
+        {/* Mobile rental detail — bottom sheet */}
+        {isMob && selRental && (() => {
+          const st  = STATUS_MAP[selRental.status];
+          const lbl = lang === "ar" ? st.label_ar : lang === "fr" ? st.label_fr : st.label_en;
+          const mo  = new Intl.NumberFormat("en-AE", { currency: "AED", style: "currency", maximumFractionDigits: 0 }).format(Math.round(selRental.rentRaw / 12));
+          return (
+            <>
+              <div onClick={() => setSelRental(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,8,6,0.45)", zIndex: 400, backdropFilter: "blur(2px)" }} />
+              <div style={{ position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 401, background: "var(--bg-ivory)", borderRadius: "14px 14px 0 0", boxShadow: "0 -4px 32px rgba(0,0,0,0.18)", maxHeight: "88vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* Handle */}
+                <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--line-strong)" }} />
+                </div>
+                {/* Header */}
+                <div style={{ padding: "8px 18px 14px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                      <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>{selRental.ref}</span>
+                      <Chip tone="azure">Rent</Chip>
+                      <Chip tone={st.tone}><StatusDot tone={st.tone ?? "ink-4"} />&nbsp;{lbl}</Chip>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{selRental.unit}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{selRental.tenant} · {selRental.nationality}</div>
+                  </div>
+                  <button onClick={() => setSelRental(null)} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--ink-3)", fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
+                </div>
+                {/* Body */}
+                <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Status banners */}
+                  {selRental.status === "expiring" && (
+                    <div style={{ padding: "10px 14px", background: "color-mix(in srgb, var(--rose) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--rose) 25%, transparent)", borderRadius: "var(--r)", fontSize: 12, color: "var(--rose)", display: "flex", justifyContent: "space-between" }}>
+                      <span>Bail expirant · renouvellement recommandé</span>
+                      <span className="tnum">90 j</span>
+                    </div>
+                  )}
+                  {selRental.status === "maintenance" && (
+                    <div style={{ padding: "10px 14px", background: "color-mix(in srgb, var(--azure) 8%, transparent)", border: "1px solid color-mix(in srgb, var(--azure) 25%, transparent)", borderRadius: "var(--r)", fontSize: 12, color: "var(--azure)", display: "flex", justifyContent: "space-between" }}>
+                      <span>Unité en maintenance · loyers suspendus</span>
+                      <span className="tnum">depuis 20 Jan</span>
+                    </div>
+                  )}
+                  {selRental.status === "vacant" && (
+                    <div style={{ padding: "10px 14px", background: "var(--bg-inset)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", fontSize: 12, color: "var(--ink-3)", display: "flex", justifyContent: "space-between" }}>
+                      <span>Unité vacante · disponible à la relocation</span>
+                      <span className="tnum">0 j occupé</span>
+                    </div>
+                  )}
+                  {/* Financial summary */}
+                  <div>
+                    <Eyebrow style={{ marginBottom: 8 }}>Résumé financier</Eyebrow>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {[
+                        ["Loyer annuel",   selRental.rent + " / an"],
+                        ["Équiv. mensuel", mo + " / mois"],
+                        ["Caution",        mo + " (1 mois)"],
+                        ["Prochain pmt",   selRental.nextPayment],
+                        ["Début bail",     selRental.start],
+                        ["Fin bail",       selRental.end],
+                      ].map(([l, v]) => (
+                        <div key={l} style={{ padding: "8px 10px", background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 4 }}>
+                          <div className="eyebrow">{l}</div>
+                          <div className="tnum" style={{ fontSize: 12, fontWeight: 500, marginTop: 2, color: "var(--ink)" }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Payment history */}
+                  <div>
+                    <Eyebrow style={{ marginBottom: 8 }}>Historique paiements</Eyebrow>
+                    <PaymentRow date="01 Apr 2026" amount={mo} status="paid" />
+                    <PaymentRow date="01 Jan 2026" amount={mo} status="paid" />
+                    <PaymentRow date="01 Oct 2025" amount={mo} status="paid" />
+                    <PaymentRow date={selRental.nextPayment !== "—" ? selRental.nextPayment : "—"} amount={mo} status={selRental.status === "expiring" ? "due" : "upcoming"} />
+                  </div>
+                  {/* Agent */}
+                  <div style={{ padding: "10px 14px", background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", fontSize: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ color: "var(--ink-4)" }}>Agent</span>
+                    <span style={{ fontWeight: 500, color: "var(--ink)" }}>{selRental.agent}</span>
+                  </div>
+                  {/* Actions */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, paddingBottom: 8 }}>
+                    <button className="sgi-btn sgi-btn-ghost" style={{ justifyContent: "center", height: 40 }}><IcDownload />&nbsp;PDF</button>
+                    <button className="sgi-btn sgi-btn-ghost" style={{ justifyContent: "center", height: 40 }}><IcMail />&nbsp;Notifier</button>
+                    <button className="sgi-btn sgi-btn-primary" style={{ justifyContent: "center", height: 40 }}>Renouveler</button>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         {/* Preview panel — hidden on compact */}
         {!isCompact && (
