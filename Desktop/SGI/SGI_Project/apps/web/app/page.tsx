@@ -26,6 +26,8 @@ import { ScreenReports } from "./screens/reports";
 import { ScreenERP } from "./screens/erp";
 import { ScreenWorkspace } from "./screens/workspace";
 import { ScreenAudit } from "./screens/audit";
+import { ScreenHR } from "./screens/hr";
+import { ScreenIT } from "./screens/it";
 import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
@@ -63,6 +65,8 @@ export default function App() {
         {screen === "erp"       && <ScreenERP />}
         {screen === "workspace" && <ScreenWorkspace />}
         {screen === "audit"     && <ScreenAudit />}
+        {screen === "hr"        && <ScreenHR />}
+        {screen === "it"        && <ScreenIT />}
         {screen === "finance"   && <ScreenFinance />}
         {screen === "report"   && <ScreenReports />}
         {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}

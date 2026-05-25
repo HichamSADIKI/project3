@@ -14,7 +14,7 @@ export type Translations = {
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
   nav_clients: string; nav_personne: string; nav_societe: string;
-  nav_erp: string; nav_workspace: string; nav_audit: string; nav_finance: string;
+  nav_erp: string; nav_workspace: string; nav_audit: string; nav_hr: string; nav_it: string; nav_finance: string;
   nav_report: string;
 
   // Topbar
@@ -69,7 +69,7 @@ const ar: Translations = {
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
   nav_clients: "العملاء", nav_personne: "الأشخاص", nav_societe: "الشركات",
-  nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة", nav_finance: "المالية",
+  nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية",
   nav_report: "التقارير",
 
   search: "بحث...",
@@ -127,7 +127,7 @@ const en: Translations = {
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
   nav_clients: "Clients", nav_personne: "Individuals", nav_societe: "Companies",
-  nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit", nav_finance: "Finance",
+  nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance",
   nav_report: "Reports",
 
   search: "Search…",
@@ -185,7 +185,7 @@ const fr: Translations = {
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
   nav_clients: "Clients", nav_personne: "Personnes", nav_societe: "Sociétés",
-  nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit", nav_finance: "Finance",
+  nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance",
   nav_report: "Rapports",
 
   search: "Rechercher…",
