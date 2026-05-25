@@ -722,12 +722,13 @@ function FollowUpTimeline({ followUp, mode, onMark }: {
 
 /* ─── LeadCard ─────────────────────────────────────────────────────── */
 
-function LeadCard({ l, stageKey, onDragStart, onDragEnd, draggingId, onSelect }: {
+function LeadCard({ l, stageKey, onDragStart, onDragEnd, draggingId, onSelect, onMetaSearch }: {
   l: Lead; stageKey: string;
   onDragStart: (e: React.DragEvent, id: string, fromStage: string) => void;
   onDragEnd: () => void;
   draggingId: string | null;
   onSelect: (l: Lead, stage: string) => void;
+  onMetaSearch?: (name: string) => void;
 }) {
   const scoreColor = l.score >= 80 ? "var(--emerald)" : l.score >= 50 ? "var(--gold)" : "var(--ink-4)";
   const isDragging = draggingId === l.id;
@@ -812,6 +813,14 @@ function LeadCard({ l, stageKey, onDragStart, onDragEnd, draggingId, onSelect }:
               <IcMail />
             </a>
           )}
+          {onMetaSearch && (
+            <button
+              onClick={e => { e.stopPropagation(); onMetaSearch(l.name); }}
+              title="Meta Snapshot — rechercher ce contact"
+              style={{ width: 22, height: 22, borderRadius: 11, background: "linear-gradient(135deg,#0081fb,#a259ff)", border: "none", display: "grid", placeItems: "center", cursor: "pointer", color: "#fff", fontSize: 10, fontWeight: 800, lineHeight: 1, flexShrink: 0 }}>
+              M
+            </button>
+          )}
           {l.agent !== "—" ? (
             <div style={{ width: 22, height: 22, borderRadius: 11, background: "var(--ink)", color: "var(--gold)", fontSize: 9.5, display: "grid", placeItems: "center", fontWeight: 600 }}>{l.agent}</div>
           ) : (
@@ -825,7 +834,7 @@ function LeadCard({ l, stageKey, onDragStart, onDragEnd, draggingId, onSelect }:
 
 /* ─── KanbanCol ────────────────────────────────────────────────────── */
 
-function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, draggingFromStage, onSelect, isFiltered, onAddInStage }: {
+function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, draggingFromStage, onSelect, isFiltered, onAddInStage, onMetaSearch }: {
   stage: typeof STAGES[0]; leads: Lead[];
   onDragStart: (e: React.DragEvent, id: string, fromStage: string) => void;
   onDragEnd: () => void;
@@ -834,6 +843,7 @@ function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, d
   onSelect: (l: Lead, stage: string) => void;
   isFiltered: boolean;
   onAddInStage: (stage: string) => void;
+  onMetaSearch: (name: string) => void;
 }) {
   const { lang } = useLang();
   const [isDragOver, setIsDragOver] = useState(false);
@@ -882,6 +892,7 @@ function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, d
           <LeadCard key={l.id} l={l} stageKey={stage.key}
             onDragStart={onDragStart} onDragEnd={onDragEnd}
             draggingId={draggingId} onSelect={onSelect}
+            onMetaSearch={onMetaSearch}
           />
         ))}
         {leads.length === 0 && (
@@ -1242,12 +1253,13 @@ function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; on
 
 /* ─── MobileStageList ───────────────────────────────────────────────── */
 
-function MobileStageList({ filteredLeads, onSelect, isFiltered, addModalOpen, onAdd }: {
+function MobileStageList({ filteredLeads, onSelect, isFiltered, addModalOpen, onAdd, onMetaSearch }: {
   filteredLeads: Record<string, Lead[]>;
   onSelect: (l: Lead, stage: string) => void;
   isFiltered: boolean;
   addModalOpen: boolean;
   onAdd: () => void;
+  onMetaSearch: (name: string) => void;
 }) {
   const { lang } = useLang();
   const [openStage, setOpenStage] = useState<string>(STAGES[0].key);
@@ -1293,6 +1305,7 @@ function MobileStageList({ filteredLeads, onSelect, isFiltered, addModalOpen, on
                     <LeadCard key={l.id} l={l} stageKey={s.key}
                       onDragStart={() => {}} onDragEnd={() => {}}
                       draggingId={null} onSelect={onSelect}
+                      onMetaSearch={onMetaSearch}
                     />
                   ))
                 )}
@@ -1596,23 +1609,36 @@ function PlatformBadge({ p }: { p: MetaProfile["platforms"][0] }) {
   );
 }
 
-function MetaContactSearchPanel({ onClose, onAddToCRM }: {
+function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
   onClose: () => void;
   onAddToCRM: (p: MetaProfile) => void;
+  initialQuery?: string;
 }) {
-  const [query,     setQuery]     = useState("");
-  const [results,   setResults]   = useState<MetaProfile[]>([]);
-  const [loading,   setLoading]   = useState(false);
-  const [searched,  setSearched]  = useState(false);
-  const [added,     setAdded]     = useState<Set<string>>(new Set());
+  const [query,    setQuery]    = useState(initialQuery ?? "");
+  const [results,  setResults]  = useState<MetaProfile[]>([]);
+  const [loading,  setLoading]  = useState(!!initialQuery?.trim());
+  const [searched, setSearched] = useState(false);
+  const [added,    setAdded]    = useState<Set<string>>(new Set());
+
+  /* Auto-search when opened from a lead card */
+  React.useEffect(() => {
+    if (initialQuery?.trim()) {
+      setTimeout(() => {
+        setResults(mockMetaSearch(initialQuery.trim()));
+        setLoading(false); setSearched(true);
+      }, 1400);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function doSearch() {
     if (!query.trim() || loading) return;
-    setLoading(true); setSearched(false);
+    setLoading(true); setSearched(false); setResults([]);
+    const q = query.trim();
     setTimeout(() => {
-      setResults(mockMetaSearch(query));
+      setResults(mockMetaSearch(q));
       setLoading(false); setSearched(true);
-    }, 1500);
+    }, 1400);
   }
 
   function handleAdd(p: MetaProfile) {
@@ -1822,8 +1848,14 @@ export function ScreenCRM() {
   const [selectedLead, setSelectedLead] = useState<{ lead: Lead; stage: string } | null>(null);
   const [addModalOpen,   setAddModalOpen]   = useState(false);
   const [metaSearchOpen, setMetaSearchOpen] = useState(false);
+  const [metaQuery,      setMetaQuery]      = useState("");
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
   const [lostModal, setLostModal] = useState<{ lead: Lead; stage: string } | null>(null);
+
+  function openMetaSearch(name?: string) {
+    setMetaQuery(name ?? "");
+    setMetaSearchOpen(true);
+  }
 
   const filteredLeads = applyFilters(leads, filter);
   const totalCount    = Object.values(leads).flat().length;
@@ -1932,7 +1964,7 @@ export function ScreenCRM() {
         {!isMob && <button className="sgi-btn sgi-btn-ghost">Automations · 3 active</button>}
         {!isMob && (
           <button
-            onClick={() => setMetaSearchOpen(true)}
+            onClick={() => openMetaSearch()}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: "var(--r)", border: "1px solid rgba(162,89,255,0.4)", background: "rgba(162,89,255,0.07)", color: "#a259ff", fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", fontWeight: 600 }}>
             <IcMetaLogo />
             Meta Snapshot
@@ -1978,6 +2010,7 @@ export function ScreenCRM() {
             isFiltered={isFilterActive(filter)}
             addModalOpen={addModalOpen}
             onAdd={() => setAddModalOpen(true)}
+            onMetaSearch={openMetaSearch}
           />
         </>
       ) : (
@@ -2046,6 +2079,7 @@ export function ScreenCRM() {
                     onSelect={(l, stage) => setSelectedLead({ lead: l, stage })}
                     isFiltered={isFilterActive(filter)}
                     onAddInStage={(stg) => { setAddTargetStage(stg); setAddModalOpen(true); }}
+                    onMetaSearch={openMetaSearch}
                   />
                 ))}
               </div>
@@ -2095,8 +2129,9 @@ export function ScreenCRM() {
 
       {metaSearchOpen && (
         <MetaContactSearchPanel
-          onClose={() => setMetaSearchOpen(false)}
+          onClose={() => { setMetaSearchOpen(false); setMetaQuery(""); }}
           onAddToCRM={handleAddFromMeta}
+          initialQuery={metaQuery}
         />
       )}
     </div>
