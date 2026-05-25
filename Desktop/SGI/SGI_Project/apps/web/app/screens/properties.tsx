@@ -893,6 +893,8 @@ function AddPropertyModal({ onClose, onSave, nextRef }: {
 }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState<PropForm>(INIT_FORM);
+  const bp    = useBreakpoint();
+  const isMob = bp === "mobile";
 
   // Scraping state
   const [showScrape, setShowScrape]       = useState(false);
@@ -1163,7 +1165,7 @@ function AddPropertyModal({ onClose, onSave, nextRef }: {
                 </FField>
 
                 <FField label="Property type" required>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMob ? "repeat(2, 1fr)" : "repeat(3, 1fr)", gap: 8 }}>
                     {PROP_TYPES.map(pt => (
                       <button key={pt} type="button" onClick={() => upd("propType", pt.toLowerCase())} style={{
                         padding: "11px 8px", borderRadius: "var(--r)",
@@ -1204,7 +1206,7 @@ function AddPropertyModal({ onClose, onSave, nextRef }: {
                   <Pills opts={["1", "2", "3", "4", "5+"]} val={form.bathrooms} onPick={v => upd("bathrooms", v)} />
                 </FField>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+                <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
                   <FField label="Built-up area (ft²)" required>
                     <input
                       style={INP} type="number" min={0} placeholder="e.g. 1850"
@@ -1319,7 +1321,7 @@ function AddPropertyModal({ onClose, onSave, nextRef }: {
                 {/* Summary */}
                 <div style={{ padding: 16, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)" }}>
                   <Eyebrow style={{ marginBottom: 10 }}>Summary before saving</Eyebrow>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, fontSize: 12 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: isMob ? "1fr" : "1fr 1fr", gap: 6, fontSize: 12 }}>
                     {[
                       ["Type",    `${form.type} · ${form.propType}`],
                       ["Location",`${form.emirate}${form.community ? " · " + form.community : ""}`],
