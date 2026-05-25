@@ -22,6 +22,7 @@ import { ScreenRealEstate } from "./screens/real-estate";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
+import { ScreenReports } from "./screens/reports";
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -70,8 +71,4 @@ function ScreenPlaceholder({ navKey }: { navKey: keyof Translations }) {
       </div>
     </div>
   );
-}
-
-function ScreenReports() {
-  return <ScreenPlaceholder navKey="nav_report" />;
 }
