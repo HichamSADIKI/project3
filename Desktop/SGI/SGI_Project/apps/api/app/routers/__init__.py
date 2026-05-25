@@ -6,5 +6,6 @@ from app.routers.golden_visa import router as golden_visa
 from app.routers.rentals import router as rentals
 from app.routers.finance import router as finance
 from app.routers.reporting import router as reporting
+from app.routers.scraping import router as scraping
 
-__all__ = ["auth", "properties", "crm", "contracts", "golden_visa", "rentals", "finance", "reporting"]
+__all__ = ["auth", "properties", "crm", "contracts", "golden_visa", "rentals", "finance", "reporting", "scraping"]

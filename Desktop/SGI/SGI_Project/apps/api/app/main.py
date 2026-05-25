@@ -7,13 +7,16 @@ from app.core.config import settings
 from app.core.database import create_db_pool
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import AuditMiddleware
-from app.routers import auth, properties, crm, contracts, golden_visa, rentals, finance, reporting
+from app.routers import auth, properties, crm, contracts, golden_visa, rentals, finance, reporting, scraping
+from app.routers.scraping.service import start_browser, stop_browser
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_db_pool()
+    await start_browser()
     yield
+    await stop_browser()
 
 
 app = FastAPI(
@@ -46,6 +49,7 @@ app.include_router(golden_visa.router, prefix="/api/v1")
 app.include_router(rentals.router, prefix="/api/v1")
 app.include_router(finance.router, prefix="/api/v1")
 app.include_router(reporting.router, prefix="/api/v1")
+app.include_router(scraping.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])
