@@ -215,9 +215,11 @@ function ContractSnapshotBar({ filter, onChange, total, filtered }: {
         </button>
       )}
 
-      <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
-        {active ? `${filtered} / ${total}` : `${total}`} contracts
-      </div>
+      {!isMob && (
+        <div style={{ marginInlineStart: "auto", fontSize: 11, color: active ? "var(--ink)" : "var(--ink-4)", fontWeight: active ? 600 : 400, whiteSpace: "nowrap" }} className="tnum">
+          {active ? `${filtered} / ${total}` : `${total}`} contracts
+        </div>
+      )}
     </div>
   );
 }
@@ -235,11 +237,11 @@ function SignDots({ signed }: { signed: string }) {
   );
 }
 
-function ContractRow({ c, isMob }: { c: Contract; isMob?: boolean }) {
+function ContractRow({ c, isMob, onSelect }: { c: Contract; isMob?: boolean; onSelect?: () => void }) {
   const st = STATUS_MAP[c.status];
   if (isMob) {
     return (
-      <div style={{ padding: "12px 16px", background: c.highlighted ? "var(--gold-ghost)" : "transparent", borderBottom: "1px solid var(--line-soft)", cursor: "pointer", position: "relative" }}>
+      <div onClick={onSelect} style={{ padding: "12px 16px", background: c.highlighted ? "var(--gold-ghost)" : "transparent", borderBottom: "1px solid var(--line-soft)", cursor: "pointer", position: "relative" }}>
         {c.highlighted && <div style={{ position: "absolute", insetInlineStart: 0, top: 0, bottom: 0, width: 2, background: "var(--gold)" }} />}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
@@ -311,6 +313,7 @@ export function ScreenContracts() {
   const isCompact = bp !== "desktop";
 
   const [filter, setFilter] = useState<ContractFilter>(DEFAULT_CONTRACT_FILTER);
+  const [selContract, setSelContract] = useState<Contract | null>(null);
   const filteredContracts = applyContractFilters(CONTRACTS, filter);
 
   const COUNTER_STRIPS = [
@@ -363,10 +366,105 @@ export function ScreenContracts() {
             {filteredContracts.length === 0 ? (
               <div style={{ padding: "40px 0", textAlign: "center", fontSize: 12, color: "var(--ink-4)" }}>No contracts match your filters</div>
             ) : (
-              filteredContracts.map((c) => <ContractRow key={c.ref} c={c} isMob={isMob} />)
+              filteredContracts.map((c) => <ContractRow key={c.ref} c={c} isMob={isMob} onSelect={isMob ? () => setSelContract(c) : undefined} />)
             )}
           </div>
         </div>
+
+        {/* Mobile contract detail — bottom sheet */}
+        {isMob && selContract && (() => {
+          const st = STATUS_MAP[selContract.status];
+          return (
+            <>
+              <div onClick={() => setSelContract(null)} style={{ position: "fixed", inset: 0, background: "rgba(10,8,6,0.45)", zIndex: 400, backdropFilter: "blur(2px)" }} />
+              <div style={{ position: "fixed", insetInlineStart: 0, insetInlineEnd: 0, bottom: 0, zIndex: 401, background: "var(--bg-ivory)", borderRadius: "14px 14px 0 0", boxShadow: "0 -4px 32px rgba(0,0,0,0.18)", maxHeight: "88vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                {/* Handle */}
+                <div style={{ display: "flex", justifyContent: "center", padding: "10px 0 4px" }}>
+                  <div style={{ width: 36, height: 4, borderRadius: 2, background: "var(--line-strong)" }} />
+                </div>
+                {/* Header */}
+                <div style={{ padding: "8px 18px 14px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 4 }}>
+                      <span className="font-mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>{selContract.ref}</span>
+                      <Chip tone={selContract.type === "Sale" ? "gold" : "azure"}>{selContract.type}</Chip>
+                      {selContract.gold && <Chip tone="gold">GV</Chip>}
+                      <Chip tone={st.tone}><StatusDot tone={st.tone || "ink-4"} />&nbsp;{st.label}</Chip>
+                    </div>
+                    <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{selContract.parties}</div>
+                  </div>
+                  <button onClick={() => setSelContract(null)} style={{ width: 30, height: 30, borderRadius: 6, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--ink-3)", fontSize: 18, lineHeight: 1, flexShrink: 0 }}>×</button>
+                </div>
+                {/* Body */}
+                <div style={{ flex: 1, overflowY: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+                  {/* Value + signatures */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)" }}>
+                    <div>
+                      <div className="eyebrow">Valeur</div>
+                      <div className="font-display tnum" style={{ fontSize: 22, marginTop: 4, color: "var(--ink)" }}>{selContract.value}</div>
+                    </div>
+                    <div style={{ textAlign: "end" }}>
+                      <div className="eyebrow">Signatures</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 6, justifyContent: "flex-end" }}>
+                        <SignDots signed={selContract.sign} />
+                        <span className="tnum" style={{ fontSize: 13, color: "var(--ink-3)" }}>{selContract.sign}</span>
+                      </div>
+                    </div>
+                  </div>
+                  {/* Dates */}
+                  {selContract.d2 !== "—" && (
+                    <div style={{ padding: "10px 14px", background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", fontSize: 12.5 }}>
+                      <span style={{ color: "var(--ink-4)" }}>{selContract.d1}</span>
+                      {" · "}
+                      <span style={{ color: "var(--ink)", fontWeight: 500 }}>{selContract.d2}</span>
+                    </div>
+                  )}
+                  {/* Status banner */}
+                  {selContract.status === "pending" && (
+                    <div style={{ padding: "10px 14px", background: "var(--gold-ghost)", border: "1px solid var(--gold-line)", borderRadius: "var(--r)", fontSize: 12, color: "var(--gold-deep)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>En attente de signature</span>
+                      <span className="tnum">{selContract.sign} signé</span>
+                    </div>
+                  )}
+                  {selContract.status === "expiring" && (
+                    <div style={{ padding: "10px 14px", background: "rgba(220,50,50,0.06)", border: "1px solid rgba(220,50,50,0.25)", borderRadius: "var(--r)", fontSize: 12, color: "var(--rose)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span>Expire dans moins de 90 jours</span>
+                      <span className="tnum">{selContract.d2}</span>
+                    </div>
+                  )}
+                  {/* Financial terms grid */}
+                  <div>
+                    <Eyebrow style={{ marginBottom: 8 }}>Conditions financières</Eyebrow>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      {selContract.type === "Sale" ? [
+                        ["Prix de vente",  selContract.value],
+                        ["Dépôt · 10%",   "AED " + Math.round(selContract.valueRaw * 0.1).toLocaleString()],
+                        ["DLD · 4%",      "AED " + Math.round(selContract.valueRaw * 0.04).toLocaleString()],
+                        ["Commission",    "AED " + Math.round(selContract.valueRaw * 0.02).toLocaleString()],
+                      ] : [
+                        ["Loyer annuel",  selContract.value],
+                        ["Dépôt (5%)",   "AED " + Math.round(selContract.valueRaw * 0.05).toLocaleString()],
+                        ["Commission",   "AED " + Math.round(selContract.valueRaw * 0.05).toLocaleString()],
+                        ["Statut",        st.label],
+                      ].map(([l, v]) => (
+                        <div key={l} style={{ padding: "8px 10px", background: "var(--bg-paper)", borderRadius: 4, border: "1px solid var(--line-soft)" }}>
+                          <div className="eyebrow">{l}</div>
+                          <div className="tnum" style={{ fontSize: 12.5, fontWeight: 500, marginTop: 2 }}>{v}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Action buttons */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, paddingBottom: 8 }}>
+                    <button className="sgi-btn sgi-btn-ghost" style={{ justifyContent: "center", height: 40 }}><IcDownload />&nbsp;PDF</button>
+                    <button className="sgi-btn sgi-btn-ghost" style={{ justifyContent: "center", height: 40 }}><IcMail />&nbsp;Envoyer</button>
+                    <button className="sgi-btn sgi-btn-primary" style={{ justifyContent: "center", height: 40 }}>Signer</button>
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+        })()}
 
         {/* Preview panel — hidden on compact */}
         {!isCompact && <aside className="sgi-card-elevated" style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -409,7 +507,7 @@ export function ScreenContracts() {
                 </div>
               </div>
 
-              <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+              <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[
                   ["Sale price",   "AED 4,750,000"],
                   ["Deposit · 10%","AED 475,000"],
