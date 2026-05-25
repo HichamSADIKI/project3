@@ -175,6 +175,155 @@ function makeActivity(type: ActivityType, agent: string, text?: string): Activit
   };
 }
 
+/* ─── Profile Enrichment ────────────────────────────────────────────── */
+
+type EnrichmentData = {
+  title: string;
+  company: string;
+  linkedin?: string;
+  twitter?: string;
+  bio?: string;
+  confidence: number;
+  source: string;
+};
+
+const MOCK_ENRICHMENT: Record<string, EnrichmentData> = {
+  l1:  { title: "CEO",                    company: "Al-Hashimi Investment Group",     linkedin: "khalid-alhashimi",      confidence: 91, source: "LinkedIn · Company registry" },
+  l2:  { title: "Art Curator",            company: "Moscow Museum of Modern Art",     linkedin: "maria-petrova-art",     twitter: "@MPetrovaArt",    confidence: 78, source: "LinkedIn · Instagram" },
+  l3:  { title: "Software Engineer",      company: "Tech Startup Dublin",             linkedin: "liam-oconnor-dev",      confidence: 62, source: "LinkedIn" },
+  l4:  { title: "Managing Director",      company: "Al-Mohammed Holding Co.",         linkedin: "aisha-mohammed-ksa",    confidence: 87, source: "LinkedIn · Company registry", bio: "Real estate investor with 15+ years experience across GCC markets." },
+  l5:  { title: "Partner",               company: "Lemaire & Associates Architecture", linkedin: "pierre-lemaire-archi", twitter: "@PLemaire_Arch",  confidence: 83, source: "LinkedIn · Twitter" },
+  l6:  { title: "Co-founder & CFO",       company: "Hu Wei Capital Management",       linkedin: "hu-wei-capital",        confidence: 76, source: "LinkedIn · Crunchbase" },
+  l7:  { title: "Interior Designer",      company: "Studio Russo Milano",             linkedin: "sofia-russo-design",    twitter: "@SofiaRussoDesign", confidence: 81, source: "LinkedIn · Instagram", bio: "Luxury interior design for private residences and hotels." },
+  l8:  { title: "Chairman",              company: "Bin Saud Investment Corp.",        linkedin: "mbs-invest",            confidence: 94, source: "LinkedIn · Bloomberg · Company registry", bio: "Diversified portfolio across real estate, energy and technology." },
+  l9:  { title: "Senior Architect",       company: "Schmidt + Partner GmbH",          linkedin: "anna-schmidt-arch",     confidence: 85, source: "LinkedIn · XING" },
+  l10: { title: "CTO",                    company: "Mehta Digital Solutions",         linkedin: "rahul-mehta-tech",      twitter: "@RahulMehta_CTO",  confidence: 74, source: "LinkedIn · AngelList" },
+  l11: { title: "Family Office Manager",  company: "Tanaka Holdings Ltd.",            linkedin: "tanaka-family-office",  confidence: 89, source: "LinkedIn · Bloomberg" },
+  l12: { title: "Entrepreneur",           company: "Demir Group Istanbul",            linkedin: "yusuf-demir-ist",       twitter: "@YDemir",          confidence: 92, source: "LinkedIn · Company registry" },
+};
+
+function IcGlobe() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
+function IcLinkedIn() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6zM2 9h4v12H2z" />
+      <circle cx="4" cy="4" r="2" />
+    </svg>
+  );
+}
+
+function IcX() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.742l7.727-8.845L2.25 2.25H8.48l4.253 5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
+}
+
+function ProfileEnrichmentPanel({ lead }: { lead: Lead }) {
+  const [enrichState, setEnrichState] = useState<"idle" | "loading" | "done" | "none">("idle");
+  const data = MOCK_ENRICHMENT[lead.id];
+  const initials = lead.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+
+  function fetchProfile() {
+    setEnrichState("loading");
+    setTimeout(() => setEnrichState(data ? "done" : "none"), 1800);
+  }
+
+  if (enrichState === "idle") {
+    return (
+      <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px dashed var(--line-strong)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <div style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-4)", fontWeight: 600 }}>Profile Enrichment</div>
+          <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>Fetch public data from LinkedIn, web…</div>
+        </div>
+        <button onClick={fetchProfile} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: "var(--r)", background: "var(--ink)", color: "var(--gold)", border: "none", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", fontWeight: 600 }}>
+          <IcGlobe /> Fetch
+        </button>
+      </div>
+    );
+  }
+
+  if (enrichState === "loading") {
+    return (
+      <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", display: "flex", alignItems: "center", gap: 10 }}>
+        <style>{`@keyframes sgi-spin{to{transform:rotate(360deg)}}`}</style>
+        <div style={{ width: 18, height: 18, borderRadius: "50%", border: "2px solid var(--line-strong)", borderTopColor: "var(--gold)", animation: "sgi-spin 0.8s linear infinite", flexShrink: 0 }} />
+        <span style={{ fontSize: 12, color: "var(--ink-3)" }}>Searching public profiles…</span>
+      </div>
+    );
+  }
+
+  if (enrichState === "none" || !data) {
+    return (
+      <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <span style={{ fontSize: 12, color: "var(--ink-4)" }}>No public profile found for this contact</span>
+        <button onClick={() => setEnrichState("idle")} style={{ fontSize: 10, color: "var(--ink-4)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>Try again</button>
+      </div>
+    );
+  }
+
+  const matchColor = data.confidence >= 85 ? "var(--emerald)" : "var(--gold-deep)";
+  const matchBg    = data.confidence >= 85 ? "rgba(16,185,129,0.1)" : "var(--gold-ghost)";
+
+  return (
+    <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--gold-line, var(--gold))", boxShadow: "0 0 0 2px color-mix(in srgb,var(--gold) 12%,transparent)" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <div style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-4)", fontWeight: 600 }}>Profile Enrichment</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 9.5, padding: "2px 7px", borderRadius: 999, background: matchBg, color: matchColor, fontWeight: 700 }}>{data.confidence}% match</span>
+          <button onClick={() => setEnrichState("idle")} style={{ width: 20, height: 20, borderRadius: 4, background: "var(--bg-inset)", border: "1px solid var(--line-soft)", cursor: "pointer", display: "grid", placeItems: "center", color: "var(--ink-4)", fontSize: 13, lineHeight: 1 }}>×</button>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ width: 44, height: 44, borderRadius: 22, background: "var(--ink)", color: "var(--gold)", fontSize: 15, fontWeight: 700, display: "grid", placeItems: "center", flexShrink: 0 }}>
+          {initials}
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--ink)", lineHeight: 1.2 }}>{lead.name}</div>
+          <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{data.title}</div>
+          <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 1 }}>{data.company}</div>
+        </div>
+      </div>
+
+      {data.bio && (
+        <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 10, lineHeight: 1.55, padding: "8px 10px", background: "var(--bg-cream)", borderRadius: 6, borderInlineStart: "2px solid var(--gold)", fontStyle: "italic" }}>
+          {data.bio}
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 7, marginTop: 10, flexWrap: "wrap" }}>
+        {data.linkedin && (
+          <a href={`https://linkedin.com/in/${data.linkedin}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, background: "rgba(10,102,194,0.08)", border: "1px solid rgba(10,102,194,0.25)", color: "#0a66c2", fontFamily: "Inter, sans-serif", cursor: "pointer" }}>
+              <IcLinkedIn /> LinkedIn
+            </span>
+          </a>
+        )}
+        {data.twitter && (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, background: "rgba(29,155,240,0.08)", border: "1px solid rgba(29,155,240,0.25)", color: "#1d9bf0", fontFamily: "Inter, sans-serif" }}>
+            <IcX /> {data.twitter}
+          </span>
+        )}
+      </div>
+
+      <div style={{ fontSize: 10, color: "var(--ink-4)", marginTop: 10 }}>
+        Source: {data.source} · {new Date().toLocaleDateString("en-AE", { day: "numeric", month: "short", year: "numeric" })}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Icons ─────────────────────────────────────────────────────────── */
 
 function IcWhatsApp() {
@@ -831,6 +980,9 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
               </a>
             )}
           </div>
+
+          {/* Profile Enrichment */}
+          <ProfileEnrichmentPanel lead={lead} />
 
           {/* Follow-up timeline */}
           <div style={{ padding: 14, background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)" }}>
