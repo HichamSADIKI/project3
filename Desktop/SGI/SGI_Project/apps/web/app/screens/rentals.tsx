@@ -220,7 +220,7 @@ function RentalSnapshotBar({ filter, onChange, total, filtered }: {
 
       {active && (
         <button onClick={() => onChange(DEFAULT_RENTAL_FILTER)}
-          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.4)", background: "var(--bg-paper)", color: "var(--rose)", whiteSpace: "nowrap", flexShrink: 0 }}>
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Roboto, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.4)", background: "var(--bg-paper)", color: "var(--rose)", whiteSpace: "nowrap", flexShrink: 0 }}>
           Reset
           <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{activeCount}</span>
         </button>

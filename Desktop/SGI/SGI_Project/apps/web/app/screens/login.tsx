@@ -10,7 +10,7 @@ const inputStyle: React.CSSProperties = {
   height: 46, padding: "0 14px", width: "100%", boxSizing: "border-box",
   background: "var(--bg-ivory)", border: "1px solid var(--line)",
   borderRadius: "var(--r)", fontSize: 14, color: "var(--ink)",
-  outline: "none", fontFamily: "Inter, system-ui, sans-serif",
+  outline: "none", fontFamily: "Roboto, system-ui, sans-serif",
 };
 
 /* ─── Language picker bar ────────────────────────────────────────── */

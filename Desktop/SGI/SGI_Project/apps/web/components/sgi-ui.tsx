@@ -423,7 +423,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
               title={statusLabel}
               style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}
             >
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 15, fontWeight: 600 }}>HS</div>
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Roboto', sans-serif", fontSize: 15, fontWeight: 600 }}>HS</div>
               <span style={{ position: "absolute", bottom: 1, insetInlineEnd: 1, width: 9, height: 9, borderRadius: "50%", background: currentStatus.color, border: "2px solid var(--bg-paper)", display: "block" }} />
             </div>
             {!col && (

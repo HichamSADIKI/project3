@@ -399,7 +399,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
                   {/* User-added deals (newest first) */}
                   {addedDeals.slice().reverse().map((d, i) => (
                     <tr key={d.crmRef} style={{ borderBottom: "1px solid var(--line-soft)", background: "rgba(200,160,60,0.04)" }}>
-                      <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--azure)", fontSize: 11 }}>{d.crmRef}</td>
+                      <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", color: "var(--azure)", fontSize: 11 }}>{d.crmRef}</td>
                       <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>
                         {[d.propType, d.area].filter(Boolean).join(" — ") || "—"}
                       </td>
@@ -412,7 +412,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
                   {/* Mock deals */}
                   {deals.map((d, i) => (
                     <tr key={d.id} style={{ borderBottom: i < deals.length-1 ? "1px solid var(--line-soft)" : "none" }}>
-                      <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--ink-4)", fontSize: 11 }}>{d.id}</td>
+                      <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", color: "var(--ink-4)", fontSize: 11 }}>{d.id}</td>
                       <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{d.property}</td>
                       <td style={{ ...tdStyle }}>{d.type}</td>
                       <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{aed(d.amount)}</td>
@@ -473,7 +473,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
                 const ostat = ORD_STATUS[o.status] ?? ORD_STATUS.pending;
                 return (
                   <tr key={o.id} style={{ borderBottom: i < orders.length-1 ? "1px solid var(--line-soft)" : "none" }}>
-                    <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
+                    <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
                     <td style={tdStyle}><span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "var(--bg-cream)", color: "var(--ink-4)", border: "1px solid var(--line-soft)" }}>{lang==="ar"?o.type_ar:lang==="fr"?o.type_fr:o.type_en}</span></td>
                     <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{lang==="ar"?o.desc_ar:lang==="fr"?o.desc_fr:o.desc_en}</td>
                     <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{o.amount > 0 ? aed(o.amount) : "—"}</td>
@@ -493,7 +493,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
               </tr></thead>
               <tbody>{invoices.map((inv, i) => (
                 <tr key={inv.id} style={{ borderBottom: i < invoices.length-1 ? "1px solid var(--line-soft)" : "none" }}>
-                  <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{inv.id}</td>
+                  <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", fontSize: 11, color: "var(--ink-4)" }}>{inv.id}</td>
                   <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{inv.desc}</td>
                   <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{aed(inv.amount)}</td>
                   <td style={tdStyle}><span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: INV_STATUS[inv.status].bg, color: INV_STATUS[inv.status].color }}>{INV_STATUS[inv.status].en}</span></td>
@@ -511,11 +511,11 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
               </tr></thead>
               <tbody>{payments.map((pay, i) => (
                 <tr key={pay.id} style={{ borderBottom: i < payments.length-1 ? "1px solid var(--line-soft)" : "none" }}>
-                  <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{pay.id}</td>
+                  <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", fontSize: 11, color: "var(--ink-4)" }}>{pay.id}</td>
                   <td style={tdStyle}>{pay.method}</td>
                   <td style={{ ...tdStyle, fontWeight: 600 }} className="tnum">{aed(pay.amount)}</td>
                   <td style={tdStyle}><span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: PAY_STATUS[pay.status].bg, color: PAY_STATUS[pay.status].color }}>{PAY_STATUS[pay.status].en}</span></td>
-                  <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{pay.ref}</td>
+                  <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", fontSize: 11, color: "var(--ink-4)" }}>{pay.ref}</td>
                   <td style={tdStyle}>{pay.date}</td>
                 </tr>
               ))}</tbody>

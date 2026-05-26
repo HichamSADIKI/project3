@@ -99,11 +99,11 @@ html, body {
 
 /* ── Typography helpers ───────────────────────────────────────── */
 .font-display {
-  font-family: 'Cormorant Garamond', 'Noto Naskh Arabic', Georgia, serif;
+  font-family: 'Roboto', system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
-.font-ar   { font-family: 'Noto Naskh Arabic', serif; }
-.font-mono { font-family: 'JetBrains Mono', 'Courier New', monospace; }
+.font-ar   { font-family: 'Noto Naskh Arabic', 'Roboto', system-ui, sans-serif; }
+.font-mono { font-family: 'Roboto', system-ui, sans-serif; }
 .tnum      { font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 
 .eyebrow {

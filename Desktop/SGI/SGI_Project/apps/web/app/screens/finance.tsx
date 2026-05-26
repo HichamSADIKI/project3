@@ -167,7 +167,7 @@ function FinanceSnapshotBar({ filter, onChange, ledgerCount }: {
 
       {active && (
         <button onClick={() => onChange(DEFAULT_FINANCE_FILTER)}
-          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.4)", background: "var(--bg-paper)", color: "var(--rose)", whiteSpace: "nowrap", flexShrink: 0 }}>
+          style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 10px", borderRadius: 999, fontSize: 11, fontFamily: "Roboto, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.4)", background: "var(--bg-paper)", color: "var(--rose)", whiteSpace: "nowrap", flexShrink: 0 }}>
           Reset
           <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{activeCount}</span>
         </button>
@@ -213,7 +213,7 @@ function FinanceChart() {
         <circle key={i} cx={i * step} cy={h - (v / max) * h * 0.85 - 4} r="4" fill="var(--ink)" stroke="var(--gold)" strokeWidth="2" />
       ))}
       {["J","F","M","A","M","J","J","A","S","O","N","D"].map((m, i) => (
-        <text key={i} x={i * step} y={h + 14} fill="var(--ink-4)" fontSize="9" letterSpacing="1" textAnchor="middle" fontFamily="Inter">{m}</text>
+        <text key={i} x={i * step} y={h + 14} fill="var(--ink-4)" fontSize="9" letterSpacing="1" textAnchor="middle" fontFamily="Roboto">{m}</text>
       ))}
     </svg>
   );
@@ -367,7 +367,7 @@ export function ScreenFinance() {
                 return (
                 <div key={a.rank} style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 0", borderTop: a.rank > 1 ? "1px solid var(--line-soft)" : "none", background: isHighlighted ? "var(--gold-ghost)" : "transparent", borderRadius: isHighlighted ? "var(--r)" : 0, paddingInline: isHighlighted ? 8 : 0, marginInline: isHighlighted ? -8 : 0 }}>
                   <div className="font-display tnum" style={{ fontSize: 17, color: a.rank === 1 ? "var(--gold-deep)" : "var(--ink-4)", width: 20 }}>{a.rank}</div>
-                  <div style={{ width: 32, height: 32, borderRadius: 16, background: isHighlighted ? "var(--gold-deep)" : "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Cormorant Garamond', serif", fontSize: 13, fontWeight: 600 }}>{a.init}</div>
+                  <div style={{ width: 32, height: 32, borderRadius: 16, background: isHighlighted ? "var(--gold-deep)" : "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Roboto', sans-serif", fontSize: 13, fontWeight: 600 }}>{a.init}</div>
                   <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
                     <div style={{ fontSize: 13, fontWeight: isHighlighted ? 700 : 500, color: isHighlighted ? "var(--gold-deep)" : "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</div>
                     <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{a.deals} deals · {a.mom}</div>

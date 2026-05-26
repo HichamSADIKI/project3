@@ -445,7 +445,7 @@ function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChan
               <textarea
                 readOnly
                 value={history}
-                style={{ width: "100%", height: 110, padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 11.5, color: "var(--ink-3)", resize: "none", boxSizing: "border-box", outline: "none", lineHeight: 1.6, fontFamily: "monospace" }}
+                style={{ width: "100%", height: 110, padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 11.5, color: "var(--ink-3)", resize: "none", boxSizing: "border-box", outline: "none", lineHeight: 1.6, fontFamily: "Roboto, sans-serif" }}
               />
             ) : (
               <div style={{ fontSize: 11.5, color: "var(--ink-4)", fontStyle: "italic", padding: "6px 0" }}>{cl("No notes yet.", "لا توجد ملاحظات بعد.", "Aucune note pour l'instant.")}</div>

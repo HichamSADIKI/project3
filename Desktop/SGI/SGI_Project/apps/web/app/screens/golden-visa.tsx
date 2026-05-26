@@ -133,7 +133,7 @@ export function ScreenGoldenVisa() {
                         border: "2px solid " + (done ? "var(--gold)" : (current ? "var(--gold)" : "var(--line-strong)")),
                         color: done ? "var(--ink)" : (current ? "var(--gold)" : "var(--ink-4)"),
                         display: "grid", placeItems: "center",
-                        fontFamily: "'Cormorant Garamond', serif", fontSize: 18, fontWeight: 600,
+                        fontFamily: "'Roboto', sans-serif", fontSize: 18, fontWeight: 600,
                         boxShadow: current ? "0 0 0 6px var(--gold-ghost)" : "none",
                         position: "relative", zIndex: 1,
                       }}>

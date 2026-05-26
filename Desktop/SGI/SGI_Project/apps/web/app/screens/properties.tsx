@@ -481,10 +481,10 @@ function MapPanel() {
         <path d="M0 320 L600 280" stroke="var(--line-strong)" strokeWidth="1.5" fill="none" opacity="0.5" />
         <path d="M150 0 L180 600" stroke="var(--line-strong)" strokeWidth="1.5" fill="none" opacity="0.5" />
         <path d="M380 0 L420 600" stroke="var(--line-strong)" strokeWidth="2" fill="none" opacity="0.5" />
-        <text x="30"  y="160" fill="var(--ink-4)" fontSize="11" letterSpacing="2" fontFamily="Inter">DUBAI MARINA</text>
-        <text x="220" y="170" fill="var(--ink-4)" fontSize="11" letterSpacing="2" fontFamily="Inter">DOWNTOWN</text>
-        <text x="430" y="180" fill="var(--ink-4)" fontSize="11" letterSpacing="2" fontFamily="Inter">CREEK</text>
-        <text x="60"  y="500" fill="var(--azure)" fontSize="10" letterSpacing="2" fontFamily="Inter" opacity="0.7">ARABIAN GULF</text>
+        <text x="30"  y="160" fill="var(--ink-4)" fontSize="11" letterSpacing="2" fontFamily="Roboto">DUBAI MARINA</text>
+        <text x="220" y="170" fill="var(--ink-4)" fontSize="11" letterSpacing="2" fontFamily="Roboto">DOWNTOWN</text>
+        <text x="430" y="180" fill="var(--ink-4)" fontSize="11" letterSpacing="2" fontFamily="Roboto">CREEK</text>
+        <text x="60"  y="500" fill="var(--azure)" fontSize="10" letterSpacing="2" fontFamily="Roboto" opacity="0.7">ARABIAN GULF</text>
       </svg>
       {[
         { x: 22, y: 35, n: "12", active: true },
@@ -1043,7 +1043,7 @@ function AddPropertyModal({ onClose, onSave, nextRef }: {
                   width: "100%", padding: "9px 14px", marginBottom: 4,
                   borderRadius: "var(--r)", border: "1px dashed var(--line-strong)",
                   background: "var(--bg-inset)", color: "var(--ink-3)",
-                  fontSize: 12.5, cursor: "pointer", fontFamily: "Inter, sans-serif",
+                  fontSize: 12.5, cursor: "pointer", fontFamily: "Roboto, sans-serif",
                 }}
               >
                 🔗 Importer depuis une URL de listing

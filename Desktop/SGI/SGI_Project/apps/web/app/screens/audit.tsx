@@ -114,11 +114,11 @@ export function ScreenAudit() {
                 <tbody>
                   {filtered.map((e, i) => (
                     <tr key={e.id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
-                      <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--ink-4)", fontFamily: "monospace" }}>{e.id}</td>
+                      <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--ink-4)", fontFamily: "Roboto, sans-serif" }}>{e.id}</td>
                       <td style={{ padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "var(--ink)" }}>{e.action}</td>
                       <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--ink-2)" }}>{e.user}</td>
                       <td style={{ padding: "10px 14px", fontSize: 12, color: "var(--ink-4)" }}>{e.module}</td>
-                      <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--ink-4)", fontFamily: "monospace" }}>{e.ip}</td>
+                      <td style={{ padding: "10px 14px", fontSize: 11, color: "var(--ink-4)", fontFamily: "Roboto, sans-serif" }}>{e.ip}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <span style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: RISK[e.risk].bg, color: RISK[e.risk].color }}>
                           {riskLabel(e.risk)}

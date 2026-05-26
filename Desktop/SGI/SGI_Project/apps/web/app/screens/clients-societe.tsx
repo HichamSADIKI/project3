@@ -405,7 +405,7 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
                   {/* User-added deals */}
                   {addedDeals.slice().reverse().map(d => (
                     <tr key={d.crmRef} style={{ borderBottom: "1px solid var(--line-soft)", background: "rgba(200,160,60,0.04)" }}>
-                      <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--azure)", fontSize: 11 }}>{d.crmRef}</td>
+                      <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", color: "var(--azure)", fontSize: 11 }}>{d.crmRef}</td>
                       <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{[d.propType, d.area].filter(Boolean).join(" — ") || "—"}</td>
                       <td style={tdStyle}><span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "rgba(200,160,60,0.12)", color: "var(--gold-deep)", border: "1px solid rgba(200,160,60,0.3)", fontWeight: 600 }}>{d.category.toUpperCase()}</span></td>
                       <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{d.budgetMax > 0 ? aed(d.budgetMax) : d.budgetMin > 0 ? aed(d.budgetMin) : "—"}</td>
@@ -418,7 +418,7 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
                     const dscfg = DEAL_STATUS[d.status];
                     return (
                       <tr key={i} style={{ borderTop: "1px solid var(--line-soft)" }}>
-                        <td style={{ ...tdStyle, fontFamily: "monospace", color: "var(--ink-4)", fontSize: 11 }}>—</td>
+                        <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", color: "var(--ink-4)", fontSize: 11 }}>—</td>
                         <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{d.prop}</td>
                         <td style={tdStyle}>{lbl(d.type_en, d.type_ar, d.type_fr)}</td>
                         <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{aed(d.amount)}</td>
@@ -482,7 +482,7 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
                   const ostat = ORD_STATUS[o.status as keyof typeof ORD_STATUS] ?? ORD_STATUS.pending;
                   return (
                     <tr key={o.id} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
-                      <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
+                      <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
                       <td style={tdStyle}><span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "var(--bg-cream)", color: "var(--ink-4)", border: "1px solid var(--line-soft)" }}>{lbl(o.type_en, o.type_ar, o.type_fr)}</span></td>
                       <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{lbl(o.desc_en, o.desc_ar, o.desc_fr)}</td>
                       <td style={{ ...tdStyle, fontWeight: 600, color: "var(--ink)" }} className="tnum">{o.amount > 0 ? aed(o.amount) : "—"}</td>

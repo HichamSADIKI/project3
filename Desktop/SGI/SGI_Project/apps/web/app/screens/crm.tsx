@@ -246,7 +246,7 @@ function ProfileEnrichmentPanel({ lead }: { lead: Lead }) {
           <div style={{ fontSize: 10.5, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--ink-4)", fontWeight: 600 }}>Profile Enrichment</div>
           <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 2 }}>Fetch public data from LinkedIn, web…</div>
         </div>
-        <button onClick={fetchProfile} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: "var(--r)", background: "var(--ink)", color: "var(--gold)", border: "none", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", fontWeight: 600 }}>
+        <button onClick={fetchProfile} style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: "var(--r)", background: "var(--ink)", color: "var(--gold)", border: "none", fontSize: 11.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", fontWeight: 600 }}>
           <IcGlobe /> Fetch
         </button>
       </div>
@@ -305,13 +305,13 @@ function ProfileEnrichmentPanel({ lead }: { lead: Lead }) {
       <div style={{ display: "flex", gap: 7, marginTop: 10, flexWrap: "wrap" }}>
         {data.linkedin && (
           <a href={`https://linkedin.com/in/${data.linkedin}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, background: "rgba(10,102,194,0.08)", border: "1px solid rgba(10,102,194,0.25)", color: "#0a66c2", fontFamily: "Inter, sans-serif", cursor: "pointer" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, background: "rgba(10,102,194,0.08)", border: "1px solid rgba(10,102,194,0.25)", color: "#0a66c2", fontFamily: "Roboto, sans-serif", cursor: "pointer" }}>
               <IcLinkedIn /> LinkedIn
             </span>
           </a>
         )}
         {data.twitter && (
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, background: "rgba(29,155,240,0.08)", border: "1px solid rgba(29,155,240,0.25)", color: "#1d9bf0", fontFamily: "Inter, sans-serif" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, background: "rgba(29,155,240,0.08)", border: "1px solid rgba(29,155,240,0.25)", color: "#1d9bf0", fontFamily: "Roboto, sans-serif" }}>
             <IcX /> {data.twitter}
           </span>
         )}
@@ -514,7 +514,7 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
   const coldChipBase: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 4,
     padding: "4px 10px", borderRadius: 999, fontSize: 11,
-    fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid var(--line-soft)",
+    fontFamily: "Roboto, sans-serif", cursor: "pointer", border: "1px solid var(--line-soft)",
     background: "var(--bg-paper)", color: "var(--ink-3)", whiteSpace: "nowrap", flexShrink: 0,
   };
 
@@ -534,7 +534,7 @@ function FilterBar({ filter, onChange, totalCount, filteredCount }: {
             value={filter.query}
             onChange={e => onChange({ ...filter, query: e.target.value })}
             placeholder="Name, email, country, property…"
-            style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--ink)", fontFamily: "Inter, sans-serif", width: "100%" }}
+            style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--ink)", fontFamily: "Roboto, sans-serif", width: "100%" }}
           />
           {filter.query && (
             <button onClick={() => onChange({ ...filter, query: "" })}
@@ -709,7 +709,7 @@ function FollowUpTimeline({ followUp, mode, onMark }: {
             )}
             {status !== "done" && onMark && (
               <button onClick={() => onMark(s.key)}
-                style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "var(--ink)", color: "var(--gold)", border: "none", cursor: "pointer", fontFamily: "Inter, sans-serif" }}>
+                style={{ fontSize: 10, padding: "2px 8px", borderRadius: 4, background: "var(--ink)", color: "var(--gold)", border: "none", cursor: "pointer", fontFamily: "Roboto, sans-serif" }}>
                 Mark done
               </button>
             )}
@@ -1058,7 +1058,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
                   onChange={e => setMetaQuery(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && runMetaSearch()}
                   placeholder="Nom du contact…"
-                  style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--ink)", fontFamily: "Inter, sans-serif" }}
+                  style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--ink)", fontFamily: "Roboto, sans-serif" }}
                 />
                 {metaQuery && (
                   <button onClick={() => { setMetaQuery(""); setMetaResults([]); setMetaSearched(false); }} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 15, lineHeight: 1, padding: 0 }}>×</button>
@@ -1067,7 +1067,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
               <button
                 onClick={runMetaSearch}
                 disabled={!metaQuery.trim() || metaLoading}
-                style={{ padding: "0 12px", borderRadius: "var(--r)", background: metaQuery.trim() && !metaLoading ? "var(--ink)" : "var(--bg-inset)", color: metaQuery.trim() && !metaLoading ? "var(--gold)" : "var(--ink-4)", border: "none", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: metaQuery.trim() && !metaLoading ? "pointer" : "not-allowed", fontWeight: 600, flexShrink: 0 }}>
+                style={{ padding: "0 12px", borderRadius: "var(--r)", background: metaQuery.trim() && !metaLoading ? "var(--ink)" : "var(--bg-inset)", color: metaQuery.trim() && !metaLoading ? "var(--gold)" : "var(--ink-4)", border: "none", fontSize: 11.5, fontFamily: "Roboto, sans-serif", cursor: metaQuery.trim() && !metaLoading ? "pointer" : "not-allowed", fontWeight: 600, flexShrink: 0 }}>
                 {metaLoading ? "…" : "Chercher"}
               </button>
             </div>
@@ -1130,23 +1130,23 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
                     <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
                       {p.platforms.includes("whatsapp") && p.phone && (
                         <a href={`https://wa.me/${p.phone.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 80 }}>
-                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcWhatsApp /> WhatsApp</button>
+                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcWhatsApp /> WhatsApp</button>
                         </a>
                       )}
                       {p.platforms.includes("facebook") && (
                         <a href={`https://m.me/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 80 }}>
-                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcMessenger /> Messenger</button>
+                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcMessenger /> Messenger</button>
                         </a>
                       )}
                       {p.platforms.includes("instagram") && (
                         <a href={`https://ig.me/m/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 80 }}>
-                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcInstagramDM /> Instagram</button>
+                          <button style={{ width: "100%", padding: "7px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}><IcInstagramDM /> Instagram</button>
                         </a>
                       )}
                       <button
                         onClick={() => addMetaToCRM(p)}
                         disabled={isAdded}
-                        style={{ flex: 1, minWidth: 90, padding: "7px 0", borderRadius: "var(--r)", fontSize: 11, fontFamily: "Inter,sans-serif", cursor: isAdded ? "default" : "pointer", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: isAdded ? "var(--bg-inset)" : "var(--ink)", color: isAdded ? "var(--emerald)" : "var(--gold)", border: isAdded ? "1px solid rgba(16,185,129,0.3)" : "none" }}>
+                        style={{ flex: 1, minWidth: 90, padding: "7px 0", borderRadius: "var(--r)", fontSize: 11, fontFamily: "Roboto, sans-serif", cursor: isAdded ? "default" : "pointer", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 4, background: isAdded ? "var(--bg-inset)" : "var(--ink)", color: isAdded ? "var(--emerald)" : "var(--gold)", border: isAdded ? "1px solid rgba(16,185,129,0.3)" : "none" }}>
                         {isAdded ? <>✓ Ajouté</> : <><IcPlus /> Ajouter au CRM</>}
                       </button>
                     </div>
@@ -1165,17 +1165,17 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
             <div style={{ padding: "8px 12px", borderTop: "1px solid var(--line-soft)", display: "flex", gap: 5, flexWrap: "wrap", background: "var(--bg-cream)" }}>
               {lead.phone && (
                 <a href={`https://wa.me/${lead.phone.replace(/\D/g,"")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
-                  <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.25)", color: "#25d366", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcWhatsApp /><span style={{ fontSize: 9 }}>WhatsApp</span></button>
+                  <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.08)", border: "1px solid rgba(37,211,102,0.25)", color: "#25d366", fontSize: 10.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcWhatsApp /><span style={{ fontSize: 9 }}>WhatsApp</span></button>
                 </a>
               )}
               <a href={`https://m.me/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
-                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.07)", border: "1px solid rgba(24,119,242,0.2)", color: "#1877f2", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcMessenger /><span style={{ fontSize: 9 }}>Messenger</span></button>
+                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.07)", border: "1px solid rgba(24,119,242,0.2)", color: "#1877f2", fontSize: 10.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcMessenger /><span style={{ fontSize: 9 }}>Messenger</span></button>
               </a>
               <a href={`https://ig.me/m/${metaSlug(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
-                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.07)", border: "1px solid rgba(225,48,108,0.2)", color: "#e1306c", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcInstagramDM /><span style={{ fontSize: 9 }}>Instagram</span></button>
+                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.07)", border: "1px solid rgba(225,48,108,0.2)", color: "#e1306c", fontSize: 10.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}><IcInstagramDM /><span style={{ fontSize: 9 }}>Instagram</span></button>
               </a>
               <a href={`https://www.facebook.com/search/people/?q=${encodeURIComponent(lead.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 72 }}>
-                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.05)", border: "1px solid rgba(24,119,242,0.18)", color: "#1877f2", fontSize: 10.5, fontFamily: "Inter,sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
+                <button style={{ width: "100%", padding: "6px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.05)", border: "1px solid rgba(24,119,242,0.18)", color: "#1877f2", fontSize: 10.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 3 }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
                   <span style={{ fontSize: 9 }}>Facebook</span>
                 </button>
@@ -1215,7 +1215,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
                 const m = ACTIVITY_META[type];
                 return (
                   <button key={type} onClick={() => quickLog(type)}
-                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, fontFamily: "Inter, sans-serif", background: noteMode && type === "note" ? "var(--ink)" : m.bg, color: noteMode && type === "note" ? "var(--gold)" : m.color, border: "1px solid " + (noteMode && type === "note" ? "var(--ink)" : "var(--line-soft)"), cursor: "pointer" }}>
+                    style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 6, fontSize: 11, fontFamily: "Roboto, sans-serif", background: noteMode && type === "note" ? "var(--ink)" : m.bg, color: noteMode && type === "note" ? "var(--gold)" : m.color, border: "1px solid " + (noteMode && type === "note" ? "var(--ink)" : "var(--line-soft)"), cursor: "pointer" }}>
                     {activityIcon(type)} {m.label}
                   </button>
                 );
@@ -1231,7 +1231,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
                   onChange={e => setNoteText(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && submitNote()}
                   placeholder="Write a note and press Enter…"
-                  style={{ flex: 1, padding: "7px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 12, color: "var(--ink)", fontFamily: "Inter, sans-serif", outline: "none" }}
+                  style={{ flex: 1, padding: "7px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 12, color: "var(--ink)", fontFamily: "Roboto, sans-serif", outline: "none" }}
                 />
                 <button onClick={submitNote} className="sgi-btn sgi-btn-primary" style={{ height: 32, padding: "0 12px" }}>Add</button>
               </div>
@@ -1307,7 +1307,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
               value={lead.notes ?? ""}
               onChange={e => onNotesChange(lead.id, stage, e.target.value)}
               placeholder="Quick notes…"
-              style={{ marginTop: 8, width: "100%", minHeight: 72, padding: 10, background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", fontSize: 12, color: "var(--ink)", fontFamily: "Inter, sans-serif", resize: "vertical", outline: "none", lineHeight: 1.6, boxSizing: "border-box" }}
+              style={{ marginTop: 8, width: "100%", minHeight: 72, padding: 10, background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", fontSize: 12, color: "var(--ink)", fontFamily: "Roboto, sans-serif", resize: "vertical", outline: "none", lineHeight: 1.6, boxSizing: "border-box" }}
             />
           </div>
         </div>
@@ -1320,7 +1320,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
           </div>
           {stage !== "won" && (
             <button onClick={onMarkLost}
-              style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.3)", background: "rgba(220,50,50,0.04)", color: "var(--rose, #dc2626)", fontWeight: 500 }}>
+              style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", fontSize: 11.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", border: "1px solid rgba(220,50,50,0.3)", background: "rgba(220,50,50,0.04)", color: "var(--rose, #dc2626)", fontWeight: 500 }}>
               Mark as lost…
             </button>
           )}
@@ -1347,7 +1347,7 @@ const emptyForm = { name: "", phone: "", email: "", budget: "", prop: "", channe
 const inputStyle: React.CSSProperties = {
   padding: "9px 12px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)",
   background: "var(--bg-cream)", fontSize: 13, color: "var(--ink)",
-  fontFamily: "Inter, sans-serif", outline: "none", width: "100%", boxSizing: "border-box",
+  fontFamily: "Roboto, sans-serif", outline: "none", width: "100%", boxSizing: "border-box",
 };
 
 function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; onAdd: (l: Lead) => void; targetStage?: string }) {
@@ -1554,7 +1554,7 @@ function LostReasonModal({ leadName, onConfirm, onClose }: {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {LOST_REASONS.map(r => (
               <button key={r} onClick={() => setSelected(r)}
-                style={{ padding: "6px 14px", borderRadius: 999, fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", border: "1px solid " + (selected === r ? "var(--rose)" : "var(--line-soft)"), background: selected === r ? "rgba(220,50,50,0.08)" : "var(--bg-paper)", color: selected === r ? "var(--rose)" : "var(--ink-3)", fontWeight: selected === r ? 600 : 400, transition: "all 0.12s" }}>
+                style={{ padding: "6px 14px", borderRadius: 999, fontSize: 12, fontFamily: "Roboto, sans-serif", cursor: "pointer", border: "1px solid " + (selected === r ? "var(--rose)" : "var(--line-soft)"), background: selected === r ? "rgba(220,50,50,0.08)" : "var(--bg-paper)", color: selected === r ? "var(--rose)" : "var(--ink-3)", fontWeight: selected === r ? 600 : 400, transition: "all 0.12s" }}>
                 {r}
               </button>
             ))}
@@ -1566,7 +1566,7 @@ function LostReasonModal({ leadName, onConfirm, onClose }: {
               onChange={e => setOther(e.target.value)}
               onKeyDown={e => e.key === "Enter" && confirm()}
               placeholder="Describe the reason…"
-              style={{ padding: "8px 12px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 12, color: "var(--ink)", fontFamily: "Inter, sans-serif", outline: "none" }}
+              style={{ padding: "8px 12px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 12, color: "var(--ink)", fontFamily: "Roboto, sans-serif", outline: "none" }}
             />
           )}
         </div>
@@ -1575,7 +1575,7 @@ function LostReasonModal({ leadName, onConfirm, onClose }: {
         <div style={{ padding: "12px 20px", borderTop: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", gap: 8, justifyContent: "flex-end" }}>
           <button className="sgi-btn sgi-btn-ghost" onClick={onClose}>Cancel</button>
           <button onClick={confirm} disabled={!selected}
-            style={{ padding: "8px 18px", borderRadius: "var(--r)", fontSize: 12, fontFamily: "Inter, sans-serif", cursor: selected ? "pointer" : "not-allowed", background: selected ? "var(--rose, #dc2626)" : "var(--bg-inset)", color: selected ? "#fff" : "var(--ink-4)", border: "none", fontWeight: 600, transition: "all 0.12s" }}>
+            style={{ padding: "8px 18px", borderRadius: "var(--r)", fontSize: 12, fontFamily: "Roboto, sans-serif", cursor: selected ? "pointer" : "not-allowed", background: selected ? "var(--rose, #dc2626)" : "var(--bg-inset)", color: selected ? "#fff" : "var(--ink-4)", border: "none", fontWeight: 600, transition: "all 0.12s" }}>
             Confirm loss
           </button>
         </div>
@@ -1912,7 +1912,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
               onChange={e => setQuery(e.target.value)}
               onKeyDown={e => e.key === "Enter" && doSearch()}
               placeholder="Nom du client (ex: Khalid Al-Hashimi, Maria Petrova…)"
-              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--ink)", fontFamily: "Inter, sans-serif" }}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--ink)", fontFamily: "Roboto, sans-serif" }}
             />
             {query && (
               <button onClick={() => { setQuery(""); setResults([]); setSearched(false); }}
@@ -1924,7 +1924,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
               padding: "0 20px", borderRadius: "var(--r)",
               background: query.trim() && !loading ? "var(--ink)" : "var(--bg-inset)",
               color: query.trim() && !loading ? "var(--gold)" : "var(--ink-4)",
-              border: "none", fontSize: 12.5, fontFamily: "Inter, sans-serif",
+              border: "none", fontSize: 12.5, fontFamily: "Roboto, sans-serif",
               cursor: query.trim() && !loading ? "pointer" : "not-allowed", fontWeight: 600,
               transition: "background 0.12s",
             }}>
@@ -2022,7 +2022,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
                   {/* WhatsApp */}
                   {p.platforms.includes("whatsapp") && p.phone && (
                     <a href={`https://wa.me/${p.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 100 }}>
-                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(37,211,102,0.1)", border: "1px solid rgba(37,211,102,0.3)", color: "#25d366", fontSize: 11.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                         <IcWhatsApp /> WhatsApp
                       </button>
                     </a>
@@ -2031,7 +2031,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
                   {/* Messenger */}
                   {p.platforms.includes("facebook") && (
                     <a href={`https://m.me/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 100 }}>
-                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(24,119,242,0.08)", border: "1px solid rgba(24,119,242,0.25)", color: "#1877f2", fontSize: 11.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                         <IcMessenger /> Messenger
                       </button>
                     </a>
@@ -2040,7 +2040,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
                   {/* Instagram DM */}
                   {p.platforms.includes("instagram") && (
                     <a href={`https://ig.me/m/${metaSlug(p.name)}`} target="_blank" rel="noreferrer" style={{ textDecoration: "none", flex: 1, minWidth: 100 }}>
-                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11.5, fontFamily: "Inter, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
+                      <button style={{ width: "100%", padding: "8px 0", borderRadius: "var(--r)", background: "rgba(225,48,108,0.08)", border: "1px solid rgba(225,48,108,0.25)", color: "#e1306c", fontSize: 11.5, fontFamily: "Roboto, sans-serif", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}>
                         <IcInstagramDM /> Instagram
                       </button>
                     </a>
@@ -2052,7 +2052,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
                     disabled={isAdded}
                     style={{
                       flex: 1, minWidth: 110, padding: "8px 0", borderRadius: "var(--r)", fontSize: 11.5,
-                      fontFamily: "Inter, sans-serif", cursor: isAdded ? "default" : "pointer",
+                      fontFamily: "Roboto, sans-serif", cursor: isAdded ? "default" : "pointer",
                       fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
                       background: isAdded ? "var(--bg-inset)" : "var(--ink)",
                       color: isAdded ? "var(--emerald)" : "var(--gold)",
@@ -2210,7 +2210,7 @@ export function ScreenCRM({ onNavigateToClient }: { onNavigateToClient?: (name: 
         {!isMob && (
           <button
             onClick={() => openMetaSearch()}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: "var(--r)", border: "1px solid rgba(162,89,255,0.4)", background: "rgba(162,89,255,0.07)", color: "#a259ff", fontSize: 12, fontFamily: "Inter, sans-serif", cursor: "pointer", fontWeight: 600 }}>
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: "var(--r)", border: "1px solid rgba(162,89,255,0.4)", background: "rgba(162,89,255,0.07)", color: "#a259ff", fontSize: 12, fontFamily: "Roboto, sans-serif", cursor: "pointer", fontWeight: 600 }}>
             <IcMetaLogo />
             Meta Snapshot
           </button>

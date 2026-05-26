@@ -368,7 +368,7 @@ export function ScreenDashboard() {
                       border: "1px solid var(--line-soft)",
                       fontSize: 11, fontWeight: 700,
                       color: i === 0 ? "var(--gold)" : "var(--ink-3)",
-                      fontFamily: "'Cormorant Garamond', serif",
+                      fontFamily: "'Roboto', sans-serif",
                     }}>
                       {a.initials}
                     </div>

@@ -225,7 +225,7 @@ export function ScreenOrders() {
                   <div key={o.id} style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "14px 16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
                       <div>
-                        <div style={{ fontSize: 10.5, color: "var(--ink-4)", fontFamily: "monospace", marginBottom: 2 }}>{o.id}</div>
+                        <div style={{ fontSize: 10.5, color: "var(--ink-4)", fontFamily: "Roboto, sans-serif", marginBottom: 2 }}>{o.id}</div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{o.client}</div>
                       </div>
                       <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${scfg.color}15`, color: scfg.color }}>{lang === "ar" ? scfg.ar : lang === "fr" ? scfg.fr : scfg.en}</span>
@@ -268,7 +268,7 @@ export function ScreenOrders() {
                         onMouseEnter={e => (e.currentTarget as HTMLTableRowElement).style.background = "var(--bg-cream)"}
                         onMouseLeave={e => (e.currentTarget as HTMLTableRowElement).style.background = "transparent"}
                       >
-                        <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
+                        <td style={{ ...tdStyle, fontFamily: "Roboto, sans-serif", fontSize: 11, color: "var(--ink-4)" }}>{o.id}</td>
                         <td style={{ ...tdStyle }}>
                           <div style={{ fontWeight: 500, color: "var(--ink)" }}>{lang === "ar" ? o.client_ar : o.client}</div>
                           <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginTop: 1 }}>

@@ -130,7 +130,7 @@ export function ScreenIT() {
               <tbody>
                 {TICKETS.map((t, i) => (
                   <tr key={t.id} style={{ borderBottom: i < TICKETS.length - 1 ? "1px solid var(--line-soft)" : "none" }}>
-                    <td style={{ padding: "11px 16px", fontSize: 11, color: "var(--ink-4)", fontFamily: "monospace" }}>{t.id}</td>
+                    <td style={{ padding: "11px 16px", fontSize: 11, color: "var(--ink-4)", fontFamily: "Roboto, sans-serif" }}>{t.id}</td>
                     <td style={{ padding: "11px 16px", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{t.title}</td>
                     <td style={{ padding: "11px 16px", fontSize: 12, color: "var(--ink-2)" }}>{t.user}</td>
                     <td style={{ padding: "11px 16px" }}>

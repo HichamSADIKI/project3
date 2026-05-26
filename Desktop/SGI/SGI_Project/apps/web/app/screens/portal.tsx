@@ -6,7 +6,7 @@ import { useLang } from "@/components/language-provider";
 export function ScreenPortal() {
   const { lang } = useLang();
   return (
-    <div style={{ width: "100%", minHeight: "100vh", background: "var(--bg-cream)", color: "var(--ink)", fontFamily: "Inter, sans-serif", overflow: "auto" }}>
+    <div style={{ width: "100%", minHeight: "100vh", background: "var(--bg-cream)", color: "var(--ink)", fontFamily: "Roboto, sans-serif", overflow: "auto" }}>
       {/* Header */}
       <header style={{ height: 76, padding: "0 56px", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)", position: "sticky", top: 0, zIndex: 10 }}>
         <Wordmark />
@@ -91,7 +91,7 @@ export function ScreenPortal() {
       {/* Trust bar */}
       <section style={{ padding: "20px 56px 40px", borderTop: "1px solid var(--line-soft)", display: "flex", alignItems: "center", gap: 56 }}>
         <Eyebrow>Trusted partners</Eyebrow>
-        <div style={{ display: "flex", gap: 48, flex: 1, alignItems: "center", color: "var(--ink-4)", fontFamily: "'Cormorant Garamond', serif", fontSize: 18, letterSpacing: "0.16em" }}>
+        <div style={{ display: "flex", gap: 48, flex: 1, alignItems: "center", color: "var(--ink-4)", fontFamily: "'Roboto', sans-serif", fontSize: 18, letterSpacing: "0.16em" }}>
           {["EMAAR","DAMAC","MERAAS","NAKHEEL","ALDAR","SOBHA","OMNIYAT"].map(p => <span key={p}>{p}</span>)}
         </div>
       </section>
@@ -168,10 +168,10 @@ export function ScreenPortal() {
               Golden Visa — DLD, GDRFA, medical, biometrics — in 30 to 45 days.
             </div>
             <div style={{ marginTop: 26, display: "flex", gap: 10 }}>
-              <button style={{ padding: "12px 24px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "Inter, sans-serif", fontSize: 13 }}>
+              <button style={{ padding: "12px 24px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "Roboto, sans-serif", fontSize: 13 }}>
                 Check eligibility <IcChevR />
               </button>
-              <button style={{ padding: "12px 24px", border: "1px solid var(--gold)", color: "var(--gold)", background: "transparent", borderRadius: "var(--r)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
+              <button style={{ padding: "12px 24px", border: "1px solid var(--gold)", color: "var(--gold)", background: "transparent", borderRadius: "var(--r)", cursor: "pointer", fontFamily: "Roboto, sans-serif", fontSize: 13 }}>
                 Read the guide
               </button>
             </div>
