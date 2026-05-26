@@ -50,6 +50,9 @@ docker-compose.override.yml
 # ── Claude local settings ────────────────────────────────────────────────
 .claude/settings.local.json
 
+# ── MCP config (peut contenir des clés API) ───────────────────────────
+.mcp.json
+
 # ── Build artifacts ─────────────────────────────────────────────────────
 dist/
 build/

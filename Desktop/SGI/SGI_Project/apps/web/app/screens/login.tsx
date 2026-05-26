@@ -94,10 +94,7 @@ function LeftPanel() {
         <Eyebrow>{t.hero_eyebrow}</Eyebrow>
         <div>
           <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 44 : 56, lineHeight: 1.05, letterSpacing: "-0.01em" }}>
-            {lang === "ar"
-              ? t.hero_title
-              : <>{t.hero_title.replace(".", "")} <i style={{ color: "var(--gold-deep)" }}>{lang === "fr" ? "d'exception." : "elevated."}</i></>
-            }
+            {t.hero_title}
           </div>
           <div style={{ fontSize: 14, color: "var(--ink-3)", lineHeight: 1.7, marginTop: 18, maxWidth: 460 }}>
             {t.hero_sub}
@@ -181,8 +178,8 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   const t = useT();
   const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
 
-  const [loginVal,     setLoginVal]     = useState("login");
-  const [password,     setPassword]     = useState("password");
+  const [loginVal,     setLoginVal]     = useState("");
+  const [password,     setPassword]     = useState("");
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 

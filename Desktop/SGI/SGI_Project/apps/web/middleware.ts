@@ -83,8 +83,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // 2. Laisser passer les routes publiques explicites
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
+  // 2. Laisser passer les routes publiques explicites (comparaison exacte)
+  if (PUBLIC_PATHS.includes(pathname)) {
     return NextResponse.next();
   }
 
@@ -100,17 +100,18 @@ export async function middleware(request: NextRequest) {
   //    (Dans l'Edge Runtime, process.env est accessible en lecture)
   const jwtSecret = process.env.JWT_SECRET ?? "";
 
-  if (jwtSecret) {
-    const valid = await verifyJwt(token, jwtSecret);
-    if (!valid) {
-      // Cookie présent mais invalide ou expiré → supprimer et rediriger
-      const response = NextResponse.redirect(new URL("/", request.url));
-      response.cookies.delete("sgi-session");
-      return response;
-    }
+  // Fail-closed : JWT_SECRET absent → on bloque (pas de bypass silencieux)
+  if (!jwtSecret) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
-  // Si JWT_SECRET absent (mauvaise config serveur), on laisse passer
-  // et l'API route gérera l'erreur — évite un lockout total en dev
+
+  const valid = await verifyJwt(token, jwtSecret);
+  if (!valid) {
+    // Cookie présent mais invalide ou expiré → supprimer et rediriger
+    const response = NextResponse.redirect(new URL("/", request.url));
+    response.cookies.delete("sgi-session");
+    return response;
+  }
 
   // 6. Session valide → continuer
   return NextResponse.next();
