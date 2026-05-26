@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Topbar, Ic, IcPhone, IcMail, IcArrowUp } from "@/components/sgi-ui";
+import { Topbar, Ic, IcPhone, IcMail, IcArrowUp, ConfirmModal } from "@/components/sgi-ui";
 import { DealWizard, type ConfirmedDeal } from "@/components/deal-wizard";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
@@ -242,6 +242,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
   const [walletTxs, setWalletTxs]   = useState<WalletTx[]>(() => mockWalletTxs(person));
   const [buyAmt, setBuyAmt]         = useState("");
   const [docs, setDocs]             = useState(() => mockDocuments(person));
+  const [toDelete, setToDelete]     = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<ReturnType<typeof mockDocuments>[0] | null>(null);
   const [showAddDoc, setShowAddDoc] = useState(false);
   const [newDocName, setNewDocName]   = useState("");
@@ -451,7 +452,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
                     <td style={tdStyle}>{d.date}</td>
                     <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{d.size}</td>
                     <td style={{ ...tdStyle, textAlign: "end" }}>
-                      <button onClick={() => deleteDoc(d.name)} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, borderRadius: 6, display: "inline-flex", alignItems: "center" }}
+                      <button onClick={() => setToDelete(d.name)} title="Delete" style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, borderRadius: 6, display: "inline-flex", alignItems: "center" }}
                         onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--rose)"}
                         onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-4)"}>
                         <Ic s={14}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></Ic>
@@ -721,6 +722,17 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
         </div>
       )}
 
+      {/* Delete confirmation */}
+      <ConfirmModal
+        open={!!toDelete}
+        title={lang === "ar" ? "حذف الوثيقة" : lang === "fr" ? "Supprimer le document" : "Delete Document"}
+        message={lang === "ar" ? "هل أنت متأكد من حذف هذه الوثيقة؟ لا يمكن التراجع." : lang === "fr" ? "Voulez-vous vraiment supprimer ce document ? Cette action est irréversible." : "Are you sure you want to delete this document? This cannot be undone."}
+        confirmLabel={lang === "ar" ? "حذف" : lang === "fr" ? "Supprimer" : "Delete"}
+        cancelLabel={lang === "ar" ? "إلغاء" : lang === "fr" ? "Annuler" : "Cancel"}
+        onConfirm={() => { if (toDelete) deleteDoc(toDelete); setToDelete(null); }}
+        onCancel={() => setToDelete(null)}
+      />
+
       {/* Add Document Modal */}
       {showAddDoc && (
         <div onClick={() => setShowAddDoc(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -736,10 +748,13 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
               <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px", border: "2px dashed var(--line-soft)", borderRadius: "var(--r)", cursor: "pointer", background: "var(--bg-cream)", color: "var(--ink-4)", textAlign: "center" }}>
                 <Ic s={28}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Ic>
                 <span style={{ fontSize: 12 }}>{lang === "ar" ? "اسحب الملف أو انقر للرفع" : lang === "fr" ? "Glisser-déposer ou cliquer pour téléverser" : "Drag & drop or click to upload"}</span>
-                <span style={{ fontSize: 10.5, color: "var(--ink-4)", opacity: 0.7 }}>PDF, JPG, PNG — max 20 MB</span>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => {
+                <span style={{ fontSize: 10.5, color: "var(--ink-4)", opacity: 0.7 }}>PDF, JPG, PNG, DOC, DOCX — max 10 MB</span>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style={{ display: "none" }} onChange={e => {
                   const f = e.target.files?.[0];
-                  if (f) { setNewDocName(f.name.replace(/\.[^.]+$/, "")); setNewDocSize(`${(f.size / 1024 / 1024).toFixed(1)} MB`); }
+                  if (f) {
+                    if (f.size > 10 * 1024 * 1024) { alert(lang === "ar" ? "حجم الملف يتجاوز 10 ميغابايت" : lang === "fr" ? "Fichier trop volumineux (max 10 Mo)" : "File too large (max 10 MB)"); e.target.value = ""; return; }
+                    setNewDocName(f.name.replace(/\.[^.]+$/, "")); setNewDocSize(`${(f.size / 1024 / 1024).toFixed(1)} MB`);
+                  }
                 }} />
               </label>
               {/* Name */}

@@ -20,6 +20,33 @@ const PUBLIC_PATHS: string[] = [
 // Extensions de fichiers statiques autorisées sans vérification
 const STATIC_EXT_RE = /\.(?:ico|png|svg|jpg|jpeg|webp|woff2?|ttf|otf|css|js|map|json)$/i;
 
+// ─── Security headers helper ───────────────────────────────────────────────────
+
+function applySecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("X-XSS-Protection", "1; mode=block");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  response.headers.set(
+    "Content-Security-Policy",
+    "default-src 'self'; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " + // unsafe-eval requis pour Next.js dev
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+    "font-src 'self' https://fonts.gstatic.com; " +
+    "img-src 'self' data: blob:; " +
+    "connect-src 'self';"
+  );
+  // HSTS en prod uniquement
+  if (process.env.NODE_ENV === "production") {
+    response.headers.set(
+      "Strict-Transport-Security",
+      "max-age=31536000; includeSubDomains; preload"
+    );
+  }
+  return response;
+}
+
 // ─── Helpers JWT HS256 (Web Crypto — compatible Edge Runtime) ─────────────────
 
 function b64urlDecode(s: string): Uint8Array {
@@ -74,7 +101,7 @@ async function verifyJwt(token: string, secret: string): Promise<boolean> {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // 1. Laisser passer les fichiers statiques Next.js
+  // 1. Laisser passer les fichiers statiques Next.js (sans security headers)
   if (
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/public/") ||
@@ -85,7 +112,8 @@ export async function middleware(request: NextRequest) {
 
   // 2. Laisser passer les routes publiques explicites (comparaison exacte)
   if (PUBLIC_PATHS.includes(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    return applySecurityHeaders(response);
   }
 
   // 3. Récupérer le cookie de session
@@ -113,8 +141,9 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // 6. Session valide → continuer
-  return NextResponse.next();
+  // 6. Session valide → continuer avec security headers
+  const response = NextResponse.next();
+  return applySecurityHeaders(response);
 }
 
 // Appliquer le middleware à toutes les routes sauf les assets statiques Next.js

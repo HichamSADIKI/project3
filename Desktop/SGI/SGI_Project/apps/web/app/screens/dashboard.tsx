@@ -155,7 +155,7 @@ export function ScreenDashboard() {
         <button className="sgi-btn sgi-btn-primary"><IcPlus />&nbsp;{t.new_btn}</button>
       </Topbar>
 
-      <main style={{ flex: 1, overflow: "auto", padding: isMob ? 14 : 28, display: "flex", flexDirection: "column", gap: 20, background: "var(--bg-cream)" }}>
+      <main style={{ flex: 1, overflowY: "auto", overflowX: "hidden", scrollbarGutter: "stable", padding: isMob ? 14 : 28, display: "flex", flexDirection: "column", gap: 20, background: "var(--bg-cream)" }}>
 
         {/* ── Greeting ───────────────────────────────────────────────── */}
         <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
@@ -182,10 +182,10 @@ export function ScreenDashboard() {
         </div>
 
         {/* ── Middle row ─────────────────────────────────────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1.4fr 1fr", gap: 16, minHeight: isCompact ? undefined : 280 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1.5fr 1fr", gap: 16, minHeight: isCompact ? undefined : 280, alignItems: "stretch" }}>
 
           {/* Pipeline funnel */}
-          <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
+          <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14, overflow: "hidden", minWidth: 0 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
               <div>
                 <Eyebrow>CRM · Sales pipeline</Eyebrow>
@@ -249,7 +249,7 @@ export function ScreenDashboard() {
           </div>
 
           {/* Right column */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16, minHeight: 0, minWidth: 0, overflow: "hidden" }}>
             {/* Agenda */}
             <div className="sgi-card" style={{ padding: 20, flex: 1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
@@ -298,10 +298,10 @@ export function ScreenDashboard() {
         </div>
 
         {/* ── Bottom row : Activity feed + Leaderboard ───────────────── */}
-        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1.5fr 1fr", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isCompact ? "1fr" : "1.5fr 1fr", gap: 16, alignItems: "start" }}>
 
             {/* Activity feed */}
-            <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column" }}>
+            <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
                 <div>
                   <Eyebrow>Today's activity</Eyebrow>
@@ -343,7 +343,7 @@ export function ScreenDashboard() {
             </div>
 
             {/* Top agents leaderboard */}
-            <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
+            <div className="sgi-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14, overflow: "hidden", minWidth: 0 }}>
               <div>
                 <Eyebrow>May · Top performers</Eyebrow>
                 <div className="font-display" style={{ fontSize: 20, marginTop: 3 }}>Agent leaderboard</div>

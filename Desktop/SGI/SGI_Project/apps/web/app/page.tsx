@@ -3,8 +3,6 @@
 import React, { useState } from "react";
 import { Sidebar } from "@/components/sgi-ui";
 import { apiLogout } from "@/lib/auth";
-import { useT } from "@/components/language-provider";
-import type { Translations } from "@/lib/i18n";
 import { ScreenLogin } from "./screens/login";
 import { ScreenDashboard } from "./screens/dashboard";
 import { ScreenProperties } from "./screens/properties";
@@ -39,6 +37,100 @@ import { ScreenMarketing } from "./screens/marketing";
 import { ScreenSectorCRM } from "./screens/sector-crm";
 import { ScreenSectorNews } from "./screens/sector-news";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
+import { GlobalSearch } from "@/components/global-search";
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type ScreenKey =
+  | "dash" | "prop" | "crm" | "orders" | "contract" | "rental"
+  | "realestate" | "admin" | "travail"
+  | "realestate_crm" | "tourisme_crm" | "sante_crm" | "assurance_crm"
+  | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm"
+  | "realestate_news" | "tourisme_news" | "sante_news" | "assurance_news"
+  | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news"
+  | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants"
+  | "visa" | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
+  | "finance" | "marketing" | "report" | "parametres"
+  | "clients" | "personne" | "societe";
+
+type ScreenProps = {
+  onNavigateToClient?: (name: string) => void;
+  onDealConfirmed?: (deal: ConfirmedDeal) => void;
+  onNavigate?: (screen: string) => void;
+  initialSearch?: string;
+  confirmedDeals?: ConfirmedDeal[];
+};
+
+// ─── Screen Registry ──────────────────────────────────────────────────────────
+
+const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode> = {
+  // Core screens
+  "dash":        (_)  => <ScreenDashboard />,
+  "prop":        (_)  => <ScreenProperties />,
+  "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} />,
+  "orders":      (_)  => <ScreenOrders />,
+  "contract":    (_)  => <ScreenContracts />,
+  "rental":      (_)  => <ScreenRentals />,
+  "realestate":  (_)  => <ScreenRealEstate />,
+  "admin":       (_)  => <ScreenAdministrations />,
+  "travail":     (_)  => <ScreenTravail />,
+
+  // Sector CRM screens
+  "realestate_crm":  (p) => <ScreenSectorCRM sector="realestate"  confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "tourisme_crm":    (p) => <ScreenSectorCRM sector="tourisme"    confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "sante_crm":       (p) => <ScreenSectorCRM sector="sante"       confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "assurance_crm":   (p) => <ScreenSectorCRM sector="assurance"   confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "banques_crm":     (p) => <ScreenSectorCRM sector="banques"     confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "amazon_crm":      (p) => <ScreenSectorCRM sector="amazon"      confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "consultants_crm": (p) => <ScreenSectorCRM sector="consultants" confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "admin_crm":       (p) => <ScreenSectorCRM sector="admin"       confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "travail_crm":     (p) => <ScreenSectorCRM sector="travail"     confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+
+  // Sector News screens
+  "realestate_news":  (_) => <ScreenSectorNews sector="realestate" />,
+  "tourisme_news":    (_) => <ScreenSectorNews sector="tourisme" />,
+  "sante_news":       (_) => <ScreenSectorNews sector="sante" />,
+  "assurance_news":   (_) => <ScreenSectorNews sector="assurance" />,
+  "banques_news":     (_) => <ScreenSectorNews sector="banques" />,
+  "amazon_news":      (_) => <ScreenSectorNews sector="amazon" />,
+  "consultants_news": (_) => <ScreenSectorNews sector="consultants" />,
+  "admin_news":       (_) => <ScreenSectorNews sector="admin" />,
+  "travail_news":     (_) => <ScreenSectorNews sector="travail" />,
+
+  // Sector home screens
+  "tourisme":    (_) => <ScreenTourisme />,
+  "sante":       (_) => <ScreenSante />,
+  "assurance":   (_) => <ScreenAssurance />,
+  "banques":     (_) => <ScreenBanques />,
+  "amazon":      (_) => <ScreenAmazon />,
+  "consultants": (_) => <ScreenConsultants />,
+
+  // Back-office & tools
+  "visa":       (_)  => <ScreenGoldenVisa />,
+  "erp":        (_)  => <ScreenERP />,
+  "workspace":  (_)  => <ScreenWorkspace />,
+  "audit":      (_)  => <ScreenAudit />,
+  "backoffice": (p)  => <ScreenBackOffice onNavigate={p.onNavigate} />,
+  "hr":         (_)  => <ScreenHR />,
+  "it":         (_)  => <ScreenIT />,
+  "finance":    (_)  => <ScreenFinance />,
+  "marketing":  (_)  => <ScreenMarketing />,
+  "report":     (_)  => <ScreenReports />,
+  "parametres": (_)  => <ScreenParametres />,
+
+  // Client screens
+  "clients":  (p) => <ScreenClients onNavigate={p.onNavigate} />,
+  "personne": (p) => <ScreenClientsPersonne onDealConfirmed={p.onDealConfirmed} initialSearch={p.initialSearch} />,
+  "societe":  (p) => <ScreenClientsSociete onDealConfirmed={p.onDealConfirmed} />,
+};
+
+function renderScreen(screen: string, handlers: ScreenProps): React.ReactNode {
+  const factory = SCREEN_REGISTRY[screen as ScreenKey];
+  if (!factory) return null;
+  return factory(handlers);
+}
+
+// ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
@@ -67,66 +159,18 @@ export default function App() {
     <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}>
       <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-        {screen === "dash"     && <ScreenDashboard />}
-        {screen === "prop"     && <ScreenProperties />}
-        {screen === "crm"      && <ScreenCRM onNavigateToClient={handleNavigateToClient} />}
-        {screen === "orders"   && <ScreenOrders />}
-        {screen === "contract" && <ScreenContracts />}
-        {screen === "rental"    && <ScreenRentals />}
-        {screen === "realestate" && <ScreenRealEstate />}
-        {screen === "admin"     && <ScreenAdministrations />}
-        {screen === "travail"   && <ScreenTravail />}
-        {screen === "realestate_crm"  && <ScreenSectorCRM sector="realestate"  confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "tourisme_crm"    && <ScreenSectorCRM sector="tourisme"    confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "sante_crm"       && <ScreenSectorCRM sector="sante"       confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "assurance_crm"   && <ScreenSectorCRM sector="assurance"   confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "banques_crm"     && <ScreenSectorCRM sector="banques"     confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "amazon_crm"      && <ScreenSectorCRM sector="amazon"      confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "admin_crm"       && <ScreenSectorCRM sector="admin"       confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "travail_crm"     && <ScreenSectorCRM sector="travail"     confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
-        {screen === "realestate_news"  && <ScreenSectorNews sector="realestate" />}
-        {screen === "tourisme_news"    && <ScreenSectorNews sector="tourisme" />}
-        {screen === "sante_news"       && <ScreenSectorNews sector="sante" />}
-        {screen === "assurance_news"   && <ScreenSectorNews sector="assurance" />}
-        {screen === "banques_news"     && <ScreenSectorNews sector="banques" />}
-        {screen === "amazon_news"      && <ScreenSectorNews sector="amazon" />}
-        {screen === "consultants_news" && <ScreenSectorNews sector="consultants" />}
-        {screen === "admin_news"       && <ScreenSectorNews sector="admin" />}
-        {screen === "travail_news"     && <ScreenSectorNews sector="travail" />}
-        {screen === "tourisme"  && <ScreenTourisme />}
-        {screen === "sante"     && <ScreenSante />}
-        {screen === "assurance" && <ScreenAssurance />}
-        {screen === "banques"   && <ScreenBanques />}
-        {screen === "amazon"    && <ScreenAmazon />}
-        {screen === "consultants" && <ScreenConsultants />}
-        {screen === "visa"      && <ScreenGoldenVisa />}
-        {screen === "erp"       && <ScreenERP />}
-        {screen === "workspace" && <ScreenWorkspace />}
-        {screen === "audit"     && <ScreenAudit />}
-        {screen === "backoffice" && <ScreenBackOffice onNavigate={setScreen} />}
-        {screen === "hr"        && <ScreenHR />}
-        {screen === "it"        && <ScreenIT />}
-        {screen === "finance"   && <ScreenFinance />}
-        {screen === "marketing" && <ScreenMarketing />}
-        {screen === "report"    && <ScreenReports />}
-        {screen === "parametres" && <ScreenParametres />}
-        {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}
-        {screen === "personne" && <ScreenClientsPersonne onDealConfirmed={handleDealConfirmed} initialSearch={clientSearch} />}
-        {screen === "societe"  && <ScreenClientsSociete onDealConfirmed={handleDealConfirmed} />}
+        {renderScreen(screen, {
+          onNavigateToClient: handleNavigateToClient,
+          onDealConfirmed:    handleDealConfirmed,
+          onNavigate:         setScreen,
+          initialSearch:      clientSearch,
+          confirmedDeals:     confirmedDeals,
+        })}
       </div>
-    </div>
-  );
-}
-
-function ScreenPlaceholder({ navKey }: { navKey: keyof Translations }) {
-  const t = useT();
-  return (
-    <div style={{ flex: 1, display: "grid", placeItems: "center", background: "var(--bg-cream)" }}>
-      <div style={{ textAlign: "center" }}>
-        <div className="font-display" style={{ fontSize: 36, color: "var(--ink-4)" }}>{t[navKey] as string}</div>
-        <div style={{ fontSize: 13, marginTop: 8, color: "var(--ink-4)" }}>{t.coming_soon}</div>
-      </div>
+      <GlobalSearch
+        onNavigate={setScreen}
+        onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
+      />
     </div>
   );
 }

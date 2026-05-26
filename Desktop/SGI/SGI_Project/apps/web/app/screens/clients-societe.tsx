@@ -1,6 +1,6 @@
 "use client";
 import React, { useState } from "react";
-import { Topbar, Ic, IcPhone, IcMail } from "@/components/sgi-ui";
+import { Topbar, Ic, IcPhone, IcMail, ConfirmModal } from "@/components/sgi-ui";
 import { DealWizard, type ConfirmedDeal } from "@/components/deal-wizard";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
@@ -280,6 +280,7 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
     setNewDocDate(new Date().toISOString().slice(0, 10)); setNewDocExp("");
   }
   function deleteDoc(index: number) { setDocs(prev => prev.filter((_, i) => i !== index)); }
+  const [toDelete, setToDelete] = useState<number | null>(null);
   const payments = mockPayments(company);
 
   const lbl = (en: string, ar: string, fr: string) => lang === "ar" ? ar : lang === "fr" ? fr : en;
@@ -489,7 +490,7 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
                           </span>
                         </td>
                         <td style={{ ...tdStyle, textAlign: "end" }}>
-                          <button onClick={() => deleteDoc(i)} title={lbl("Delete", "حذف", "Supprimer")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, borderRadius: 6, display: "inline-flex", alignItems: "center" }}
+                          <button onClick={() => setToDelete(i)} title={lbl("Delete", "حذف", "Supprimer")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, borderRadius: 6, display: "inline-flex", alignItems: "center" }}
                             onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--rose)"}
                             onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-4)"}>
                             <Ic s={14}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></Ic>
@@ -793,6 +794,17 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
         </div>
       )}
 
+      {/* Delete confirmation */}
+      <ConfirmModal
+        open={toDelete !== null}
+        title={lbl("Delete Document", "حذف الوثيقة", "Supprimer le document")}
+        message={lbl("Are you sure you want to delete this document? This cannot be undone.", "هل أنت متأكد من حذف هذه الوثيقة؟ لا يمكن التراجع.", "Voulez-vous vraiment supprimer ce document ? Cette action est irréversible.")}
+        confirmLabel={lbl("Delete", "حذف", "Supprimer")}
+        cancelLabel={lbl("Cancel", "إلغاء", "Annuler")}
+        onConfirm={() => { if (toDelete !== null) deleteDoc(toDelete); setToDelete(null); }}
+        onCancel={() => setToDelete(null)}
+      />
+
       {/* Add Document Modal */}
       {showAddDoc && (
         <div onClick={() => setShowAddDoc(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -808,10 +820,13 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
               <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px", border: "2px dashed var(--line-soft)", borderRadius: "var(--r)", cursor: "pointer", background: "var(--bg-cream)", color: "var(--ink-4)", textAlign: "center" }}>
                 <Ic s={28}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Ic>
                 <span style={{ fontSize: 12 }}>{lbl("Drag & drop or click to upload", "اسحب الملف أو انقر للرفع", "Glisser-déposer ou cliquer pour téléverser")}</span>
-                <span style={{ fontSize: 10.5, opacity: 0.7 }}>PDF, JPG, PNG — max 20 MB</span>
-                <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => {
+                <span style={{ fontSize: 10.5, opacity: 0.7 }}>PDF, JPG, PNG, DOC, DOCX — max 10 MB</span>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" style={{ display: "none" }} onChange={e => {
                   const f = e.target.files?.[0];
-                  if (f) setNewDocName(f.name.replace(/\.[^.]+$/, ""));
+                  if (f) {
+                    if (f.size > 10 * 1024 * 1024) { alert(lbl("File too large (max 10 MB)", "حجم الملف يتجاوز 10 ميغابايت", "Fichier trop volumineux (max 10 Mo)")); e.target.value = ""; return; }
+                    setNewDocName(f.name.replace(/\.[^.]+$/, ""));
+                  }
                 }} />
               </label>
               {/* Name */}

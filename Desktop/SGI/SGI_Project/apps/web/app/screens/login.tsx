@@ -1,8 +1,7 @@
 "use client";
-import React, { useState, useEffect } from "react";
-import { Wordmark, Eyebrow, IcChevR, IcCheck, IcLock, IcClock } from "@/components/sgi-ui";
+import React, { useState } from "react";
+import { Wordmark, IcChevR, IcLock } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
-import { useBreakpoint } from "@/lib/hooks";
 import { apiLogin } from "@/lib/auth";
 import type { Lang } from "@/lib/i18n";
 
@@ -13,34 +12,60 @@ const inputStyle: React.CSSProperties = {
   outline: "none", fontFamily: "Roboto, system-ui, sans-serif",
 };
 
-/* ─── Language picker bar ────────────────────────────────────────── */
-function LangBar() {
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: 11.5, letterSpacing: "0.06em",
+  color: "var(--ink-3)", textTransform: "uppercase", fontWeight: 500, marginBottom: 6,
+};
+
+/* ─── Background geometric pattern ──────────────────────────────────── */
+function BgPattern() {
+  return (
+    <svg
+      aria-hidden="true"
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.045, pointerEvents: "none" }}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <pattern id="geo" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+          <rect x="0" y="0" width="60" height="60" fill="none" />
+          <line x1="0" y1="30" x2="60" y2="30" stroke="var(--gold)" strokeWidth="0.5" />
+          <line x1="30" y1="0" x2="30" y2="60" stroke="var(--gold)" strokeWidth="0.5" />
+          <circle cx="30" cy="30" r="1.5" fill="var(--gold)" />
+          <circle cx="0"  cy="0"  r="1"   fill="var(--gold)" />
+          <circle cx="60" cy="0"  r="1"   fill="var(--gold)" />
+          <circle cx="0"  cy="60" r="1"   fill="var(--gold)" />
+          <circle cx="60" cy="60" r="1"   fill="var(--gold)" />
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill="url(#geo)" />
+    </svg>
+  );
+}
+
+/* ─── Language switcher (compact, centred) ───────────────────────────── */
+function LangSwitcher() {
   const { lang, setLang } = useLang();
-  const t = useT();
   const opts: { code: Lang; flag: string; label: string }[] = [
-    { code: "ar", flag: "🇦🇪", label: t.lang_ar },
-    { code: "en", flag: "🇬🇧", label: t.lang_en },
-    { code: "fr", flag: "🇫🇷", label: t.lang_fr },
+    { code: "ar", flag: "🇦🇪", label: "العربية" },
+    { code: "en", flag: "🇬🇧", label: "English" },
+    { code: "fr", flag: "🇫🇷", label: "Français" },
   ];
   return (
-    <div style={{
-      height: 48, flexShrink: 0, paddingInlineStart: 24, paddingInlineEnd: 24,
-      background: "var(--bg-base)", borderBottom: "1px solid var(--line-soft)",
-      display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6,
-    }}>
+    <div style={{ display: "flex", justifyContent: "center", gap: 6 }}>
       {opts.map(o => (
         <button
           key={o.code}
+          type="button"
           onClick={() => setLang(o.code)}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 6,
-            padding: "5px 12px", borderRadius: "var(--r-sm)",
-            fontSize: 12, fontWeight: lang === o.code ? 600 : 400,
+            display: "inline-flex", alignItems: "center", gap: 5,
+            padding: "5px 10px", borderRadius: "var(--r-sm)",
+            fontSize: 11.5, fontWeight: lang === o.code ? 600 : 400,
             border: "1px solid",
             borderColor: lang === o.code ? "var(--gold)" : "var(--line-soft)",
             background: lang === o.code ? "var(--gold-ghost)" : "transparent",
             color: lang === o.code ? "var(--gold-deep)" : "var(--ink-3)",
-            cursor: "pointer",
+            cursor: "pointer", transition: "all 0.15s",
           }}
         >
           <span>{o.flag}</span>
@@ -51,131 +76,11 @@ function LangBar() {
   );
 }
 
-/* ─── Left panel — desktop only ──────────────────────────────────── */
-function LeftPanel() {
-  const t = useT();
-  const { lang } = useLang();
-  const [now, setNow] = useState<Date>(() => new Date());
-  const [lastLoginRaw,  setLastLoginRaw]  = useState<string | null>(null);
-  const [lastLogoutRaw, setLastLogoutRaw] = useState<string | null>(null);
-
-  useEffect(() => {
-    setLastLoginRaw(localStorage.getItem("sgi_last_login"));
-    setLastLogoutRaw(localStorage.getItem("sgi_last_logout"));
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  const locale = lang === "ar" ? "ar-AE" : lang === "fr" ? "fr-FR" : "en-AE";
-  const timeStr = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-  const dateStr = now.toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-
-  function formatLastLogin(iso: string): string {
-    const d = new Date(iso);
-    const t2 = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const loginDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const diff = Math.round((today.getTime() - loginDay.getTime()) / 86400000);
-    if (diff === 0) return lang === "ar" ? `اليوم · ${t2}` : lang === "fr" ? `Aujourd'hui · ${t2}` : `Today · ${t2}`;
-    if (diff === 1) return lang === "ar" ? `أمس · ${t2}` : lang === "fr" ? `Hier · ${t2}` : `Yesterday · ${t2}`;
-    return `${d.toLocaleDateString(locale, { day: "numeric", month: "short" })} · ${t2}`;
-  }
-
-  return (
-    <div style={{
-      flex: 1.05, padding: "56px 64px",
-      display: "flex", flexDirection: "column",
-      background: "var(--bg-cream)",
-      borderInlineEnd: "1px solid var(--line)",
-      position: "relative",
-    }}>
-      <Wordmark />
-      <div style={{ marginTop: "auto", marginBottom: "auto", display: "flex", flexDirection: "column", gap: 28, maxWidth: 520 }}>
-        <Eyebrow>{t.hero_eyebrow}</Eyebrow>
-        <div>
-          <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 44 : 56, lineHeight: 1.05, letterSpacing: "-0.01em" }}>
-            {t.hero_title}
-          </div>
-          <div style={{ fontSize: 14, color: "var(--ink-3)", lineHeight: 1.7, marginTop: 18, maxWidth: 460 }}>
-            {t.hero_sub}
-          </div>
-        </div>
-        <div style={{ display: "flex", gap: 28, paddingTop: 22, borderTop: "1px solid var(--line)" }}>
-          {[
-            { n: t.hero_s1_n, l: t.hero_s1_l },
-            { n: t.hero_s2_n, l: t.hero_s2_l },
-            { n: t.hero_s3_n, l: t.hero_s3_l },
-          ].map(s => (
-            <div key={s.l}>
-              <div className="font-display tnum" style={{ fontSize: 26, color: "var(--ink)" }}>{s.n}</div>
-              <div style={{ fontSize: 10.5, letterSpacing: "0.16em", color: "var(--ink-4)", textTransform: "uppercase", marginTop: 4 }}>{s.l}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Live clock + Last login */}
-        <div style={{
-          padding: "16px 20px",
-          background: "var(--bg-paper)",
-          borderRadius: "var(--r)",
-          border: "1px solid var(--line-soft)",
-          display: "flex", flexDirection: "column", gap: 12,
-        }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <span style={{ color: "var(--gold-deep)", opacity: 0.8, flexShrink: 0 }}><IcClock /></span>
-            <div>
-              <div className="font-display tnum" style={{ fontSize: 24, color: "var(--ink)", letterSpacing: "0.06em", lineHeight: 1.1 }}>
-                {timeStr}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 3, textTransform: "capitalize" }}>
-                {dateStr}
-              </div>
-            </div>
-          </div>
-          {lastLoginRaw && (
-            <div style={{
-              paddingTop: 12, borderTop: "1px solid var(--line-soft)",
-              display: "flex", alignItems: "center", gap: 8,
-              fontSize: 11.5, color: "var(--ink-3)",
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--emerald)", flexShrink: 0, display: "inline-block" }} />
-              <span>
-                {lang === "ar" ? "آخر تسجيل دخول: " : lang === "fr" ? "Dernière connexion : " : "Last login: "}
-                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{formatLastLogin(lastLoginRaw)}</span>
-              </span>
-            </div>
-          )}
-          {lastLogoutRaw && (
-            <div style={{
-              paddingTop: 10, borderTop: "1px solid var(--line-soft)",
-              display: "flex", alignItems: "center", gap: 8,
-              fontSize: 11.5, color: "var(--ink-3)",
-            }}>
-              <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--rose)", flexShrink: 0, display: "inline-block" }} />
-              <span>
-                {lang === "ar" ? "آخر تسجيل خروج: " : lang === "fr" ? "Dernière déconnexion : " : "Last logout: "}
-                <span style={{ color: "var(--ink)", fontWeight: 500 }}>{formatLastLogin(lastLogoutRaw)}</span>
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.08em" }}>
-        <span>© 2026 · Infinity International FM</span>
-        <span>DUBAI · ABU DHABI · SHARJAH</span>
-      </div>
-      <svg width="120" height="120" viewBox="0 0 120 120" style={{ position: "absolute", top: 40, insetInlineEnd: 48, opacity: 0.4 }}>
-        <path d="M10 10 L110 10 L110 30 M10 10 L10 30" stroke="var(--gold)" strokeWidth="1" fill="none" />
-        <path d="M10 110 L110 110 L110 90 M10 110 L10 90" stroke="var(--gold)" strokeWidth="1" fill="none" />
-      </svg>
-    </div>
-  );
-}
-
-/* ─── Main screen ────────────────────────────────────────────────── */
+/* ─── Main screen ────────────────────────────────────────────────────── */
 export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   const t = useT();
+  const { lang } = useLang();
+
   const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
 
   const [loginVal,     setLoginVal]     = useState("login");
@@ -183,19 +88,18 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
-  const [resetEmail,    setResetEmail]    = useState("");
-  const [resetLoading,  setResetLoading]  = useState(false);
-  const [lastLogoutMob, setLastLogoutMob] = useState<string | null>(null);
+  const [resetEmail,   setResetEmail]   = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
 
-  const { lang, setLang } = useLang();
+  const loginTitle =
+    lang === "ar" ? "تسجيل الدخول" :
+    lang === "fr" ? "Connexion"     :
+    "Sign in";
 
-  const bp = useBreakpoint();
-  const isMob = bp === "mobile";
-  const isCompact = bp !== "desktop";
-
-  useEffect(() => {
-    setLastLogoutMob(localStorage.getItem("sgi_last_logout"));
-  }, []);
+  const loginSubtitle =
+    lang === "ar" ? "مرحباً بك في INFINITY Workspace" :
+    lang === "fr" ? "Bienvenue dans INFINITY Workspace" :
+    "Welcome to INFINITY Workspace";
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -222,300 +126,262 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   }
 
   return (
-    <div style={{ width: "100%", height: "100vh", display: "flex", flexDirection: "column", background: "var(--bg-base)", color: "var(--ink)" }}>
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Left panel: visible on desktop only */}
-        {!isCompact && <LeftPanel />}
+    <div style={{
+      width: "100%", height: "100vh",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: "var(--bg-base)", color: "var(--ink)",
+      position: "relative", overflow: "hidden",
+    }}>
+      {/* Subtle geometric background */}
+      <BgPattern />
 
-        {/* Right panel */}
-        <div style={{
-          flex: 1,
-          padding: isMob ? "28px 20px" : isCompact ? "48px" : "80px",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "flex-start",
-          alignItems: "stretch",
-          background: "var(--bg-paper)",
-          overflow: "auto",
-        }}>
-          {/* Wordmark replaces the hidden left panel on compact */}
-          {isCompact && (
-            <div style={{ marginBottom: 28, flexShrink: 0 }}>
-              <Wordmark />
-            </div>
-          )}
+      {/* Centred card */}
+      <div style={{
+        position: "relative", zIndex: 1,
+        width: "min(420px, 90vw)",
+        padding: "clamp(28px, 5vw, 40px)",
+        background: "var(--bg-paper)",
+        border: "1px solid var(--line-soft)",
+        borderRadius: 16,
+        boxShadow: "var(--shadow-3)",
+        display: "flex", flexDirection: "column", gap: 0,
+      }}>
 
-          {/* Inner centering wrapper */}
-          <div style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: isCompact ? "flex-start" : "center",
-            maxWidth: 380,
-            width: "100%",
-            alignSelf: isCompact ? undefined : "center",
-          }}>
+        {/* ── Card header: logo + subtitle + lang switcher ── */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginBottom: 20 }}>
+          <Wordmark />
+          <div style={{ fontSize: 11, color: "var(--ink-4)", letterSpacing: "0.12em", textTransform: "uppercase", marginTop: 4 }}>
+            INFINITY Workspace
+          </div>
+        </div>
 
-            {/* Language switcher */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 32 }}>
-              {([
-                { code: "ar" as const, flag: "🇦🇪", label: "العربية" },
-                { code: "en" as const, flag: "🇬🇧", label: "English" },
-                { code: "fr" as const, flag: "🇫🇷", label: "Français" },
-              ]).map(o => (
-                <button
-                  key={o.code}
-                  type="button"
-                  onClick={() => setLang(o.code)}
-                  style={{
-                    flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
-                    padding: "8px 0", borderRadius: "var(--r)",
-                    fontSize: 12, fontWeight: lang === o.code ? 600 : 400,
-                    border: "1px solid",
-                    borderColor: lang === o.code ? "var(--gold)" : "var(--line-soft)",
-                    background: lang === o.code ? "var(--gold-ghost)" : "var(--bg-ivory)",
-                    color: lang === o.code ? "var(--gold-deep)" : "var(--ink-3)",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <span>{o.flag}</span>
-                  <span className={o.code === "ar" ? "font-ar" : undefined}>{o.label}</span>
-                </button>
-              ))}
+        <div style={{ marginBottom: 20 }}>
+          <LangSwitcher />
+        </div>
+
+        <div style={{ height: 1, background: "var(--line-soft)", marginBottom: 24 }} />
+
+        {/* ═══════════════════════════════════════════════
+            MODE: login
+        ════════════════════════════════════════════════ */}
+        {mode === "login" && (
+          <form onSubmit={handleLogin}>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div
+                className={lang === "ar" ? "font-ar" : "font-display"}
+                style={{ fontSize: 28, lineHeight: 1.15, color: "var(--ink)" }}
+              >
+                {loginTitle}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 6 }}>
+                {loginSubtitle}
+              </div>
             </div>
 
-            {/* ── Login ─────────────────────────────────────────────── */}
-            {mode === "login" && (
-              <form onSubmit={handleLogin} style={{ width: "100%" }}>
-                <Eyebrow>{t.login_title}</Eyebrow>
-                <div className="font-display" style={{ fontSize: isMob ? 26 : 36, marginTop: 12, color: "var(--ink)" }}>
-                  {t.login_sub}
-                </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              {/* Login */}
+              <div>
+                <label style={labelStyle}>{t.login_label}</label>
+                <input
+                  type="text"
+                  value={loginVal}
+                  onChange={e => setLoginVal(e.target.value)}
+                  placeholder={t.login_ph}
+                  autoComplete="username"
+                  style={{ ...inputStyle, borderColor: loginError ? "var(--rose)" : "var(--line)" }}
+                />
+              </div>
 
-                <div style={{ marginTop: 36, display: "flex", flexDirection: "column", gap: 18 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: 11.5, letterSpacing: "0.06em", color: "var(--ink-3)", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
-                      {t.login_label}
-                    </label>
-                    <input
-                      type="text"
-                      value={loginVal}
-                      onChange={e => setLoginVal(e.target.value)}
-                      placeholder={t.login_ph}
-                      autoComplete="username"
-                      style={{ ...inputStyle, borderColor: loginError ? "var(--rose)" : "var(--line)" }}
-                    />
-                  </div>
-
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                      <label style={{ fontSize: 11.5, letterSpacing: "0.06em", color: "var(--ink-3)", textTransform: "uppercase", fontWeight: 500 }}>
-                        {t.pass_label}
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => { setLoginError(""); setMode("forgot"); }}
-                        style={{ background: "none", border: "none", padding: 0, color: "var(--gold-deep)", fontSize: 11, letterSpacing: "0.04em", cursor: "pointer" }}
-                      >
-                        {t.forgot}
-                      </button>
-                    </div>
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      autoComplete="current-password"
-                      style={{ ...inputStyle, borderColor: loginError ? "var(--rose)" : "var(--line)" }}
-                    />
-                  </div>
-
-                  {loginError && (
-                    <div style={{ padding: "10px 14px", background: "var(--rose-soft)", border: "1px solid var(--rose)", borderRadius: "var(--r)", fontSize: 12, color: "var(--rose)", lineHeight: 1.4 }}>
-                      {loginError}
-                    </div>
-                  )}
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "var(--ink-3)" }}>
-                    <span style={{ width: 14, height: 14, borderRadius: 3, border: "1px solid var(--gold)", background: "var(--gold-ghost)", display: "grid", placeItems: "center", color: "var(--gold-deep)", flexShrink: 0 }}>
-                      <IcCheck />
-                    </span>
-                    {t.keep_signed}
-                  </div>
-
+              {/* Password */}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+                  <label style={{ ...labelStyle, marginBottom: 0 }}>{t.pass_label}</label>
                   <button
-                    type="submit"
-                    disabled={loginLoading}
-                    className="sgi-btn sgi-btn-primary"
-                    style={{ height: 46, justifyContent: "center", marginTop: 4, fontSize: 13.5, letterSpacing: "0.04em", opacity: loginLoading ? 0.7 : 1 }}
+                    type="button"
+                    onClick={() => { setLoginError(""); setMode("forgot"); }}
+                    style={{ background: "none", border: "none", padding: 0, color: "var(--gold-deep)", fontSize: 11, letterSpacing: "0.04em", cursor: "pointer" }}
                   >
-                    {loginLoading ? t.signing_in : <>{t.continue_ws} <IcChevR /></>}
-                  </button>
-
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-4)", fontSize: 11, letterSpacing: "0.18em", margin: "6px 0" }}>
-                    <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
-                    {t.or}
-                    <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
-                  </div>
-
-                  <button type="button" className="sgi-btn sgi-btn-ghost" style={{ height: 44, justifyContent: "center", fontSize: 12.5 }}>
-                    <span style={{ color: "var(--gold-deep)", display: "inline-flex" }}><IcLock /></span>&nbsp;
-                    {t.sso}
+                    {t.forgot}
                   </button>
                 </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  autoComplete="current-password"
+                  style={{ ...inputStyle, borderColor: loginError ? "var(--rose)" : "var(--line)" }}
+                />
+              </div>
 
-                <div style={{ marginTop: 40, paddingTop: 22, borderTop: "1px solid var(--line)", display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-4)", flexWrap: "wrap", gap: 8 }}>
-                  <span>{t.need_access} <span style={{ color: "var(--gold-deep)", cursor: "pointer" }}>{t.contact_manager}</span></span>
-                  <span>v 2.4 · stable</span>
+              {loginError && (
+                <div style={{ padding: "10px 14px", background: "var(--rose-soft)", border: "1px solid var(--rose)", borderRadius: "var(--r)", fontSize: 12, color: "var(--rose)", lineHeight: 1.4 }}>
+                  {loginError}
                 </div>
+              )}
 
-                {isCompact && lastLogoutMob && (
-                  <div style={{ marginTop: 18, display: "flex", alignItems: "center", gap: 8, fontSize: 11.5, color: "var(--ink-3)" }}>
-                    <span style={{ width: 6, height: 6, borderRadius: 3, background: "var(--rose)", flexShrink: 0, display: "inline-block" }} />
-                    <span>
-                      {lang === "ar" ? "آخر تسجيل خروج: " : lang === "fr" ? "Dernière déconnexion : " : "Last logout: "}
-                      <span style={{ color: "var(--ink)", fontWeight: 500 }}>
-                        {(() => {
-                          const d = new Date(lastLogoutMob);
-                          const t2 = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
-                          const today = new Date(); today.setHours(0,0,0,0);
-                          const day   = new Date(d); day.setHours(0,0,0,0);
-                          const diff  = Math.round((today.getTime() - day.getTime()) / 86400000);
-                          if (diff === 0) return lang === "ar" ? `اليوم · ${t2}` : lang === "fr" ? `Aujourd'hui · ${t2}` : `Today · ${t2}`;
-                          if (diff === 1) return lang === "ar" ? `أمس · ${t2}`   : lang === "fr" ? `Hier · ${t2}`         : `Yesterday · ${t2}`;
-                          return `${d.toLocaleDateString(lang === "ar" ? "ar-AE" : lang === "fr" ? "fr-FR" : "en-AE", { day: "numeric", month: "short" })} · ${t2}`;
-                        })()}
-                      </span>
-                    </span>
-                  </div>
-                )}
-              </form>
-            )}
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="sgi-btn sgi-btn-primary"
+                style={{ height: 48, justifyContent: "center", marginTop: 4, fontSize: 13.5, letterSpacing: "0.04em", opacity: loginLoading ? 0.7 : 1, width: "100%" }}
+              >
+                {loginLoading ? t.signing_in : <>{t.continue_ws} <IcChevR /></>}
+              </button>
 
-            {/* ── Forgot password ───────────────────────────────────── */}
-            {mode === "forgot" && (
-              <form onSubmit={handleForgot} style={{ width: "100%" }}>
-                <button
-                  type="button"
-                  onClick={() => setMode("login")}
-                  style={{ background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--ink-4)", cursor: "pointer", marginBottom: 28, letterSpacing: "0.04em" }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M15 18l-6-6 6-6" />
-                  </svg>
-                  {t.forgot_back}
-                </button>
+              {/* OR divider */}
+              <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-4)", fontSize: 11, letterSpacing: "0.18em", margin: "2px 0" }}>
+                <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
+                {t.or}
+                <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
+              </div>
 
-                <Eyebrow>{t.forgot_title}</Eyebrow>
-                <div className="font-display" style={{ fontSize: isMob ? 26 : 34, marginTop: 12, color: "var(--ink)" }}>{t.forgot_title}</div>
-                <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 8, lineHeight: 1.65 }}>{t.forgot_sub}</div>
+              {/* SSO */}
+              <button type="button" className="sgi-btn sgi-btn-ghost" style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%" }}>
+                <span style={{ color: "var(--gold-deep)", display: "inline-flex" }}><IcLock /></span>&nbsp;
+                {t.sso}
+              </button>
+            </div>
 
-                <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 18 }}>
-                  <div>
-                    <label style={{ display: "block", fontSize: 11.5, letterSpacing: "0.06em", color: "var(--ink-3)", textTransform: "uppercase", fontWeight: 500, marginBottom: 6 }}>
-                      {t.email_label}
-                    </label>
-                    <input
-                      type="email"
-                      value={resetEmail}
-                      onChange={e => setResetEmail(e.target.value)}
-                      placeholder={t.email_ph}
-                      required
-                      autoFocus
-                      autoComplete="email"
-                      style={inputStyle}
-                    />
-                  </div>
+            {/* Footer */}
+            <div style={{ marginTop: 28, paddingTop: 18, borderTop: "1px solid var(--line-soft)", display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ink-4)", flexWrap: "wrap", gap: 6 }}>
+              <span>{t.need_access} <span style={{ color: "var(--gold-deep)", cursor: "pointer" }}>{t.contact_manager}</span></span>
+              <span>v 2.4 · stable</span>
+            </div>
+          </form>
+        )}
 
-                  <button
-                    type="submit"
-                    disabled={resetLoading || !resetEmail.trim()}
-                    className="sgi-btn sgi-btn-primary"
-                    style={{ height: 46, justifyContent: "center", fontSize: 13.5, letterSpacing: "0.04em", opacity: (resetLoading || !resetEmail.trim()) ? 0.65 : 1 }}
-                  >
-                    {resetLoading ? (
-                      <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: "spin 0.8s linear infinite" }}>
-                          <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                        </svg>
-                        {t.sending}
-                      </span>
-                    ) : t.send_link}
-                  </button>
-                </div>
+        {/* ═══════════════════════════════════════════════
+            MODE: forgot
+        ════════════════════════════════════════════════ */}
+        {mode === "forgot" && (
+          <form onSubmit={handleForgot}>
+            <button
+              type="button"
+              onClick={() => setMode("login")}
+              style={{ background: "none", border: "none", padding: 0, display: "flex", alignItems: "center", gap: 6, fontSize: 11.5, color: "var(--ink-4)", cursor: "pointer", marginBottom: 24, letterSpacing: "0.04em" }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+              {t.forgot_back}
+            </button>
 
-                <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid var(--line)", fontSize: 11, color: "var(--ink-4)" }}>
-                  {t.remember_pw}{" "}
-                  <button type="button" onClick={() => setMode("login")} style={{ background: "none", border: "none", padding: 0, color: "var(--gold-deep)", cursor: "pointer", fontSize: 11 }}>
-                    {t.sign_in}
-                  </button>
-                </div>
+            <div style={{ textAlign: "center", marginBottom: 28 }}>
+              <div className="font-display" style={{ fontSize: 26, lineHeight: 1.15, color: "var(--ink)" }}>
+                {t.forgot_title}
+              </div>
+              <div style={{ fontSize: 13, color: "var(--ink-3)", marginTop: 8, lineHeight: 1.6 }}>
+                {t.forgot_sub}
+              </div>
+            </div>
 
-                <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-              </form>
-            )}
+            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>{t.email_label}</label>
+                <input
+                  type="email"
+                  value={resetEmail}
+                  onChange={e => setResetEmail(e.target.value)}
+                  placeholder={t.email_ph}
+                  required
+                  autoFocus
+                  autoComplete="email"
+                  style={inputStyle}
+                />
+              </div>
 
-            {/* ── Sent confirmation ─────────────────────────────────── */}
-            {mode === "sent" && (
-              <div style={{ width: "100%" }}>
-                <div style={{
-                  width: 56, height: 56, borderRadius: 28,
-                  background: "var(--emerald-soft)", border: "1px solid var(--emerald)",
-                  display: "grid", placeItems: "center", color: "var(--emerald)", marginBottom: 24,
-                }}>
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M22 12h-6l-2 3h-4l-2-3H2" />
-                    <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
-                  </svg>
-                </div>
+              <button
+                type="submit"
+                disabled={resetLoading || !resetEmail.trim()}
+                className="sgi-btn sgi-btn-primary"
+                style={{ height: 48, justifyContent: "center", fontSize: 13.5, letterSpacing: "0.04em", opacity: (resetLoading || !resetEmail.trim()) ? 0.65 : 1, width: "100%" }}
+              >
+                {resetLoading ? (
+                  <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ animation: "spin 0.8s linear infinite" }}>
+                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                    </svg>
+                    {t.sending}
+                  </span>
+                ) : t.send_link}
+              </button>
+            </div>
 
-                <Eyebrow>{t.sent_title}</Eyebrow>
-                <div className="font-display" style={{ fontSize: isMob ? 26 : 34, marginTop: 12, color: "var(--ink)" }}>{t.sent_title}</div>
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid var(--line-soft)", fontSize: 11, color: "var(--ink-4)" }}>
+              {t.remember_pw}{" "}
+              <button type="button" onClick={() => setMode("login")} style={{ background: "none", border: "none", padding: 0, color: "var(--gold-deep)", cursor: "pointer", fontSize: 11 }}>
+                {t.sign_in}
+              </button>
+            </div>
 
-                <div style={{ marginTop: 14, fontSize: 13, color: "var(--ink-3)", lineHeight: 1.7 }}>
+            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          </form>
+        )}
+
+        {/* ═══════════════════════════════════════════════
+            MODE: sent
+        ════════════════════════════════════════════════ */}
+        {mode === "sent" && (
+          <div>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16, marginBottom: 24 }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 28,
+                background: "var(--emerald-soft)", border: "1px solid var(--emerald)",
+                display: "grid", placeItems: "center", color: "var(--emerald)",
+              }}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 12h-6l-2 3h-4l-2-3H2" />
+                  <path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z" />
+                </svg>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <div className="font-display" style={{ fontSize: 26, color: "var(--ink)" }}>{t.sent_title}</div>
+                <div style={{ marginTop: 10, fontSize: 13, color: "var(--ink-3)", lineHeight: 1.7 }}>
                   {t.sent_sub}{" "}
                   <span style={{ color: "var(--ink)", fontWeight: 600 }}>{resetEmail}</span>.
                   <br />
                   {t.sent_link_valid}
                 </div>
-
-                <div style={{
-                  marginTop: 24, padding: "14px 16px",
-                  background: "var(--emerald-soft)", border: "1px solid var(--emerald)",
-                  borderRadius: "var(--r)", fontSize: 12.5, color: "var(--emerald)", lineHeight: 1.6,
-                }}>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{t.sent_no_email}</div>
-                  {t.sent_check_spam}
-                </div>
-
-                <div style={{ marginTop: 28, display: "flex", flexDirection: "column", gap: 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => { setResetLoading(true); handleForgot(new Event("submit") as unknown as React.FormEvent); }}
-                    className="sgi-btn sgi-btn-ghost"
-                    style={{ height: 44, justifyContent: "center", fontSize: 12.5 }}
-                  >
-                    {t.resend}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setMode("login"); setResetEmail(""); }}
-                    className="sgi-btn sgi-btn-primary"
-                    style={{ height: 44, justifyContent: "center", fontSize: 12.5 }}
-                  >
-                    {t.back_login}
-                  </button>
-                </div>
-
-                <div style={{ marginTop: 32, paddingTop: 20, borderTop: "1px solid var(--line)", fontSize: 11, color: "var(--ink-4)" }}>
-                  {t.need_help} <span style={{ color: "var(--gold-deep)", cursor: "pointer" }}>{t.contact_support}</span>
-                </div>
               </div>
-            )}
+            </div>
 
+            <div style={{
+              padding: "14px 16px",
+              background: "var(--emerald-soft)", border: "1px solid var(--emerald)",
+              borderRadius: "var(--r)", fontSize: 12.5, color: "var(--emerald)", lineHeight: 1.6,
+              marginBottom: 20,
+            }}>
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>{t.sent_no_email}</div>
+              {t.sent_check_spam}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => { setResetLoading(true); handleForgot(new Event("submit") as unknown as React.FormEvent); }}
+                className="sgi-btn sgi-btn-ghost"
+                style={{ height: 44, justifyContent: "center", fontSize: 12.5, width: "100%" }}
+              >
+                {t.resend}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setMode("login"); setResetEmail(""); }}
+                className="sgi-btn sgi-btn-primary"
+                style={{ height: 44, justifyContent: "center", fontSize: 12.5, width: "100%" }}
+              >
+                {t.back_login}
+              </button>
+            </div>
+
+            <div style={{ marginTop: 24, paddingTop: 18, borderTop: "1px solid var(--line-soft)", fontSize: 11, color: "var(--ink-4)" }}>
+              {t.need_help} <span style={{ color: "var(--gold-deep)", cursor: "pointer" }}>{t.contact_support}</span>
+            </div>
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   );

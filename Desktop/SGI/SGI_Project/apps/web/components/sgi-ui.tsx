@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
@@ -74,6 +74,16 @@ export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7
 export const IcTravail   = () => <Ic><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M12 12h.01M2 12h20"/></Ic>;
 export const IcMarketing = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/><circle cx="19" cy="5" r="2"/><path d="M19 3v4M17 5h4"/></Ic>;
 export const IcNews      = () => <Ic><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></Ic>;
+export const IcHamburger = () => (
+  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <path d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+export const IcClose = () => (
+  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M18 6 6 18M6 6l12 12"/>
+  </svg>
+);
 
 /* ─── Logo ────────────────────────────────────────────────────────── */
 export function LogoMark({ size = 36 }: { size?: number }) {
@@ -250,6 +260,23 @@ function IcLogout() {
   );
 }
 
+/* ─── Focus ring shared style ─────────────────────────────────────── */
+const focusRingStyle: React.CSSProperties = {
+  outline: "none",
+};
+
+function useFocusRing() {
+  const [focused, setFocused] = useState(false);
+  return {
+    focused,
+    onFocus: () => setFocused(true),
+    onBlur: () => setFocused(false),
+    style: focused
+      ? { outline: "none", boxShadow: "0 0 0 3px rgba(184,146,79,0.28)" }
+      : focusRingStyle,
+  };
+}
+
 /* ─── Sidebar ─────────────────────────────────────────────────────── */
 export function Sidebar({ active, onNavigate, onLogout }: {
   active: string;
@@ -260,7 +287,9 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   const { lang } = useLang();
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
+  const isTab = bp === "tablet";
 
+  // On tablet, default to collapsed
   const [collapsed, setCollapsed] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -269,6 +298,12 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   const [statusBounds, setStatusBounds] = useState<DOMRect | null>(null);
   const currentStatus = STATUSES.find(s => s.key === status)!;
   const statusLabel = lang === "ar" ? currentStatus.label_ar : lang === "fr" ? currentStatus.label_fr : currentStatus.label_en;
+
+  // Auto-collapse on tablet
+  useEffect(() => {
+    if (isTab) setCollapsed(true);
+    else if (bp === "desktop") setCollapsed(false);
+  }, [isTab, bp]);
 
   /* Auto-open the group that contains the active child */
   useEffect(() => {
@@ -301,28 +336,61 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     return map[key];
   };
 
+  const handleNavigate = useCallback((key: string) => {
+    onNavigate(key);
+    if (isMob) setMobileOpen(false);
+  }, [onNavigate, isMob]);
+
   function NavItemRow({ icon, navKey, badge, isActive, isChild = false, labelOverride }: {
     icon: React.ReactElement; navKey: NavKey; badge?: number; isActive: boolean; isChild?: boolean; labelOverride?: string;
   }) {
     const col = collapsed && !isMob;
+    const label = labelOverride ?? navLabel(navKey);
+    const displayBadge = badge !== undefined ? (badge > 9 ? "9+" : badge) : undefined;
+    const [hovered, setHovered] = useState(false);
+
     return (
       <div
-        onClick={() => { onNavigate(navKey); if (isMob) setMobileOpen(false); }}
-        title={col ? (labelOverride ?? navLabel(navKey)) : undefined}
+        role="button"
+        tabIndex={0}
+        onClick={() => handleNavigate(navKey)}
+        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") handleNavigate(navKey); }}
+        aria-label={label}
+        aria-current={isActive ? "page" : undefined}
+        title={col ? label : undefined}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
         style={{
           display: "flex", alignItems: "center", gap: col ? 0 : 11,
           padding: col ? "10px 0" : isChild ? "8px 10px 8px 32px" : "9px 10px",
           justifyContent: col ? "center" : undefined,
           borderRadius: "var(--r)", cursor: "pointer",
-          background: isActive ? "var(--gold-ghost)" : "transparent",
-          color: isActive ? "var(--gold-deep)" : "var(--ink-2)",
+          background: isActive ? "var(--gold-ghost)" : hovered ? "var(--gold-ghost)" : "transparent",
+          color: isActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--ink-2)",
           position: "relative",
+          transition: "background 0.15s ease, color 0.15s ease",
+          overflowX: "hidden",
         }}
       >
+        {/* Active indicator bar */}
         {isActive && (
-          <div style={{ position: "absolute", insetInlineStart: 0, top: 6, bottom: 6, width: 2, background: "var(--gold)", borderRadius: 2 }} />
+          <div style={{
+            position: "absolute",
+            insetInlineStart: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 3,
+            height: "70%",
+            background: "var(--gold)",
+            borderRadius: 2,
+          }} />
         )}
-        <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: isActive ? "var(--gold-deep)" : "var(--ink-3)", flexShrink: 0, position: "relative" }}>
+        <span style={{
+          width: 18, height: 18, display: "grid", placeItems: "center",
+          color: isActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--ink-3)",
+          flexShrink: 0, position: "relative",
+          transition: "color 0.15s ease",
+        }}>
           {icon}
           {col && badge && (
             <span style={{ position: "absolute", top: -3, insetInlineEnd: -3, width: 7, height: 7, borderRadius: 4, background: "var(--gold)" }} />
@@ -332,11 +400,13 @@ export function Sidebar({ active, onNavigate, onLogout }: {
           <>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 13.5 : 14, fontWeight: 500, lineHeight: 1.2 }}>
-                {labelOverride ?? navLabel(navKey)}
+                {label}
               </div>
             </div>
-            {badge && (
-              <span className="tnum" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "var(--gold)", color: "#1A1610", fontWeight: 600 }}>{badge}</span>
+            {displayBadge !== undefined && (
+              <span className="tnum" style={{ fontSize: 10, padding: "2px 6px", borderRadius: 999, background: "var(--gold)", color: "#1A1610", fontWeight: 700, minWidth: 20, textAlign: "center" }}>
+                {displayBadge}
+              </span>
             )}
           </>
         )}
@@ -348,53 +418,91 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     const col = collapsed && !isMob;
     const isGroupActive = entry.children.some(c => c.key === active) || active === entry.groupKey;
     const isOpen = openGroup === entry.id;
+    const [hovered, setHovered] = useState(false);
+    const label = navLabel(entry.groupKey);
 
     return (
       <div>
         {/* Group header */}
         <div
+          role="button"
+          tabIndex={0}
           onClick={() => {
             onNavigate(entry.groupKey);
             setOpenGroup(p => p === entry.id ? null : entry.id);
             if (isMob) setMobileOpen(false);
           }}
-          title={col ? navLabel(entry.groupKey) : undefined}
+          onKeyDown={e => {
+            if (e.key === "Enter" || e.key === " ") {
+              onNavigate(entry.groupKey);
+              setOpenGroup(p => p === entry.id ? null : entry.id);
+              if (isMob) setMobileOpen(false);
+            }
+          }}
+          aria-label={label}
+          aria-expanded={isOpen}
+          title={col ? label : undefined}
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
           style={{
             display: "flex", alignItems: "center", gap: col ? 0 : 11,
             padding: col ? "10px 0" : "9px 10px",
             justifyContent: col ? "center" : undefined,
             borderRadius: "var(--r)", cursor: "pointer",
-            background: isGroupActive ? "var(--gold-ghost)" : "transparent",
-            color: isGroupActive ? "var(--gold-deep)" : "var(--ink-2)",
+            background: isGroupActive ? "var(--gold-ghost)" : hovered ? "var(--gold-ghost)" : "transparent",
+            color: isGroupActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--ink-2)",
             position: "relative",
+            transition: "background 0.15s ease, color 0.15s ease",
+            overflowX: "hidden",
           }}
         >
+          {/* Active indicator bar */}
           {isGroupActive && (
-            <div style={{ position: "absolute", insetInlineStart: 0, top: 6, bottom: 6, width: 2, background: "var(--gold)", borderRadius: 2 }} />
+            <div style={{
+              position: "absolute",
+              insetInlineStart: 0,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: 3,
+              height: "70%",
+              background: "var(--gold)",
+              borderRadius: 2,
+            }} />
           )}
-          <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: isGroupActive ? "var(--gold-deep)" : "var(--ink-3)", flexShrink: 0 }}>
+          <span style={{
+            width: 18, height: 18, display: "grid", placeItems: "center",
+            color: isGroupActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--ink-3)",
+            flexShrink: 0,
+            transition: "color 0.15s ease",
+          }}>
             {entry.icon}
           </span>
           {!col && (
             <>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 13.5 : 14, fontWeight: 500, lineHeight: 1.2 }}>
-                  {navLabel(entry.groupKey)}
+                  {label}
                 </div>
               </div>
-              <span style={{ color: "var(--ink-4)", transition: "transform 0.2s", display: "block", transform: isOpen ? "rotate(180deg)" : "none" }}>
+              <span style={{ color: "var(--ink-4)", transition: "transform 0.22s ease", display: "block", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
                 <IcChevD />
               </span>
             </>
           )}
         </div>
 
-        {/* Children */}
-        {!col && isOpen && (
-          <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2 }}>
-            {entry.children.map(child => (
-              <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />
-            ))}
+        {/* Children — smooth max-height animation */}
+        {!col && (
+          <div style={{
+            overflow: "hidden",
+            maxHeight: isOpen ? 400 : 0,
+            transition: "max-height 0.25s ease",
+          }}>
+            <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
+              {entry.children.map(child => (
+                <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />
+              ))}
+            </div>
           </div>
         )}
       </div>
@@ -405,7 +513,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     const col = collapsed && !isMob;
     return (
       <>
-        <div style={{ padding: col ? "12px 6px" : "14px 10px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto" }}>
+        <div style={{ padding: col ? "12px 6px" : "14px 10px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {!col && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
           {NAV_ENTRIES.map(entry => {
             if (entry.type === "item") {
@@ -432,7 +540,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                   <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>Hicham Sadiki</div>
                   <button
                     onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: currentStatus.color, letterSpacing: "0.04em", marginTop: 2 }}
+                    aria-label="Change status"
+                    style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 10.5, color: currentStatus.color, letterSpacing: "0.04em", marginTop: 2, outline: "none" }}
                   >
                     <span style={{ width: 6, height: 6, borderRadius: 3, background: currentStatus.color, display: "inline-block", flexShrink: 0 }} />
                     {statusLabel}
@@ -442,6 +551,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                   <button
                     onClick={onLogout}
                     title={t.logout}
+                    aria-label={t.logout}
                     style={{
                       width: 28, height: 28, borderRadius: "var(--r-sm)",
                       display: "grid", placeItems: "center",
@@ -475,14 +585,18 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   if (!isMob) {
     return (
       <>
-        <aside style={{
-          width: collapsed ? 62 : 232, flexShrink: 0,
-          background: "var(--bg-paper)",
-          borderInlineEnd: "1px solid var(--line-soft)",
-          display: "flex", flexDirection: "column", height: "100%",
-          transition: "width 0.22s ease",
-          overflow: "hidden",
-        }}>
+        <aside
+          role="navigation"
+          aria-label="Main navigation"
+          style={{
+            width: collapsed ? 62 : 232, flexShrink: 0,
+            background: "var(--bg-paper)",
+            borderInlineEnd: "1px solid var(--line-soft)",
+            display: "flex", flexDirection: "column", height: "100%",
+            transition: "width 0.25s ease",
+            overflow: "hidden",
+          }}
+        >
           {/* Header */}
           <div style={{
             padding: "16px 12px",
@@ -502,11 +616,13 @@ export function Sidebar({ active, onNavigate, onLogout }: {
             <button
               onClick={() => setCollapsed(c => !c)}
               title={collapsed ? "Expand" : "Collapse"}
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               style={{
                 flexShrink: 0, width: 26, height: 26, borderRadius: "var(--r-sm)",
                 display: "grid", placeItems: "center",
                 background: "transparent", border: "1px solid var(--line-soft)",
                 color: "var(--ink-4)", cursor: "pointer", transition: "all 0.15s",
+                outline: "none",
               }}
             >
               {collapsed ? <IcChevR /> : <IcChevL />}
@@ -522,8 +638,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
             <div style={{
               position: "fixed",
               bottom: window.innerHeight - statusBounds.top + 6,
-              left: lang !== "ar" ? statusBounds.left : undefined,
-              right: lang === "ar" ? (window.innerWidth - statusBounds.right) : undefined,
+              insetInlineStart: lang !== "ar" ? statusBounds.left : undefined,
+              insetInlineEnd: lang === "ar" ? (window.innerWidth - statusBounds.right) : undefined,
               width: 200, zIndex: 1000,
               background: "var(--bg-paper)",
               border: "1px solid var(--line-soft)",
@@ -536,7 +652,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
               </div>
               {STATUSES.map(s => (
                 <button key={s.key} onClick={() => { setStatus(s.key); setShowStatus(false); }}
-                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", background: status === s.key ? "var(--gold-ghost)" : "transparent", border: "none", cursor: "pointer", fontSize: 12.5, color: status === s.key ? "var(--gold-deep)" : "var(--ink-2)", textAlign: "start" }}
+                  style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 14px", background: status === s.key ? "var(--gold-ghost)" : "transparent", border: "none", cursor: "pointer", fontSize: 12.5, color: status === s.key ? "var(--gold-deep)" : "var(--ink-2)", textAlign: "start", transition: "background 0.12s ease" }}
                 >
                   <span style={{ width: 10, height: 10, borderRadius: 5, background: s.color, flexShrink: 0, display: "inline-block" }} />
                   <span style={{ flex: 1 }}>{lang === "ar" ? s.label_ar : lang === "fr" ? s.label_fr : s.label_en}</span>
@@ -556,17 +672,17 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       {/* Hamburger button */}
       <button
         onClick={() => setMobileOpen(true)}
+        aria-label="Open navigation menu"
         style={{
           position: "fixed", top: 14, insetInlineStart: 14, zIndex: 600,
           width: 38, height: 38, borderRadius: "var(--r)",
           display: "grid", placeItems: "center",
           background: "var(--bg-paper)", border: "1px solid var(--line-soft)",
           color: "var(--ink-2)", cursor: "pointer", boxShadow: "var(--shadow-1)",
+          outline: "none",
         }}
       >
-        <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-          <path d="M4 6h16M4 12h16M4 18h16" />
-        </svg>
+        <IcHamburger />
       </button>
 
       {/* Overlay + bottom sheet */}
@@ -576,28 +692,34 @@ export function Sidebar({ active, onNavigate, onLogout }: {
             onClick={() => setMobileOpen(false)}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 700, backdropFilter: "blur(2px)" }}
           />
-          <div style={{
-            position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 800,
-            background: "var(--bg-paper)",
-            borderRadius: "14px 14px 0 0",
-            maxHeight: "85vh", display: "flex", flexDirection: "column",
-            boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
-            animation: "slideUp 0.22s ease",
-          }}>
+          <nav
+            role="navigation"
+            aria-label="Main navigation"
+            style={{
+              position: "fixed", bottom: 0, insetInlineStart: 0, insetInlineEnd: 0, zIndex: 800,
+              background: "var(--bg-paper)",
+              borderRadius: "14px 14px 0 0",
+              maxHeight: "85vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 -8px 40px rgba(0,0,0,0.18)",
+              animation: "slideUp 0.22s ease",
+              overflowX: "hidden",
+            }}
+          >
             {/* Sheet handle + header */}
             <div style={{ padding: "10px 16px 12px", borderBottom: "1px solid var(--line-soft)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <Wordmark />
               <button
                 onClick={() => setMobileOpen(false)}
-                style={{ width: 30, height: 30, borderRadius: "var(--r-sm)", display: "grid", placeItems: "center", background: "transparent", border: "1px solid var(--line-soft)", color: "var(--ink-4)", cursor: "pointer" }}
+                aria-label="Close navigation menu"
+                style={{ width: 30, height: 30, borderRadius: "var(--r-sm)", display: "grid", placeItems: "center", background: "transparent", border: "1px solid var(--line-soft)", color: "var(--ink-4)", cursor: "pointer", outline: "none" }}
               >
-                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                <IcClose />
               </button>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", overflowY: "auto", flex: 1 }}>
+            <div style={{ display: "flex", flexDirection: "column", overflowY: "auto", flex: 1, overflowX: "hidden" }}>
               <NavContent />
             </div>
-          </div>
+          </nav>
         </>
       )}
     </>
@@ -639,8 +761,10 @@ export function Topbar({ title, crumb = [], children }: {
   const isMob = bp === "mobile";
   const [notifOpen, setNotifOpen]       = useState(false);
   const [notifs, setNotifs]             = useState<Notif[]>(NOTIF_INIT);
+  const [themeRotating, setThemeRotating] = useState(false);
   const notifRef                        = useRef<HTMLDivElement>(null);
   const unread                          = notifs.filter(n => !n.read).length;
+  const displayUnread                   = unread > 9 ? "9+" : unread;
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -653,15 +777,27 @@ export function Topbar({ title, crumb = [], children }: {
   function markRead(id: number) { setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)); }
   function markAllRead() { setNotifs(prev => prev.map(n => ({ ...n, read: true }))); }
 
+  function handleThemeToggle() {
+    setThemeRotating(true);
+    toggle();
+    setTimeout(() => setThemeRotating(false), 400);
+  }
+
   const nl = (n: Notif) => lang === "ar" ? n.title_ar : lang === "fr" ? n.title_fr : n.title_en;
   const nb = (n: Notif) => lang === "ar" ? n.body_ar  : lang === "fr" ? n.body_fr  : n.body_en;
+
+  const bellFocus = useFocusRing();
+  const themeFocus = useFocusRing();
+
   return (
     <header style={{
       height: 64, flexShrink: 0,
       paddingInlineStart: isMob ? 62 : 28, paddingInlineEnd: isMob ? 12 : 28,
       background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)",
       display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+      overflowX: "hidden",
     }}>
+      {/* Left: title + breadcrumb */}
       <div style={{ display: "flex", alignItems: "baseline", gap: 14, minWidth: 0, flexWrap: "nowrap" }}>
         <div className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: lang === "ar" ? 19 : 22, fontWeight: lang === "ar" ? 600 : 400, color: "var(--ink)", whiteSpace: "nowrap" }}>
           {title}
@@ -673,48 +809,120 @@ export function Topbar({ title, crumb = [], children }: {
           </React.Fragment>
         ))}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+
+      {/* Right: actions */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         {children}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: "var(--r)", background: "var(--bg-ivory)", border: "1px solid var(--line-soft)", color: "var(--ink-3)", fontSize: 12 }}>
-          <IcSearch /><span style={{ color: "var(--ink-4)" }}>{t.search}</span>
-          <span style={{ fontSize: 10, padding: "1px 5px", border: "1px solid var(--line)", borderRadius: 3, color: "var(--ink-4)" }}>⌘K</span>
+
+        {/* Search shortcut */}
+        <div
+          onClick={() => window.dispatchEvent(new CustomEvent("open-global-search"))}
+          role="button"
+          aria-label="Open global search (⌘K)"
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "7px 12px", borderRadius: "var(--r)",
+            background: "var(--bg-ivory)", border: "1px solid var(--line-soft)",
+            color: "var(--ink-3)", fontSize: 12, cursor: "pointer",
+            transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+          }}
+          onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--gold-line)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "var(--shadow-gold)"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = "var(--line-soft)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
+        >
+          <IcSearch />
+          {!isMob && <span style={{ color: "var(--ink-4)" }}>{t.search}</span>}
+          <kbd style={{
+            fontSize: 10, padding: "1px 6px",
+            border: "1px solid var(--line)", borderRadius: 4,
+            color: "var(--ink-3)", background: "var(--bg-paper)",
+            fontFamily: "inherit", letterSpacing: "0.02em",
+            boxShadow: "0 1px 0 var(--line)",
+          }}>⌘K</kbd>
         </div>
+
+        {/* Notification bell */}
         <div ref={notifRef} style={{ position: "relative" }}>
-          <button onClick={() => setNotifOpen(o => !o)} style={{ position: "relative", height: 36, width: 36, display: "inline-flex", alignItems: "center", justifyContent: "center", background: notifOpen ? "var(--gold-ghost)" : "var(--bg-ivory)", border: `1px solid ${notifOpen ? "var(--gold-line)" : "var(--line-soft)"}`, color: notifOpen ? "var(--gold)" : "var(--ink-2)", borderRadius: "var(--r)", cursor: "pointer" }}>
+          <button
+            onClick={() => setNotifOpen(o => !o)}
+            aria-label="Notifications"
+            aria-expanded={notifOpen}
+            onFocus={bellFocus.onFocus}
+            onBlur={bellFocus.onBlur}
+            style={{
+              position: "relative", height: 36, width: 36,
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              background: notifOpen ? "var(--gold-ghost)" : "var(--bg-ivory)",
+              border: `1px solid ${notifOpen ? "var(--gold-line)" : "var(--line-soft)"}`,
+              color: notifOpen ? "var(--gold)" : "var(--ink-2)",
+              borderRadius: "var(--r)", cursor: "pointer",
+              transition: "all 0.15s ease",
+              ...bellFocus.style,
+            }}
+          >
             <IcBell />
             {unread > 0 && (
-              <span style={{ position: "absolute", top: 6, insetInlineEnd: 6, minWidth: 15, height: 15, borderRadius: 999, background: "var(--rose)", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "1.5px solid var(--bg-cream)" }}>
-                {unread}
+              <span style={{
+                position: "absolute", top: 6, insetInlineEnd: 6,
+                minWidth: 15, height: 15, borderRadius: 999,
+                background: "var(--rose)", color: "#fff",
+                fontSize: 9, fontWeight: 700,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                padding: "0 3px", border: "1.5px solid var(--bg-cream)",
+                animation: "sgi-pulse 2s ease-in-out infinite",
+              }}>
+                {displayUnread}
               </span>
             )}
           </button>
 
           {notifOpen && (
-            <div style={{ position: "absolute", insetInlineEnd: 0, top: 44, width: 380, background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)", boxShadow: "0 16px 48px rgba(0,0,0,0.25)", zIndex: 999, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{
+              position: "absolute", insetInlineEnd: 0, top: 44,
+              width: isMob ? "calc(100vw - 24px)" : 380,
+              background: "var(--bg-paper)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: "var(--r-md)",
+              boxShadow: "0 16px 48px rgba(0,0,0,0.25)",
+              zIndex: 999, overflow: "hidden",
+              display: "flex", flexDirection: "column",
+              animation: "sgi-fade-in 0.18s ease",
+            }}>
               {/* Header */}
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 10px", borderBottom: "1px solid var(--line-soft)" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)" }}>
-                    {lang === "ar" ? "الإشعارات" : lang === "fr" ? "Notifications" : "Notifications"}
+                    {lang === "ar" ? "الإشعارات" : "Notifications"}
                   </span>
                   {unread > 0 && (
-                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{unread}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{displayUnread}</span>
                   )}
                 </div>
                 {unread > 0 && (
-                  <button onClick={markAllRead} style={{ fontSize: 11, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "2px 6px" }}>
+                  <button onClick={markAllRead} style={{ fontSize: 11, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "2px 6px", outline: "none" }}>
                     {lang === "ar" ? "تحديد الكل كمقروء" : lang === "fr" ? "Tout marquer comme lu" : "Mark all as read"}
                   </button>
                 )}
               </div>
+
               {/* List */}
               <div style={{ overflowY: "auto", maxHeight: 460 }}>
                 {notifs.map((n, i) => {
                   const cfg = NOTIF_CFG[n.type];
                   return (
-                    <div key={n.id} onClick={() => markRead(n.id)} style={{ display: "flex", gap: 12, padding: "12px 16px", borderBottom: i < notifs.length - 1 ? "1px solid var(--line-soft)" : "none", cursor: "pointer", background: n.read ? "transparent" : "var(--gold-ghost)", transition: "background 0.12s" }}
+                    <div
+                      key={n.id}
+                      onClick={() => markRead(n.id)}
+                      style={{
+                        display: "flex", gap: 12, padding: "12px 16px",
+                        borderBottom: i < notifs.length - 1 ? "1px solid var(--line-soft)" : "none",
+                        cursor: "pointer",
+                        background: n.read ? "transparent" : "var(--gold-ghost)",
+                        transition: "background 0.15s ease",
+                        animation: `sgi-slide-in 0.2s ease ${i * 0.03}s both`,
+                      }}
                       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "var(--bg-cream)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = n.read ? "transparent" : "var(--gold-ghost)"}>
+                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = n.read ? "transparent" : "var(--gold-ghost)"}
+                    >
                       <div style={{ width: 36, height: 36, borderRadius: "50%", background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
                         {cfg.icon}
                       </div>
@@ -730,18 +938,43 @@ export function Topbar({ title, crumb = [], children }: {
                   );
                 })}
               </div>
+
               {/* Footer */}
               <div style={{ padding: "10px 16px", borderTop: "1px solid var(--line-soft)", textAlign: "center" }}>
-                <button style={{ fontSize: 12, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                <button style={{ fontSize: 12, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, outline: "none" }}>
                   {lang === "ar" ? "عرض كل الإشعارات" : lang === "fr" ? "Voir toutes les notifications" : "View all notifications"}
                 </button>
               </div>
             </div>
           )}
         </div>
-        <button onClick={toggle} title={theme === "dark" ? "Light mode" : "Dark mode"} style={{ height: 36, width: 36, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--bg-ivory)", border: "1px solid var(--line-soft)", color: "var(--ink-2)", borderRadius: "var(--r)", cursor: "pointer" }}>
-          {theme === "dark" ? <IcSun /> : <IcMoon />}
+
+        {/* Theme toggle */}
+        <button
+          onClick={handleThemeToggle}
+          title={theme === "dark" ? "Light mode" : "Dark mode"}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          onFocus={themeFocus.onFocus}
+          onBlur={themeFocus.onBlur}
+          style={{
+            height: 36, width: 36,
+            display: "inline-flex", alignItems: "center", justifyContent: "center",
+            background: "var(--bg-ivory)", border: "1px solid var(--line-soft)",
+            color: "var(--ink-2)", borderRadius: "var(--r)", cursor: "pointer",
+            transition: "all 0.15s ease",
+            ...themeFocus.style,
+          }}
+        >
+          <span style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            transition: "transform 0.4s ease",
+            transform: themeRotating ? "rotate(180deg)" : "rotate(0deg)",
+          }}>
+            {theme === "dark" ? <IcSun /> : <IcMoon />}
+          </span>
         </button>
+
+        {/* Language switcher */}
         <div style={{ display: "flex", gap: 2, background: "var(--bg-ivory)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: 3 }}>
           {(["ar", "en", "fr"] as const).map(l => (
             <button key={l} onClick={() => setLang(l)} style={{
@@ -750,12 +983,34 @@ export function Topbar({ title, crumb = [], children }: {
               border: "none", cursor: "pointer",
               background: lang === l ? "var(--gold)" : "transparent",
               color: lang === l ? "#1A1610" : "var(--ink-4)",
+              transition: "background 0.15s ease, color 0.15s ease",
+              outline: "none",
             }}>
               {l.toUpperCase()}
             </button>
           ))}
         </div>
       </div>
+
+      {/* Global keyframe animations injected once */}
+      <style>{`
+        @keyframes sgi-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(142,79,79,0.5); }
+          50%       { box-shadow: 0 0 0 4px rgba(142,79,79,0); }
+        }
+        @keyframes sgi-fade-in {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes sgi-slide-in {
+          from { opacity: 0; transform: translateX(-6px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+      `}</style>
     </header>
   );
 }
@@ -799,3 +1054,128 @@ export function PropertyImage({ variant = 1 }: { variant?: number }) {
 }
 
 export function fmtAED(n: number) { return "AED " + n.toLocaleString("en-AE"); }
+
+/* ─── ConfirmModal ──────────────────────────────────────────────────
+ *  Modale de confirmation réutilisable pour toute action destructive.
+ *  Usage:
+ *    <ConfirmModal
+ *      open={!!toDelete}
+ *      title="Supprimer le document"
+ *      message="Cette action est irréversible."
+ *      onConfirm={() => { doDelete(); setToDelete(null); }}
+ *      onCancel={() => setToDelete(null)}
+ *    />
+ * ─────────────────────────────────────────────────────────────────── */
+export function ConfirmModal({
+  open,
+  title,
+  message,
+  confirmLabel,
+  cancelLabel,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message?: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onCancel();
+      if (e.key === "Enter")  onConfirm();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open, onCancel, onConfirm]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      onClick={onCancel}
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(10,7,3,0.55)",
+        backdropFilter: "blur(4px)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        animation: "sgi-fade-in 0.15s ease",
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: "var(--bg-paper)",
+          border: "1px solid var(--line)",
+          borderRadius: "var(--r-md)",
+          boxShadow: "var(--shadow-3)",
+          padding: "28px 28px 24px",
+          width: "min(380px, 90vw)",
+          display: "flex", flexDirection: "column", gap: 16,
+          animation: "sgi-fade-in 0.18s ease",
+        }}
+      >
+        {/* Icon */}
+        <div style={{
+          width: 44, height: 44, borderRadius: "var(--r)",
+          background: "var(--rose-soft)", border: "1px solid var(--rose)",
+          display: "grid", placeItems: "center", color: "var(--rose)",
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
+          </svg>
+        </div>
+
+        {/* Title + message */}
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)", marginBottom: 6 }}>
+            {title}
+          </div>
+          {message && (
+            <div style={{ fontSize: 12.5, color: "var(--ink-3)", lineHeight: 1.6 }}>
+              {message}
+            </div>
+          )}
+        </div>
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "8px 18px", borderRadius: "var(--r)",
+              fontSize: 13, fontWeight: 500, cursor: "pointer",
+              background: "var(--bg-ivory)", border: "1px solid var(--line)",
+              color: "var(--ink-2)", transition: "all 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "var(--bg-inset)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "var(--bg-ivory)")}
+          >
+            {cancelLabel ?? "Annuler"}
+          </button>
+          <button
+            onClick={onConfirm}
+            style={{
+              padding: "8px 18px", borderRadius: "var(--r)",
+              fontSize: 13, fontWeight: 600, cursor: "pointer",
+              background: "var(--rose)", border: "1px solid var(--rose)",
+              color: "#fff", transition: "opacity 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.opacity = "0.85")}
+            onMouseLeave={e => (e.currentTarget.style.opacity = "1")}
+          >
+            {confirmLabel ?? "Supprimer"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
