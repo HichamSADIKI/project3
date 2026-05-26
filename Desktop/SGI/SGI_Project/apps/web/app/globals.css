@@ -409,46 +409,65 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Inputs ───────────────────────────────────────────────────── */
+/* ── Inputs — shadcn-inspired avec accent gold ────────────────── */
 .sgi-input,
 .sgi-select,
 .sgi-textarea {
   width: 100%;
-  background: var(--bg-paper);
-  border: 1px solid var(--line);
+  background: var(--bg-ivory);
+  border: 1.5px solid var(--line);
   border-radius: var(--r);
   color: var(--ink);
   font-family: 'Inter', 'Roboto', system-ui, sans-serif;
-  font-size: 13px;
-  transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
+  font-size: 13.5px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.5);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   -webkit-font-smoothing: antialiased;
+}
+.dark .sgi-input,
+.dark .sgi-select,
+.dark .sgi-textarea {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.04);
 }
 .sgi-input,
 .sgi-select {
-  height: 36px;
-  padding: 0 12px;
+  height: 38px;
+  padding: 0 13px;
 }
 .sgi-textarea {
-  padding: 10px 12px;
+  padding: 10px 13px;
   resize: vertical;
-  min-height: 80px;
+  min-height: 84px;
+  line-height: 1.55;
 }
 .sgi-input::placeholder,
 .sgi-textarea::placeholder {
   color: var(--ink-4);
+  font-size: 13px;
 }
 .sgi-input:hover,
 .sgi-select:hover,
 .sgi-textarea:hover {
-  border-color: var(--line-strong);
+  border-color: var(--gold-line);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.5);
 }
 .sgi-input:focus,
 .sgi-select:focus,
 .sgi-textarea:focus {
   outline: none;
   border-color: var(--gold);
-  box-shadow: var(--focus-ring);
   background: var(--bg-ivory);
+  box-shadow:
+    0 0 0 3px rgba(184,146,79,0.14),
+    0 1px 3px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.5);
+}
+.dark .sgi-input:focus,
+.dark .sgi-select:focus,
+.dark .sgi-textarea:focus {
+  box-shadow:
+    0 0 0 3px rgba(217,183,119,0.16),
+    0 1px 3px rgba(0,0,0,0.3);
 }
 .sgi-input:disabled,
 .sgi-select:disabled,
@@ -456,6 +475,7 @@ html, body {
   opacity: 0.5;
   cursor: not-allowed;
   background: var(--bg-inset);
+  box-shadow: none;
 }
 
 /* ── Animations ───────────────────────────────────────────────── */
@@ -483,4 +503,102 @@ html, body {
 }
 .sgi-animate-spin {
   animation: sgi-spin 0.8s linear infinite;
+}
+
+/* ── Palette themes (applied as .theme-* on <html>) ──────────── */
+
+/* Dubai Gold — chaleur sable/or */
+.theme-gold {
+  --bg-base:     #F1E9D8;
+  --bg-cream:    #F7F1E1;
+  --bg-paper:    #FBF7EC;
+  --bg-ivory:    #FFFBF0;
+  --bg-inset:    #ECE3CE;
+  --line:        #DCCFAF;
+  --line-soft:   #E8DFC4;
+  --line-strong: #C9B98C;
+  --ink:   #1A1610;
+  --ink-2: #3D352A;
+  --ink-3: #6B5F4D;
+  --ink-4: #9C907A;
+  --ink-5: #B8AC92;
+}
+.dark.theme-gold {
+  --bg-base:     #110D08;
+  --bg-cream:    #19140D;
+  --bg-paper:    #221C13;
+  --bg-ivory:    #2A2218;
+  --bg-inset:    #14100A;
+  --line:        #3A3122;
+  --line-soft:   #2C251A;
+  --line-strong: #4F4530;
+  --ink:   #F4ECD7;
+  --ink-2: #D8CFB6;
+  --ink-3: #A89E83;
+  --ink-4: #756B53;
+  --ink-5: #4F4732;
+}
+
+/* Midnight Navy — bleu profond élégant */
+.theme-midnight {
+  --bg-base:     #EEF2F7;
+  --bg-cream:    #F3F7FB;
+  --bg-paper:    #F8FAFC;
+  --bg-ivory:    #FFFFFF;
+  --bg-inset:    #E2E8F2;
+  --line:        #C6D2E0;
+  --line-soft:   #DCE6F0;
+  --line-strong: #90A8BF;
+  --ink:   #0F172A;
+  --ink-2: #1E3A5F;
+  --ink-3: #476080;
+  --ink-4: #7EA0BB;
+  --ink-5: #B8D0E4;
+}
+.dark.theme-midnight {
+  --bg-base:     #0D1B2A;
+  --bg-cream:    #122236;
+  --bg-paper:    #1A2E44;
+  --bg-ivory:    #213855;
+  --bg-inset:    #071220;
+  --line:        #283F5C;
+  --line-soft:   #1A2E44;
+  --line-strong: #3A587A;
+  --ink:   #DCF0FF;
+  --ink-2: #A8CBE8;
+  --ink-3: #6E9AB8;
+  --ink-4: #426888;
+  --ink-5: #253E55;
+}
+
+/* Sage Forest — vert olive naturel */
+.theme-sage {
+  --bg-base:     #EEF0EA;
+  --bg-cream:    #F3F5EF;
+  --bg-paper:    #F7F8F4;
+  --bg-ivory:    #FAFBF7;
+  --bg-inset:    #E3E8DC;
+  --line:        #C4CDB8;
+  --line-soft:   #D8E0CE;
+  --line-strong: #9AAD8A;
+  --ink:   #1A2416;
+  --ink-2: #344A28;
+  --ink-3: #566845;
+  --ink-4: #84987A;
+  --ink-5: #B2C4A8;
+}
+.dark.theme-sage {
+  --bg-base:     #141C12;
+  --bg-cream:    #1A2418;
+  --bg-paper:    #222E1E;
+  --bg-ivory:    #2A3826;
+  --bg-inset:    #0E150C;
+  --line:        #2C3F26;
+  --line-soft:   #222E1E;
+  --line-strong: #3C5435;
+  --ink:   #DCF0D4;
+  --ink-2: #B0CCA4;
+  --ink-3: #7E9C74;
+  --ink-4: #547048;
+  --ink-5: #2E4228;
 }
