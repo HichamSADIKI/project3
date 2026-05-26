@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.database import create_db_pool
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import AuditMiddleware
-from app.routers import auth, properties, crm, contracts, golden_visa, rentals, finance, reporting, scraping
+from app.routers import auth, clients, properties, crm, contracts, golden_visa, rentals, finance, reporting, scraping
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -42,6 +42,7 @@ app.add_middleware(
 
 # Routers
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(clients.router, prefix="/api/v1")
 app.include_router(properties.router, prefix="/api/v1")
 app.include_router(crm.router, prefix="/api/v1")
 app.include_router(contracts.router, prefix="/api/v1")

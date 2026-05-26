@@ -1,4 +1,131 @@
+import uuid
+from datetime import date, timedelta
+from typing import Optional
+
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.golden_visa import GoldenVisaApplication
+from app.routers.golden_visa.schemas import GoldenVisaCreate, GoldenVisaUpdate
 
-# TODO: logique métier golden_visa — toujours filtrer par company_id
+VALID_STATUSES = {
+    "pending", "documents_collection", "submitted",
+    "under_review", "approved", "rejected", "expired",
+}
+
+
+async def _company_id(db: AsyncSession) -> uuid.UUID:
+    result = await db.execute(
+        text("SELECT current_setting('app.current_company_id', true)")
+    )
+    return uuid.UUID(result.scalar())
+
+
+async def list_applications(
+    db: AsyncSession,
+    *,
+    page: int = 1,
+    limit: int = 20,
+    status: Optional[str] = None,
+    client_id: Optional[uuid.UUID] = None,
+) -> dict:
+    cid = await _company_id(db)
+    q = (
+        select(GoldenVisaApplication)
+        .where(
+            GoldenVisaApplication.company_id == cid,
+            GoldenVisaApplication.deleted_at.is_(None),
+        )
+    )
+    if status:
+        q = q.where(GoldenVisaApplication.status == status)
+    if client_id:
+        q = q.where(GoldenVisaApplication.client_id == client_id)
+
+    total_q = select(func.count()).select_from(q.subquery())
+    total = (await db.execute(total_q)).scalar() or 0
+
+    q = q.order_by(GoldenVisaApplication.created_at.desc())
+    q = q.offset((page - 1) * limit).limit(limit)
+    rows = (await db.execute(q)).scalars().all()
+
+    return {
+        "data": rows,
+        "meta": {
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "pages": max(1, -(-total // limit)),
+        },
+    }
+
+
+async def get_application(db: AsyncSession, app_id: uuid.UUID) -> GoldenVisaApplication | None:
+    cid = await _company_id(db)
+    result = await db.execute(
+        select(GoldenVisaApplication).where(
+            GoldenVisaApplication.id == app_id,
+            GoldenVisaApplication.company_id == cid,
+            GoldenVisaApplication.deleted_at.is_(None),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def create_application(db: AsyncSession, payload: GoldenVisaCreate) -> GoldenVisaApplication:
+    cid = await _company_id(db)
+    app = GoldenVisaApplication(
+        company_id=cid,
+        **payload.model_dump(),
+    )
+    db.add(app)
+    await db.commit()
+    await db.refresh(app)
+    return app
+
+
+async def update_application(
+    db: AsyncSession,
+    app_id: uuid.UUID,
+    payload: GoldenVisaUpdate,
+) -> GoldenVisaApplication | None:
+    app = await get_application(db, app_id)
+    if not app:
+        return None
+
+    data = payload.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(app, k, v)
+
+    await db.commit()
+    await db.refresh(app)
+    return app
+
+
+async def delete_application(db: AsyncSession, app_id: uuid.UUID) -> bool:
+    from datetime import datetime, timezone
+    app = await get_application(db, app_id)
+    if not app:
+        return False
+    app.deleted_at = datetime.now(timezone.utc)
+    await db.commit()
+    return True
+
+
+async def get_expiring_visas(db: AsyncSession, days: int = 90) -> list[GoldenVisaApplication]:
+    """Returns applications with visa_expiry_date within the next `days` days."""
+    cid = await _company_id(db)
+    today = date.today()
+    threshold = today + timedelta(days=days)
+
+    result = await db.execute(
+        select(GoldenVisaApplication).where(
+            GoldenVisaApplication.company_id == cid,
+            GoldenVisaApplication.deleted_at.is_(None),
+            GoldenVisaApplication.status == "approved",
+            GoldenVisaApplication.visa_expiry_date.isnot(None),
+            GoldenVisaApplication.visa_expiry_date <= threshold,
+            GoldenVisaApplication.visa_expiry_date >= today,
+        )
+    )
+    return list(result.scalars().all())

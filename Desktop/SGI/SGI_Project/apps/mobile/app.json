@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "SGI — Infinity International",
+    "slug": "sgi-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#161B22"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.infinity-uae.sgi",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Pour afficher les propriétés sur la carte",
+        "NSCameraUsageDescription": "Pour photographier des documents",
+        "NSPhotoLibraryUsageDescription": "Pour sélectionner des photos de propriétés"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#161B22"
+      },
+      "package": "com.infinityuae.sgi",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#B8924F",
+          "sounds": []
+        }
+      ],
+      [
+        "expo-camera",
+        { "cameraPermission": "SGI nécessite la caméra pour scanner les documents." }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "scheme": "sgi",
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "sgi-infinity-uae"
+      }
+    }
+  }
+}

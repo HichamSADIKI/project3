@@ -1,4 +1,5 @@
 from app.routers.auth import router as auth
+from app.routers.clients import router as clients
 from app.routers.properties import router as properties
 from app.routers.crm import router as crm
 from app.routers.contracts import router as contracts
@@ -8,4 +9,4 @@ from app.routers.finance import router as finance
 from app.routers.reporting import router as reporting
 from app.routers.scraping import router as scraping
 
-__all__ = ["auth", "properties", "crm", "contracts", "golden_visa", "rentals", "finance", "reporting", "scraping"]
+__all__ = ["auth", "clients", "properties", "crm", "contracts", "golden_visa", "rentals", "finance", "reporting", "scraping"]
