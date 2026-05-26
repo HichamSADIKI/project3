@@ -303,11 +303,12 @@ function NewLeadModal({ meta, sector, onClose, onAdd, lang }: {
 }
 
 /* ─── Lead detail panel ──────────────────────────────────────────────── */
-function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChange }: {
+function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChange, onNavigateToClient }: {
   lead: Lead; meta: SectorMeta; lang: string;
   onClose: () => void;
   onStageChange: (id: string, stage: PipelineStage) => void;
   onNotesChange: (id: string, notes: string) => void;
+  onNavigateToClient?: (name: string) => void;
 }) {
   const isAr = lang === "ar"; const isFr = lang === "fr";
   const cl = (en: string, ar: string, fr: string) => isAr ? ar : isFr ? fr : en;
@@ -331,7 +332,18 @@ function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChan
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line-soft)", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>{lead.flag} {lead.name}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>
+                {lead.flag}{" "}
+                {onNavigateToClient ? (
+                  <button
+                    onClick={() => { onClose(); onNavigateToClient(lead.name); }}
+                    style={{ fontSize: 16, fontWeight: 700, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline dotted", textUnderlineOffset: 3 }}
+                    title="Voir la fiche client"
+                  >
+                    {lead.name}
+                  </button>
+                ) : lead.name}
+              </div>
               <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 2 }}>{lead.id}</div>
             </div>
             <button onClick={onClose} style={{ flexShrink: 0, width: 28, height: 28, borderRadius: "var(--r-sm)", display: "grid", placeItems: "center", background: "transparent", border: "1px solid var(--line-soft)", cursor: "pointer", color: "var(--ink-4)" }}>
@@ -437,7 +449,7 @@ function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChan
 }
 
 /* ─── Main screen ────────────────────────────────────────────────────── */
-export function ScreenSectorCRM({ sector, confirmedDeals = [] }: { sector: Sector; confirmedDeals?: ConfirmedDeal[] }) {
+export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClient }: { sector: Sector; confirmedDeals?: ConfirmedDeal[]; onNavigateToClient?: (name: string) => void }) {
   const { lang } = useLang();
   const isAr = lang === "ar"; const isFr = lang === "fr";
   const cl = (en: string, ar: string, fr: string) => isAr ? ar : isFr ? fr : en;
@@ -787,6 +799,7 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [] }: { sector: Secto
           onClose={() => setDetailId(null)}
           onStageChange={changeStage}
           onNotesChange={changeNotes}
+          onNavigateToClient={onNavigateToClient}
         />
       )}
     </div>

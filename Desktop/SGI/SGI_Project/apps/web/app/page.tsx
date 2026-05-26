@@ -76,15 +76,15 @@ export default function App() {
         {screen === "realestate" && <ScreenRealEstate />}
         {screen === "admin"     && <ScreenAdministrations />}
         {screen === "travail"   && <ScreenTravail />}
-        {screen === "realestate_crm"  && <ScreenSectorCRM sector="realestate"  confirmedDeals={confirmedDeals} />}
-        {screen === "tourisme_crm"    && <ScreenSectorCRM sector="tourisme"    confirmedDeals={confirmedDeals} />}
-        {screen === "sante_crm"       && <ScreenSectorCRM sector="sante"       confirmedDeals={confirmedDeals} />}
-        {screen === "assurance_crm"   && <ScreenSectorCRM sector="assurance"   confirmedDeals={confirmedDeals} />}
-        {screen === "banques_crm"     && <ScreenSectorCRM sector="banques"     confirmedDeals={confirmedDeals} />}
-        {screen === "amazon_crm"      && <ScreenSectorCRM sector="amazon"      confirmedDeals={confirmedDeals} />}
-        {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" confirmedDeals={confirmedDeals} />}
-        {screen === "admin_crm"       && <ScreenSectorCRM sector="admin"       confirmedDeals={confirmedDeals} />}
-        {screen === "travail_crm"     && <ScreenSectorCRM sector="travail"     confirmedDeals={confirmedDeals} />}
+        {screen === "realestate_crm"  && <ScreenSectorCRM sector="realestate"  confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "tourisme_crm"    && <ScreenSectorCRM sector="tourisme"    confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "sante_crm"       && <ScreenSectorCRM sector="sante"       confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "assurance_crm"   && <ScreenSectorCRM sector="assurance"   confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "banques_crm"     && <ScreenSectorCRM sector="banques"     confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "amazon_crm"      && <ScreenSectorCRM sector="amazon"      confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "consultants_crm" && <ScreenSectorCRM sector="consultants" confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "admin_crm"       && <ScreenSectorCRM sector="admin"       confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
+        {screen === "travail_crm"     && <ScreenSectorCRM sector="travail"     confirmedDeals={confirmedDeals} onNavigateToClient={handleNavigateToClient} />}
         {screen === "realestate_news"  && <ScreenSectorNews sector="realestate" />}
         {screen === "tourisme_news"    && <ScreenSectorNews sector="tourisme" />}
         {screen === "sante_news"       && <ScreenSectorNews sector="sante" />}
