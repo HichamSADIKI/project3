@@ -1,326 +1,274 @@
-# Skill : parallel-agents v1
+# Skill : parallel-agents v2
 # Orchestration multi-agents en parallèle — SGI
 
 ## Quand charger
 
-Charger pour toute demande qui couvre **2 dimensions ou plus** parmi :
-- Analyse / exploration de code
-- Développement (nouveau module, refactoring)
+Charger pour toute demande qui couvre **1 dimension ou plus** parmi :
+- Développement (nouveau module, refactoring, nouvelle fonctionnalité)
+- Correction de bugs multiples
 - Tests fonctionnels
 - Audit sécurité / i18n / performance
 - Validation TypeScript + lint
-- Intégration GitHub (PR, commit, review)
+- Intégration GitHub (commit, push, PR)
 
-Ne pas charger pour : tâche unique ciblée (un fichier, un bug isolé).
-
----
-
-## Philosophie — Parallélisme maximal, coordination minimale
-
-**Les agents sont des collègues spécialisés. Chacun travaille de son côté, rend son résultat, tu synthétises.**
-
-- Lancer N agents en un seul message (un bloc `<function_calls>` avec N appels Agent)
-- Chaque agent reçoit un prompt autonome : il ne dépend pas des autres
-- Utiliser `isolation: "worktree"` quand l'agent modifie des fichiers
-- Les agents foreground bloquent : réserver au résultat nécessaire pour la suite
-- Les agents background libèrent le fil : utiliser pour tâches indépendantes longues
-- Synthétiser tous les résultats avant de présenter à l'utilisateur
+Ne pas charger pour : question simple, changement de texte isolé, 1 seul fichier évident.
 
 ---
 
-## Pipeline complet SGI — 6 phases parallélisables
+## Philosophie v2 — Équipe spécialisée, validation obligatoire, son de fin
 
-```
-Phase 1 : ANALYSE (Explore agent)
-Phase 2 : DÉVELOPPEMENT (claude agent × N modules) ← en parallèle
-Phase 3 : TESTS FONCTIONNELS (general-purpose agent)
-Phase 4 : AUDIT (sécurité + i18n + perf) ← 3 agents en parallèle
-Phase 5 : VALIDATION (TypeScript + lint + build)
-Phase 6 : INTÉGRATION GITHUB (commit + PR)
-```
+**Chaque tâche utilisateur déclenche une équipe d'agents spécialisés :**
 
-Phases 2, 3, 4 sont parallélisables entre elles selon les dépendances.
+1. **N agents développeurs** travaillent en parallèle sur des modules non-chevauchants
+2. **1 agent validateur** vérifie le travail de tous les autres APRÈS leur terminaison
+3. **1 agent de test** valide les fonctionnalités via Playwright
+4. **1 agent d'audit sécurité** vérifie les implications sécuritaires
+5. **Son de fin** → `afplay /System/Library/Sounds/Hero.aiff` à la toute fin
+
+**Règle d'or : aucun commit sans validation du validateur. Aucune livraison sans son.**
 
 ---
 
-## Phase 1 — ANALYSE (Explore agent)
+## Pipeline standard — 4 phases
 
 ```
-Agent(Explore, "Audit le codebase pour X. Breadth: thorough. Ne modifie rien.")
+Phase 1 : ANALYSE rapide (optionnelle, foreground, < 2 min)
+          └─ Lire les fichiers cibles, identifier les patterns, briefer les agents dev
+
+Phase 2 : DÉVELOPPEMENT PARALLÈLE (background, N agents simultanés)
+          ├─ Agent Dev-A : module / fichier A
+          ├─ Agent Dev-B : module / fichier B
+          └─ Agent Dev-N : ...
+
+Phase 3 : VALIDATION + TESTS + AUDIT (après phase 2, en parallèle)
+          ├─ Agent Validateur : vérifie le travail des agents dev (TypeScript, cohérence, RTL, i18n)
+          ├─ Agent Test : teste les fonctionnalités via Playwright Python (http://localhost:3000)
+          └─ Agent Audit sécurité : vérifie les implications sécuritaires des changements
+
+Phase 4 : LIVRAISON
+          ├─ Corriger les erreurs signalées par le validateur
+          ├─ git add + commit + push
+          └─ afplay /System/Library/Sounds/Hero.aiff
 ```
 
-Toujours lancer en foreground : le plan de développement dépend des résultats.
+---
 
-**Ce que l'agent Explore doit rapporter :**
-- Fichiers affectés et leurs patterns actuels
-- Dépendances entre fichiers
-- Conventions utilisées (composants existants, naming, types)
-- Points d'intégration (imports, exports, props partagées)
-- Risques (breaking changes potentiels)
+## Phase 1 — ANALYSE (optionnelle)
+
+Lancer seulement si la tâche est complexe ou les fichiers cibles inconnus.
+
+```python
+Agent(Explore, """
+Analyse rapide pour [TÂCHE]. Breadth: medium.
+Lire : [fichiers probables]
+Rapporter en < 200 mots :
+- Fichiers à modifier et leurs patterns actuels
+- Composants/types réutilisables
+- Risques de breaking changes
+- Conventions (CSS logique, i18n, TypeScript)
+Ne pas modifier de fichier.
+""")
+```
 
 ---
 
 ## Phase 2 — DÉVELOPPEMENT PARALLÈLE
 
-Quand plusieurs modules sont indépendants, les développer en parallèle :
+### Règles de segmentation des agents
+- **1 agent = 1 fichier ou 1 groupe de fichiers sans intersection**
+- Si deux agents touchent le même fichier → **séquentiel obligatoire**
+- Chaque agent reçoit un prompt autonome (il ne voit pas la conversation)
+- Toujours inclure dans chaque prompt : fichiers à lire, fichiers à modifier, TypeScript check
 
+### Template de prompt agent développeur
+```
+Tu travailles sur le projet SGI — /Users/sadiki/Desktop/SGI/SGI_Project/apps/web
+
+MODULE : [nom du module]
+TÂCHE : [description précise de ce que tu dois faire]
+
+LIRE D'ABORD (en parallèle) :
+- [fichier 1] — [pourquoi]
+- [fichier 2] — [pourquoi]
+
+PATTERN EXISTANT : [snippet ou description précise]
+
+FICHIERS À MODIFIER : [liste avec chemins complets]
+FICHIERS À CRÉER : [liste avec chemins complets]
+
+CONTRAINTES ABSOLUES :
+- CSS logique : ms-/me-/ps-/pe-/start-/end- (jamais ml-/mr-/pl-/pr-)
+- Trilingue : toutes les chaînes via useT() ou colLabel(en, ar, fr)
+- TypeScript strict : npx tsc --noEmit à la fin, 0 erreur obligatoire
+- "use client" uniquement si hooks React ou event handlers
+- Ne modifier AUCUN autre fichier que ceux listés
+
+RAPPORT FINAL :
+- Liste des fichiers modifiés/créés
+- Résultat TypeScript (0 erreur)
+- Description des changements en 5 bullets max
+```
+
+### Invocation parallèle (un seul message, N Agent calls)
 ```python
-# Un seul message, N agents avec worktree isolation
-Agent(worktree, "Créer screen A — [instructions détaillées]")
-Agent(worktree, "Créer screen B — [instructions détaillées]")
-Agent(worktree, "Mettre à jour i18n.ts avec les nouvelles clés — [liste exacte]")
-```
-
-**Règles de segmentation :**
-- Un agent = un fichier ou un groupe de fichiers sans intersection
-- Si deux agents modifient le même fichier → séquentiel obligatoire
-- Toujours inclure dans le prompt : fichiers à lire, fichiers à modifier, TypeScript check à la fin
-- Préciser les patterns existants dans chaque prompt (l'agent ne voit pas la conversation)
-
-**Template de prompt pour un agent développeur :**
-```
-Contexte : projet SGI à /Users/sadiki/Desktop/SGI/SGI_Project/apps/web
-Tu travailles sur [MODULE].
-
-Lire d'abord : [liste des fichiers à lire]
-Pattern existant : [code snippet ou description précise]
-
-Tâche : [description détaillée]
-Fichiers à modifier : [liste]
-Fichiers à créer : [liste avec chemin complet]
-
-Contraintes :
-- CSS logique uniquement (ms-/me-/ps-/pe-)
-- Trilingue AR/EN/FR via colLabel(en, ar, fr)
-- TypeScript strict — npx tsc --noEmit à la fin (0 erreur obligatoire)
-- Ne pas modifier d'autres fichiers
+Agent(background=True, "Dev-A : [MODULE A] — [prompt complet]")
+Agent(background=True, "Dev-B : [MODULE B] — [prompt complet]")
+Agent(background=True, "Dev-C : [MODULE C] — [prompt complet]")
+# Attendre les 3 notifications de complétion avant Phase 3
 ```
 
 ---
 
-## Phase 3 — TESTS FONCTIONNELS (agent dédié)
+## Phase 3 — VALIDATION + TESTS + AUDIT (parallèle)
 
-Lancer en parallèle avec la phase 4 si le dev est terminé.
+Lancer les 3 agents **en même temps** dès que tous les agents dev ont terminé.
 
-```python
-Agent(general-purpose, """
-Audit fonctionnel statique de [FICHIERS].
-Pour chaque fonction interactive : handler présent ? state correct ? cas limites ?
-Rapport dans FUNCTIONAL_TEST_REPORT.md.
-Severities : CRITICAL | HIGH | MEDIUM | LOW
-Ne pas modifier le code.
-""")
+### Agent Validateur (OBLIGATOIRE)
+
+```
+Tu es un agent de validation sur le projet SGI.
+Les agents suivants ont modifié du code : [liste des agents avec leurs fichiers].
+
+VALIDE CHAQUE FICHIER MODIFIÉ :
+1. TypeScript : cd /Users/sadiki/Desktop/SGI/SGI_Project/apps/web && npx tsc --noEmit
+2. CSS logique : grep -n "ml-\|mr-\|pl-\|pr-\|left-\|right-" [fichiers] — doit être vide
+3. i18n : toutes les chaînes visibles utilisent useT() ou colLabel() ?
+4. NavKeys : toute nouvelle route a une entrée dans page.tsx ?
+5. Imports : pas d'import inutilisé ou manquant ?
+6. RTL : direction: dir ou isAr utilisé si texte affiché ?
+
+RAPPORT (format strict) :
+- ✅ [fichier] — OK
+- ❌ [fichier] — [problème exact ligne X] — [correction recommandée]
+
+Si des erreurs sont trouvées, les corriger directement (tu peux modifier les fichiers).
+Terminer par : TypeScript final 0 erreur confirmé.
 ```
 
-**Checklist fonctionnelle standard SGI :**
-- [ ] Boutons avec onClick manquant
-- [ ] Filtres avec logique incorrecte
-- [ ] Wallet : balance guard avant déduction
-- [ ] DealWizard : validation des champs obligatoires
-- [ ] Navigation : NavKeys sans screen correspondant
-- [ ] Forms : soumission sans handler
-- [ ] State : initialisation correcte, pas de mutation directe
+### Agent Test Navigateur (Playwright Python)
+
+```python
+"""
+Tests fonctionnels de [FONCTIONNALITÉ] sur http://localhost:3000
+Login : input[0] = "login", input[type=password] = "password", clic "Continue to workspace"
+
+Tester :
+1. [Fonctionnalité 1] — navigation vers [écran], vérifier [élément visible]
+2. [Fonctionnalité 2] — action [clic sur X], vérifier [résultat attendu]
+3. Pas de régression : [écrans adjacents] toujours fonctionnels
+
+Pour chaque test :
+- page.screenshot(path="/tmp/test_[nom].png")
+- Lire le screenshot avec Read tool et décrire ce que tu vois
+
+Rapport : ✅ OK ou ❌ FAIL avec description.
+"""
+```
+
+### Agent Audit Sécurité (ciblé sur les changements)
+
+```
+Audit sécurité ciblé sur les fichiers modifiés : [liste]
+
+Vérifier uniquement :
+1. Nouveaux inputs utilisateur → validés/sanitisés ?
+2. Nouveaux liens href → pas d'injection possible (target="_blank" + rel="noopener") ?
+3. Nouvelles API calls → token auth présent ?
+4. Nouveaux cookies/localStorage → httpOnly, pas de PII en clair ?
+5. Nouvelles variables d'env → dans .env, pas hardcodées ?
+
+Rapport : CRITIQUE / ÉLEVÉ / MOYEN / INFO
+Corriger directement les issues CRITIQUE et ÉLEVÉ.
+```
 
 ---
 
-## Phase 4 — AUDIT PARALLÈLE (3 agents simultanés)
-
-```python
-# Lancer les 3 en un seul message
-Agent(Explore, "Audit i18n — chaînes codées en dur sans traduction AR/EN/FR")
-Agent(Explore, "Audit sécurité — auth guard, secrets, XSS, localStorage")
-Agent(Explore, "Audit performance — N+1, composants sans memo, re-renders")
-```
-
-### Audit i18n
-- Chaînes en dur en une seule langue
-- `useT()` / `colLabel()` manquants
-- Clés manquantes dans `lib/i18n.ts` pour AR/EN/FR
-- RTL : CSS physique au lieu de logique
-
-### Audit sécurité
-- Middleware auth absent ou incomplet
-- Secrets dans le code (pas dans `.env`)
-- `.gitignore` incomplet (`.env`, `.env.local`, `.mcp.json`)
-- `dangerouslySetInnerHTML` sans sanitization
-- JWT : nom du cookie, expiry, HMAC vs RS256
-
-### Audit performance
-- Composants qui re-rendent sans raison (pas de `useMemo` / `useCallback`)
-- Images sans `width`/`height` (layout shift)
-- Listes sans clé stable (`key={index}` au lieu de `key={item.id}`)
-- `useEffect` avec dépendances manquantes
-
----
-
-## Phase 5 — VALIDATION
-
-Lancer en séquentiel (chacun dépend du précédent) :
+## Phase 4 — LIVRAISON
 
 ```bash
-# TypeScript strict
-cd /Users/sadiki/Desktop/SGI/SGI_Project/apps/web && npx tsc --noEmit 2>&1
+# 1. Appliquer les corrections du validateur (si non auto-corrigées)
 
-# Lint (si disponible)
-make lint 2>&1 || echo "lint not configured"
-
-# Build check
-pnpm build 2>&1 | tail -20
-```
-
-**Règle : 0 erreur TypeScript avant tout commit. Toujours.**
-
----
-
-## Phase 6 — INTÉGRATION GITHUB
-
-### Commit structuré
-
-Format des messages (convention SGI) :
-```
-type(module): description courte en français
-
-- bullet 1 : détail
-- bullet 2 : détail
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
-
-Types valides : `feat · fix · test · docs · chore · refactor · perf · ci`
-
-Exemple : `feat(marketing): ajouter screen campagnes avec KPIs trilingues`
-
-### Checklist pré-commit
-
-```bash
-# 1. Vérifier les fichiers sensibles
-git diff --name-only | grep -E "\.env|\.mcp\.json|secrets"
-
-# 2. TypeScript
+# 2. TypeScript final
 npx tsc --noEmit
 
-# 3. Status
-git status
+# 3. Commit
+git add [fichiers modifiés — jamais git add -A]
+git commit -m "type(module): description en français
 
-# 4. Diff final
-git diff --staged
-```
+- bullet 1
+- bullet 2
 
-**Ne jamais committer :**
-- `.env`, `.env.local`, `.env*.local`
-- `.mcp.json` (contient des API keys)
-- Fichiers avec `console.log` de debug
-- Fichiers avec credentials en dur
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
 
-### Pull Request
+# 4. Push
+git push origin main
 
-Template standard SGI :
-```markdown
-## Résumé
-- [bullet 1]
-- [bullet 2]
-
-## Modules affectés
-- `apps/web/app/screens/[module]`
-- `apps/web/components/`
-
-## Vérifications
-- [ ] TypeScript 0 erreur
-- [ ] Trilingue AR/EN/FR
-- [ ] CSS logique (pas de ml-/mr-)
-- [ ] Pas de secrets commités
-- [ ] Fonctions interactives testées
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+# 5. Son de fin — OBLIGATOIRE
+afplay /System/Library/Sounds/Hero.aiff
 ```
 
 ---
 
-## Patterns de coordination
+## Exemple complet — Nouvelle fonctionnalité
 
-### Résultats des agents worktree
+Utilisateur : "Ajoute les boutons WhatsApp/tel/email sur les fiches client"
 
-Les agents en `isolation: "worktree"` opèrent sur une branche temporaire.
-Après réception des résultats, appliquer manuellement les changements depuis le rapport ou
-demander à l'agent de fournir les diffs exacts.
+```python
+# Phase 1 — analyse rapide (1 min)
+# Lire clients-personne.tsx + clients-societe.tsx → identifier les zones à modifier
 
-### Synthèse multi-agents
+# Phase 2 — dev parallèle
+Agent(background=True, """Dev clients-personne : ajouter ContactBtn + 4 boutons
+  dans /apps/web/app/screens/clients-personne.tsx...""")
+Agent(background=True, """Dev clients-societe : ajouter ContactBtn + 4 boutons
+  dans /apps/web/app/screens/clients-societe.tsx...""")
 
-Après réception de N résultats parallèles :
-1. Identifier les conflits (deux agents ont modifié le même concept différemment)
-2. Prioriser par sévérité (CRITICAL > HIGH > MEDIUM > LOW)
-3. Appliquer dans l'ordre : corrections bloquantes → améliorations → style
-4. Relancer un agent de validation pour vérifier la cohérence
+# [Attendre les 2 notifications]
 
-### Dépendances entre agents
+# Phase 3 — validation + test + audit (en parallèle)
+Agent(background=True, "Validateur : vérifier clients-personne.tsx et clients-societe.tsx...")
+Agent(background=True, "Tests Playwright : tester les boutons sur http://localhost:3000...")
+Agent(background=True, "Audit sécurité : liens tel:/wa.me/mailto: correctement formés ?...")
 
-```
-i18n.ts modifié → tous les screens qui l'importent doivent être revalidés
-sgi-ui.tsx modifié (NavKey) → page.tsx doit être mis à jour
-deal-wizard.tsx modifié (ConfirmedDeal type) → clients-personne + clients-societe + sector-crm
-auth.ts modifié → middleware.ts + api/auth/* doivent être cohérents
+# [Attendre les 3 notifications]
+
+# Phase 4 — livraison
+# git add + commit + push + Hero.aiff
 ```
 
 ---
 
-## Exemples d'invocations
+## Règles d'invocation
 
-### Nouveau module complet
+### Quand lancer en background vs foreground
 
-```python
-# Phase 1 : analyse (foreground)
-Agent(Explore, "Explorer le pattern screen SGI existant — lire dashboard.tsx, marketing.tsx, travail.tsx. Rapporter : structure type, composants réutilisés, pattern i18n, pattern data.")
+| Situation | Mode |
+|---|---|
+| Résultat nécessaire avant de continuer (analyse) | foreground |
+| Dev indépendant, test, audit | background |
+| Validateur (dépend des dev) | background (après attente dev) |
+| Tâche < 30s que tu peux faire toi-même | Ne pas spawner |
 
-# Phase 2 : dev parallèle (après analyse)
-Agent(worktree, "Créer screen [MODULE] selon pattern SGI [...]")
-Agent(worktree, "Ajouter clés i18n AR/EN/FR pour [MODULE] dans lib/i18n.ts [...]")
-Agent(worktree, "Ajouter NavKey + icône dans sgi-ui.tsx + route dans page.tsx [...]")
+### Ordre de priorité des corrections
 
-# Phase 3+4 : tests + audit en parallèle
-Agent(general-purpose, "Test fonctionnel statique de [MODULE].tsx [...]")
-Agent(Explore, "Audit i18n de [MODULE].tsx [...]")
+```
+CRITIQUE (sécurité, crash) → corriger immédiatement, re-lancer le validateur
+ÉLEVÉ (bug fonctionnel, TypeScript error) → corriger avant commit
+MOYEN (i18n manquant, CSS physique) → corriger si < 5 min, sinon noter
+BAS (style, commentaire) → ignorer
 ```
 
-### Audit + correction
+---
 
-```python
-# Audit parallèle (foreground tous)
-Agent(Explore, "Audit sécurité")
-Agent(Explore, "Audit i18n")
-Agent(Explore, "Audit fonctionnel")
+## Son de progression
 
-# Correction après synthèse
-Agent(worktree, "Corriger les 4 HIGH issues trouvées : [liste exacte avec fichier:ligne]")
-```
+| Moment | Commande |
+|---|---|
+| Partie dev terminée | `afplay /System/Library/Sounds/Glass.aiff` |
+| Validation OK | `afplay /System/Library/Sounds/Glass.aiff` |
+| **Livraison finale complète** | `afplay /System/Library/Sounds/Hero.aiff` |
 
-### Release GitHub
-
-```bash
-# Validation finale
-npx tsc --noEmit && make lint
-
-# Commit groupé
-git add apps/web/app/screens/marketing.tsx apps/web/lib/i18n.ts apps/web/components/sgi-ui.tsx
-git commit -m "feat(marketing): ajouter module campagnes trilingue AR/EN/FR"
-
-# PR
-gh pr create --title "feat: module Marketing + audit i18n/sécurité" --body "$(cat <<'EOF'
-## Résumé
-- Nouveau screen Marketing avec KPIs, filtres, tableau campagnes
-- Traductions complètes AR/EN/FR (hero login, sector-crm, marketing)
-- Middleware auth guard JWT côté serveur
-- Audit fonctionnel : 41 issues identifiées (rapport dans FUNCTIONAL_TEST_REPORT.md)
-
-## Vérifications
-- [x] TypeScript 0 erreur
-- [x] Trilingue AR/EN/FR
-- [x] CSS logique
-- [x] Middleware auth ajouté
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-EOF
-)"
-```
+**Le son Hero.aiff est OBLIGATOIRE à la fin de chaque livraison complète.**
 
 ---
 
@@ -328,11 +276,27 @@ EOF
 
 | Interdit | Raison |
 |---|---|
-| Spawner un agent pour une tâche de 2 lignes | Overhead > gain |
-| Deux agents qui modifient le même fichier en parallèle | Merge conflict garanti |
-| Prompt sans contexte codebase | L'agent repart de zéro, résultat générique |
-| Oublier `isolation: "worktree"` pour les agents qui écrivent | Pollue le working tree |
-| Committer sans tsc --noEmit | Erreurs TypeScript en production |
-| Committer `.mcp.json` ou `.env` | Fuite de secrets (GEMINI_API_KEY, JWT_SECRET) |
-| Agent background pour une tâche dont tu as besoin immédiatement | Deadlock de travail |
-| Synthèse sans vérification des conflits entre agents | Résultats incohérents |
+| Livrer sans phase de validation | Bugs et régressions en prod |
+| Deux agents sur le même fichier en parallèle | Merge conflict garanti |
+| Prompt sans contexte codebase | Résultat générique inutile |
+| Committer sans tsc --noEmit | Erreurs TypeScript silencieuses |
+| Committer `.mcp.json` ou `.env` | Fuite de clés API (Gemini, JWT) |
+| Oublier le son de fin | Pas de signal de complétion clair |
+| Agent background pour résultat immédiat | Deadlock de travail |
+| `git add -A` ou `git add .` | Risque de committer des secrets |
+| Synthèse sans vérifier les conflits entre agents | Incohérences silencieuses |
+
+---
+
+## Checklist finale (avant chaque livraison)
+
+```
+[ ] TypeScript : 0 erreur
+[ ] Validateur : tous les fichiers ✅
+[ ] Tests : fonctionnalités clés ✅
+[ ] Audit : aucun CRITIQUE ou ÉLEVÉ non résolu
+[ ] git status : aucun fichier sensible (.env, .mcp.json)
+[ ] Commit message : format type(module): description français
+[ ] Push : origin/main à jour
+[ ] Son : Hero.aiff joué
+```

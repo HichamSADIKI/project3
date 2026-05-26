@@ -442,14 +442,29 @@ function ArticlePanel({
   const dir     = isAr ? "rtl" : "ltr";
 
   return (
-    <div style={{
-      position: "fixed", inset: 0, zIndex: 50, display: "flex", justifyContent: "flex-end",
-      background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)",
-    }} onClick={onClose}>
+    <>
+      {/* Backdrop: starts below the topbar (64px) so the language picker stays clickable */}
+      <div
+        onClick={onClose}
+        style={{
+          position: "fixed",
+          insetBlockStart: 64, insetBlockEnd: 0,
+          insetInlineStart: 0, insetInlineEnd: 0,
+          zIndex: 50,
+          background: "rgba(0,0,0,0.35)", backdropFilter: "blur(2px)",
+          pointerEvents: "auto",
+        }}
+      />
+      {/* Panel: full height, sits above the backdrop */}
       <div
         style={{
-          width: "min(600px,95vw)", height: "100%", background: "#fff", boxShadow: "-4px 0 32px rgba(0,0,0,0.18)",
+          position: "fixed",
+          insetBlockStart: 0, insetBlockEnd: 0,
+          insetInlineEnd: 0,
+          zIndex: 51,
+          width: "min(600px,95vw)", background: "#fff", boxShadow: "-4px 0 32px rgba(0,0,0,0.18)",
           display: "flex", flexDirection: "column", overflowY: "auto", direction: dir,
+          pointerEvents: "auto",
         }}
         onClick={e => e.stopPropagation()}
       >
@@ -486,7 +501,7 @@ function ArticlePanel({
           <span style={{ fontSize: 12, color: "#94a3b8" }}>{article.source}</span>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
