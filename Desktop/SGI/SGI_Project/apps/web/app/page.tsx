@@ -43,6 +43,12 @@ import type { ConfirmedDeal } from "@/components/deal-wizard";
 export default function App() {
   const [screen, setScreen] = useState<string>("login");
   const [confirmedDeals, setConfirmedDeals] = useState<ConfirmedDeal[]>([]);
+  const [clientSearch, setClientSearch] = useState<string>("");
+
+  function handleNavigateToClient(name: string) {
+    setClientSearch(name);
+    setScreen("personne");
+  }
 
   function handleDealConfirmed(deal: ConfirmedDeal) {
     setConfirmedDeals(prev => [...prev, deal]);
@@ -63,7 +69,7 @@ export default function App() {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
         {screen === "dash"     && <ScreenDashboard />}
         {screen === "prop"     && <ScreenProperties />}
-        {screen === "crm"      && <ScreenCRM />}
+        {screen === "crm"      && <ScreenCRM onNavigateToClient={handleNavigateToClient} />}
         {screen === "orders"   && <ScreenOrders />}
         {screen === "contract" && <ScreenContracts />}
         {screen === "rental"    && <ScreenRentals />}
@@ -106,7 +112,7 @@ export default function App() {
         {screen === "report"    && <ScreenReports />}
         {screen === "parametres" && <ScreenParametres />}
         {screen === "clients"  && <ScreenClients onNavigate={setScreen} />}
-        {screen === "personne" && <ScreenClientsPersonne onDealConfirmed={handleDealConfirmed} />}
+        {screen === "personne" && <ScreenClientsPersonne onDealConfirmed={handleDealConfirmed} initialSearch={clientSearch} />}
         {screen === "societe"  && <ScreenClientsSociete onDealConfirmed={handleDealConfirmed} />}
       </div>
     </div>

@@ -916,7 +916,7 @@ function KanbanCol({ stage, leads, onDragStart, onDragEnd, onDrop, draggingId, d
 
 /* ─── LeadDetailDrawer ──────────────────────────────────────────────── */
 
-function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, onFollowUpMark, onMarkLost, onMetaSearch }: {
+function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, onFollowUpMark, onMarkLost, onMetaSearch, onNavigateToClient }: {
   lead: Lead; stage: string;
   onClose: () => void;
   onNotesChange: (id: string, stage: string, notes: string) => void;
@@ -924,6 +924,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
   onFollowUpMark: (id: string, stage: string, step: keyof FollowUp) => void;
   onMarkLost: () => void;
   onMetaSearch: (name: string) => void;
+  onNavigateToClient?: (name: string) => void;
 }) {
   const { lang } = useLang();
   const bp = useBreakpoint();
@@ -978,7 +979,17 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
         <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>{lead.name}</span>
+              {onNavigateToClient ? (
+                <button
+                  onClick={() => { onClose(); onNavigateToClient(lead.name); }}
+                  style={{ fontSize: 15, fontWeight: 700, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", padding: 0, textDecoration: "underline dotted", textUnderlineOffset: 3 }}
+                  title="Voir la fiche client"
+                >
+                  {lead.name}
+                </button>
+              ) : (
+                <span style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>{lead.name}</span>
+              )}
               {lead.gold && <Chip tone="gold">GV</Chip>}
               {isCold && <span style={{ fontSize: 9, fontWeight: 700, padding: "2px 6px", borderRadius: 3, background: "rgba(234,88,12,0.1)", color: "#ea580c", border: "1px solid rgba(234,88,12,0.2)" }}>COLD · {lead.lastContactDays}d</span>}
             </div>
@@ -2068,7 +2079,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
 
 /* ─── ScreenCRM ─────────────────────────────────────────────────────── */
 
-export function ScreenCRM() {
+export function ScreenCRM({ onNavigateToClient }: { onNavigateToClient?: (name: string) => void } = {}) {
   const t = useT();
   const { lang } = useLang();
   const bp    = useBreakpoint();
@@ -2347,6 +2358,7 @@ export function ScreenCRM() {
           onFollowUpMark={handleFollowUpMark}
           onMarkLost={() => setLostModal(selectedLead)}
           onMetaSearch={openMetaSearch}
+          onNavigateToClient={onNavigateToClient}
         />
       )}
 

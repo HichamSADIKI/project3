@@ -618,13 +618,13 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
 }
 
 /* ── List view ───────────────────────────────────────────────────────── */
-export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (deal: ConfirmedDeal) => void } = {}) {
+export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDealConfirmed?: (deal: ConfirmedDeal) => void; initialSearch?: string } = {}) {
   const { lang } = useLang();
   const t = useT();
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [search,  setSearch]  = useState("");
+  const [search,  setSearch]  = useState(initialSearch ?? "");
   const [status,  setStatus]  = useState<Status | "all">("all");
   const [agent,   setAgent]   = useState("All agents");
   const [visaOnly, setVisaOnly] = useState(false);
