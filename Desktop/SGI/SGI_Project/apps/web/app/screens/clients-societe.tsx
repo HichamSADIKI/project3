@@ -256,14 +256,30 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
   const [walletBalance, setWalletBalance] = useState(() => initBalance(company));
   const [walletTxs, setWalletTxs]   = useState<WalletTx[]>(() => mockWalletTxs(company));
   const [buyAmt, setBuyAmt]         = useState("");
+  const [docs, setDocs]             = useState(() => mockDocuments(company));
+  const [previewDoc, setPreviewDoc] = useState<ReturnType<typeof mockDocuments>[0] | null>(null);
+  const [showAddDoc, setShowAddDoc] = useState(false);
+  const [newDocName, setNewDocName]     = useState("");
+  const [newDocRef, setNewDocRef]       = useState("");
+  const [newDocStatus, setNewDocStatus] = useState<DocStatus>("pending");
+  const [newDocDate, setNewDocDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [newDocExp, setNewDocExp]       = useState("");
   const bp   = useBreakpoint();
   const isMob = bp === "mobile";
 
   const scfg  = STATUS_CFG[company.status];
   const secfg = SECTOR_CFG[company.sector];
   const deals    = mockDeals(company);
-  const docs     = mockDocuments(company);
   const orders   = mockOrders(company);
+
+  function addDoc() {
+    if (!newDocName.trim()) return;
+    setDocs(prev => [{ name_en: newDocName.trim(), name_ar: newDocName.trim(), name_fr: newDocName.trim(), ref: newDocRef || "—", date: newDocDate, exp: newDocExp || undefined, status: newDocStatus }, ...prev]);
+    setShowAddDoc(false);
+    setNewDocName(""); setNewDocRef(""); setNewDocStatus("pending");
+    setNewDocDate(new Date().toISOString().slice(0, 10)); setNewDocExp("");
+  }
+  function deleteDoc(index: number) { setDocs(prev => prev.filter((_, i) => i !== index)); }
   const payments = mockPayments(company);
 
   const lbl = (en: string, ar: string, fr: string) => lang === "ar" ? ar : lang === "fr" ? fr : en;
@@ -438,33 +454,53 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
 
           {/* DOCUMENTS */}
           {tab === "documents" && (
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {[lbl("Document", "الوثيقة", "Document"), lbl("Reference", "المرجع", "Référence"), lbl("Date", "التاريخ", "Date"), lbl("Expiry", "الانتهاء", "Expiration"), lbl("Status", "الحالة", "Statut")].map(h => (
-                    <th key={h} style={thStyle}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {docs.map((d, i) => {
-                  const dscfg = DOC_STATUS[d.status];
-                  return (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
-                      <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)" }}>{lbl(d.name_en, d.name_ar, d.name_fr)}</td>
-                      <td style={{ ...tdStyle, color: "var(--ink-4)" }} className="tnum">{d.ref}</td>
-                      <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(d.date)}</td>
-                      <td style={{ ...tdStyle, color: d.exp ? "var(--ink-4)" : "var(--ink-4)" }}>{d.exp ? fmt(d.exp) : "—"}</td>
-                      <td style={tdStyle}>
-                        <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${dscfg.color}15`, color: dscfg.color }}>
-                          {lbl(dscfg.en, dscfg.ar, dscfg.fr)}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <>
+              <div style={{ display: "flex", justifyContent: "flex-end", padding: "10px 16px", borderBottom: "1px solid var(--line-soft)" }}>
+                <button onClick={() => setShowAddDoc(true)} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: "var(--r)", background: "var(--gold)", border: "none", color: "#1A1610", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                  <Ic s={13}><path d="M12 5v14M5 12h14"/></Ic>
+                  {lbl("Add Document", "إضافة وثيقة", "Ajouter un document")}
+                </button>
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr>
+                    {[lbl("Document", "الوثيقة", "Document"), lbl("Reference", "المرجع", "Référence"), lbl("Date", "التاريخ", "Date"), lbl("Expiry", "الانتهاء", "Expiration"), lbl("Status", "الحالة", "Statut"), ""].map((h, i) => (
+                      <th key={i} style={thStyle}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {docs.map((d, i) => {
+                    const dscfg = DOC_STATUS[d.status];
+                    return (
+                      <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--line-soft)" : "none" }}>
+                        <td style={{ ...tdStyle, fontWeight: 500, color: "var(--ink)", display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ color: "var(--gold)", flexShrink: 0 }}><IcDoc2 /></span>
+                          <button onClick={() => setPreviewDoc(d)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--gold-deep)", fontWeight: 600, fontSize: 13, textDecoration: "underline dotted", textUnderlineOffset: 2, padding: 0, textAlign: "start" }}>
+                            {lbl(d.name_en, d.name_ar, d.name_fr)}
+                          </button>
+                        </td>
+                        <td style={{ ...tdStyle, color: "var(--ink-4)" }} className="tnum">{d.ref}</td>
+                        <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{fmt(d.date)}</td>
+                        <td style={{ ...tdStyle, color: "var(--ink-4)" }}>{d.exp ? fmt(d.exp) : "—"}</td>
+                        <td style={tdStyle}>
+                          <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${dscfg.color}15`, color: dscfg.color }}>
+                            {lbl(dscfg.en, dscfg.ar, dscfg.fr)}
+                          </span>
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: "end" }}>
+                          <button onClick={() => deleteDoc(i)} title={lbl("Delete", "حذف", "Supprimer")} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, borderRadius: 6, display: "inline-flex", alignItems: "center" }}
+                            onMouseEnter={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--rose)"}
+                            onMouseLeave={e => (e.currentTarget as HTMLButtonElement).style.color = "var(--ink-4)"}>
+                            <Ic s={14}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></Ic>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </>
           )}
 
           {/* ORDERS */}
@@ -684,6 +720,139 @@ function CompanyDetail({ company, onBack, lang, onDealConfirmed }: { company: Co
             setShowWizard(false);
           }}
         />
+      )}
+
+      {/* Document Preview Modal */}
+      {previewDoc && (
+        <div onClick={() => setPreviewDoc(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-paper)", borderRadius: "var(--r)", width: 560, maxHeight: "92vh", display: "flex", flexDirection: "column", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.4)" }}>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px", borderBottom: "1px solid var(--line-soft)" }}>
+              <span style={{ color: "var(--gold)", flexShrink: 0 }}><IcDoc2 /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, color: "var(--ink)", fontSize: 14, marginBottom: 5 }}>{lbl(previewDoc.name_en, previewDoc.name_ar, previewDoc.name_fr)}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                  <span style={{ fontSize: 10.5, padding: "2px 7px", borderRadius: 999, background: "var(--bg-cream)", color: "var(--ink-4)", border: "1px solid var(--line-soft)" }}>{previewDoc.ref}</span>
+                  <span style={{ fontSize: 10.5, fontWeight: 600, color: DOC_STATUS[previewDoc.status]?.color ?? "var(--ink-4)" }}>{lbl(DOC_STATUS[previewDoc.status]?.en, DOC_STATUS[previewDoc.status]?.ar, DOC_STATUS[previewDoc.status]?.fr)}</span>
+                  <span style={{ fontSize: 10.5, color: "var(--ink-4)" }}>{fmt(previewDoc.date)}</span>
+                  {previewDoc.exp && <span style={{ fontSize: 10.5, color: "var(--ink-4)" }}>Exp: {fmt(previewDoc.exp)}</span>}
+                </div>
+              </div>
+              <button onClick={() => setPreviewDoc(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", padding: 4, borderRadius: 6, display: "inline-flex", alignItems: "center", flexShrink: 0 }}>
+                <Ic s={18}><path d="M18 6 6 18M6 6l12 12"/></Ic>
+              </button>
+            </div>
+            {/* Preview area */}
+            <div style={{ flex: 1, overflow: "auto", padding: "20px", background: "#e8e4de", display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+              <div style={{ width: "100%", maxWidth: 430, background: "#fff", borderRadius: 3, boxShadow: "0 3px 16px rgba(0,0,0,0.18)", padding: "36px 44px 40px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 14, marginBottom: 20, borderBottom: "2px solid #C8A03C" }}>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: 12, color: "#1A1610", letterSpacing: "0.06em", textTransform: "uppercase" }}>Infinity International FM</div>
+                    <div style={{ fontSize: 9.5, color: "#8B7355", marginTop: 2 }}>Dubai, UAE · infinity-fm.ae</div>
+                  </div>
+                  <div style={{ textAlign: "end" }}>
+                    <div style={{ fontSize: 10, color: "#8B7355" }}>{fmt(previewDoc.date)}</div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: "#C8A03C", marginTop: 2, padding: "1px 6px", border: "1px solid #C8A03C", borderRadius: 4 }}>{previewDoc.ref}</div>
+                  </div>
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 15, color: "#1A1610", marginBottom: 18 }}>{lbl(previewDoc.name_en, previewDoc.name_ar, previewDoc.name_fr)}</div>
+                <div style={{ fontSize: 10, color: "#8B7355", marginBottom: 14 }}>{lbl("Company", "الشركة", "Société")}: {lang === "ar" ? company.name_ar : company.name}</div>
+                {[100, 88, 94, 76, 91, 58, 85].map((w, i) => (
+                  <div key={i} style={{ height: 7, borderRadius: 3, background: i % 4 === 3 ? "rgba(0,0,0,0.05)" : "rgba(0,0,0,0.09)", width: `${w}%`, marginBottom: 9 }} />
+                ))}
+                <div style={{ height: 1, background: "#e8e3db", margin: "18px 0" }} />
+                {[70, 82, 54, 77].map((w, i) => (
+                  <div key={`b${i}`} style={{ height: 7, borderRadius: 3, background: "rgba(0,0,0,0.07)", width: `${w}%`, marginBottom: 9 }} />
+                ))}
+                <div style={{ marginTop: 28, display: "flex", justifyContent: "space-between" }}>
+                  <div style={{ borderTop: "1px solid #ccc", paddingTop: 8, fontSize: 9, color: "#8B7355", width: 120, textAlign: "center" }}>
+                    {lbl("Authorized Signatory", "المفوض بالتوقيع", "Signataire autorisé")}
+                  </div>
+                  <div style={{ borderTop: "1px solid #ccc", paddingTop: 8, fontSize: 9, color: "#8B7355", width: 110, textAlign: "center" }}>
+                    {lbl("Agent signature", "توقيع الوكيل", "Signature agent")}
+                  </div>
+                </div>
+              </div>
+              <div style={{ width: "100%", maxWidth: 430, background: "#fff", borderRadius: 3, boxShadow: "0 3px 16px rgba(0,0,0,0.18)", padding: "36px 44px 60px", opacity: 0.65 }}>
+                {[92, 68, 84, 60, 78, 50, 88, 40, 72].map((w, i) => (
+                  <div key={i} style={{ height: 7, borderRadius: 3, background: "rgba(0,0,0,0.08)", width: `${w}%`, marginBottom: 9 }} />
+                ))}
+              </div>
+            </div>
+            {/* Footer */}
+            <div style={{ padding: "12px 20px", borderTop: "1px solid var(--line-soft)", display: "flex", justifyContent: "flex-end", gap: 8, background: "var(--bg-paper)" }}>
+              <button onClick={() => setPreviewDoc(null)} style={{ padding: "7px 16px", borderRadius: "var(--r)", background: "var(--bg-cream)", border: "1px solid var(--line-soft)", color: "var(--ink-4)", cursor: "pointer", fontSize: 12 }}>
+                {lbl("Close", "إغلاق", "Fermer")}
+              </button>
+              <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "7px 14px", borderRadius: "var(--r)", background: "var(--gold)", border: "none", color: "#1A1610", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                <Ic s={13}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></Ic>
+                {lbl("Download", "تحميل", "Télécharger")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Document Modal */}
+      {showAddDoc && (
+        <div onClick={() => setShowAddDoc(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--bg-paper)", borderRadius: "var(--r)", width: 420, boxShadow: "0 24px 64px rgba(0,0,0,0.4)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line-soft)" }}>
+              <span style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)" }}>{lbl("Add Document", "إضافة وثيقة", "Ajouter un document")}</span>
+              <button onClick={() => setShowAddDoc(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)", display: "inline-flex", alignItems: "center", padding: 4 }}>
+                <Ic s={18}><path d="M18 6 6 18M6 6l12 12"/></Ic>
+              </button>
+            </div>
+            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Upload zone */}
+              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, padding: "20px", border: "2px dashed var(--line-soft)", borderRadius: "var(--r)", cursor: "pointer", background: "var(--bg-cream)", color: "var(--ink-4)", textAlign: "center" }}>
+                <Ic s={28}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></Ic>
+                <span style={{ fontSize: 12 }}>{lbl("Drag & drop or click to upload", "اسحب الملف أو انقر للرفع", "Glisser-déposer ou cliquer pour téléverser")}</span>
+                <span style={{ fontSize: 10.5, opacity: 0.7 }}>PDF, JPG, PNG — max 20 MB</span>
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png" style={{ display: "none" }} onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) setNewDocName(f.name.replace(/\.[^.]+$/, ""));
+                }} />
+              </label>
+              {/* Name */}
+              <div>
+                <label style={{ fontSize: 11, color: "var(--ink-4)", display: "block", marginBottom: 5 }}>{lbl("Document name", "اسم الوثيقة", "Nom du document")} *</label>
+                <input value={newDocName} onChange={e => setNewDocName(e.target.value)} placeholder={lbl("e.g. Trade License", "مثال: رخصة تجارية", "ex. Licence commerciale")} style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", color: "var(--ink)", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              {/* Reference */}
+              <div>
+                <label style={{ fontSize: 11, color: "var(--ink-4)", display: "block", marginBottom: 5 }}>{lbl("Reference", "المرجع", "Référence")}</label>
+                <input value={newDocRef} onChange={e => setNewDocRef(e.target.value)} placeholder="DED-2026-XXXXX" style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", color: "var(--ink)", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+              {/* Status + Date */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: "var(--ink-4)", display: "block", marginBottom: 5 }}>{lbl("Status", "الحالة", "Statut")}</label>
+                  <select value={newDocStatus} onChange={e => setNewDocStatus(e.target.value as DocStatus)} style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", color: "var(--ink)", fontSize: 13 }}>
+                    {(Object.keys(DOC_STATUS) as DocStatus[]).map(s => <option key={s} value={s}>{DOC_STATUS[s].en}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: "var(--ink-4)", display: "block", marginBottom: 5 }}>{lbl("Date", "التاريخ", "Date")}</label>
+                  <input type="date" value={newDocDate} onChange={e => setNewDocDate(e.target.value)} style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", color: "var(--ink)", fontSize: 13, boxSizing: "border-box" }} />
+                </div>
+              </div>
+              {/* Expiry */}
+              <div>
+                <label style={{ fontSize: 11, color: "var(--ink-4)", display: "block", marginBottom: 5 }}>{lbl("Expiry date (optional)", "تاريخ الانتهاء (اختياري)", "Date d'expiration (optionnelle)")}</label>
+                <input type="date" value={newDocExp} onChange={e => setNewDocExp(e.target.value)} style={{ width: "100%", padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", color: "var(--ink)", fontSize: 13, boxSizing: "border-box" }} />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", padding: "12px 20px", borderTop: "1px solid var(--line-soft)" }}>
+              <button onClick={() => setShowAddDoc(false)} style={{ padding: "7px 16px", borderRadius: "var(--r)", background: "var(--bg-cream)", border: "1px solid var(--line-soft)", color: "var(--ink-4)", cursor: "pointer", fontSize: 12 }}>
+                {lbl("Cancel", "إلغاء", "Annuler")}
+              </button>
+              <button onClick={addDoc} style={{ padding: "7px 16px", borderRadius: "var(--r)", background: "var(--gold)", border: "none", color: "#1A1610", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>
+                {lbl("Save", "حفظ", "Enregistrer")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
