@@ -146,7 +146,8 @@ export type NavKey =
 type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey };
 type NavEntry =
   | ({ type: "item"  } & NavItem)
-  | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] };
+  | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] }
+  | { type: "spacer"; id: string };
 
 const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
@@ -223,11 +224,11 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "travail_news", icon: <IcNews /> },
     ],
   },
-  { type: "item",  key: "erp",         icon: <IcERP /> },
-  { type: "item",  key: "workspace",   icon: <IcWorkspace /> },
-  { type: "item",  key: "audit",       icon: <IcAudit /> },
   { type: "group", id: "backoffice",   groupKey: "backoffice", icon: <IcBackOffice />,
     children: [
+      { key: "erp",       icon: <IcERP /> },
+      { key: "workspace", icon: <IcWorkspace /> },
+      { key: "audit",     icon: <IcAudit /> },
       { key: "hr",        icon: <IcHR /> },
       { key: "it",        icon: <IcIT /> },
       { key: "finance",   icon: <IcFinance /> },
@@ -235,6 +236,7 @@ const NAV_ENTRIES: NavEntry[] = [
     ],
   },
   { type: "item",  key: "report",      icon: <IcReport /> },
+  { type: "spacer", id: "spacer-settings" },
   { type: "item",  key: "parametres",  icon: <IcSettings /> },
 ];
 
@@ -516,6 +518,9 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         <div style={{ padding: col ? "12px 6px" : "14px 10px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto", overflowX: "hidden" }}>
           {!col && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
           {NAV_ENTRIES.map(entry => {
+            if (entry.type === "spacer") {
+              return <div key={entry.id} style={{ height: 1, background: "var(--line-soft)", margin: "8px 10px" }} />;
+            }
             if (entry.type === "item") {
               return <NavItemRow key={entry.key} icon={entry.icon} navKey={entry.key} badge={entry.badge} isActive={entry.key === active} />;
             }

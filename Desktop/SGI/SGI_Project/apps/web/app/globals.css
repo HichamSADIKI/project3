@@ -1,51 +1,51 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* ── Premium Dubai design tokens ──────────────────────────────── */
+/* ── Premium Dubai design tokens — Slate Pro palette ──────────── */
 :root {
-  /* Backgrounds */
-  --bg-base:     #F1E9D8;
-  --bg-cream:    #F7F1E1;
-  --bg-paper:    #FBF7EC;
-  --bg-ivory:    #FFFBF0;
-  --bg-inset:    #ECE3CE;
+  /* Backgrounds — slate froid, reposant pour les yeux */
+  --bg-base:     #F1F3F5;
+  --bg-cream:    #F4F6F8;
+  --bg-paper:    #F8F9FA;
+  --bg-ivory:    #FFFFFF;
+  --bg-inset:    #E8EAED;
 
   /* Surface aliases */
   --surface-1: var(--bg-base);
   --surface-2: var(--bg-paper);
   --surface-3: var(--bg-ivory);
 
-  /* Borders */
-  --line:        #DCCFAF;
-  --line-soft:   #E8DFC4;
-  --line-strong: #C9B98C;
+  /* Borders — slate subtils */
+  --line:        #D0D5DB;
+  --line-soft:   #E2E6EA;
+  --line-strong: #B0B8C1;
 
   /* Ink (text) */
-  --ink:   #1A1610;
-  --ink-2: #3D352A;
-  --ink-3: #6B5F4D;
-  --ink-4: #9C907A;
-  --ink-5: #B8AC92;
+  --ink:   #111827;
+  --ink-2: #374151;
+  --ink-3: #6B7280;
+  --ink-4: #9CA3AF;
+  --ink-5: #D1D5DB;
 
-  /* Gold accent */
+  /* Gold accent — reste l'identité SGI */
   --gold:       #B8924F;
   --gold-deep:  #8A6B30;
-  --gold-soft:  #E6D4A6;
-  --gold-ghost: rgba(184,146,79,0.10);
-  --gold-line:  rgba(184,146,79,0.35);
+  --gold-soft:  #F0E4C8;
+  --gold-ghost: rgba(184,146,79,0.09);
+  --gold-line:  rgba(184,146,79,0.30);
 
   /* Semantic */
-  --emerald:      #4F6B4E;
-  --emerald-soft: #DCE5DB;
-  --rose:         #8E4F4F;
-  --rose-soft:    #ECDCDC;
-  --azure:        #4A6B82;
-  --azure-soft:   #D7E1E8;
+  --emerald:      #059669;
+  --emerald-soft: #D1FAE5;
+  --rose:         #DC2626;
+  --rose-soft:    #FEE2E2;
+  --azure:        #2563EB;
+  --azure-soft:   #DBEAFE;
 
-  /* Shadows — plus douces et plus profondes */
-  --shadow-1: 0 1px 2px rgba(60,40,15,0.04), 0 1px 0 rgba(60,40,15,0.03);
-  --shadow-2: 0 2px 8px rgba(60,40,15,0.07), 0 1px 3px rgba(60,40,15,0.05), 0 1px 0 rgba(60,40,15,0.04);
-  --shadow-3: 0 8px 28px rgba(60,40,15,0.11), 0 3px 8px rgba(60,40,15,0.06), 0 1px 0 rgba(60,40,15,0.04);
+  /* Shadows — adaptées au fond clair neutre */
+  --shadow-1: 0 1px 2px rgba(17,24,39,0.05), 0 1px 0 rgba(17,24,39,0.03);
+  --shadow-2: 0 2px 8px rgba(17,24,39,0.09), 0 1px 3px rgba(17,24,39,0.06);
+  --shadow-3: 0 8px 28px rgba(17,24,39,0.13), 0 3px 8px rgba(17,24,39,0.07);
   --shadow-gold: 0 2px 12px rgba(184,146,79,0.18), 0 1px 3px rgba(184,146,79,0.10);
 
   /* Radius */
@@ -59,8 +59,8 @@
   /* Focus ring */
   --focus-ring: 0 0 0 3px rgba(184,146,79,0.25);
 
-  /* Gradients subtils */
-  --gradient-base:  linear-gradient(135deg, var(--bg-cream) 0%, var(--bg-base) 100%);
+  /* Gradients */
+  --gradient-base:  linear-gradient(135deg, var(--bg-paper) 0%, var(--bg-base) 100%);
   --gradient-paper: linear-gradient(180deg, var(--bg-ivory) 0%, var(--bg-paper) 100%);
   --gradient-gold:  linear-gradient(135deg, #C9A462 0%, #8A6B30 100%);
   --gradient-ink:   linear-gradient(135deg, var(--ink-2) 0%, var(--ink) 100%);
@@ -71,46 +71,46 @@
   --transition-medium: 0.3s ease;
 }
 
-/* ── Dark · walnut palette ────────────────────────────────────── */
+/* ── Dark · Slate Profond ─────────────────────────────────────── */
 .dark {
-  --bg-base:     #110D08;
-  --bg-cream:    #19140D;
-  --bg-paper:    #221C13;
-  --bg-ivory:    #2A2218;
-  --bg-inset:    #14100A;
+  --bg-base:     #161B22;
+  --bg-cream:    #1B2330;
+  --bg-paper:    #1F2937;
+  --bg-ivory:    #253346;
+  --bg-inset:    #0D1117;
 
   /* Surface aliases dark */
   --surface-1: var(--bg-base);
   --surface-2: var(--bg-paper);
   --surface-3: var(--bg-ivory);
 
-  --line:        #3A3122;
-  --line-soft:   #2C251A;
-  --line-strong: #4F4530;
+  --line:        #30404D;
+  --line-soft:   #243040;
+  --line-strong: #3E5068;
 
-  --ink:   #F4ECD7;
-  --ink-2: #D8CFB6;
-  --ink-3: #A89E83;
-  --ink-4: #756B53;
-  --ink-5: #4F4732;
+  --ink:   #E2E8F0;
+  --ink-2: #CBD5E1;
+  --ink-3: #94A3B8;
+  --ink-4: #64748B;
+  --ink-5: #334155;
 
   --gold:       #D9B777;
   --gold-deep:  #F0CB89;
-  --gold-soft:  #4A3D24;
-  --gold-ghost: rgba(217,183,119,0.12);
-  --gold-line:  rgba(217,183,119,0.35);
+  --gold-soft:  #3D3020;
+  --gold-ghost: rgba(217,183,119,0.11);
+  --gold-line:  rgba(217,183,119,0.32);
 
-  --emerald:      #94B391;
-  --emerald-soft: #2A3528;
-  --rose:         #D6A0A0;
-  --rose-soft:    #3B2424;
-  --azure:        #9DB6C8;
-  --azure-soft:   #1E2A35;
+  --emerald:      #34D399;
+  --emerald-soft: #064E3B;
+  --rose:         #F87171;
+  --rose-soft:    #450A0A;
+  --azure:        #60A5FA;
+  --azure-soft:   #1E3A5F;
 
-  --shadow-1: 0 1px 2px rgba(0,0,0,0.4);
-  --shadow-2: 0 2px 8px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3);
-  --shadow-3: 0 8px 28px rgba(0,0,0,0.65), 0 3px 8px rgba(0,0,0,0.4);
-  --shadow-gold: 0 2px 12px rgba(217,183,119,0.20), 0 1px 3px rgba(217,183,119,0.12);
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.45);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-3: 0 8px 28px rgba(0,0,0,0.70), 0 3px 8px rgba(0,0,0,0.45);
+  --shadow-gold: 0 2px 12px rgba(217,183,119,0.22), 0 1px 3px rgba(217,183,119,0.12);
 
   --gradient-base:  linear-gradient(135deg, var(--bg-cream) 0%, var(--bg-base) 100%);
   --gradient-paper: linear-gradient(180deg, var(--bg-ivory) 0%, var(--bg-paper) 100%);
@@ -244,7 +244,7 @@ html, body {
 }
 
 .sgi-glass {
-  background: rgba(251,247,236,0.72);
+  background: rgba(248,249,250,0.80);
   border: 1px solid var(--line-soft);
   border-radius: var(--r-md);
   backdrop-filter: blur(12px);
@@ -252,7 +252,7 @@ html, body {
   box-shadow: var(--shadow-2);
 }
 .dark .sgi-glass {
-  background: rgba(34,28,19,0.72);
+  background: rgba(31,41,55,0.80);
 }
 
 /* ── Buttons ──────────────────────────────────────────────────── */
