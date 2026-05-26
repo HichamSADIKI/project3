@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
@@ -604,6 +604,30 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   );
 }
 
+/* ─── Notifications data ──────────────────────────────────────────── */
+type NotifType = "lead" | "contract" | "payment" | "visa" | "reminder" | "alert";
+type Notif = { id: number; type: NotifType; title_en: string; title_ar: string; title_fr: string; body_en: string; body_ar: string; body_fr: string; time: string; read: boolean };
+
+const NOTIF_INIT: Notif[] = [
+  { id: 1,  type: "lead",     title_en: "New qualified lead",          title_ar: "عميل محتمل جديد",          title_fr: "Nouveau lead qualifié",          body_en: "Khalid Al-Rashid — AED 4.2M · Palm Jumeirah villa",      body_ar: "خالد الراشد — 4.2M د.إ · فيلا نخلة جميرا",           body_fr: "Khalid Al-Rashid — AED 4,2M · Villa Palm Jumeirah",      time: "2 min",   read: false },
+  { id: 2,  type: "contract", title_en: "Contract signed",             title_ar: "عقد موقّع",                 title_fr: "Contrat signé",                  body_en: "SPA #2026-0441 — Reem Al Hashemi · AED 11.2M",           body_ar: "عقد SPA #2026-0441 — ريم الهاشمي · 11.2M د.إ",        body_fr: "SPA #2026-0441 — Reem Al Hashemi · AED 11,2M",           time: "14 min",  read: false },
+  { id: 3,  type: "payment",  title_en: "Payment received",            title_ar: "تم استلام الدفعة",          title_fr: "Paiement reçu",                  body_en: "AED 246,000 — Commission Q1 · INV-2026-041",             body_ar: "246,000 د.إ — عمولة الربع الأول",                      body_fr: "AED 246 000 — Commission T1 · FAC-2026-041",             time: "1 h",     read: false },
+  { id: 4,  type: "visa",     title_en: "Golden Visa expiring soon",   title_ar: "الإقامة الذهبية تنتهي قريبًا", title_fr: "Visa Doré bientôt expiré",    body_en: "Abdullah Al-Rashid — expires in 28 days",                body_ar: "عبدالله الراشد — تنتهي خلال 28 يومًا",                 body_fr: "Abdullah Al-Rashid — expire dans 28 jours",              time: "3 h",     read: false },
+  { id: 5,  type: "reminder", title_en: "Property visit scheduled",    title_ar: "زيارة عقارية مجدولة",       title_fr: "Visite planifiée",               body_en: "Tomorrow 10:00 — Marina Gate T3 · Sophie Martin",        body_ar: "غداً 10:00 — بوابة المارينا T3 · سوفي مارتان",        body_fr: "Demain 10h — Marina Gate T3 · Sophie Martin",            time: "5 h",     read: true  },
+  { id: 6,  type: "alert",    title_en: "Document expired",            title_ar: "وثيقة منتهية الصلاحية",     title_fr: "Document expiré",                body_en: "Trade License — Al Maktoum Holding · renewal required",  body_ar: "رخصة تجارية — المكتوم هولدينج · مطلوب التجديد",       body_fr: "Licence commerciale — Al Maktoum Holding · renouveler", time: "1 j",     read: true  },
+  { id: 7,  type: "lead",     title_en: "Lead assigned to you",        title_ar: "تم تعيين عميل لك",           title_fr: "Lead assigné",                   body_en: "Priya Sharma — AED 3.2M · Downtown Dubai",               body_ar: "بريا شارما — 3.2M د.إ · وسط مدينة دبي",               body_fr: "Priya Sharma — AED 3,2M · Downtown Dubai",               time: "2 j",     read: true  },
+  { id: 8,  type: "payment",  title_en: "Invoice overdue",             title_ar: "فاتورة متأخرة",              title_fr: "Facture en retard",              body_en: "INV-2026-028 — AED 16,400 · due 2026-04-20",            body_ar: "فاتورة — 16,400 د.إ · استحقاق 20/04/2026",            body_fr: "FAC-2026-028 — AED 16 400 · échue le 20/04/2026",       time: "3 j",     read: true  },
+];
+
+const NOTIF_CFG: Record<NotifType, { icon: string; color: string; bg: string }> = {
+  lead:     { icon: "👤", color: "var(--azure)",   bg: "rgba(74,107,130,0.12)"  },
+  contract: { icon: "📄", color: "var(--emerald)", bg: "rgba(79,107,78,0.12)"   },
+  payment:  { icon: "💳", color: "var(--gold)",    bg: "rgba(184,146,79,0.12)"  },
+  visa:     { icon: "🌟", color: "#a259ff",        bg: "rgba(162,89,255,0.10)"  },
+  reminder: { icon: "📅", color: "var(--ink-3)",   bg: "rgba(107,95,77,0.10)"   },
+  alert:    { icon: "⚠️", color: "var(--rose)",    bg: "rgba(142,79,79,0.12)"   },
+};
+
 /* ─── Topbar ──────────────────────────────────────────────────────── */
 export function Topbar({ title, crumb = [], children }: {
   title: string; crumb?: string[]; children?: React.ReactNode;
@@ -613,6 +637,24 @@ export function Topbar({ title, crumb = [], children }: {
   const t = useT();
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
+  const [notifOpen, setNotifOpen]       = useState(false);
+  const [notifs, setNotifs]             = useState<Notif[]>(NOTIF_INIT);
+  const notifRef                        = useRef<HTMLDivElement>(null);
+  const unread                          = notifs.filter(n => !n.read).length;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function markRead(id: number) { setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)); }
+  function markAllRead() { setNotifs(prev => prev.map(n => ({ ...n, read: true }))); }
+
+  const nl = (n: Notif) => lang === "ar" ? n.title_ar : lang === "fr" ? n.title_fr : n.title_en;
+  const nb = (n: Notif) => lang === "ar" ? n.body_ar  : lang === "fr" ? n.body_fr  : n.body_en;
   return (
     <header style={{
       height: 64, flexShrink: 0,
@@ -637,10 +679,66 @@ export function Topbar({ title, crumb = [], children }: {
           <IcSearch /><span style={{ color: "var(--ink-4)" }}>{t.search}</span>
           <span style={{ fontSize: 10, padding: "1px 5px", border: "1px solid var(--line)", borderRadius: 3, color: "var(--ink-4)" }}>⌘K</span>
         </div>
-        <button style={{ position: "relative", height: 36, width: 36, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--bg-ivory)", border: "1px solid var(--line-soft)", color: "var(--ink-2)", borderRadius: "var(--r)", cursor: "pointer" }}>
-          <IcBell />
-          <span style={{ position: "absolute", top: 8, insetInlineEnd: 8, width: 6, height: 6, borderRadius: 3, background: "var(--gold)" }} />
-        </button>
+        <div ref={notifRef} style={{ position: "relative" }}>
+          <button onClick={() => setNotifOpen(o => !o)} style={{ position: "relative", height: 36, width: 36, display: "inline-flex", alignItems: "center", justifyContent: "center", background: notifOpen ? "var(--gold-ghost)" : "var(--bg-ivory)", border: `1px solid ${notifOpen ? "var(--gold-line)" : "var(--line-soft)"}`, color: notifOpen ? "var(--gold)" : "var(--ink-2)", borderRadius: "var(--r)", cursor: "pointer" }}>
+            <IcBell />
+            {unread > 0 && (
+              <span style={{ position: "absolute", top: 6, insetInlineEnd: 6, minWidth: 15, height: 15, borderRadius: 999, background: "var(--rose)", color: "#fff", fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", border: "1.5px solid var(--bg-cream)" }}>
+                {unread}
+              </span>
+            )}
+          </button>
+
+          {notifOpen && (
+            <div style={{ position: "absolute", insetInlineEnd: 0, top: 44, width: 380, background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r-md)", boxShadow: "0 16px 48px rgba(0,0,0,0.25)", zIndex: 999, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 16px 10px", borderBottom: "1px solid var(--line-soft)" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontWeight: 700, fontSize: 14, color: "var(--ink)" }}>
+                    {lang === "ar" ? "الإشعارات" : lang === "fr" ? "Notifications" : "Notifications"}
+                  </span>
+                  {unread > 0 && (
+                    <span style={{ fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: "var(--rose)", color: "#fff" }}>{unread}</span>
+                  )}
+                </div>
+                {unread > 0 && (
+                  <button onClick={markAllRead} style={{ fontSize: 11, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", fontWeight: 600, padding: "2px 6px" }}>
+                    {lang === "ar" ? "تحديد الكل كمقروء" : lang === "fr" ? "Tout marquer comme lu" : "Mark all as read"}
+                  </button>
+                )}
+              </div>
+              {/* List */}
+              <div style={{ overflowY: "auto", maxHeight: 460 }}>
+                {notifs.map((n, i) => {
+                  const cfg = NOTIF_CFG[n.type];
+                  return (
+                    <div key={n.id} onClick={() => markRead(n.id)} style={{ display: "flex", gap: 12, padding: "12px 16px", borderBottom: i < notifs.length - 1 ? "1px solid var(--line-soft)" : "none", cursor: "pointer", background: n.read ? "transparent" : "var(--gold-ghost)", transition: "background 0.12s" }}
+                      onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "var(--bg-cream)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = n.read ? "transparent" : "var(--gold-ghost)"}>
+                      <div style={{ width: 36, height: 36, borderRadius: "50%", background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                        {cfg.icon}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ fontSize: 12.5, fontWeight: n.read ? 500 : 700, color: "var(--ink)", lineHeight: 1.3 }}>{nl(n)}</span>
+                          <span style={{ fontSize: 10.5, color: "var(--ink-4)", flexShrink: 0, marginTop: 1 }}>{n.time}</span>
+                        </div>
+                        <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nb(n)}</div>
+                        {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color, marginTop: 5 }} />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Footer */}
+              <div style={{ padding: "10px 16px", borderTop: "1px solid var(--line-soft)", textAlign: "center" }}>
+                <button style={{ fontSize: 12, color: "var(--gold-deep)", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}>
+                  {lang === "ar" ? "عرض كل الإشعارات" : lang === "fr" ? "Voir toutes les notifications" : "View all notifications"}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
         <button onClick={toggle} title={theme === "dark" ? "Light mode" : "Dark mode"} style={{ height: 36, width: 36, display: "inline-flex", alignItems: "center", justifyContent: "center", background: "var(--bg-ivory)", border: "1px solid var(--line-soft)", color: "var(--ink-2)", borderRadius: "var(--r)", cursor: "pointer" }}>
           {theme === "dark" ? <IcSun /> : <IcMoon />}
         </button>
