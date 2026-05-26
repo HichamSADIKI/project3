@@ -178,8 +178,8 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   const t = useT();
   const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
 
-  const [loginVal,     setLoginVal]     = useState("");
-  const [password,     setPassword]     = useState("");
+  const [loginVal,     setLoginVal]     = useState("login");
+  const [password,     setPassword]     = useState("password");
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 
