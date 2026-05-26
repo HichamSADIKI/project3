@@ -813,6 +813,12 @@ function LeadCard({ l, stageKey, onDragStart, onDragEnd, draggingId, onSelect, o
               <IcMail />
             </a>
           )}
+          {l.phone && (
+            <a href={`sms:${l.phone}`} onClick={e => e.stopPropagation()}
+              style={{ width: 22, height: 22, borderRadius: 11, background: "rgba(59,130,246,0.1)", border: "1px solid rgba(59,130,246,0.25)", display: "grid", placeItems: "center", color: "#3B82F6", textDecoration: "none" }}>
+              <svg width={11} height={11} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </a>
+          )}
           {onMetaSearch && (
             <button
               onClick={e => { e.stopPropagation(); onMetaSearch(l.name); }}
@@ -988,7 +994,7 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
         <div style={{ flex: 1, overflow: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* Quick contact actions */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
             {lead.phone && (
               <a href={`tel:${lead.phone}`} style={{ textDecoration: "none" }}>
                 <button style={{ width: "100%", padding: "9px 0", borderRadius: "var(--r)", background: "var(--bg-paper)", border: "1px solid var(--line-soft)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--ink)" }}>
@@ -1007,6 +1013,14 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
               <a href={`mailto:${lead.email}`} style={{ textDecoration: "none" }}>
                 <button style={{ width: "100%", padding: "9px 0", borderRadius: "var(--r)", background: "var(--bg-paper)", border: "1px solid var(--line-soft)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", color: "var(--azure)" }}>
                   <IcMail /><span style={{ fontSize: 10, color: "var(--ink-3)" }}>Email</span>
+                </button>
+              </a>
+            )}
+            {lead.phone && (
+              <a href={`sms:${lead.phone}`} style={{ textDecoration: "none" }}>
+                <button style={{ width: "100%", padding: "9px 0", borderRadius: "var(--r)", background: "rgba(59,130,246,0.08)", border: "1px solid rgba(59,130,246,0.25)", display: "flex", flexDirection: "column", alignItems: "center", gap: 4, cursor: "pointer", color: "#3B82F6" }}>
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                  <span style={{ fontSize: 10 }}>SMS</span>
                 </button>
               </a>
             )}
