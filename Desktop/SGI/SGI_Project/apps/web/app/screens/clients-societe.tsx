@@ -97,8 +97,32 @@ interface Company {
   deals: number;
   status: Status;
   agent: string;
+  languages: string[];
   vatNo?: string;
   tradeLicense?: string;
+}
+
+const LANG_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  ar: { label: "AR", color: "#92610a", bg: "rgba(200,160,60,0.15)" },
+  en: { label: "EN", color: "#1d4ed8", bg: "rgba(59,130,246,0.12)" },
+  fr: { label: "FR", color: "#6d28d9", bg: "rgba(139,92,246,0.12)" },
+  ru: { label: "RU", color: "#065f46", bg: "rgba(16,185,129,0.12)" },
+  zh: { label: "ZH", color: "#991b1b", bg: "rgba(239,68,68,0.12)"  },
+  hi: { label: "HI", color: "#92400e", bg: "rgba(245,158,11,0.12)" },
+};
+function LangPills({ langs }: { langs: string[] }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+      {langs.map(l => {
+        const cfg = LANG_CFG[l] ?? { label: l.toUpperCase(), color: "var(--ink-3)", bg: "var(--bg-cream)" };
+        return (
+          <span key={l} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: cfg.bg, color: cfg.color, letterSpacing: "0.05em" }}>
+            {cfg.label}
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 const SECTOR_CFG: Record<Sector, { en: string; ar: string; fr: string; color: string }> = {
@@ -149,18 +173,18 @@ const aed = (n: number) => new Intl.NumberFormat("en-AE", { style: "currency", c
 const fmt  = (d: string) => new Date(d).toLocaleDateString("en-AE", { day: "2-digit", month: "short", year: "numeric" });
 
 const COMPANIES: Company[] = [
-  { id: "c001", name: "Al Maktoum Holding",          name_ar: "مجموعة آل مكتوم القابضة",    country: "UAE", flag: "🇦🇪", sector: "investment",   contact: "Sultan Al Maktoum",    contactRole: "CEO",                 phone: "+971 4 123 4567", email: "info@amholding.ae",     website: "amholding.ae",     annualRevenue: 18_400_000, deals: 4, status: "vip",      agent: "Yasmine K.", vatNo: "100345678900003", tradeLicense: "DED-2019-00345" },
-  { id: "c002", name: "Gulf Properties LLC",          name_ar: "شركة الخليج للعقارات",        country: "UAE", flag: "🇦🇪", sector: "realestate",   contact: "Mariam Al Suwaidi",    contactRole: "Managing Director",   phone: "+971 4 987 6543", email: "m.suwaidi@gulfprop.ae", website: "gulfprop.ae",      annualRevenue: 7_800_000,  deals: 6, status: "vip",      agent: "Omar B.",    vatNo: "100567890100003", tradeLicense: "DED-2017-00892" },
-  { id: "c003", name: "Invest Maroc SARL",            name_ar: "إنفيست المغرب",               country: "Morocco", flag: "🇲🇦", sector: "investment", contact: "Mehdi Bensouda",      contactRole: "General Manager",     phone: "+212 5 22 34 56 78", email: "m.bensouda@investma.com", annualRevenue: 5_200_000, deals: 3, status: "active",    agent: "Omar B."    },
-  { id: "c004", name: "Riyadh Development Co.",       name_ar: "شركة الرياض للتطوير",         country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Turki Al Faisal",   contactRole: "Chairman",            phone: "+966 11 234 5678", email: "t.faisal@rdc.sa",        website: "rdc.sa",           annualRevenue: 9_100_000,  deals: 2, status: "active",   agent: "Yasmine K.", vatNo: "300123456700003" },
-  { id: "c005", name: "Dubai Hospitality Group",      name_ar: "مجموعة دبي للضيافة",          country: "UAE", flag: "🇦🇪", sector: "hospitality",  contact: "Khalid Al Qasimi",     contactRole: "President",           phone: "+971 4 567 8901", email: "k.qasimi@dhg.ae",       website: "dhg.ae",           annualRevenue: 12_500_000, deals: 5, status: "vip",      agent: "Reem M.",    vatNo: "100987654300003", tradeLicense: "DED-2015-01234" },
-  { id: "c006", name: "Casablanca Real Estate SA",    name_ar: "الدار البيضاء للعقارات",      country: "Morocco", flag: "🇲🇦", sector: "realestate", contact: "Leila Chraibi",       contactRole: "Director",            phone: "+212 5 22 98 76 54", email: "l.chraibi@crsa.ma",      annualRevenue: 3_400_000,  deals: 2, status: "active",   agent: "Adel H."    },
-  { id: "c007", name: "Emirates Financial Partners",  name_ar: "شركاء الإمارات الماليون",     country: "UAE", flag: "🇦🇪", sector: "finance",      contact: "Ahmad Al Muhairi",     contactRole: "Partner",             phone: "+971 2 345 6789", email: "a.muhairi@efp.ae",      website: "efp.ae",           annualRevenue: 6_700_000,  deals: 3, status: "active",   agent: "Nadia K.",   vatNo: "100234567800003" },
-  { id: "c008", name: "Vision Construct KSA",         name_ar: "رؤية للإنشاء المملكة",        country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Nora Al Turki",     contactRole: "Operations Director", phone: "+966 12 456 7890", email: "n.turki@vcksa.sa",       website: "vcksa.sa",         annualRevenue: 4_800_000,  deals: 1, status: "prospect", agent: "Adel H."    },
-  { id: "c009", name: "Mena Retail Holdings",         name_ar: "مينا القابضة للتجزئة",        country: "UAE", flag: "🇦🇪", sector: "retail",       contact: "Sara Al Dhaheri",      contactRole: "CEO",                 phone: "+971 4 678 9012", email: "s.dhaheri@mena-retail.ae",website: "mena-retail.ae",  annualRevenue: 8_200_000,  deals: 2, status: "active",   agent: "Reem M.",    vatNo: "100876543200003", tradeLicense: "DED-2020-00567" },
-  { id: "c010", name: "Infinity Maroc Partners",      name_ar: "إنفينيتي شركاء المغرب",       country: "Morocco", flag: "🇲🇦", sector: "investment", contact: "Rachid El Fassi",     contactRole: "Founding Partner",    phone: "+212 5 37 12 34 56", email: "r.elfassi@imp.ma",       annualRevenue: 2_900_000,  deals: 1, status: "prospect", agent: "Yasmine K." },
-  { id: "c011", name: "Al Ain Properties PJSC",       name_ar: "شركة العين للعقارات",         country: "UAE", flag: "🇦🇪", sector: "realestate",   contact: "Hamdan Al Nahyan",     contactRole: "Vice Chairman",       phone: "+971 3 789 0123", email: "h.alnahyan@aap.ae",     website: "aap.ae",           annualRevenue: 14_300_000, deals: 7, status: "vip",      agent: "Yasmine K.", vatNo: "100765432100003", tradeLicense: "DED-2012-00189" },
-  { id: "c012", name: "Saudi Luxury Hospitality Co.", name_ar: "شركة الضيافة الفاخرة السعودية",country: "KSA", flag: "🇸🇦", sector: "hospitality", contact: "Faisal Al Saud",       contactRole: "Executive Director",  phone: "+966 11 890 1234", email: "f.alsaud@slhc.sa",       website: "slhc.sa",          annualRevenue: 11_600_000, deals: 3, status: "vip",      agent: "Omar B."    },
+  { id: "c001", name: "Al Maktoum Holding",          name_ar: "مجموعة آل مكتوم القابضة",    country: "UAE",     flag: "🇦🇪", sector: "investment",   contact: "Sultan Al Maktoum",    contactRole: "CEO",                 phone: "+971 4 123 4567",    email: "info@amholding.ae",        website: "amholding.ae",  annualRevenue: 18_400_000, deals: 4, status: "vip",      agent: "Yasmine K.", languages: ["ar", "en"],       vatNo: "100345678900003", tradeLicense: "DED-2019-00345" },
+  { id: "c002", name: "Gulf Properties LLC",          name_ar: "شركة الخليج للعقارات",        country: "UAE",     flag: "🇦🇪", sector: "realestate",   contact: "Mariam Al Suwaidi",    contactRole: "Managing Director",   phone: "+971 4 987 6543",    email: "m.suwaidi@gulfprop.ae",    website: "gulfprop.ae",   annualRevenue: 7_800_000,  deals: 6, status: "vip",      agent: "Omar B.",    languages: ["ar", "en"],       vatNo: "100567890100003", tradeLicense: "DED-2017-00892" },
+  { id: "c003", name: "Invest Maroc SARL",            name_ar: "إنفيست المغرب",               country: "Morocco", flag: "🇲🇦", sector: "investment",   contact: "Mehdi Bensouda",      contactRole: "General Manager",     phone: "+212 5 22 34 56 78", email: "m.bensouda@investma.com",                    annualRevenue: 5_200_000,  deals: 3, status: "active",   agent: "Omar B.",    languages: ["ar", "fr"] },
+  { id: "c004", name: "Riyadh Development Co.",       name_ar: "شركة الرياض للتطوير",         country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Turki Al Faisal",     contactRole: "Chairman",            phone: "+966 11 234 5678",   email: "t.faisal@rdc.sa",          website: "rdc.sa",        annualRevenue: 9_100_000,  deals: 2, status: "active",   agent: "Yasmine K.", languages: ["ar", "en"],       vatNo: "300123456700003" },
+  { id: "c005", name: "Dubai Hospitality Group",      name_ar: "مجموعة دبي للضيافة",          country: "UAE",     flag: "🇦🇪", sector: "hospitality",  contact: "Khalid Al Qasimi",     contactRole: "President",           phone: "+971 4 567 8901",    email: "k.qasimi@dhg.ae",          website: "dhg.ae",        annualRevenue: 12_500_000, deals: 5, status: "vip",      agent: "Reem M.",    languages: ["ar", "en", "fr"], vatNo: "100987654300003", tradeLicense: "DED-2015-01234" },
+  { id: "c006", name: "Casablanca Real Estate SA",    name_ar: "الدار البيضاء للعقارات",      country: "Morocco", flag: "🇲🇦", sector: "realestate",   contact: "Leila Chraibi",        contactRole: "Director",            phone: "+212 5 22 98 76 54", email: "l.chraibi@crsa.ma",                          annualRevenue: 3_400_000,  deals: 2, status: "active",   agent: "Adel H.",    languages: ["ar", "fr"] },
+  { id: "c007", name: "Emirates Financial Partners",  name_ar: "شركاء الإمارات الماليون",     country: "UAE",     flag: "🇦🇪", sector: "finance",      contact: "Ahmad Al Muhairi",     contactRole: "Partner",             phone: "+971 2 345 6789",    email: "a.muhairi@efp.ae",         website: "efp.ae",        annualRevenue: 6_700_000,  deals: 3, status: "active",   agent: "Nadia K.",   languages: ["ar", "en"],       vatNo: "100234567800003" },
+  { id: "c008", name: "Vision Construct KSA",         name_ar: "رؤية للإنشاء المملكة",        country: "KSA",     flag: "🇸🇦", sector: "construction", contact: "Nora Al Turki",        contactRole: "Operations Director", phone: "+966 12 456 7890",   email: "n.turki@vcksa.sa",         website: "vcksa.sa",      annualRevenue: 4_800_000,  deals: 1, status: "prospect", agent: "Adel H.",    languages: ["ar", "en"] },
+  { id: "c009", name: "Mena Retail Holdings",         name_ar: "مينا القابضة للتجزئة",        country: "UAE",     flag: "🇦🇪", sector: "retail",       contact: "Sara Al Dhaheri",      contactRole: "CEO",                 phone: "+971 4 678 9012",    email: "s.dhaheri@mena-retail.ae", website: "mena-retail.ae",annualRevenue: 8_200_000,  deals: 2, status: "active",   agent: "Reem M.",    languages: ["ar", "en"],       vatNo: "100876543200003", tradeLicense: "DED-2020-00567" },
+  { id: "c010", name: "Infinity Maroc Partners",      name_ar: "إنفينيتي شركاء المغرب",       country: "Morocco", flag: "🇲🇦", sector: "investment",   contact: "Rachid El Fassi",      contactRole: "Founding Partner",    phone: "+212 5 37 12 34 56", email: "r.elfassi@imp.ma",                           annualRevenue: 2_900_000,  deals: 1, status: "prospect", agent: "Yasmine K.", languages: ["ar", "fr"] },
+  { id: "c011", name: "Al Ain Properties PJSC",       name_ar: "شركة العين للعقارات",         country: "UAE",     flag: "🇦🇪", sector: "realestate",   contact: "Hamdan Al Nahyan",     contactRole: "Vice Chairman",       phone: "+971 3 789 0123",    email: "h.alnahyan@aap.ae",        website: "aap.ae",        annualRevenue: 14_300_000, deals: 7, status: "vip",      agent: "Yasmine K.", languages: ["ar", "en"],       vatNo: "100765432100003", tradeLicense: "DED-2012-00189" },
+  { id: "c012", name: "Saudi Luxury Hospitality Co.", name_ar: "شركة الضيافة الفاخرة السعودية",country: "KSA",    flag: "🇸🇦", sector: "hospitality",  contact: "Faisal Al Saud",       contactRole: "Executive Director",  phone: "+966 11 890 1234",   email: "f.alsaud@slhc.sa",         website: "slhc.sa",       annualRevenue: 11_600_000, deals: 3, status: "vip",      agent: "Omar B.",    languages: ["ar", "en"] },
 ];
 
 const AGENTS  = ["All agents", "Yasmine K.", "Omar B.", "Reem M.", "Adel H.", "Nadia K."];
@@ -769,7 +793,8 @@ export function ScreenClientsSociete({ onDealConfirmed }: { onDealConfirmed?: (d
                       </div>
                       <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>{lang === "ar" ? scfg.ar : lang === "fr" ? scfg.fr : scfg.en}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{c.contact} · {aed(c.annualRevenue)}</div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>{c.contact} · {aed(c.annualRevenue)}</div>
+                    <LangPills langs={c.languages} />
                   </div>
                 );
               })}
@@ -786,6 +811,7 @@ export function ScreenClientsSociete({ onDealConfirmed }: { onDealConfirmed?: (d
                       lang === "ar" ? "الإيرادات" : lang === "fr" ? "Chiffre d'affaires" : "Revenue",
                       lang === "ar" ? "الصفقات" : lang === "fr" ? "Deals" : "Deals",
                       lang === "ar" ? "الوكيل" : lang === "fr" ? "Agent" : "Agent",
+                      lang === "ar" ? "اللغات" : lang === "fr" ? "Langues" : "Languages",
                       lang === "ar" ? "الحالة" : lang === "fr" ? "Statut" : "Status",
                     ].map(h => (
                       <th key={h} style={{ padding: "10px 16px", fontSize: 10.5, color: "var(--ink-4)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textAlign: "start", borderBottom: "1px solid var(--line-soft)" }}>{h}</th>
@@ -828,6 +854,7 @@ export function ScreenClientsSociete({ onDealConfirmed }: { onDealConfirmed?: (d
                         </td>
                         <td style={{ padding: "13px 16px", fontSize: 13, color: "var(--ink-2)" }} className="tnum">{c.deals}</td>
                         <td style={{ padding: "13px 16px", fontSize: 12.5, color: "var(--ink-3)" }}>{c.agent}</td>
+                        <td style={{ padding: "13px 16px" }}><LangPills langs={c.languages} /></td>
                         <td style={{ padding: "13px 16px" }}>
                           <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>
                             {lang === "ar" ? scfg.ar : lang === "fr" ? scfg.fr : scfg.en}

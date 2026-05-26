@@ -98,12 +98,36 @@ interface Person {
   lastContact: string;
   agent: string;
   visa: boolean;
+  languages: string[];
   address?: string;
   dob?: string;
   passportNo?: string;
 }
 
 const NAT_LABELS: Record<Nat, string> = { ae: "Emirati", sa: "Saudi", ma: "Moroccan", fr: "French", gb: "British", in: "Indian", ru: "Russian", cn: "Chinese" };
+
+const LANG_CFG: Record<string, { label: string; color: string; bg: string }> = {
+  ar: { label: "AR", color: "#92610a", bg: "rgba(200,160,60,0.15)" },
+  en: { label: "EN", color: "#1d4ed8", bg: "rgba(59,130,246,0.12)" },
+  fr: { label: "FR", color: "#6d28d9", bg: "rgba(139,92,246,0.12)" },
+  ru: { label: "RU", color: "#065f46", bg: "rgba(16,185,129,0.12)" },
+  zh: { label: "ZH", color: "#991b1b", bg: "rgba(239,68,68,0.12)"  },
+  hi: { label: "HI", color: "#92400e", bg: "rgba(245,158,11,0.12)" },
+};
+function LangPills({ langs }: { langs: string[] }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+      {langs.map(l => {
+        const cfg = LANG_CFG[l] ?? { label: l.toUpperCase(), color: "var(--ink-3)", bg: "var(--bg-cream)" };
+        return (
+          <span key={l} style={{ fontSize: 10, fontWeight: 700, padding: "2px 7px", borderRadius: 999, background: cfg.bg, color: cfg.color, letterSpacing: "0.05em" }}>
+            {cfg.label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 const STATUS_CFG: Record<Status, { en: string; ar: string; fr: string; color: string }> = {
   active:   { en: "Active",   ar: "نشط",        fr: "Actif",    color: "var(--emerald)" },
@@ -115,18 +139,18 @@ const STATUS_CFG: Record<Status, { en: string; ar: string; fr: string; color: st
 const aed = (n: number) => new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
 
 const PERSONS: Person[] = [
-  { id: "p001", name: "Reem Al Hashemi",    name_ar: "ريم الهاشمي",     nat: "ae", flag: "🇦🇪", phone: "+971 50 123 4567", email: "reem@email.ae",       budget: 11_200_000, status: "vip",      deals: 2, lastContact: "2026-05-24", agent: "Yasmine K.", visa: true,  address: "Dubai Hills Estate, Dubai", dob: "1985-03-14", passportNo: "AE123456" },
-  { id: "p002", name: "Abdullah Al Rashid", name_ar: "عبدالله الراشد",   nat: "sa", flag: "🇸🇦", phone: "+966 55 987 6543", email: "a.rashid@gmail.com",  budget: 8_500_000,  status: "vip",      deals: 3, lastContact: "2026-05-22", agent: "Omar B.",    visa: true,  address: "Al Olaya District, Riyadh", dob: "1978-07-22", passportNo: "SA987654" },
-  { id: "p003", name: "Sophie Martin",      name_ar: "صوفي مارتان",      nat: "fr", flag: "🇫🇷", phone: "+33 6 12 34 56 78", email: "s.martin@gmail.com", budget: 6_400_000,  status: "active",   deals: 1, lastContact: "2026-05-20", agent: "Reem M.",    visa: false, address: "JBR, Dubai Marina, Dubai",  dob: "1990-11-05", passportNo: "FR456789" },
-  { id: "p004", name: "Fatima Al Zaabi",    name_ar: "فاطمة الزعابي",    nat: "ae", flag: "🇦🇪", phone: "+971 52 456 7890", email: "fatima@email.ae",     budget: 6_400_000,  status: "active",   deals: 1, lastContact: "2026-05-19", agent: "Yasmine K.", visa: false, address: "Khalifa City, Abu Dhabi",   dob: "1992-02-28" },
-  { id: "p005", name: "James Thornton",     name_ar: "جيمس ثورنتون",     nat: "gb", flag: "🇬🇧", phone: "+44 7700 900000",  email: "j.thornton@uk.com",   budget: 5_800_000,  status: "active",   deals: 2, lastContact: "2026-05-18", agent: "Nadia K.",   visa: true,  address: "Downtown Dubai",            dob: "1982-09-17", passportNo: "GB234567" },
-  { id: "p006", name: "Priya Sharma",       name_ar: "بريا شارما",        nat: "in", flag: "🇮🇳", phone: "+971 54 321 0987", email: "priya@email.in",      budget: 3_200_000,  status: "prospect", deals: 0, lastContact: "2026-05-15", agent: "Adel H.",    visa: false },
-  { id: "p007", name: "Youssef El Amrani",  name_ar: "يوسف العمراني",    nat: "ma", flag: "🇲🇦", phone: "+212 6 12 34 56 78", email: "y.amrani@ma.com",   budget: 4_100_000,  status: "active",   deals: 1, lastContact: "2026-05-14", agent: "Omar B.",    visa: true,  address: "Maarif, Casablanca",        dob: "1988-04-09", passportNo: "MA345678" },
-  { id: "p008", name: "Dmitri Volkov",      name_ar: "ديمتري فولكوف",    nat: "ru", flag: "🇷🇺", phone: "+971 50 876 5432", email: "d.volkov@ru.com",      budget: 9_000_000,  status: "vip",      deals: 2, lastContact: "2026-05-13", agent: "Yasmine K.", visa: true,  address: "Palm Jumeirah, Dubai",       dob: "1975-12-01", passportNo: "RU678901" },
-  { id: "p009", name: "Li Wei",             name_ar: "لي وي",             nat: "cn", flag: "🇨🇳", phone: "+971 55 654 3210", email: "liwei@cn.com",        budget: 7_500_000,  status: "active",   deals: 1, lastContact: "2026-05-10", agent: "Reem M.",    visa: true,  address: "DIFC, Dubai",               dob: "1986-06-30" },
-  { id: "p010", name: "Hessa Al Mansouri",  name_ar: "حصة المنصوري",     nat: "ae", flag: "🇦🇪", phone: "+971 56 789 0123", email: "hessa@email.ae",      budget: 2_500_000,  status: "prospect", deals: 0, lastContact: "2026-05-08", agent: "Nadia K.",   visa: false },
-  { id: "p011", name: "Karim Benali",       name_ar: "كريم بن علي",       nat: "ma", flag: "🇲🇦", phone: "+212 6 98 76 54 32", email: "k.benali@ma.com",  budget: 2_100_000,  status: "prospect", deals: 0, lastContact: "2026-05-05", agent: "Adel H.",    visa: false },
-  { id: "p012", name: "Sara Al Nuaimi",     name_ar: "سارة النعيمي",      nat: "ae", flag: "🇦🇪", phone: "+971 50 111 2233", email: "sara@email.ae",       budget: 15_000_000, status: "vip",      deals: 4, lastContact: "2026-05-25", agent: "Yasmine K.", visa: true,  address: "Emirates Hills, Dubai",     dob: "1980-08-15", passportNo: "AE789012" },
+  { id: "p001", name: "Reem Al Hashemi",    name_ar: "ريم الهاشمي",     nat: "ae", flag: "🇦🇪", phone: "+971 50 123 4567", email: "reem@email.ae",       budget: 11_200_000, status: "vip",      deals: 2, lastContact: "2026-05-24", agent: "Yasmine K.", visa: true,  languages: ["ar", "en"],       address: "Dubai Hills Estate, Dubai", dob: "1985-03-14", passportNo: "AE123456" },
+  { id: "p002", name: "Abdullah Al Rashid", name_ar: "عبدالله الراشد",   nat: "sa", flag: "🇸🇦", phone: "+966 55 987 6543", email: "a.rashid@gmail.com",  budget: 8_500_000,  status: "vip",      deals: 3, lastContact: "2026-05-22", agent: "Omar B.",    visa: true,  languages: ["ar", "en"],       address: "Al Olaya District, Riyadh", dob: "1978-07-22", passportNo: "SA987654" },
+  { id: "p003", name: "Sophie Martin",      name_ar: "صوفي مارتان",      nat: "fr", flag: "🇫🇷", phone: "+33 6 12 34 56 78", email: "s.martin@gmail.com", budget: 6_400_000,  status: "active",   deals: 1, lastContact: "2026-05-20", agent: "Reem M.",    visa: false, languages: ["fr", "en"],       address: "JBR, Dubai Marina, Dubai",  dob: "1990-11-05", passportNo: "FR456789" },
+  { id: "p004", name: "Fatima Al Zaabi",    name_ar: "فاطمة الزعابي",    nat: "ae", flag: "🇦🇪", phone: "+971 52 456 7890", email: "fatima@email.ae",     budget: 6_400_000,  status: "active",   deals: 1, lastContact: "2026-05-19", agent: "Yasmine K.", visa: false, languages: ["ar", "en"],       address: "Khalifa City, Abu Dhabi",   dob: "1992-02-28" },
+  { id: "p005", name: "James Thornton",     name_ar: "جيمس ثورنتون",     nat: "gb", flag: "🇬🇧", phone: "+44 7700 900000",  email: "j.thornton@uk.com",   budget: 5_800_000,  status: "active",   deals: 2, lastContact: "2026-05-18", agent: "Nadia K.",   visa: true,  languages: ["en"],             address: "Downtown Dubai",            dob: "1982-09-17", passportNo: "GB234567" },
+  { id: "p006", name: "Priya Sharma",       name_ar: "بريا شارما",        nat: "in", flag: "🇮🇳", phone: "+971 54 321 0987", email: "priya@email.in",      budget: 3_200_000,  status: "prospect", deals: 0, lastContact: "2026-05-15", agent: "Adel H.",    visa: false, languages: ["en", "hi"] },
+  { id: "p007", name: "Youssef El Amrani",  name_ar: "يوسف العمراني",    nat: "ma", flag: "🇲🇦", phone: "+212 6 12 34 56 78", email: "y.amrani@ma.com",   budget: 4_100_000,  status: "active",   deals: 1, lastContact: "2026-05-14", agent: "Omar B.",    visa: true,  languages: ["ar", "fr"],       address: "Maarif, Casablanca",        dob: "1988-04-09", passportNo: "MA345678" },
+  { id: "p008", name: "Dmitri Volkov",      name_ar: "ديمتري فولكوف",    nat: "ru", flag: "🇷🇺", phone: "+971 50 876 5432", email: "d.volkov@ru.com",      budget: 9_000_000,  status: "vip",      deals: 2, lastContact: "2026-05-13", agent: "Yasmine K.", visa: true,  languages: ["ru", "en"],       address: "Palm Jumeirah, Dubai",       dob: "1975-12-01", passportNo: "RU678901" },
+  { id: "p009", name: "Li Wei",             name_ar: "لي وي",             nat: "cn", flag: "🇨🇳", phone: "+971 55 654 3210", email: "liwei@cn.com",        budget: 7_500_000,  status: "active",   deals: 1, lastContact: "2026-05-10", agent: "Reem M.",    visa: true,  languages: ["zh", "en"],       address: "DIFC, Dubai",               dob: "1986-06-30" },
+  { id: "p010", name: "Hessa Al Mansouri",  name_ar: "حصة المنصوري",     nat: "ae", flag: "🇦🇪", phone: "+971 56 789 0123", email: "hessa@email.ae",      budget: 2_500_000,  status: "prospect", deals: 0, lastContact: "2026-05-08", agent: "Nadia K.",   visa: false, languages: ["ar", "en"] },
+  { id: "p011", name: "Karim Benali",       name_ar: "كريم بن علي",       nat: "ma", flag: "🇲🇦", phone: "+212 6 98 76 54 32", email: "k.benali@ma.com",  budget: 2_100_000,  status: "prospect", deals: 0, lastContact: "2026-05-05", agent: "Adel H.",    visa: false, languages: ["ar", "fr"] },
+  { id: "p012", name: "Sara Al Nuaimi",     name_ar: "سارة النعيمي",      nat: "ae", flag: "🇦🇪", phone: "+971 50 111 2233", email: "sara@email.ae",       budget: 15_000_000, status: "vip",      deals: 4, lastContact: "2026-05-25", agent: "Yasmine K.", visa: true,  languages: ["ar", "en", "fr"], address: "Emirates Hills, Dubai",     dob: "1980-08-15", passportNo: "AE789012" },
 ];
 
 const AGENTS = ["All agents", "Yasmine K.", "Omar B.", "Reem M.", "Adel H.", "Nadia K."];
@@ -665,7 +689,7 @@ export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "var(--bg-cream)" }}>
-                    {[lang==="ar"?"العميل":lang==="fr"?"Client":"Client", lang==="ar"?"جهة الاتصال":lang==="fr"?"Contact":"Contact", lang==="ar"?"الميزانية":lang==="fr"?"Budget":"Budget", lang==="ar"?"الصفقات":lang==="fr"?"Deals":"Deals", lang==="ar"?"الوكيل":lang==="fr"?"Agent":"Agent", lang==="ar"?"الحالة":lang==="fr"?"Statut":"Status"].map(h => (
+                    {[lang==="ar"?"العميل":lang==="fr"?"Client":"Client", lang==="ar"?"جهة الاتصال":lang==="fr"?"Contact":"Contact", lang==="ar"?"الميزانية":lang==="fr"?"Budget":"Budget", lang==="ar"?"الصفقات":lang==="fr"?"Deals":"Deals", lang==="ar"?"الوكيل":lang==="fr"?"Agent":"Agent", lang==="ar"?"اللغات":lang==="fr"?"Langues":"Languages", lang==="ar"?"الحالة":lang==="fr"?"Statut":"Status"].map(h => (
                       <th key={h} style={{ padding: "10px 18px", fontSize: 10.5, color: "var(--ink-4)", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", textAlign: "start", borderBottom: "1px solid var(--line-soft)" }}>{h}</th>
                     ))}
                   </tr>
@@ -704,6 +728,7 @@ export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (
                         </td>
                         <td style={{ padding: "13px 18px", fontSize: 13, color: "var(--ink-2)" }} className="tnum">{p.deals}</td>
                         <td style={{ padding: "13px 18px", fontSize: 12.5, color: "var(--ink-3)" }}>{p.agent}</td>
+                        <td style={{ padding: "13px 18px" }}><LangPills langs={p.languages} /></td>
                         <td style={{ padding: "13px 18px" }}>
                           <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>{lang==="ar"?scfg.ar:lang==="fr"?scfg.fr:scfg.en}</span>
                         </td>
@@ -725,7 +750,8 @@ export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (
                     </div>
                     <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>{lang==="ar"?scfg.ar:lang==="fr"?scfg.fr:scfg.en}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{p.phone} · {aed(p.budget)}</div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 6 }}>{p.phone} · {aed(p.budget)}</div>
+                  <LangPills langs={p.languages} />
                 </div>
               );
             })}
