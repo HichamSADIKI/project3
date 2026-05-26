@@ -693,15 +693,9 @@ export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (
                           </div>
                         </td>
                         <td style={{ padding: "13px 18px" }}>
-                          <div style={{ display: "flex", flexDirection: "column", gap: 3, marginBottom: 8 }}>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                             <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "var(--ink-3)" }}><IcPhone />{p.phone}</div>
                             <div style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11.5, color: "var(--ink-3)" }}><IcMail />{p.email}</div>
-                          </div>
-                          <div style={{ display: "flex", gap: 5, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                            <ContactBtn href={`tel:${p.phone}`} bg="#6B7280"><IcPhoneSm /></ContactBtn>
-                            <ContactBtn href={`https://wa.me/${waNum(p.phone)}`} bg="#25D366"><IcWA /></ContactBtn>
-                            <ContactBtn href={`mailto:${p.email}`} bg="#64748b"><IcMailSm /></ContactBtn>
-                            <ContactBtn href={`sms:${p.phone}`} bg="#3B82F6"><IcSMS /></ContactBtn>
                           </div>
                         </td>
                         <td style={{ padding: "13px 18px" }}>
@@ -731,13 +725,7 @@ export function ScreenClientsPersonne({ onDealConfirmed }: { onDealConfirmed?: (
                     </div>
                     <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>{lang==="ar"?scfg.ar:lang==="fr"?scfg.fr:scfg.en}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 8 }}>{p.phone} · {aed(p.budget)}</div>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                    <ContactBtn href={`tel:${p.phone}`} bg="#6B7280"><IcPhoneSm /></ContactBtn>
-                    <ContactBtn href={`https://wa.me/${waNum(p.phone)}`} bg="#25D366"><IcWA /></ContactBtn>
-                    <ContactBtn href={`mailto:${p.email}`} bg="#64748b"><IcMailSm /></ContactBtn>
-                    <ContactBtn href={`sms:${p.phone}`} bg="#3B82F6"><IcSMS /></ContactBtn>
-                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{p.phone} · {aed(p.budget)}</div>
                 </div>
               );
             })}

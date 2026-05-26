@@ -769,13 +769,7 @@ export function ScreenClientsSociete({ onDealConfirmed }: { onDealConfirmed?: (d
                       </div>
                       <span style={{ fontSize: 10.5, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: `${scfg.color}18`, color: scfg.color }}>{lang === "ar" ? scfg.ar : lang === "fr" ? scfg.fr : scfg.en}</span>
                     </div>
-                    <div style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 8 }}>{c.contact} · {aed(c.annualRevenue)}</div>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                      <ContactBtn href={`tel:${c.phone}`} bg="#6B7280"><IcPhoneSm /></ContactBtn>
-                      <ContactBtn href={`https://wa.me/${waNum(c.phone)}`} bg="#25D366"><IcWA /></ContactBtn>
-                      <ContactBtn href={`mailto:${c.email}`} bg="#64748b"><IcMailSm /></ContactBtn>
-                      <ContactBtn href={`sms:${c.phone}`} bg="#3B82F6"><IcSMS /></ContactBtn>
-                    </div>
+                    <div style={{ fontSize: 12, color: "var(--ink-3)" }}>{c.contact} · {aed(c.annualRevenue)}</div>
                   </div>
                 );
               })}
@@ -827,13 +821,7 @@ export function ScreenClientsSociete({ onDealConfirmed }: { onDealConfirmed?: (d
                         </td>
                         <td style={{ padding: "13px 16px" }}>
                           <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", marginBottom: 3 }}>{c.contact}</div>
-                          <div style={{ fontSize: 11, color: "var(--ink-4)", marginBottom: 8 }}>{c.contactRole}</div>
-                          <div style={{ display: "flex", gap: 5, alignItems: "center" }} onClick={e => e.stopPropagation()}>
-                            <ContactBtn href={`tel:${c.phone}`} bg="#6B7280"><IcPhoneSm /></ContactBtn>
-                            <ContactBtn href={`https://wa.me/${waNum(c.phone)}`} bg="#25D366"><IcWA /></ContactBtn>
-                            <ContactBtn href={`mailto:${c.email}`} bg="#64748b"><IcMailSm /></ContactBtn>
-                            <ContactBtn href={`sms:${c.phone}`} bg="#3B82F6"><IcSMS /></ContactBtn>
-                          </div>
+                          <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{c.contactRole}</div>
                         </td>
                         <td style={{ padding: "13px 16px" }}>
                           <div className="tnum" style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{aed(c.annualRevenue)}</div>
