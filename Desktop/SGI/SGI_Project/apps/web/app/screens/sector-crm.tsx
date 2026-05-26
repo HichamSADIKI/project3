@@ -313,10 +313,22 @@ function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChan
   const isAr = lang === "ar"; const isFr = lang === "fr";
   const cl = (en: string, ar: string, fr: string) => isAr ? ar : isFr ? fr : en;
   const stageLabel = (s: PipelineStage) => isAr ? STAGE_CFG[s].label_ar : isFr ? STAGE_CFG[s].label_fr : STAGE_CFG[s].label_en;
-  const [notes, setNotes] = useState(lead.notes);
-  const [saved, setSaved] = useState(false);
+  const [history, setHistory] = useState(lead.notes);
+  const [newEntry, setNewEntry] = useState("");
+  const [added, setAdded] = useState(false);
 
-  function saveNotes() { onNotesChange(lead.id, notes); setSaved(true); setTimeout(() => setSaved(false), 1800); }
+  function addNote() {
+    if (!newEntry.trim()) return;
+    const now = new Date();
+    const ts = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")} ${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+    const separator = "─────────";
+    const entry = `${ts}\n${newEntry.trim()}`;
+    const updated = history ? `${entry}\n${separator}\n${history}` : entry;
+    setHistory(updated);
+    onNotesChange(lead.id, updated);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1800);
+  }
 
   return (
     <>
@@ -429,17 +441,27 @@ function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChan
           {/* Notes */}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.1em" }}>{cl("Notes", "ملاحظات", "Notes")}</div>
+            {history ? (
+              <textarea
+                readOnly
+                value={history}
+                style={{ width: "100%", height: 110, padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", fontSize: 11.5, color: "var(--ink-3)", resize: "none", boxSizing: "border-box", outline: "none", lineHeight: 1.6, fontFamily: "monospace" }}
+              />
+            ) : (
+              <div style={{ fontSize: 11.5, color: "var(--ink-4)", fontStyle: "italic", padding: "6px 0" }}>{cl("No notes yet.", "لا توجد ملاحظات بعد.", "Aucune note pour l'instant.")}</div>
+            )}
             <textarea
-              value={notes} onChange={e => { setNotes(e.target.value); setSaved(false); }}
-              placeholder={cl("Add notes about this lead…", "أضف ملاحظات حول هذا العميل…", "Ajouter des notes sur ce lead…")}
-              style={{ width: "100%", height: 90, padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-ivory)", fontSize: 12.5, color: "var(--ink)", resize: "none", boxSizing: "border-box", outline: "none", lineHeight: 1.5 }}
+              value={newEntry} onChange={e => setNewEntry(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) addNote(); }}
+              placeholder={cl("New note… (⌘Enter to add)", "ملاحظة جديدة…", "Nouvelle note… (⌘Entrée pour ajouter)")}
+              style={{ width: "100%", height: 68, padding: "8px 10px", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "var(--bg-ivory)", fontSize: 12.5, color: "var(--ink)", resize: "none", boxSizing: "border-box", outline: "none", lineHeight: 1.5 }}
             />
-            <button onClick={saveNotes} style={{
+            <button onClick={addNote} style={{
               height: 34, borderRadius: "var(--r)", border: "none",
-              background: saved ? "var(--emerald)" : meta.color,
+              background: added ? "var(--emerald)" : meta.color,
               color: "#fff", cursor: "pointer", fontSize: 12.5, fontWeight: 600, transition: "background .3s",
             }}>
-              {saved ? cl("Saved ✓", "تم الحفظ ✓", "Enregistré ✓") : cl("Save notes", "حفظ الملاحظات", "Enregistrer les notes")}
+              {added ? cl("Added ✓", "تمت الإضافة ✓", "Ajouté ✓") : cl("+ Add note", "+ إضافة ملاحظة", "+ Ajouter une note")}
             </button>
           </div>
         </div>
