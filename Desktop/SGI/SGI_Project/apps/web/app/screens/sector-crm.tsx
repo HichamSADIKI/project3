@@ -357,6 +357,10 @@ function LeadDetailPanel({ lead, meta, lang, onClose, onStageChange, onNotesChan
               <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 34, borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "transparent", color: "#25D366", textDecoration: "none", fontSize: 12, fontWeight: 500 }}>
                 <IcChat />{cl("WhatsApp", "واتساب", "WhatsApp")}
               </a>
+              <a href={`sms:${lead.phone}`} style={{ flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6, height: 34, borderRadius: "var(--r)", border: "1px solid var(--line-soft)", background: "transparent", color: "#3B82F6", textDecoration: "none", fontSize: 12, fontWeight: 500 }}>
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                {cl("SMS", "رسالة", "SMS")}
+              </a>
             </div>
           </div>
 
