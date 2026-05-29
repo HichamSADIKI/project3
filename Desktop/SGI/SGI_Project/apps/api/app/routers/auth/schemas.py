@@ -79,6 +79,32 @@ class RegisterResponse(BaseModel):
     message: str
 
 
+class FournisseurRegisterResponse(RegisterResponse):
+    """Réponse à l'inscription fournisseur prestataire (compte + profil + licence)."""
+
+    party_id: uuid.UUID
+    vendor_type: str
+    verification_status: str
+    license_uploaded: bool
+    # Champs pré-remplis par l'OCR de la licence (best-effort, peut être vide).
+    extracted: dict[str, object] = Field(default_factory=dict)
+
+
+class PendingFournisseurItem(BaseModel):
+    """Fournisseur en attente de validation, enrichi de son profil prestataire."""
+
+    user_id: uuid.UUID
+    party_id: uuid.UUID | None = None
+    email: str
+    full_name: str
+    status: str
+    created_at: str
+    vendor_type: str | None = None
+    verification_status: str | None = None
+    commercial_license_url: str | None = None
+    extracted: dict[str, object] = Field(default_factory=dict)
+
+
 class PendingUserItem(BaseModel):
     """Élément de la liste des inscriptions en attente (vue admin)."""
 

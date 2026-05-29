@@ -72,9 +72,11 @@ export async function POST(req: Request): Promise<NextResponse> {
     const status =
       detail === "company_required" || detail === "company_mismatch"
         ? 422
-        : upstream.status === 401
-          ? 401
-          : 502;
+        : detail.startsWith("account_")
+          ? 403
+          : upstream.status === 401
+            ? 401
+            : 502;
     return NextResponse.json({ error: detail }, { status });
   }
 

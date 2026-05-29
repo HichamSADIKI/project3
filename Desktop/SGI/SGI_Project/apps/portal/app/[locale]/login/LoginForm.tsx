@@ -304,7 +304,10 @@ export function LoginForm({
   function renderError(code: string | null): string | null {
     if (!code) return null;
     if (code === "invalid_credentials") return labels.errors.invalid_credentials;
-    if (code === "account_not_active") return labels.errors.account_not_active;
+    // account_not_active (statut renvoyé après login) + account_pending /
+    // account_rejected / account_suspended (codes d'erreur backend) → même message.
+    if (code === "account_not_active" || code.startsWith("account_"))
+      return labels.errors.account_not_active;
     if (code === "use_backoffice_portal") return labels.errors.use_backoffice_portal;
     if (code === "company_required") return labels.errors.company_required;
     if (code === "company_mismatch") return labels.errors.company_mismatch;

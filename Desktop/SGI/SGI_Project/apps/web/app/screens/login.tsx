@@ -83,8 +83,14 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
 
   const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
 
-  const [loginVal,     setLoginVal]     = useState("login");
-  const [password,     setPassword]     = useState("password");
+  // Pré-rempli avec le compte admin de démo (cf. apps/api/scripts/seed.py).
+  // Surcharger via NEXT_PUBLIC_DEMO_ADMIN_EMAIL / _PASSWORD en prod.
+  const [loginVal,     setLoginVal]     = useState(
+    process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL ?? "admin@infinity-uae.com",
+  );
+  const [password,     setPassword]     = useState(
+    process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD ?? "Admin123!",
+  );
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
 

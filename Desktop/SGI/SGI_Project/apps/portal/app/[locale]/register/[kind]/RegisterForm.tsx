@@ -23,6 +23,12 @@ export interface RegisterFormLabels {
   address: string;
   addressPlaceholder: string;
   addressHint: string;
+  categoryLabel: string;
+  categoryHint: string;
+  categoryPlaceholder: string;
+  license: string;
+  licenseHint: string;
+  vendorTypes: Record<string, string>;
   submit: string;
   submitting: string;
   alreadyAccount: string;
@@ -31,9 +37,26 @@ export interface RegisterFormLabels {
   errors: {
     email_already_registered: string;
     company_not_found: string;
+    invalid_vendor_type: string;
+    invalid_license: string;
     generic: string;
   };
 }
+
+// Ordre d'affichage des catégories prestataire (aligné sur VendorType backend).
+const VENDOR_TYPE_ORDER = [
+  "maintenance",
+  "cleaning",
+  "security",
+  "landscaping",
+  "pest_control",
+  "elevator",
+  "moving",
+  "hvac",
+  "electrical",
+  "plumbing",
+  "other",
+] as const;
 
 const DEFAULT_CLIENT_COMPANY_SLUG =
   process.env.NEXT_PUBLIC_DEFAULT_COMPANY_SLUG ?? "infinity-uae";
@@ -57,6 +80,8 @@ export function RegisterForm({
   const [clientType, setClientType] = useState<ClientType>("person");
   const [trn, setTrn] = useState("");
   const [address, setAddress] = useState("");
+  const [vendorType, setVendorType] = useState("");
+  const [licenseFile, setLicenseFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,17 +93,39 @@ export function RegisterForm({
     setError(null);
     setLoading(true);
     try {
-      await register(kind, {
-        email,
-        password,
-        full_name: fullName,
-        company_slug: companySlug,
-        ...(isClient && {
+      if (isClient) {
+        await register(kind, {
+          email,
+          password,
+          full_name: fullName,
+          company_slug: companySlug,
           client_type: clientType,
           ...(address.trim() ? { address: address.trim() } : {}),
           ...(clientType === "company" && trn.trim() ? { trn: trn.trim() } : {}),
-        }),
-      });
+        });
+      } else {
+        // Fournisseur : inscription multipart (compte + profil + licence).
+        if (!licenseFile) {
+          setError("invalid_license");
+          return;
+        }
+        const fd = new FormData();
+        fd.append("email", email);
+        fd.append("password", password);
+        fd.append("full_name", fullName);
+        fd.append("company_slug", companySlug);
+        fd.append("vendor_type", vendorType);
+        fd.append("preferred_language", locale);
+        fd.append("commercial_license", licenseFile);
+        const res = await fetch("/api/auth/register/fournisseur-profile", {
+          method: "POST",
+          body: fd,
+        });
+        if (!res.ok) {
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          throw new Error(data.error ?? "generic");
+        }
+      }
       setSubmitted(true);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "generic";
@@ -93,6 +140,14 @@ export function RegisterForm({
     if (code === "email_already_registered")
       return labels.errors.email_already_registered;
     if (code === "company_not_found") return labels.errors.company_not_found;
+    if (code === "invalid_vendor_type") return labels.errors.invalid_vendor_type;
+    if (
+      code === "invalid_license" ||
+      code === "unsupported_license_type" ||
+      code === "empty_license_file" ||
+      code === "license_too_large"
+    )
+      return labels.errors.invalid_license;
     return labels.errors.generic;
   }
 
@@ -119,7 +174,13 @@ export function RegisterForm({
           {labels.success.title}
         </h2>
         <p style={{ color: "var(--ink-3)", fontSize: "0.9rem", lineHeight: 1.55 }}>
-          {labels.success.body}
+          {isClient
+            ? {
+                fr: "Votre compte est actif. Vous pouvez vous connecter dès maintenant.",
+                en: "Your account is active. You can log in right now.",
+                ar: "حسابك مُفعّل. يمكنك تسجيل الدخول الآن.",
+              }[locale]
+            : labels.success.body}
         </p>
         <Link
           href={`/${locale}/login`}
@@ -283,6 +344,67 @@ export function RegisterForm({
             onChange={(e) => setCompanySlug(e.target.value)}
             placeholder={labels.companySlugPlaceholder}
           />
+        </div>
+      )}
+
+      {!isClient && (
+        <div>
+          <label className="sgi-label" htmlFor="vendorType">
+            {labels.categoryLabel}
+          </label>
+          <select
+            id="vendorType"
+            required
+            className="sgi-input"
+            value={vendorType}
+            onChange={(e) => setVendorType(e.target.value)}
+          >
+            <option value="" disabled>
+              {labels.categoryPlaceholder}
+            </option>
+            {VENDOR_TYPE_ORDER.map((vt) => (
+              <option key={vt} value={vt}>
+                {labels.vendorTypes[vt] ?? vt}
+              </option>
+            ))}
+          </select>
+          <small
+            style={{
+              display: "block",
+              marginTop: 6,
+              color: "var(--ink-3)",
+              fontSize: "0.75rem",
+            }}
+          >
+            {labels.categoryHint}
+          </small>
+        </div>
+      )}
+
+      {!isClient && (
+        <div>
+          <label className="sgi-label" htmlFor="commercialLicense">
+            {labels.license}
+          </label>
+          <input
+            id="commercialLicense"
+            type="file"
+            required
+            accept="application/pdf,image/jpeg,image/png,image/webp"
+            className="sgi-input"
+            onChange={(e) => setLicenseFile(e.target.files?.[0] ?? null)}
+            style={{ padding: "0.5rem" }}
+          />
+          <small
+            style={{
+              display: "block",
+              marginTop: 6,
+              color: "var(--ink-3)",
+              fontSize: "0.75rem",
+            }}
+          >
+            {labels.licenseHint}
+          </small>
         </div>
       )}
       {error && (

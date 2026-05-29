@@ -1,13 +1,22 @@
-import { createHmac } from "node:crypto";
+/**
+ * POST /api/auth/login — proxy d'authentification du back-office vers le backend FastAPI.
+ *
+ * Le front envoie { login, password } (login = email). On relaie vers
+ * `${BACKEND_API_URL}/api/v1/auth/login`, on valide le rôle (back-office =
+ * admin/manager/agent uniquement — les rôles publics client/fournisseur sont
+ * redirigés vers le portail), puis on stocke le JWT backend dans le cookie
+ * httpOnly `sgi-session`.
+ *
+ * Important : le JWT vient du backend (signé avec SECRET_KEY). Le middleware
+ * Edge (middleware.ts) re-vérifie sa signature avec JWT_SECRET — les deux
+ * secrets DOIVENT être identiques (cf. apps/web/.env.local & docker-compose).
+ */
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const DEMO_LOGIN    = process.env.DEMO_LOGIN    ?? "";
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? "";
-const JWT_SECRET    = process.env.JWT_SECRET    ?? "";
+const BACKEND_URL = process.env.BACKEND_API_URL ?? "http://api:8000";
 
-// ─── Rate limiter (in-memory, Edge-compatible) ────────────────────────────────
-// Max 5 tentatives par IP par 15 minutes
+// ─── Rate limiter (in-memory) — max 5 tentatives par IP / 15 min ───────────────
 
 const RATE_LIMIT_MAP = new Map<string, { count: number; resetAt: number }>();
 const MAX_ATTEMPTS = 5;
@@ -25,11 +34,9 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfter?: number } {
     RATE_LIMIT_MAP.set(ip, { count: 1, resetAt: now + WINDOW_MS });
     return { allowed: true };
   }
-
   if (record.count >= MAX_ATTEMPTS) {
     return { allowed: false, retryAfter: Math.ceil((record.resetAt - now) / 1000) };
   }
-
   record.count++;
   return { allowed: true };
 }
@@ -38,88 +45,141 @@ function resetRateLimit(ip: string): void {
   RATE_LIMIT_MAP.delete(ip);
 }
 
-// ─── JWT helpers ──────────────────────────────────────────────────────────────
+// ─── JWT helpers (lecture du payload, sans vérification — la vérif est faite
+//     par le middleware Edge et par le backend) ───────────────────────────────
 
-function b64url(buf: Buffer | string): string {
-  return Buffer.from(buf)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
+interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
 }
 
-function signJwt(payload: Record<string, unknown>): string {
-  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-  const now    = Math.floor(Date.now() / 1000);
-  const body   = b64url(JSON.stringify({ ...payload, iat: now, exp: now + 8 * 3600 }));
-  const sig    = b64url(createHmac("sha256", JWT_SECRET).update(`${header}.${body}`).digest());
-  return `${header}.${body}.${sig}`;
+interface JwtPayloadLite {
+  role?: string;
+  status?: string;
+  sub?: string;
+  exp?: number;
+  language?: string;
 }
+
+function decodeJwtPayload(token: string): JwtPayloadLite | null {
+  try {
+    const [, payloadB64] = token.split(".");
+    if (!payloadB64) return null;
+    const padded = payloadB64.replace(/-/g, "+").replace(/_/g, "/");
+    const json = Buffer.from(padded, "base64").toString("utf-8");
+    return JSON.parse(json) as JwtPayloadLite;
+  } catch {
+    return null;
+  }
+}
+
+const BACKOFFICE_ROLES = new Set(["admin", "manager", "agent"]);
 
 // ─── POST /api/auth/login ─────────────────────────────────────────────────────
 
 export async function POST(req: Request) {
-  if (!DEMO_LOGIN || !DEMO_PASSWORD || !JWT_SECRET) {
-    return NextResponse.json({ error: "server_misconfigured" }, { status: 500 });
-  }
-
-  // Validate Content-Type
+  // Content-Type
   const contentType = req.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) {
     return NextResponse.json({ error: "invalid_content_type" }, { status: 415 });
   }
 
-  // Rate limit check
+  // Rate limit
   const ip = getClientIp(req);
   const rateCheck = checkRateLimit(ip);
   if (!rateCheck.allowed) {
     return NextResponse.json(
       { error: "too_many_requests" },
-      {
-        status: 429,
-        headers: { "Retry-After": String(rateCheck.retryAfter ?? 60) },
-      }
+      { status: 429, headers: { "Retry-After": String(rateCheck.retryAfter ?? 60) } },
     );
   }
 
-  let login: string, password: string;
+  // Corps : le front envoie { login, password }
+  let login: string, password: string, companySlug: string | undefined;
   try {
-    const body = (await req.json()) as { login?: unknown; password?: unknown };
-    login    = typeof body.login    === "string" ? body.login    : "";
+    const body = (await req.json()) as {
+      login?: unknown;
+      password?: unknown;
+      company_slug?: unknown;
+    };
+    login = typeof body.login === "string" ? body.login.trim() : "";
     password = typeof body.password === "string" ? body.password : "";
+    companySlug = typeof body.company_slug === "string" ? body.company_slug : undefined;
   } catch {
     return NextResponse.json({ error: "invalid_body" }, { status: 400 });
   }
 
-  // Validate input lengths
-  if (login.length > 100) {
-    return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
+  if (!login || !password) {
+    return NextResponse.json({ error: "missing_credentials" }, { status: 400 });
   }
-  if (password.length > 200) {
-    return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
-  }
-
-  const loginOk = login.trim() === DEMO_LOGIN;
-  const passOk  = password     === DEMO_PASSWORD;
-
-  if (!loginOk || !passOk) {
-    // Generic delay to slow down brute-force
-    await new Promise(r => setTimeout(r, 400));
+  if (login.length > 100 || password.length > 128) {
     return NextResponse.json({ error: "invalid_credentials" }, { status: 401 });
   }
 
-  // Reset rate limit on successful login
+  // Relai vers le backend (login = email)
+  const upstreamPayload: Record<string, string> = { email: login, password };
+  if (companySlug) upstreamPayload.company_slug = companySlug;
+
+  let upstream: Response;
+  try {
+    upstream = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(upstreamPayload),
+      cache: "no-store",
+    });
+  } catch {
+    return NextResponse.json({ error: "backend_unreachable" }, { status: 502 });
+  }
+
+  if (!upstream.ok) {
+    // Délai anti-brute-force, puis relai du code d'erreur backend
+    await new Promise((r) => setTimeout(r, 400));
+    let detail = "invalid_credentials";
+    try {
+      const errBody = (await upstream.json()) as { detail?: string };
+      if (typeof errBody.detail === "string") detail = errBody.detail;
+    } catch {
+      /* défaut */
+    }
+    const status =
+      detail === "company_required" || detail === "company_mismatch"
+        ? 422
+        : detail.startsWith("account_")
+          ? 403
+          : upstream.status === 401
+            ? 401
+            : 502;
+    return NextResponse.json({ error: detail }, { status });
+  }
+
+  const data = (await upstream.json()) as TokenResponse;
+  const payload = decodeJwtPayload(data.access_token);
+  const role = payload?.role ?? "";
+
+  // RBAC back-office : seuls admin/manager/agent. Les clients/fournisseurs
+  // utilisent le portail public (port 3001).
+  if (!BACKOFFICE_ROLES.has(role)) {
+    return NextResponse.json({ error: "use_portal" }, { status: 403 });
+  }
+  if (payload?.status && payload.status !== "active") {
+    return NextResponse.json(
+      { error: "account_not_active", status: payload.status },
+      { status: 403 },
+    );
+  }
+
+  // Succès → reset rate limit + cookie httpOnly avec le JWT backend
   resetRateLimit(ip);
 
-  const token = signJwt({ sub: "demo-user", role: "admin", name: "Hicham Sadiki" });
-
   const cookieStore = await cookies();
-  cookieStore.set("sgi-session", token, {
+  cookieStore.set("sgi-session", data.access_token, {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
-    maxAge:   8 * 60 * 60,
-    path:     "/",
+    maxAge: data.expires_in,
+    path: "/",
   });
 
   return NextResponse.json({ success: true });
