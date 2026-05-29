@@ -21,6 +21,37 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds
+    # MFA : si True, le token est temporaire — doit être validé via /auth/mfa/validate
+    mfa_required: bool = False
+    tmp_token: str | None = None
+
+
+# ── MFA TOTP ──────────────────────────────────────────────────────────────
+
+class MfaSetupOut(BaseModel):
+    """Réponse au setup MFA — QR code URI (une seule fois)."""
+    provisioning_uri: str
+    issuer: str = "SGI ERP"
+
+
+class MfaVerifySetupIn(BaseModel):
+    """Confirmation du setup MFA avec le premier code TOTP."""
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MfaValidateIn(BaseModel):
+    """Validation TOTP après login (échange tmp_token → JWT final)."""
+    tmp_token: str
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MfaDisableIn(BaseModel):
+    """Désactivation MFA — le code TOTP courant est requis."""
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MfaStatusOut(BaseModel):
+    mfa_enabled: bool
 
 
 class UserMe(BaseModel):

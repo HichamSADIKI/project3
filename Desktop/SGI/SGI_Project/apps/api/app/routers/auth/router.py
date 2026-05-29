@@ -23,10 +23,22 @@ from app.core.gemini import VENDOR_TYPES, extract_trade_licence
 from app.core.route_deps import require_roles
 from app.models.party_vendor import Vendor
 from app.models.user import User, UserRole, UserStatus
+from app.routers.auth.mfa import (
+    decrypt_secret,
+    encrypt_secret,
+    generate_provisioning_uri,
+    generate_totp_secret,
+    verify_totp,
+)
 from app.routers.auth.schemas import (
     ApproveUserRequest,
     FournisseurRegisterResponse,
     LoginRequest,
+    MfaDisableIn,
+    MfaSetupOut,
+    MfaStatusOut,
+    MfaValidateIn,
+    MfaVerifySetupIn,
     PendingFournisseurItem,
     PendingUserItem,
     PublicRegisterRequest,
@@ -74,6 +86,28 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
             detail=code,
             headers={"WWW-Authenticate": "Bearer"} if http_status == 401 else None,
         ) from exc
+
+    # MFA activé → token temporaire (5 min, claim mfa_pending=true).
+    if user.mfa_enabled:
+        from datetime import timedelta
+        tmp = encode_jwt(
+            {
+                "sub": str(user.id),
+                "company_id": str(user.company_id),
+                "role": user.role,
+                "status": user.status,
+                "email": user.email,
+                "language": user.preferred_language,
+                "mfa_pending": True,
+            },
+            expires_delta=timedelta(minutes=5),
+        )
+        return TokenResponse(
+            access_token="",
+            expires_in=0,
+            mfa_required=True,
+            tmp_token=tmp,
+        )
 
     token = encode_jwt(
         {
@@ -465,3 +499,126 @@ async def social_login(body: SocialLoginRequest) -> TokenResponse:
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "auth", "status": "ok"}
+
+
+# ── MFA TOTP ──────────────────────────────────────────────────────────────
+
+def _require_user(request: Request) -> uuid.UUID:
+    uid = getattr(request.state, "user_id", None)
+    if not uid:
+        raise HTTPException(status_code=401, detail="not_authenticated")
+    return uuid.UUID(uid)
+
+
+@router.get("/mfa/setup", response_model=MfaSetupOut)
+async def mfa_setup(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_roles("admin", "manager", "agent", "client")),
+) -> MfaSetupOut:
+    """Génère un nouveau secret TOTP et retourne l'URI de provisioning (QR code).
+
+    Le secret est stocké chiffré mais le MFA n'est PAS encore activé —
+    il faut confirmer avec POST /auth/mfa/verify-setup.
+    """
+    user_id = _require_user(request)
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="user_not_found")
+
+    secret = generate_totp_secret()
+    user.mfa_secret = encrypt_secret(secret)
+    # mfa_enabled reste False jusqu'à la confirmation.
+    await db.commit()
+
+    uri = generate_provisioning_uri(secret, user.email)
+    return MfaSetupOut(provisioning_uri=uri)
+
+
+@router.post("/mfa/verify-setup", response_model=MfaStatusOut)
+async def mfa_verify_setup(
+    body: MfaVerifySetupIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_roles("admin", "manager", "agent", "client")),
+) -> MfaStatusOut:
+    """Confirme le setup MFA avec le premier code TOTP — active le MFA."""
+    user_id = _require_user(request)
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not user.mfa_secret:
+        raise HTTPException(status_code=400, detail="mfa_setup_not_initiated")
+
+    secret = decrypt_secret(user.mfa_secret)
+    if not verify_totp(secret, body.code):
+        raise HTTPException(status_code=422, detail="invalid_totp_code")
+
+    user.mfa_enabled = True
+    await db.commit()
+    return MfaStatusOut(mfa_enabled=True)
+
+
+@router.post("/mfa/validate", response_model=TokenResponse)
+async def mfa_validate(
+    body: MfaValidateIn,
+    db: AsyncSession = Depends(get_db),
+) -> TokenResponse:
+    """Valide le code TOTP après login — échange le tmp_token contre le JWT final."""
+    from app.core.auth import decode_jwt
+
+    try:
+        payload = decode_jwt(body.tmp_token)
+    except Exception:
+        raise HTTPException(status_code=401, detail="invalid_tmp_token")
+
+    if not payload.get("mfa_pending"):
+        raise HTTPException(status_code=400, detail="not_a_mfa_pending_token")
+
+    user_id = uuid.UUID(payload["sub"])
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not user.mfa_enabled or not user.mfa_secret:
+        raise HTTPException(status_code=401, detail="mfa_not_configured")
+
+    secret = decrypt_secret(user.mfa_secret)
+    if not verify_totp(secret, body.code):
+        raise HTTPException(status_code=422, detail="invalid_totp_code")
+
+    # Émet le JWT final (durée normale).
+    token = encode_jwt({
+        "sub": str(user.id),
+        "company_id": str(user.company_id),
+        "role": user.role,
+        "status": user.status,
+        "email": user.email,
+        "language": user.preferred_language,
+    })
+    return TokenResponse(
+        access_token=token,
+        expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
+    )
+
+
+@router.delete("/mfa", response_model=MfaStatusOut)
+async def mfa_disable(
+    body: MfaDisableIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    _: None = Depends(require_roles("admin", "manager", "agent", "client")),
+) -> MfaStatusOut:
+    """Désactive le MFA — le code TOTP courant est requis comme confirmation."""
+    user_id = _require_user(request)
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+    if not user or not user.mfa_enabled or not user.mfa_secret:
+        raise HTTPException(status_code=400, detail="mfa_not_enabled")
+
+    secret = decrypt_secret(user.mfa_secret)
+    if not verify_totp(secret, body.code):
+        raise HTTPException(status_code=422, detail="invalid_totp_code")
+
+    user.mfa_enabled = False
+    user.mfa_secret = None
+    await db.commit()
+    return MfaStatusOut(mfa_enabled=False)
