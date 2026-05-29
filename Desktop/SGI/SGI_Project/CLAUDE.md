@@ -192,7 +192,7 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`.
 
 ### RealEstate party-role pattern (migration 0002)
 
@@ -240,12 +240,30 @@ Routes: `/api/v1/pdc` (CRUD), plus state actions `/pdc/{id}/{deposit,clear,bounc
 
 Pure helpers in `pdc.service`: `is_valid_pdc_transition`, `days_to_due`, `is_overdue`, `generate_reference`, `aggregate_outstanding`.
 
+### Operations modules (migrations 0013–0019)
+
+All follow the same router/schemas/service/test pattern, mount under `/api/v1`, filter by `company_id`, and keep pure (DB-free) helpers in `service.py` — verify the state machine helper before changing any lifecycle.
+
+| Module | Route prefix | Migration | Notes |
+|---|---|---|---|
+| `maintenance` | `/maintenance` | 0013–0014 | Tickets + quotes/invoices/preventive plans. Helpers: `generate_reference`, `is_valid_transition`, `compute_sla_due`, `is_sla_breached`. Celery task module `tasks/maintenance.py`. |
+| `inspections` | `/inspections` | 0018 | Inspection → sections → items → photos (move-in/out, periodic). State-machine helpers in service. |
+| `payments` | `/payments` | 0019 | Payment requests + transactions + summaries. Backs the owner portal. |
+| `comms` | `/comms` | 0015 | In-app conversations + **WebSocket**. Fan-out across `make scale` replicas via Valkey pub/sub (`conv:{cid}:{conv_id}`); presence/typing keys carry TTLs — see [app/routers/comms/ws.py](apps/api/app/routers/comms/ws.py). Celery task `tasks/comms.py`. |
+| `workflows` | `/workflows` | 0016 | Generic workflow engine: templates → instances → steps → events. Celery task `tasks/workflows.py`. |
+| `ai_services` | `/ai` | — | Gemini-backed endpoints (contract summary, lead scoring, maintenance prediction). Wired to the `gemini` MCP server tools. |
+| `partner` | `/fournisseur` | 0005–0006, 0010–0012 | Fournisseur (vendor) self-service: KYC docs, missions, categories. Role renamed `partner → fournisseur` (0006). |
+| `client_portal` | `/client` | — | Authenticated client self-service: profile, needs, listings. |
+| `owner_portal` | `/owner` | — | Owner self-service: payouts, statements (router-only, reuses `owners`/`payments` services). |
+
+Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers.
+
 ## API Wiring
 
 - Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
 - **Middleware order matters** (last added = first executed): `CORSMiddleware` → `TenantMiddleware` → `AuditMiddleware` → `GZipMiddleware`. `TenantMiddleware` ([app/middleware/tenant.py](apps/api/app/middleware/tenant.py)) decodes the JWT and `SET LOCAL app.current_company_id` per request — this is the runtime enforcement of Law 1. Do not reorder.
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
-- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container.
+- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`.
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
 
 ## CRM Business Rules
