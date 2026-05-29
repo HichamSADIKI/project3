@@ -2,8 +2,7 @@
 
 import React from "react";
 import { Topbar, IcCalendar } from "@/components/sgi-ui";
-import { useT } from "@/components/language-provider";
-import { useLang } from "@/components/language-provider";
+import { useT, useLang } from "@/components/language-provider";
 
 /**
  * Agenda Google Calendar — sous-catégorie de « Real Estate » (back-office).
@@ -56,7 +55,7 @@ export function ScreenRealEstateAgenda() {
               src={buildEmbedUrl(CAL_SRC, hl)}
               style={{ border: 0, width: "100%", height: "100%", display: "block" }}
               loading="lazy"
-              referrerPolicy="no-referrer-when-downgrade"
+              referrerPolicy="strict-origin-when-cross-origin"
             />
           </div>
         ) : (
