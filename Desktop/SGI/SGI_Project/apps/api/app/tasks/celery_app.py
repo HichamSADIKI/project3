@@ -9,6 +9,9 @@ celery_app = Celery(
         "app.tasks.notifications",
         "app.tasks.exports",
         "app.tasks.reminders",
+        "app.tasks.maintenance",
+        "app.tasks.comms",
+        "app.tasks.workflows",
     ],
 )
 
@@ -35,6 +38,20 @@ celery_app.conf.update(
         "rental-renewal-alerts": {
             "task": "app.tasks.reminders.check_rental_renewals",
             "schedule": 86400.0,
+        },
+        # ── Maintenance (toutes les heures) ──────────────────────────────
+        "maintenance-sla-check": {
+            "task": "app.tasks.maintenance.check_maintenance_sla",
+            "schedule": 3600.0,
+        },
+        "maintenance-preventive-gen": {
+            "task": "app.tasks.maintenance.generate_preventive_tickets",
+            "schedule": 3600.0,
+        },
+        # ── Workflow SLA (toutes les heures) ─────────────────────────────
+        "workflow-sla-check": {
+            "task": "app.tasks.workflows.check_workflow_sla",
+            "schedule": 3600.0,
         },
     },
 )

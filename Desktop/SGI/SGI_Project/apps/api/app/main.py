@@ -11,6 +11,13 @@ from app.routers import auth, clients, properties, crm, contracts, golden_visa, 
 from app.routers import owners, tenants, vendors, technicians
 from app.routers import buildings, units, pdc
 from app.routers import client_portal, partner
+from app.routers import maintenance
+from app.routers import comms
+from app.routers import workflows
+from app.routers import inspections
+from app.routers import payments
+from app.routers import owner_portal
+from app.routers import ai_services
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -45,6 +52,9 @@ app.add_middleware(
 
 # Routers
 app.include_router(auth, prefix="/api/v1")
+# Fournisseurs (prestataires) — catégorie placée AVANT clients : gestion des
+# fiches fournisseurs (réutilise le module vendors / party-role fournisseur).
+app.include_router(vendors, prefix="/api/v1")
 app.include_router(clients, prefix="/api/v1")
 app.include_router(properties, prefix="/api/v1")
 app.include_router(crm, prefix="/api/v1")
@@ -56,9 +66,9 @@ app.include_router(reporting, prefix="/api/v1")
 app.include_router(scraping, prefix="/api/v1")
 
 # RealEstate — profils de rôles (party-roles, voir migration 0002)
+# NB : vendors (fournisseurs) est monté plus haut, avant clients.
 app.include_router(owners, prefix="/api/v1")
 app.include_router(tenants, prefix="/api/v1")
-app.include_router(vendors, prefix="/api/v1")
 app.include_router(technicians, prefix="/api/v1")
 
 # RealEstate — hiérarchie physique + PDC UAE (voir migration 0003)
@@ -69,6 +79,19 @@ app.include_router(pdc, prefix="/api/v1")
 # Phase 1 — Espaces Client + Partenaire (voir migration 0005)
 app.include_router(client_portal, prefix="/api/v1")
 app.include_router(partner, prefix="/api/v1")
+# ERP — Maintenance (migration 0013-0014)
+app.include_router(maintenance.router, prefix="/api/v1")
+# ERP — Communication REST (migration 0015)
+app.include_router(comms.router, prefix="/api/v1")
+# ERP — Workflow Engine (migration 0016)
+app.include_router(workflows.router, prefix="/api/v1")
+# ERP — Inspections + Check-in/out (migration 0018)
+app.include_router(inspections.router, prefix="/api/v1")
+# ERP — Paiements + Portail Owner (migration 0019)
+app.include_router(payments.router, prefix="/api/v1")
+app.include_router(owner_portal.router, prefix="/api/v1")
+# ERP — IA avancée (contrats + prédiction maintenance, sans table)
+app.include_router(ai_services.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])
