@@ -9,6 +9,9 @@
 .env.staging
 
 # ── Next.js ─────────────────────────────────────────────────────────────
+.next/
+out/
+.turbo/
 apps/web/.next/
 apps/web/out/
 apps/web/.turbo/
