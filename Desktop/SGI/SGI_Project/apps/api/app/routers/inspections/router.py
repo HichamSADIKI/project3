@@ -7,7 +7,7 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 
 from .schemas import (
@@ -59,7 +59,7 @@ async def list_insp(
     status: str | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionListOut:
     cid = await get_company_id(db)
@@ -75,7 +75,7 @@ async def list_insp(
              status_code=status.HTTP_201_CREATED)
 async def create_insp(
     body: InspectionCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionDetailOut:
     cid = await get_company_id(db)
@@ -86,7 +86,7 @@ async def create_insp(
 @router.get("/{insp_id}", response_model=InspectionDetailOut)
 async def get_insp(
     insp_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionDetailOut:
     cid = await get_company_id(db)
@@ -100,7 +100,7 @@ async def get_insp(
 async def update_insp(
     insp_id: uuid.UUID,
     body: InspectionUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionDetailOut:
     cid = await get_company_id(db)
@@ -113,7 +113,7 @@ async def update_insp(
 @router.delete("/{insp_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_insp(
     insp_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> None:
     cid = await get_company_id(db)
@@ -126,7 +126,7 @@ async def delete_insp(
 @router.post("/{insp_id}/start", response_model=InspectionDetailOut)
 async def start_insp(
     insp_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionDetailOut:
     cid = await get_company_id(db)
@@ -139,7 +139,7 @@ async def start_insp(
 @router.post("/{insp_id}/complete", response_model=InspectionDetailOut)
 async def complete_insp(
     insp_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionDetailOut:
     cid = await get_company_id(db)
@@ -153,7 +153,7 @@ async def complete_insp(
 async def sign_insp(
     insp_id: uuid.UUID,
     body: SignIn,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionDetailOut:
     cid = await get_company_id(db)
@@ -168,7 +168,7 @@ async def sign_insp(
 @router.get("/{insp_id}/sections", response_model=list[SectionOut])
 async def list_sects(
     insp_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[SectionOut]:
     cid = await get_company_id(db)
@@ -180,7 +180,7 @@ async def list_sects(
 async def add_sect(
     insp_id: uuid.UUID,
     body: SectionCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> SectionOut:
     cid = await get_company_id(db)
@@ -194,7 +194,7 @@ async def add_sect(
 async def list_its(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[ItemOut]:
     cid = await get_company_id(db)
@@ -207,7 +207,7 @@ async def add_item(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
     body: ItemCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> ItemOut:
     cid = await get_company_id(db)
@@ -222,7 +222,7 @@ async def patch_item(
     sect_id: uuid.UUID,
     item_id: uuid.UUID,
     body: ItemUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> ItemOut:
     cid = await get_company_id(db)
@@ -242,7 +242,7 @@ async def upload_photo(
     item_id: uuid.UUID,
     photo: UploadFile = File(...),
     caption: str | None = Form(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> PhotoOut:
     from app.core.storage import StorageError, is_configured, upload_bytes, extension_for_mime
@@ -279,7 +279,7 @@ async def get_photos(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
     item_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[PhotoOut]:
     cid = await get_company_id(db)
@@ -293,7 +293,7 @@ async def unit_history(
     unit_id: uuid.UUID,
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InspectionListOut:
     cid = await get_company_id(db)

@@ -7,7 +7,10 @@ from fastapi import (
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import text as sql_text
+
 from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.core.auth import decode_jwt
 
@@ -53,7 +56,7 @@ def _user_id(request: Request) -> uuid.UUID:
 async def create_conv(
     body: ConversationCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> ConversationDetailOut:
     company_id = await get_company_id(db)
@@ -71,7 +74,7 @@ async def list_convs(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     request: Request = ...,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> ConversationListOut:
     company_id = await get_company_id(db)
@@ -96,7 +99,7 @@ async def list_convs(
 async def get_conv(
     conv_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> ConversationDetailOut:
     company_id = await get_company_id(db)
@@ -120,7 +123,7 @@ async def get_conv(
 async def add_part(
     conv_id: uuid.UUID,
     body: ParticipantAdd,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> ParticipantOut:
     company_id = await get_company_id(db)
@@ -137,7 +140,7 @@ async def add_part(
 async def read_conv(
     conv_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> None:
     company_id = await get_company_id(db)
@@ -158,7 +161,7 @@ async def send_msg(
     conv_id: uuid.UUID,
     body: MessageCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> MessageOut:
     company_id = await get_company_id(db)
@@ -173,7 +176,7 @@ async def list_msgs(
     request: Request,
     before_id: uuid.UUID | None = Query(None, description="Curseur de pagination"),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> MessageListOut:
     company_id = await get_company_id(db)
@@ -196,7 +199,7 @@ async def upload_voice(
     conv_id: uuid.UUID,
     request: Request,
     audio: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> MessageOut:
     """Upload une voice note → MinIO → message kind=voice → transcription Celery."""
@@ -272,7 +275,7 @@ async def upload_voice(
 async def summarize_conv(
     conv_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> dict:
     """Génère un résumé Gemini de la conversation (30 derniers messages)."""
@@ -305,7 +308,7 @@ async def summarize_conv(
 async def translate_message(
     message_id: uuid.UUID,
     target_locale: str = Query("fr", pattern="^(ar|en|fr)$"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> dict:
     """Traduit le corps d'un message via Gemini translate."""
@@ -379,6 +382,14 @@ async def ws_endpoint(
     except (ValueError, TypeError):
         await websocket.close(code=4401)
         return
+
+    # Le middleware tenant ne s'exécute pas sur le scope WebSocket : on pose
+    # manuellement le contexte tenant (RLS) depuis le company_id du token,
+    # sinon _check_participant serait filtré par la RLS et fermerait toujours.
+    await db.execute(
+        sql_text("SELECT set_config('app.current_company_id', :cid, true)"),
+        {"cid": str(company_uuid)},
+    )
 
     is_participant = await _check_participant(db, company_uuid, conv_uuid, user_uuid)
     if not is_participant:

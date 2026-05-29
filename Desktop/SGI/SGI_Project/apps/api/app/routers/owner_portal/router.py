@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import require_roles
 from app.models.building import Building
 from app.models.payment import PaymentRequest
@@ -92,7 +92,7 @@ async def _owner_owns_quote(
 # ── Dashboard ──────────────────────────────────────────────────────────────
 
 @router.get("/dashboard")
-async def owner_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
+async def owner_dashboard(request: Request, db: AsyncSession = Depends(get_db_session)):
     _uid, cid, email = _ctx(request)
     owner_id = await _owner_client_id(db, email, cid)
     if not owner_id:
@@ -120,7 +120,7 @@ async def owner_dashboard(request: Request, db: AsyncSession = Depends(get_db)):
 # ── Biens du propriétaire ────────────────────────────────────────────────
 
 @router.get("/properties")
-async def owner_properties(request: Request, db: AsyncSession = Depends(get_db)):
+async def owner_properties(request: Request, db: AsyncSession = Depends(get_db_session)):
     _uid, cid, email = _ctx(request)
     owner_id = await _owner_client_id(db, email, cid)
     if not owner_id:
@@ -148,7 +148,7 @@ async def owner_properties(request: Request, db: AsyncSession = Depends(get_db))
 async def owner_revenues(
     request: Request,
     status: str | None = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ):
     _uid, cid, email = _ctx(request)
     owner_id = await _owner_client_id(db, email, cid)
@@ -181,7 +181,7 @@ async def owner_revenues(
 
 @router.post("/expenses/{quote_id}/approve")
 async def approve_expense(
-    quote_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)
+    quote_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
 ):
     """Le propriétaire approuve un devis de maintenance le concernant."""
     from app.routers.maintenance.service import approve_quote
@@ -197,7 +197,7 @@ async def approve_expense(
 
 @router.post("/expenses/{quote_id}/reject")
 async def reject_expense(
-    quote_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)
+    quote_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
 ):
     from app.routers.maintenance.service import reject_quote
     _uid, cid, email = _ctx(request)
