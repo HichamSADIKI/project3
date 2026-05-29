@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.routers.clients.schemas import (
     ClientCreate,
     ClientDetailOut,
@@ -61,7 +61,7 @@ async def list_clients_endpoint(
     q: str | None = Query(None, description="Recherche fulltext"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ClientListOut:
     company_id = _get_company_id(request)
     clients, total = await list_clients(db, company_id, page, limit, type, q)
@@ -80,7 +80,7 @@ async def list_clients_endpoint(
 async def create_client_endpoint(
     body: ClientCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ClientDetailOut:
     company_id = _get_company_id(request)
     client = await create_client(db, company_id, body)
@@ -91,7 +91,7 @@ async def create_client_endpoint(
 async def get_client_endpoint(
     client_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ClientDetailOut:
     company_id = _get_company_id(request)
     client = await get_client(db, company_id, client_id)
@@ -109,7 +109,7 @@ async def update_client_endpoint(
     client_id: uuid.UUID,
     body: ClientUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ClientDetailOut:
     company_id = _get_company_id(request)
     client = await update_client(db, company_id, client_id, body)
@@ -126,7 +126,7 @@ async def update_client_endpoint(
 async def delete_client_endpoint(
     client_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = _get_company_id(request)
     deleted = await delete_client(db, company_id, client_id)
