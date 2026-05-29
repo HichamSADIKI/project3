@@ -34,6 +34,7 @@ from app.routers.client_portal.service import (
     list_my_leads,
     list_my_messages,
     list_my_visits,
+    find_linked_client_id,
     mark_message_read,
     preview_client_need,
     remove_favorite,
@@ -234,6 +235,31 @@ async def post_mark_read(
             status_code=status.HTTP_404_NOT_FOUND, detail="message_not_found"
         )
     await db.commit()
+
+
+# ── Maintenance (tickets du client connecté) ─────────────────────────────
+@router.get("/maintenance")
+async def list_my_maintenance(
+    request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Liste les tickets de maintenance rapportés par le client connecté."""
+    from sqlalchemy import select
+    from app.models.maintenance import MaintenanceTicket
+
+    _user_id, company_id, email = _ctx(request)
+    client_id = await find_linked_client_id(db, email, company_id)
+    if not client_id:
+        return []
+
+    result = await db.execute(
+        select(MaintenanceTicket).where(
+            MaintenanceTicket.company_id == company_id,
+            MaintenanceTicket.reported_by_user_id == _user_id,
+            MaintenanceTicket.deleted_at.is_(None),
+        ).order_by(MaintenanceTicket.created_at.desc())
+    )
+    from app.routers.maintenance.schemas import TicketOut
+    return [TicketOut.model_validate(t) for t in result.scalars().all()]
 
 
 # ── Expression de besoin (texte / dictée vocale) ─────────────────────────

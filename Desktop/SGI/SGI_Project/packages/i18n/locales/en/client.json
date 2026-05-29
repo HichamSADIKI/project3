@@ -11,6 +11,7 @@
     "visits": "Visits",
     "newNeed": "Submit a need",
     "myLeads": "My leads",
+    "maintenance": "Maintenance",
     "profile": "Profile"
   },
   "dashboard": {
@@ -83,6 +84,32 @@
       "admin": "Administrative",
       "travail": "Employment"
     }
+  },
+  "maintenance": {
+    "title": "My maintenance requests",
+    "subtitle": "Track the progress of your maintenance requests.",
+    "cta": "New request",
+    "empty": "No maintenance requests yet.",
+    "status": {
+      "new": "New", "triaged": "Under review", "assigned": "Assigned",
+      "in_progress": "In progress", "on_hold": "On hold",
+      "resolved": "Resolved", "closed": "Closed", "cancelled": "Cancelled"
+    },
+    "priority": { "urgent": "Urgent", "high": "High", "medium": "Medium", "low": "Low" },
+    "category": {
+      "plumbing": "Plumbing", "electrical": "Electrical", "hvac": "HVAC",
+      "appliance": "Appliance", "structural": "Structural", "cleaning": "Cleaning", "other": "Other"
+    },
+    "form": {
+      "title": "Title *", "titlePlaceholder": "E.g. Leak under the sink",
+      "category": "Category", "description": "Description",
+      "descPlaceholder": "Describe the issue in detail…",
+      "submit": "Submit request", "submitting": "Submitting…",
+      "success": "Your request has been registered.",
+      "error": "Something went wrong. Please try again."
+    },
+    "slaBreached": "⚠ Overdue",
+    "createdOn": "Created on"
   },
   "messages": {
     "empty": "No messages.",

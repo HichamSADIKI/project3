@@ -18,6 +18,7 @@ export default async function ClientLayout({
     { href: `/${lc}/client`, label: t("nav.dashboard") },
     { href: `/${lc}/client/nouveau-besoin`, label: t("nav.newNeed") },
     { href: `/${lc}/client/leads`, label: t("nav.myLeads") },
+    { href: `/${lc}/client/maintenance`, label: t("nav.maintenance") },
     { href: `/${lc}/client/favorites`, label: t("nav.favorites") },
     { href: `/${lc}/client/visits`, label: t("nav.visits") },
     { href: `/${lc}/client/messages`, label: t("nav.messages") },

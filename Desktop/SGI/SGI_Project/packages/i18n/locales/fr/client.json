@@ -11,6 +11,7 @@
     "visits": "Visites",
     "newNeed": "Exprimer un besoin",
     "myLeads": "Mes leads",
+    "maintenance": "Maintenance",
     "profile": "Profil"
   },
   "dashboard": {
@@ -83,6 +84,32 @@
       "admin": "Administratif",
       "travail": "Emploi"
     }
+  },
+  "maintenance": {
+    "title": "Mes demandes de maintenance",
+    "subtitle": "Suivez l'avancement de vos demandes d'intervention.",
+    "cta": "Nouvelle demande",
+    "empty": "Aucune demande de maintenance pour le moment.",
+    "status": {
+      "new": "Nouveau", "triaged": "En étude", "assigned": "Assigné",
+      "in_progress": "En cours", "on_hold": "En attente",
+      "resolved": "Résolu", "closed": "Clôturé", "cancelled": "Annulé"
+    },
+    "priority": { "urgent": "Urgent", "high": "Élevée", "medium": "Normale", "low": "Basse" },
+    "category": {
+      "plumbing": "Plomberie", "electrical": "Électricité", "hvac": "Climatisation",
+      "appliance": "Équipement", "structural": "Structure", "cleaning": "Nettoyage", "other": "Autre"
+    },
+    "form": {
+      "title": "Titre *", "titlePlaceholder": "Ex : Fuite sous l'évier",
+      "category": "Catégorie", "description": "Description",
+      "descPlaceholder": "Décrivez le problème en détail…",
+      "submit": "Envoyer la demande", "submitting": "Envoi…",
+      "success": "Votre demande a été enregistrée.",
+      "error": "Une erreur est survenue. Réessayez."
+    },
+    "slaBreached": "⚠ Délai dépassé",
+    "createdOn": "Créé le"
   },
   "messages": {
     "empty": "Aucun message.",

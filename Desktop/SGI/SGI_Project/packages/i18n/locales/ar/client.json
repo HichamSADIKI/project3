@@ -11,6 +11,7 @@
     "visits": "الزيارات",
     "newNeed": "التعبير عن حاجة",
     "myLeads": "طلباتي",
+    "maintenance": "الصيانة",
     "profile": "الملف الشخصي"
   },
   "dashboard": {
@@ -83,6 +84,32 @@
       "admin": "إدارة",
       "travail": "توظيف"
     }
+  },
+  "maintenance": {
+    "title": "طلبات الصيانة",
+    "subtitle": "تابع تقدم طلبات الصيانة الخاصة بك.",
+    "cta": "طلب جديد",
+    "empty": "لا توجد طلبات صيانة حتى الآن.",
+    "status": {
+      "new": "جديد", "triaged": "قيد الدراسة", "assigned": "مُعيَّن",
+      "in_progress": "قيد التنفيذ", "on_hold": "معلَّق",
+      "resolved": "محلول", "closed": "مغلق", "cancelled": "ملغى"
+    },
+    "priority": { "urgent": "عاجل", "high": "عالٍ", "medium": "متوسط", "low": "منخفض" },
+    "category": {
+      "plumbing": "سباكة", "electrical": "كهرباء", "hvac": "تكييف",
+      "appliance": "أجهزة", "structural": "هيكل", "cleaning": "تنظيف", "other": "أخرى"
+    },
+    "form": {
+      "title": "العنوان *", "titlePlaceholder": "مثال: تسرب تحت الحوض",
+      "category": "الفئة", "description": "الوصف",
+      "descPlaceholder": "صف المشكلة بالتفصيل…",
+      "submit": "إرسال الطلب", "submitting": "جارٍ الإرسال…",
+      "success": "تم تسجيل طلبك.",
+      "error": "حدث خطأ ما. يرجى المحاولة مرة أخرى."
+    },
+    "slaBreached": "⚠ تجاوز الموعد",
+    "createdOn": "أُنشئ في"
   },
   "messages": {
     "empty": "لا توجد رسائل.",
