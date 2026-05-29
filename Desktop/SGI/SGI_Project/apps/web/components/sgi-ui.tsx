@@ -154,6 +154,7 @@ type NavEntry =
 
 const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
+  { type: "item",  key: "fournisseurs", icon: <IcDoc /> },
   { type: "group", id: "clients",      groupKey: "clients", icon: <IcClients />,
     children: [
       { key: "personne", icon: <IcPersonne /> },
@@ -244,7 +245,6 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "it",        icon: <IcIT /> },
       { key: "finance",   icon: <IcFinance /> },
       { key: "marketing", icon: <IcMarketing /> },
-      { key: "fournisseurs", icon: <IcDoc /> },
     ],
   },
   { type: "item",  key: "report",      icon: <IcReport /> },
