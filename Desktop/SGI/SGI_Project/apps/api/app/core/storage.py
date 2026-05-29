@@ -107,6 +107,25 @@ def build_fournisseur_license_key(
     )
 
 
+def download_bytes(object_key: str) -> tuple[bytes, str]:
+    """Télécharge un objet MinIO et retourne (bytes, content_type).
+
+    Synchrone — à appeler depuis un thread Celery (via sync_session_maker).
+    Lève StorageError si indisponible.
+    """
+    if not is_configured():
+        raise StorageError("minio_not_configured")
+    try:
+        client = _client()
+        response = client.get_object(settings.MINIO_BUCKET, object_key)
+        data = response.read()
+        content_type = response.headers.get("Content-Type", "application/octet-stream")
+        response.close()
+        return data, content_type
+    except Exception as exc:  # noqa: BLE001
+        raise StorageError(f"minio_download_failed: {exc}") from exc
+
+
 async def upload_bytes(object_key: str, data: bytes, content_type: str) -> str:
     """Uploade un blob et retourne sa clé objet. Lève StorageError si KO."""
     if not is_configured():
