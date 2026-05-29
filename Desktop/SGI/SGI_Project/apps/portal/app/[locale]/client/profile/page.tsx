@@ -53,10 +53,10 @@ export default async function ClientProfilePage({
       {initial && (
         <ProfileForm
           initial={initial}
+          locale={lc}
           texts={{
             sectionIdentity: t("profile.section.identity"),
             sectionContact: t("profile.section.contact"),
-            sectionPreferences: t("profile.section.preferences"),
             firstName: t("profile.field.firstName"),
             lastName: t("profile.field.lastName"),
             companyName: t("profile.field.companyName"),
@@ -66,10 +66,6 @@ export default async function ClientProfilePage({
             phone2: t("profile.field.phone2"),
             nationality: t("profile.field.nationality"),
             countryOfResidence: t("profile.field.countryOfResidence"),
-            budgetMin: t("profile.field.budgetMin"),
-            budgetMax: t("profile.field.budgetMax"),
-            preferredPropertyType: t("profile.field.preferredPropertyType"),
-            preferredLocation: t("profile.field.preferredLocation"),
             submit: t("profile.submit"),
             submitting: t("profile.submitting"),
             success: t("profile.success"),

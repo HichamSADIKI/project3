@@ -10,6 +10,7 @@
     "messages": "الرسائل",
     "visits": "الزيارات",
     "newNeed": "التعبير عن حاجة",
+    "myLeads": "طلباتي",
     "profile": "الملف الشخصي"
   },
   "dashboard": {
@@ -44,6 +45,39 @@
       "done": "منجزة",
       "cancelled": "ملغاة",
       "no_show": "عدم الحضور"
+    }
+  },
+  "leads": {
+    "title": "طلباتي",
+    "subtitle": "تجد هنا جميع الطلبات التي عبّرت عنها وحالة تقدّمها.",
+    "empty": "لم تقم بإرسال أي طلب بعد.",
+    "cta": "التعبير عن حاجة",
+    "budgetLabel": "الميزانية",
+    "noBudget": "غير محدّد",
+    "locationLabel": "الموقع",
+    "goldenVisa": "مؤهل للتأشيرة الذهبية",
+    "createdOn": "أُنشئ في",
+    "status": {
+      "new": "جديد",
+      "contacted": "تم التواصل",
+      "qualified": "مؤهل",
+      "proposal_sent": "تم إرسال العرض",
+      "visit_planned": "زيارة مجدولة",
+      "visit_done": "تمت الزيارة",
+      "negotiation": "قيد التفاوض",
+      "won": "مُغلق ناجح",
+      "lost": "مُغلق"
+    },
+    "category": {
+      "realestate": "عقارات",
+      "tourisme": "سياحة",
+      "sante": "صحة",
+      "assurance": "تأمين",
+      "banques": "بنوك",
+      "amazon": "تجارة إلكترونية",
+      "consultants": "استشارات",
+      "admin": "إدارة",
+      "travail": "توظيف"
     }
   },
   "messages": {

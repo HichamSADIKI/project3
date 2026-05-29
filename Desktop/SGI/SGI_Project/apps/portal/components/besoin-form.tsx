@@ -16,6 +16,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient, ApiError } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
+import { buildVoiceText, VoiceSession } from "@/lib/voice-transcript";
 
 type Category =
   | "realestate" | "tourisme" | "sante" | "assurance"
@@ -23,6 +24,7 @@ type Category =
 
 interface ParsedNeed {
   category: Category;
+  categories: Category[];
   service_type: string | null;
   budget_aed: number | null;
   preferred_location: string | null;
@@ -33,10 +35,15 @@ interface ParsedNeed {
   engine: string;
 }
 
-interface NeedSubmitOut {
+interface DealRef {
   lead_id: string;
   crm_ref: string;
   category: Category;
+}
+
+interface NeedSubmitMultiOut {
+  deals: DealRef[];
+  categories: Category[];
   parsed: ParsedNeed;
 }
 
@@ -103,8 +110,12 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
   const [text, setText] = useState("");
   const [categoryOverride, setCategoryOverride] = useState<Category | "">("");
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<NeedSubmitOut | null>(null);
+  const [result, setResult] = useState<NeedSubmitMultiOut | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Popup de confirmation : aperçu IA + catégories modifiables avant envoi définitif.
+  const [preview, setPreview] = useState<ParsedNeed | null>(null);
+  const [selectedCats, setSelectedCats] = useState<Category[]>([]);
+  const [confirming, setConfirming] = useState(false);
   const [listening, setListening] = useState(false);
   const [voiceMode, setVoiceMode] = useState<"webspeech" | "recorder" | "none">("none");
   const [recorderAvailable, setRecorderAvailable] = useState(false);
@@ -146,21 +157,19 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
     recognition.continuous = true;
     recognition.interimResults = true;
 
-    let finalText = "";
+    // Base figée = texte déjà saisi au moment où l'on lance la dictée.
+    // La valeur du champ est TOUJOURS reconstruite depuis cette base (jamais
+    // dérivée de l'état précédent), ce qui élimine la duplication en cascade.
+    const session = new VoiceSession(text);
     recognition.onresult = (event: any) => {
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalText += transcript;
-        } else {
-          interim += transcript;
-        }
+      const results: { isFinal: boolean; transcript: string }[] = [];
+      for (let i = 0; i < event.results.length; i++) {
+        results.push({
+          isFinal: event.results[i].isFinal,
+          transcript: event.results[i][0].transcript,
+        });
       }
-      setText((prev) => {
-        const base = prev.endsWith(" ") || prev === "" ? prev : prev + " ";
-        return base + finalText + interim;
-      });
+      setText(session.onResult(event.resultIndex, results));
     };
 
     recognition.onerror = (event: any) => {
@@ -213,6 +222,18 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
   // ─ MediaRecorder fallback (Safari/iOS) ──────────────────────────────
   async function startRecording() {
     setError(null);
+    // getUserMedia n'existe que dans un contexte sécurisé (HTTPS ou localhost).
+    // Sur HTTP via une IP/domaine non-sécurisé, `mediaDevices` est `undefined`
+    // → message dédié plutôt qu'un trompeur « micro refusé ».
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.mediaDevices?.getUserMedia ||
+      (typeof window !== "undefined" && window.isSecureContext === false)
+    ) {
+      setError(texts.micUnsupported);
+      setListening(false);
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       recorderStreamRef.current = stream;
@@ -279,10 +300,7 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
             setError(texts.errorEmptyTranscript);
             return;
           }
-          setText((prev) => {
-            const base = prev.endsWith(" ") || prev === "" ? prev : prev + " ";
-            return base + transcript;
-          });
+          setText((prev) => buildVoiceText(prev, transcript, ""));
           lastVoiceSourceRef.current = "portal_voice";
         } catch {
           setError(texts.errorGeneric);
@@ -294,8 +312,17 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
       recorder.start();
       recorderRef.current = recorder;
       setListening(true);
-    } catch {
-      setError(texts.errorMicDenied);
+    } catch (err) {
+      // Distingue le vrai refus de permission des autres pannes (pas de micro,
+      // micro déjà utilisé, blocage par Permissions-Policy…).
+      const name = err instanceof DOMException ? err.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        setError(texts.errorMicDenied);
+      } else if (name === "NotFoundError" || name === "NotReadableError") {
+        setError(texts.micUnsupported);
+      } else {
+        setError(texts.errorMicDenied);
+      }
       setListening(false);
     }
   }
@@ -304,6 +331,33 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
     recorderRef.current?.stop();
     recorderRef.current = null;
     setListening(false);
+  }
+
+  // Arrêt complet de la dictée — utilisé à l'envoi du besoin.
+  // On vide les morceaux audio AVANT d'arrêter le recorder pour que son
+  // `onstop` produise un blob vide et n'envoie PAS de transcription tardive.
+  function cancelVoice() {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        /* no-op */
+      }
+      recognitionRef.current = null;
+    }
+    recorderChunksRef.current = [];
+    if (recorderRef.current) {
+      try {
+        recorderRef.current.stop();
+      } catch {
+        /* no-op */
+      }
+      recorderRef.current = null;
+    }
+    recorderStreamRef.current?.getTracks().forEach((t) => t.stop());
+    recorderStreamRef.current = null;
+    setListening(false);
+    setTranscribing(false);
   }
 
   function toggleMic() {
@@ -320,6 +374,8 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    // Coupe la dictée en cours dès l'envoi du besoin.
+    cancelVoice();
 
     const trimmed = text.trim();
     if (trimmed.length < MIN_CHARS) {
@@ -329,32 +385,79 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
 
     setSubmitting(true);
     try {
-      const data = await apiClient<NeedSubmitOut>("/api/proxy/client/needs", {
-        method: "POST",
-        json: {
-          text: trimmed,
-          locale,
-          source: lastVoiceSourceRef.current ?? "portal_text",
-          category_override: categoryOverride || undefined,
+      // Étape 1 : prévisualisation — détecte la catégorie SANS créer de deal.
+      const parsed = await apiClient<ParsedNeed>(
+        "/api/proxy/client/needs/preview",
+        {
+          method: "POST",
+          json: {
+            text: trimmed,
+            locale,
+            source: lastVoiceSourceRef.current ?? "portal_text",
+            category_override: categoryOverride || undefined,
+          },
         },
-      });
-      setResult(data);
+      );
+      setPreview(parsed);
+      setSelectedCats(
+        parsed.categories?.length ? parsed.categories : [parsed.category],
+      );
     } catch (err) {
-      if (err instanceof ApiError) {
-        if (err.detail === "client_party_not_linked") {
-          setError(texts.errorNotLinked);
-        } else {
-          setError(`${texts.errorGeneric} (${err.detail})`);
-        }
-      } else {
-        setError(texts.errorGeneric);
-      }
+      setError(mapSubmitError(err));
     } finally {
       setSubmitting(false);
     }
   }
 
+  function toggleCat(cat: Category) {
+    setSelectedCats((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat],
+    );
+  }
+
+  function mapSubmitError(err: unknown): string {
+    if (err instanceof ApiError) {
+      if (err.detail === "client_party_not_linked") return texts.errorNotLinked;
+      return `${texts.errorGeneric} (${err.detail})`;
+    }
+    return texts.errorGeneric;
+  }
+
+  // Étape 2 : le client a validé (ou modifié) la catégorie dans la popup →
+  // envoi définitif, qui crée le deal CRM avec la catégorie confirmée.
+  async function confirmSubmit() {
+    if (selectedCats.length === 0) return;
+    setError(null);
+    setConfirming(true);
+    try {
+      const data = await apiClient<NeedSubmitMultiOut>(
+        "/api/proxy/client/needs/multi",
+        {
+          method: "POST",
+          json: {
+            text: text.trim(),
+            locale,
+            source: lastVoiceSourceRef.current ?? "portal_text",
+            categories: selectedCats,
+          },
+        },
+      );
+      setResult(data);
+      setPreview(null);
+      // Réinitialise le champ après envoi réussi.
+      setText("");
+      setCategoryOverride("");
+      lastVoiceSourceRef.current = null;
+    } catch (err) {
+      setError(mapSubmitError(err));
+      setPreview(null);
+    } finally {
+      setConfirming(false);
+    }
+  }
+
   function resetForm() {
+    cancelVoice();
     setText("");
     setCategoryOverride("");
     setResult(null);
@@ -413,27 +516,52 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
               {texts.success}
             </div>
             <div style={{ fontSize: "0.85rem", color: "var(--ink-4)" }}>
-              {result.crm_ref}
+              {result.deals.length}{" "}
+              {locale === "ar"
+                ? "طلب تم إنشاؤه"
+                : locale === "fr"
+                ? `demande(s) créée(s)`
+                : "request(s) created"}
             </div>
           </div>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "1rem 0" }}>
-          <DetailBox label={texts.parsedCategory}>
-            <span
+        {/* Liste des deals créés — un par catégorie validée */}
+        <div style={{ display: "grid", gap: 8, margin: "1rem 0" }}>
+          {result.deals.map((d) => (
+            <div
+              key={d.lead_id}
               style={{
-                display: "inline-block",
-                padding: "3px 10px",
-                borderRadius: 999,
-                background: catColor(result.parsed.category),
-                color: "#fff",
-                fontSize: 12,
-                fontWeight: 700,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                background: "var(--bg-ivory, #FAF7F0)",
+                borderRadius: "var(--r-sm)",
+                padding: "10px 12px",
               }}
             >
-              {catLabel(result.parsed.category)}
-            </span>
-          </DetailBox>
+              <span
+                style={{
+                  display: "inline-block",
+                  padding: "3px 10px",
+                  borderRadius: 999,
+                  background: catColor(d.category),
+                  color: "#fff",
+                  fontSize: 12,
+                  fontWeight: 700,
+                }}
+              >
+                {catLabel(d.category)}
+              </span>
+              <span style={{ fontSize: 12, color: "var(--ink-4)", fontFamily: "monospace" }}>
+                {d.crm_ref}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, margin: "1rem 0" }}>
           <DetailBox label={texts.parsedUrgency}>
             {urgencyLabel[result.parsed.urgency] ?? result.parsed.urgency}
           </DetailBox>
@@ -500,8 +628,43 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
     );
   }
 
+  // Libellés popup de confirmation (inline i18n, comme urgencyLabel).
+  const ml = {
+    fr: {
+      title: "Confirmez votre besoin",
+      yourText: "Votre besoin",
+      detected: "Catégories détectées par l'IA",
+      change: "Cliquez pour ajouter ou retirer des catégories :",
+      confirm: "Confirmer l'envoi",
+      cancel: "Annuler",
+      confidence: "Confiance",
+      none: "Sélectionnez au moins une catégorie",
+    },
+    en: {
+      title: "Confirm your need",
+      yourText: "Your need",
+      detected: "Categories detected by AI",
+      change: "Click to add or remove categories:",
+      confirm: "Confirm & send",
+      cancel: "Cancel",
+      confidence: "Confidence",
+      none: "Select at least one category",
+    },
+    ar: {
+      title: "أكّد طلبك",
+      yourText: "طلبك",
+      detected: "الفئات المكتشفة بالذكاء الاصطناعي",
+      change: "انقر لإضافة أو إزالة الفئات:",
+      confirm: "تأكيد والإرسال",
+      cancel: "إلغاء",
+      confidence: "الثقة",
+      none: "اختر فئة واحدة على الأقل",
+    },
+  }[locale];
+
   // ─ Form view ────────────────────────────────────────────────────────
   return (
+    <>
     <form
       onSubmit={handleSubmit}
       style={{
@@ -701,6 +864,145 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
         }
       `}</style>
     </form>
+
+    {/* Popup de confirmation : catégorie détectée + modification possible */}
+    {preview && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        dir={locale === "ar" ? "rtl" : "ltr"}
+        onClick={() => !confirming && setPreview(null)}
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 1000,
+          background: "rgba(0,0,0,.55)",
+          display: "grid",
+          placeItems: "center",
+          padding: 16,
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: "100%",
+            maxWidth: 460,
+            background: "var(--bg-paper, #1f2937)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: "var(--r)",
+            padding: "1.5rem",
+            boxShadow: "0 20px 50px rgba(0,0,0,.4)",
+          }}
+        >
+          <h3 style={{ margin: "0 0 4px", fontSize: "1.15rem", fontWeight: 700, color: "var(--ink)" }}>
+            {ml.title}
+          </h3>
+          <p style={{ margin: "0 0 16px", fontSize: 13, color: "var(--ink-4)" }}>
+            {ml.detected} · {ml.confidence} {Math.round((preview.confidence ?? 0) * 100)}%
+          </p>
+
+          {/* Texte exprimé par le client */}
+          <div
+            style={{
+              background: "var(--bg-ivory, #FAF7F0)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: "var(--r-sm)",
+              padding: "10px 12px",
+              marginBottom: 16,
+              maxHeight: 120,
+              overflowY: "auto",
+            }}
+          >
+            <div style={{ fontSize: 10, color: "var(--ink-4)", marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.07em" }}>
+              {ml.yourText}
+            </div>
+            <div style={{ fontSize: 13.5, color: "var(--ink)", lineHeight: 1.5, whiteSpace: "pre-wrap" }}>
+              {text}
+            </div>
+          </div>
+
+          {/* Catégories multi-sélection : cliquer pour ajouter/retirer */}
+          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-4)", marginBottom: 10 }}>
+            {ml.change}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 20 }}>
+            {CATEGORIES.map((c) => {
+              const on = selectedCats.includes(c.value);
+              return (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => toggleCat(c.value)}
+                  aria-pressed={on ? "true" : "false"}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "7px 13px",
+                    borderRadius: 999,
+                    border: on ? "1px solid transparent" : "1px solid var(--line-soft)",
+                    background: on ? c.color : "transparent",
+                    color: on ? "#fff" : "var(--ink-3)",
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    transition: "all .12s",
+                  }}
+                >
+                  {on ? "✓ " : ""}{catLabel(c.value)}
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedCats.length === 0 && (
+            <div style={{ fontSize: 12, color: "var(--rose, #DC2626)", marginBottom: 14 }}>
+              {ml.none}
+            </div>
+          )}
+
+          <div style={{ display: "flex", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setPreview(null)}
+              disabled={confirming}
+              style={{
+                flex: 1,
+                height: 44,
+                borderRadius: "var(--r)",
+                border: "1px solid var(--line-soft)",
+                background: "transparent",
+                color: "var(--ink-2)",
+                cursor: confirming ? "not-allowed" : "pointer",
+                fontSize: 14,
+                fontWeight: 600,
+              }}
+            >
+              {ml.cancel}
+            </button>
+            <button
+              type="button"
+              onClick={confirmSubmit}
+              disabled={confirming}
+              style={{
+                flex: 2,
+                height: 44,
+                borderRadius: "var(--r)",
+                border: "none",
+                background: "var(--gold-deep, #C9A84C)",
+                color: "#fff",
+                cursor: confirming ? "wait" : "pointer",
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              {confirming ? texts.submitting : ml.confirm}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 

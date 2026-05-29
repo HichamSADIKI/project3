@@ -10,6 +10,7 @@
     "messages": "Messagerie",
     "visits": "Visites",
     "newNeed": "Exprimer un besoin",
+    "myLeads": "Mes leads",
     "profile": "Profil"
   },
   "dashboard": {
@@ -44,6 +45,39 @@
       "done": "Effectuée",
       "cancelled": "Annulée",
       "no_show": "Absence"
+    }
+  },
+  "leads": {
+    "title": "Mes leads",
+    "subtitle": "Retrouvez ici toutes les demandes que vous avez exprimées et leur avancement.",
+    "empty": "Vous n'avez pas encore exprimé de besoin.",
+    "cta": "Exprimer un besoin",
+    "budgetLabel": "Budget",
+    "noBudget": "Non précisé",
+    "locationLabel": "Localisation",
+    "goldenVisa": "Éligible Golden Visa",
+    "createdOn": "Créé le",
+    "status": {
+      "new": "Nouveau",
+      "contacted": "Contacté",
+      "qualified": "Qualifié",
+      "proposal_sent": "Proposition envoyée",
+      "visit_planned": "Visite planifiée",
+      "visit_done": "Visite effectuée",
+      "negotiation": "En négociation",
+      "won": "Conclu",
+      "lost": "Clôturé"
+    },
+    "category": {
+      "realestate": "Immobilier",
+      "tourisme": "Tourisme",
+      "sante": "Santé",
+      "assurance": "Assurance",
+      "banques": "Banque",
+      "amazon": "E-commerce",
+      "consultants": "Conseil",
+      "admin": "Administratif",
+      "travail": "Emploi"
     }
   },
   "messages": {

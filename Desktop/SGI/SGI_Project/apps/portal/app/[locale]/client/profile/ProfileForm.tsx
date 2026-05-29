@@ -18,12 +18,12 @@ export interface ClientMeProfile {
   budget_max: number | null;
   preferred_property_type: string | null;
   preferred_location: string | null;
+  preferred_language: string;
 }
 
 interface Texts {
   sectionIdentity: string;
   sectionContact: string;
-  sectionPreferences: string;
   firstName: string;
   lastName: string;
   companyName: string;
@@ -33,17 +33,24 @@ interface Texts {
   phone2: string;
   nationality: string;
   countryOfResidence: string;
-  budgetMin: string;
-  budgetMax: string;
-  preferredPropertyType: string;
-  preferredLocation: string;
   submit: string;
   submitting: string;
   success: string;
   errorGeneric: string;
 }
 
-type FormState = Omit<ClientMeProfile, "id" | "type" | "email">;
+// Champs éditables par le client (la section « Préférences immobilières » a été
+// retirée : budget / type de bien / quartier sont gérés côté back-office).
+interface FormState {
+  first_name: string | null;
+  last_name: string | null;
+  company_name: string | null;
+  phone: string | null;
+  phone2: string | null;
+  nationality: string | null;
+  country_of_residence: string | null;
+  preferred_language: string;
+}
 
 function toForm(p: ClientMeProfile): FormState {
   return {
@@ -54,19 +61,32 @@ function toForm(p: ClientMeProfile): FormState {
     phone2: p.phone2,
     nationality: p.nationality,
     country_of_residence: p.country_of_residence,
-    budget_min: p.budget_min,
-    budget_max: p.budget_max,
-    preferred_property_type: p.preferred_property_type,
-    preferred_location: p.preferred_location,
+    preferred_language: p.preferred_language || "fr",
   };
+}
+
+const LANGUAGES: { value: string; label: string }[] = [
+  { value: "ar", label: "العربية" },
+  { value: "en", label: "English" },
+  { value: "fr", label: "Français" },
+];
+
+function langLabel(locale: string): string {
+  return locale === "ar"
+    ? "اللغة المفضّلة"
+    : locale === "en"
+      ? "Preferred language"
+      : "Langue préférée";
 }
 
 export function ProfileForm({
   initial,
   texts,
+  locale = "fr",
 }: {
   initial: ClientMeProfile;
   texts: Texts;
+  locale?: string;
 }) {
   const [form, setForm] = useState<FormState>(toForm(initial));
   const [submitting, setSubmitting] = useState(false);
@@ -189,37 +209,22 @@ export function ProfileForm({
             onChange={(v) => setField("country_of_residence", v)}
             autoComplete="country-name"
           />
-        </div>
-      </section>
-
-      {/* Préférences immobilières */}
-      <section className="sgi-card" style={{ gridColumn: "1 / -1" }}>
-        <h2 style={{ margin: "0 0 1rem", fontSize: "1rem", color: "var(--ink)" }}>
-          {texts.sectionPreferences}
-        </h2>
-        <div className="sgi-grid-auto-sm" style={{ gap: "0.75rem" }}>
-          <NumberField
-            label={texts.budgetMin}
-            value={form.budget_min}
-            onChange={(v) => setField("budget_min", v)}
-          />
-          <NumberField
-            label={texts.budgetMax}
-            value={form.budget_max}
-            onChange={(v) => setField("budget_max", v)}
-          />
-          <Field
-            label={texts.preferredPropertyType}
-            value={form.preferred_property_type ?? ""}
-            onChange={(v) => setField("preferred_property_type", v)}
-            placeholder="apartment, villa, office…"
-          />
-          <Field
-            label={texts.preferredLocation}
-            value={form.preferred_location ?? ""}
-            onChange={(v) => setField("preferred_location", v)}
-            placeholder="Dubai Marina, Downtown…"
-          />
+          {/* Langue préférée — appliquée au compte */}
+          <div>
+            <label className="sgi-label">{langLabel(locale)}</label>
+            <select
+              className="sgi-input"
+              aria-label={langLabel(locale)}
+              value={form.preferred_language}
+              onChange={(e) => setField("preferred_language", e.target.value)}
+            >
+              {LANGUAGES.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </section>
 
@@ -280,33 +285,6 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
         placeholder={placeholder}
-      />
-    </div>
-  );
-}
-
-function NumberField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number | null;
-  onChange: (v: number | null) => void;
-}) {
-  return (
-    <div>
-      <label className="sgi-label">{label}</label>
-      <input
-        className="sgi-input"
-        type="number"
-        min={0}
-        step={1000}
-        value={value ?? ""}
-        onChange={(e) => {
-          const raw = e.target.value;
-          onChange(raw === "" ? null : Number(raw));
-        }}
       />
     </div>
   );

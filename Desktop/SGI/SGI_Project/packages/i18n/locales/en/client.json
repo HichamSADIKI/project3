@@ -10,6 +10,7 @@
     "messages": "Messages",
     "visits": "Visits",
     "newNeed": "Submit a need",
+    "myLeads": "My leads",
     "profile": "Profile"
   },
   "dashboard": {
@@ -44,6 +45,39 @@
       "done": "Done",
       "cancelled": "Cancelled",
       "no_show": "No show"
+    }
+  },
+  "leads": {
+    "title": "My leads",
+    "subtitle": "Find here all the needs you've submitted and their progress.",
+    "empty": "You haven't submitted any need yet.",
+    "cta": "Submit a need",
+    "budgetLabel": "Budget",
+    "noBudget": "Not specified",
+    "locationLabel": "Location",
+    "goldenVisa": "Golden Visa eligible",
+    "createdOn": "Created on",
+    "status": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "proposal_sent": "Proposal sent",
+      "visit_planned": "Visit planned",
+      "visit_done": "Visit done",
+      "negotiation": "In negotiation",
+      "won": "Closed won",
+      "lost": "Closed"
+    },
+    "category": {
+      "realestate": "Real estate",
+      "tourisme": "Tourism",
+      "sante": "Health",
+      "assurance": "Insurance",
+      "banques": "Banking",
+      "amazon": "E-commerce",
+      "consultants": "Consulting",
+      "admin": "Administrative",
+      "travail": "Employment"
     }
   },
   "messages": {
