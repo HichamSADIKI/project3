@@ -3,9 +3,12 @@
     "dashboard": "Dashboard",
     "submitProperty": "Submit a property",
     "leads": "My leads",
-    "commissions": "Commissions",
+    "commissions": "My commissions",
     "services": "My services",
-    "profile": "Profile"
+    "profile": "Vendor profile",
+    "documents": "My documents",
+    "missions": "My missions",
+    "messages": "Messages"
   },
   "dashboard": {
     "welcome": "Welcome, {{name}}",
@@ -129,5 +132,103 @@
       "valuation": "Valuation",
       "other": "Other"
     }
+  },
+  "profile": {
+    "title": "Vendor profile",
+    "subtitle": "Your company information, category and validation status.",
+    "account": "Account",
+    "name": "Name",
+    "email": "Email",
+    "accountStatus": "Account status",
+    "profileSection": "Service provider profile",
+    "category": "Category",
+    "verificationStatus": "Validation status",
+    "licence": "Commercial license",
+    "licenceNumber": "Licence n°",
+    "licenceExpiry": "Expiry",
+    "licenceAuthority": "Authority",
+    "viewDoc": "View document",
+    "noDoc": "No document",
+    "rating": "Rating",
+    "reviews": "reviews",
+    "serviceAreas": "Service areas",
+    "specialities": "Specialities",
+    "rejectionReason": "Rejection reason",
+    "noProfile": "No vendor profile linked to this account yet.",
+    "verif": {
+      "pending": "Pending validation",
+      "verified": "Verified",
+      "rejected": "Rejected"
+    },
+    "acct": {
+      "active": "Active",
+      "pending": "Pending",
+      "rejected": "Rejected",
+      "suspended": "Suspended"
+    }
+  },
+  "documents": {
+    "title": "My documents",
+    "subtitle": "Manage your KYC documents (commercial license, insurance…) and keep them up to date.",
+    "empty": "No document yet.",
+    "add": "Add a document",
+    "docType": "Document type",
+    "expiry": "Expiry date",
+    "expiryHint": "Optional. Auto-filled from the license when possible.",
+    "file": "File",
+    "fileHint": "PDF, JPG or PNG — max 8 MB.",
+    "status": "Status",
+    "active": "Valid",
+    "expired": "Expired",
+    "expiresInDays": "Expires in {{n}} d",
+    "view": "View",
+    "send": "Upload",
+    "sending": "Uploading…",
+    "success": "Document uploaded.",
+    "error": "Upload failed.",
+    "types": {
+      "trade_licence": "Commercial license",
+      "insurance": "Insurance",
+      "vat": "VAT certificate",
+      "id": "ID",
+      "other": "Other"
+    }
+  },
+  "missions": {
+    "title": "My missions",
+    "subtitle": "Service requests assigned to you by the agency.",
+    "empty": "No mission assigned yet.",
+    "scheduled": "Scheduled",
+    "location": "Location",
+    "amount": "Amount",
+    "updating": "Updating…",
+    "actions": {
+      "accept": "Accept",
+      "in_progress": "Start",
+      "done": "Mark done",
+      "cancel": "Decline"
+    },
+    "status": {
+      "assigned": "Assigned",
+      "accepted": "Accepted",
+      "in_progress": "In progress",
+      "done": "Done",
+      "cancelled": "Cancelled"
+    }
+  },
+  "messages": {
+    "title": "Messages",
+    "subtitle": "Talk directly with your SGI agency.",
+    "empty": "No message yet. Start the conversation below.",
+    "you": "You",
+    "agency": "Agency",
+    "subject": "Subject",
+    "subjectPlaceholder": "Optional subject",
+    "body": "Message",
+    "bodyPlaceholder": "Write your message…",
+    "send": "Send",
+    "sending": "Sending…",
+    "success": "Message sent.",
+    "error": "Could not send the message."
   }
 }

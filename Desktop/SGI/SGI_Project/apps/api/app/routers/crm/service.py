@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.client import Client
 from app.models.crm import CRMActivity, CRMLead
 
 from .schemas import ActivityCreate, LeadCreate, LeadStatusUpdate, LeadUpdate
@@ -70,6 +71,28 @@ def calculate_score(
 
 
 # ---------------------------------------------------------------------------
+# Référence métier — CRM-YYYY-NNNNNN (6 chiffres, triable, unique par tenant)
+# ---------------------------------------------------------------------------
+
+def generate_reference(year: int, sequence: int) -> str:
+    """Format interne : CRM-YYYY-NNNNNN (6 chiffres pour faciliter le tri)."""
+    return f"CRM-{year}-{sequence:06d}"
+
+
+async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
+    """Génère une référence unique par tenant + année courante."""
+    year = datetime.now(timezone.utc).year
+    count_result = await db.execute(
+        select(func.count(CRMLead.id)).where(
+            CRMLead.company_id == company_id,
+            func.extract("year", CRMLead.created_at) == year,
+        )
+    )
+    seq = int(count_result.scalar_one() or 0) + 1
+    return generate_reference(year, seq)
+
+
+# ---------------------------------------------------------------------------
 # CRUD Leads
 # ---------------------------------------------------------------------------
 
@@ -81,6 +104,7 @@ async def list_leads(
     status: str | None = None,
     agent_id: uuid.UUID | None = None,
     q: str | None = None,
+    category: str | None = None,
 ) -> tuple[list[CRMLead], int]:
     """Retourne (items, total) filtrés par company_id."""
     filters = [
@@ -89,6 +113,8 @@ async def list_leads(
     ]
     if status:
         filters.append(CRMLead.status == status)
+    if category:
+        filters.append(CRMLead.category == category)
     if agent_id:
         filters.append(CRMLead.agent_id == agent_id)
     if q:
@@ -107,13 +133,26 @@ async def list_leads(
 
     offset = (page - 1) * limit
     result = await db.execute(
-        select(CRMLead)
+        select(
+            CRMLead,
+            Client.first_name,
+            Client.last_name,
+            Client.company_name,
+        )
+        .join(Client, Client.id == CRMLead.client_id, isouter=True)
         .where(and_(*filters))
         .order_by(CRMLead.score.desc(), CRMLead.created_at.desc())
         .offset(offset)
         .limit(limit)
     )
-    return list(result.scalars().all()), total
+    leads: list[CRMLead] = []
+    for lead, first_name, last_name, company_name in result.all():
+        # Nom d'affichage : société sinon prénom+nom. Attribut dynamique lu par
+        # LeadOut (from_attributes) — non persisté.
+        full = " ".join(p for p in (first_name, last_name) if p).strip()
+        lead.client_name = company_name or full or None  # type: ignore[attr-defined]
+        leads.append(lead)
+    return leads, total
 
 
 async def get_lead(
@@ -150,8 +189,11 @@ async def create_lead(
         last_contact_at=None,
     )
 
+    reference = await _next_reference(db, uuid.UUID(company_id))
+
     lead = CRMLead(
         company_id=uuid.UUID(company_id),
+        reference=reference,
         client_id=data.client_id,
         agent_id=data.agent_id,
         source=data.source,

@@ -12,7 +12,7 @@ from typing import Any
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.gemini import VALID_CATEGORIES, parse_client_need
+from app.core.gemini import VALID_CATEGORIES, detect_categories, parse_client_need
 from app.models.client import Client
 from app.models.contract import Contract
 from app.models.crm import CRMLead
@@ -21,6 +21,7 @@ from app.models.finance import FinanceTransaction
 from app.models.message import Message
 from app.models.user import User
 from app.models.visit_request import VisitRequest
+from app.routers.crm.service import _next_reference
 
 
 async def find_linked_client_id(
@@ -57,12 +58,21 @@ async def ensure_linked_client_id(
     user_id: uuid.UUID,
     user_email: str,
     company_id: uuid.UUID,
+    client_type: str | None = None,
+    trn: str | None = None,
+    address: str | None = None,
 ) -> uuid.UUID:
     """Garantit qu'un Client (party CRM) existe pour l'utilisateur courant.
 
     Si la fiche n'existe pas (compte créé avant que l'auto-link soit en place,
     inscription via canal non-standard, etc.), elle est créée à la volée à partir
     des infos du User (email, full_name). Idempotent.
+
+    `client_type` (person|company), `trn` et `address` proviennent du formulaire
+    d'inscription portail et alimentent respectivement Client.type,
+    Client.notes (préfixé "TRN: …") et Client.preferred_location. Aucun
+    schéma supplémentaire — on réutilise les colonnes existantes pour que la
+    fiche soit immédiatement exploitable côté back-office.
     """
     existing = await find_linked_client_id(db, user_email, company_id)
     if existing:
@@ -76,18 +86,47 @@ async def ensure_linked_client_id(
     first_name = parts[0] or None
     last_name = parts[1] if len(parts) > 1 else None
 
+    is_company = client_type == "company"
+    notes = f"TRN: {trn.strip()}" if (is_company and trn and trn.strip()) else None
+
     client = Client(
         id=uuid.uuid4(),
         company_id=company_id,
-        type="individual",
-        first_name=first_name,
-        last_name=last_name,
+        type="company" if is_company else "individual",
+        first_name=None if is_company else first_name,
+        last_name=None if is_company else last_name,
+        company_name=full_name.strip() if is_company else None,
         email=user_email,
         source="portal",
+        preferred_location=address.strip() if address and address.strip() else None,
+        notes=notes,
     )
     db.add(client)
     await db.flush()
     return client.id
+
+
+async def list_my_leads(
+    db: AsyncSession, *, user_email: str, company_id: uuid.UUID
+) -> list[CRMLead]:
+    """Tous les leads/besoins créés par le client connecté (via sa fiche party).
+
+    Le User(role=client) est relié au Client CRM par email ; les leads sont
+    rattachés à ce client_id. Aucun lien → liste vide (pas d'erreur).
+    """
+    client_id = await find_linked_client_id(db, user_email, company_id)
+    if not client_id:
+        return []
+    result = await db.execute(
+        select(CRMLead)
+        .where(
+            CRMLead.client_id == client_id,
+            CRMLead.company_id == company_id,
+            CRMLead.deleted_at.is_(None),
+        )
+        .order_by(CRMLead.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 async def list_my_favorites(
@@ -307,44 +346,57 @@ async def compute_dashboard(
 # ── Expression de besoin (texte / dictée vocale) ─────────────────────────
 
 
-async def submit_client_need(
-    db: AsyncSession,
-    *,
-    user_id: uuid.UUID,
-    user_email: str,
-    company_id: uuid.UUID,
+async def preview_client_need(
     text: str,
+    *,
     locale: str,
-    source: str,
     category_override: str | None = None,
 ) -> dict[str, Any]:
-    """
-    Workflow :
-      1. Garantit qu'une fiche Client CRM (party) existe pour l'utilisateur —
-         créée à la volée si absente (compte créé avant l'auto-link).
-      2. Appel Gemini (ou fallback heuristique) pour parser le besoin.
-      3. Si category_override fourni → court-circuite l'IA.
-      4. Si confidence < 0.6 → catégorie 'realestate' (cœur métier SGI).
-      5. Création d'un CRMLead avec status='new' et category détectée.
-      6. Notes = texte original (préfixe vocal/écrit) + résumé IA.
-    Renvoie {lead_id, crm_ref, category, parsed}.
-    """
-    linked_client_id = await ensure_linked_client_id(
-        db, user_id=user_id, user_email=user_email, company_id=company_id
-    )
+    """Analyse un besoin et résout la catégorie SANS créer de lead.
 
+    Étapes 2→4 de `submit_client_need` (parse IA/heuristique, override manuel
+    éventuel, règle de confiance). Utilisé par l'endpoint de prévisualisation
+    pour que le client valide/corrige la catégorie avant l'envoi définitif.
+    """
     parsed = await parse_client_need(text, locale=locale)  # type: ignore[arg-type]
 
-    # Override manuel du client (cas où l'IA hésite)
     if category_override and category_override in VALID_CATEGORIES:
         parsed["category"] = category_override
         parsed["engine"] = parsed.get("engine", "") + "+manual"
 
-    # Loi : confiance basse → défaut realestate (Q&A produit)
+    # Loi : confiance basse → défaut realestate (cœur métier SGI)
     if float(parsed.get("confidence") or 0) < 0.6 and not category_override:
         parsed["category"] = "realestate"
 
-    # Score initial — réutilise les règles CRM
+    # Détection multi-catégories : un texte peut couvrir plusieurs secteurs.
+    if category_override and category_override in VALID_CATEGORIES:
+        parsed["categories"] = [category_override]
+    else:
+        parsed["categories"] = detect_categories(text)
+        # Garantit que la catégorie primaire figure en tête de la liste.
+        primary = parsed["category"]
+        if primary in parsed["categories"]:
+            parsed["categories"].remove(primary)
+        parsed["categories"].insert(0, primary)
+
+    return parsed
+
+
+async def _build_lead(
+    db: AsyncSession,
+    *,
+    company_id: uuid.UUID,
+    client_id: uuid.UUID,
+    category: str,
+    parsed: dict[str, Any],
+    text: str,
+    source: str,
+) -> dict[str, Any]:
+    """Crée un CRMLead pour UNE catégorie à partir du besoin parsé.
+
+    Renvoie {lead_id, crm_ref, category}. Le scoring/budget/notes sont communs
+    à toutes les catégories d'un même besoin (le texte est identique).
+    """
     budget_decimal: Decimal | None = None
     if parsed.get("budget_aed"):
         try:
@@ -356,7 +408,6 @@ async def submit_client_need(
         budget_decimal is not None and budget_decimal >= Decimal("2000000")
     )
 
-    # Score = règles CLAUDE.md mais sans last_contact (lead frais)
     score = 0
     if budget_decimal is not None:
         if budget_decimal >= Decimal("2000000"):
@@ -368,7 +419,6 @@ async def submit_client_need(
     if parsed.get("property_type"):
         score += 15
 
-    # Notes structurées — original + résumé
     source_label = "🎤 Voix" if source == "portal_voice" else "✍️ Texte"
     notes = (
         f"[{source_label} — portal client]\n"
@@ -377,16 +427,24 @@ async def submit_client_need(
         f"(engine={parsed.get('engine')} · confidence={parsed.get('confidence')})"
     )
 
+    lead_id = uuid.uuid4()
+    # Référence métier persistée (colonne `reference`), séquentielle par tenant
+    # (CRM-YYYY-NNNNNN) — même schéma que les leads créés côté back-office, pour
+    # un format unique, trié et cohérent dans toute l'application.
+    crm_ref = await _next_reference(db, company_id)
+
     lead = CRMLead(
-        id=uuid.uuid4(),
+        id=lead_id,
         company_id=company_id,
-        client_id=linked_client_id,
+        client_id=client_id,
+        reference=crm_ref,
         agent_id=None,  # file d'attente — dispatch manager
         status="new",
         source=source,
-        category=parsed["category"],
+        category=category,
         budget=budget_decimal,
-        property_type=parsed.get("property_type"),
+        # property_type n'a de sens que pour l'immobilier
+        property_type=parsed.get("property_type") if category == "realestate" else None,
         preferred_location=parsed.get("preferred_location"),
         golden_visa_eligible=golden_visa_eligible,
         score=min(score, 100),
@@ -398,17 +456,105 @@ async def submit_client_need(
     await db.flush()
     await db.refresh(lead)
 
-    crm_ref = f"CRM-{datetime.now(timezone.utc).year}-{str(lead.id)[:8].upper()}"
+    return {"lead_id": lead.id, "crm_ref": crm_ref, "category": lead.category}
 
+
+async def submit_client_needs(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    user_email: str,
+    company_id: uuid.UUID,
+    text: str,
+    locale: str,
+    source: str,
+    categories: list[str],
+) -> dict[str, Any]:
+    """Crée UN lead CRM par catégorie validée par le client (multi-catégories).
+
+    Le besoin est parsé une seule fois ; chaque catégorie donnée produit un
+    deal distinct dans le pipeline du secteur correspondant. Renvoie
+    {deals: [{lead_id, crm_ref, category}], parsed}.
+    """
+    linked_client_id = await ensure_linked_client_id(
+        db, user_id=user_id, user_email=user_email, company_id=company_id
+    )
+
+    parsed = await preview_client_need(text, locale=locale)
+
+    # Filtre/normalise : catégories valides, dédupliquées, ordre préservé.
+    seen: set[str] = set()
+    valid: list[str] = []
+    for c in categories:
+        if c in VALID_CATEGORIES and c not in seen:
+            seen.add(c)
+            valid.append(c)
+    if not valid:
+        valid = [parsed["category"]]
+
+    deals = [
+        await _build_lead(
+            db,
+            company_id=company_id,
+            client_id=linked_client_id,
+            category=c,
+            parsed=parsed,
+            text=text,
+            source=source,
+        )
+        for c in valid
+    ]
+
+    return {"deals": deals, "categories": valid, "parsed": parsed}
+
+
+async def submit_client_need(
+    db: AsyncSession,
+    *,
+    user_id: uuid.UUID,
+    user_email: str,
+    company_id: uuid.UUID,
+    text: str,
+    locale: str,
+    source: str,
+    category_override: str | None = None,
+) -> dict[str, Any]:
+    """Variante mono-catégorie (compat) — délègue à `submit_client_needs`."""
+    parsed = await preview_client_need(
+        text, locale=locale, category_override=category_override
+    )
+    res = await submit_client_needs(
+        db,
+        user_id=user_id,
+        user_email=user_email,
+        company_id=company_id,
+        text=text,
+        locale=locale,
+        source=source,
+        categories=[parsed["category"]],
+    )
+    deal = res["deals"][0]
     return {
-        "lead_id": lead.id,
-        "crm_ref": crm_ref,
-        "category": lead.category,
-        "parsed": parsed,
+        "lead_id": deal["lead_id"],
+        "crm_ref": deal["crm_ref"],
+        "category": deal["category"],
+        "parsed": res["parsed"],
     }
 
 
 # ── Profil client (« mon profil ») ───────────────────────────────────────
+
+
+async def _attach_language(db: AsyncSession, client: Client, user_id: uuid.UUID) -> None:
+    """Attache la langue préférée (portée par le compte User) sur la fiche Client.
+
+    `preferred_language` n'est pas une colonne de Client — c'est un attribut
+    dynamique lu par ClientMeProfileOut (from_attributes).
+    """
+    row = (
+        await db.execute(select(User.preferred_language).where(User.id == user_id))
+    ).first()
+    client.preferred_language = (row[0] if row else "en")  # type: ignore[attr-defined]
 
 
 async def get_my_profile(
@@ -424,14 +570,14 @@ async def get_my_profile(
     pour les comptes créés avant l'auto-link au register).
     """
     client = await find_linked_client(db, user_email, company_id)
-    if client:
-        return client
-    client_id = await ensure_linked_client_id(
-        db, user_id=user_id, user_email=user_email, company_id=company_id
-    )
-    refreshed = await find_linked_client(db, user_email, company_id)
-    assert refreshed is not None, f"client_just_created_not_found:{client_id}"
-    return refreshed
+    if not client:
+        client_id = await ensure_linked_client_id(
+            db, user_id=user_id, user_email=user_email, company_id=company_id
+        )
+        client = await find_linked_client(db, user_email, company_id)
+        assert client is not None, f"client_just_created_not_found:{client_id}"
+    await _attach_language(db, client, user_id)
+    return client
 
 
 async def update_my_profile(
@@ -444,15 +590,26 @@ async def update_my_profile(
 ) -> Client:
     """Met à jour les champs whitelistés du profil client courant.
 
-    Le whitelist est appliqué par le schéma `ClientMeProfileUpdate` — on
-    réinjecte uniquement les attributs présents dans `data` (exclude_unset).
+    `preferred_language` est appliqué au compte User (pas à la fiche Client) ;
+    les autres champs vont sur le Client. Whitelist garanti par le schéma.
     """
+    language = data.pop("preferred_language", None)
+
     client = await get_my_profile(
         db, user_id=user_id, user_email=user_email, company_id=company_id
     )
     for field, value in data.items():
         setattr(client, field, value)
     client.updated_at = datetime.now(timezone.utc)
+
+    if language:
+        user = (
+            await db.execute(select(User).where(User.id == user_id))
+        ).scalar_one_or_none()
+        if user:
+            user.preferred_language = language
+
     await db.flush()
     await db.refresh(client)
+    await _attach_language(db, client, user_id)
     return client

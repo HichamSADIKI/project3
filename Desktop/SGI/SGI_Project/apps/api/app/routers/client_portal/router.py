@@ -15,7 +15,10 @@ from app.routers.client_portal.schemas import (
     FavoriteOut,
     MessageCreate,
     MessageOut,
+    MyLeadOut,
     NeedSubmitIn,
+    NeedSubmitMultiIn,
+    NeedSubmitMultiOut,
     NeedSubmitOut,
     ParsedNeedOut,
     TranscribeOut,
@@ -28,12 +31,16 @@ from app.routers.client_portal.service import (
     create_visit_request,
     get_my_profile,
     list_my_favorites,
+    list_my_leads,
     list_my_messages,
     list_my_visits,
+    find_linked_client_id,
     mark_message_read,
+    preview_client_need,
     remove_favorite,
     send_message,
     submit_client_need,
+    submit_client_needs,
     update_my_profile,
 )
 
@@ -174,6 +181,18 @@ async def post_visit(
     return VisitRequestOut.model_validate(visit)
 
 
+# ── Mes leads (besoins/deals créés par le client) ────────────────────────
+@router.get("/leads", response_model=list[MyLeadOut])
+async def list_leads(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> list[MyLeadOut]:
+    """Liste les leads/besoins créés par le client connecté (les plus récents
+    en premier). Alimente la page « Mes leads » du portail."""
+    _user_id, company_id, email = _ctx(request)
+    leads = await list_my_leads(db, user_email=email, company_id=company_id)
+    return [MyLeadOut.model_validate(lead) for lead in leads]
+
+
 # ── Messages ─────────────────────────────────────────────────────────────
 @router.get("/messages", response_model=list[MessageOut])
 async def list_messages(
@@ -216,6 +235,31 @@ async def post_mark_read(
             status_code=status.HTTP_404_NOT_FOUND, detail="message_not_found"
         )
     await db.commit()
+
+
+# ── Maintenance (tickets du client connecté) ─────────────────────────────
+@router.get("/maintenance")
+async def list_my_maintenance(
+    request: Request, db: AsyncSession = Depends(get_db)
+):
+    """Liste les tickets de maintenance rapportés par le client connecté."""
+    from sqlalchemy import select
+    from app.models.maintenance import MaintenanceTicket
+
+    _user_id, company_id, email = _ctx(request)
+    client_id = await find_linked_client_id(db, email, company_id)
+    if not client_id:
+        return []
+
+    result = await db.execute(
+        select(MaintenanceTicket).where(
+            MaintenanceTicket.company_id == company_id,
+            MaintenanceTicket.reported_by_user_id == _user_id,
+            MaintenanceTicket.deleted_at.is_(None),
+        ).order_by(MaintenanceTicket.created_at.desc())
+    )
+    from app.routers.maintenance.schemas import TicketOut
+    return [TicketOut.model_validate(t) for t in result.scalars().all()]
 
 
 # ── Expression de besoin (texte / dictée vocale) ─────────────────────────
@@ -269,6 +313,74 @@ async def post_need(
         category=result["category"],
         parsed=ParsedNeedOut(**result["parsed"]),
     )
+
+
+@router.post(
+    "/needs/preview",
+    response_model=ParsedNeedOut,
+    status_code=status.HTTP_200_OK,
+    summary="Prévisualiser la catégorie détectée — sans créer de deal",
+)
+async def post_need_preview(
+    body: NeedSubmitIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> ParsedNeedOut:
+    """Analyse le besoin et renvoie la catégorie détectée (+ budget, urgence…)
+    SANS rien créer en base.
+
+    Utilisé par le portail pour afficher au client, dans une popup de
+    confirmation, la catégorie proposée — qu'il peut valider ou modifier
+    avant l'envoi définitif via `POST /needs` (avec `category_override`).
+    """
+    _ctx(request)  # auth role=client (lève 401 sinon)
+    parsed = await preview_client_need(
+        body.text, locale=body.locale, category_override=body.category_override
+    )
+    return ParsedNeedOut(**parsed)
+
+
+@router.post(
+    "/needs/multi",
+    response_model=NeedSubmitMultiOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Soumettre un besoin sous une ou plusieurs catégories — 1 deal / catégorie",
+)
+async def post_needs_multi(
+    body: NeedSubmitMultiIn,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> NeedSubmitMultiOut:
+    """Crée un deal CRM par catégorie validée par le client dans la popup.
+
+    Le besoin (texte) est parsé une seule fois ; chaque catégorie choisie
+    produit un deal distinct dans le pipeline du secteur correspondant.
+    """
+    user_id, company_id, email = _ctx(request)
+    try:
+        result = await submit_client_needs(
+            db,
+            user_id=user_id,
+            user_email=email,
+            company_id=company_id,
+            text=body.text,
+            locale=body.locale,
+            source=body.source,
+            categories=body.categories,
+        )
+        await db.commit()
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"need_submission_failed: {exc}",
+        ) from exc
+
+    # pydantic coerce deals (list[dict]) → list[DealRef] et parsed (dict) → ParsedNeedOut
+    return NeedSubmitMultiOut(**result)
 
 
 @router.post(

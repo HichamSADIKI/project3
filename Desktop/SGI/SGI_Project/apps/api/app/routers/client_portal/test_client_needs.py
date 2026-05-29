@@ -23,6 +23,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import encode_jwt, hash_password
 from app.core.gemini import (
     _detect_category_local,
+    _detect_location,
+    _detect_property_type,
+    _detect_urgency,
     _fallback_parse,
     _parse_budget_aed,
 )
@@ -115,6 +118,66 @@ def test_detect_category_default_realestate() -> None:
     assert _detect_category_local("hello world, generic text") == "realestate"
 
 
+def test_parse_budget_ignores_room_count() -> None:
+    """Le nombre de chambres ne doit jamais être pris pour un budget."""
+    assert _parse_budget_aed(
+        "villa 4 chambres à Palm Jumeirah, budget 3 millions AED"
+    ) == 3_000_000
+
+
+def test_detect_property_type_villa() -> None:
+    assert _detect_property_type("je veux une villa avec piscine") == "villa"
+
+
+def test_detect_property_type_apartment_fr() -> None:
+    assert _detect_property_type("recherche un appartement 2 chambres") == "apartment"
+
+
+def test_detect_property_type_none() -> None:
+    assert _detect_property_type("besoin d'une assurance voyage") is None
+
+
+def test_detect_location_prefers_specific() -> None:
+    """'Palm Jumeirah' l'emporte sur 'palm'/'jumeirah'/'dubai'."""
+    assert _detect_location("villa à Palm Jumeirah, Dubai") == "Palm Jumeirah"
+
+
+def test_detect_location_none() -> None:
+    assert _detect_location("je cherche un bien quelque part") is None
+
+
+def test_detect_urgency_high() -> None:
+    assert _detect_urgency("achat urgent ce mois-ci") == "high"
+
+
+def test_detect_urgency_low() -> None:
+    assert _detect_urgency("pas pressé, flexible sur les délais") == "low"
+
+
+def test_detect_urgency_default_medium() -> None:
+    assert _detect_urgency("je cherche une villa") == "medium"
+
+
+def test_fallback_extracts_location_type_urgency() -> None:
+    """Le fallback remonte désormais lieu, type de bien et urgence."""
+    parsed = _fallback_parse(
+        "Villa avec piscine à Palm Jumeirah, 4 chambres, "
+        "budget 3 millions AED, achat urgent ce mois-ci",
+        "fr",
+    )
+    assert parsed["category"] == "realestate"
+    assert parsed["budget_aed"] == 3_000_000
+    assert parsed["preferred_location"] == "Palm Jumeirah"
+    assert parsed["property_type"] == "villa"
+    assert parsed["urgency"] == "high"
+
+
+def test_fallback_property_type_null_when_not_realestate() -> None:
+    """property_type n'a de sens que pour l'immobilier."""
+    parsed = _fallback_parse("besoin d'une assurance auto, budget 5000 AED", "fr")
+    assert parsed["property_type"] is None
+
+
 def test_fallback_parse_returns_full_schema() -> None:
     parsed = _fallback_parse(
         "Recherche appartement 2 chambres à Dubai Marina, budget 2.5m AED",
@@ -166,8 +229,84 @@ async def test_submit_need_creates_lead_with_category(
     assert body["category"] == "realestate"
     assert body["parsed"]["budget_aed"] == 3_000_000
     assert body["parsed"]["engine"] == "local_heuristic"
-    assert body["crm_ref"].startswith("CRM-")
+    # Heuristique enrichie : lieu + type de bien extraits du texte.
+    assert body["parsed"]["preferred_location"] == "Dubai Marina"
+    assert body["parsed"]["property_type"] == "villa"
+    # Référence séquentielle CRM-YYYY-NNNNNN (même schéma que le back-office).
+    prefix, year, seq = body["crm_ref"].split("-")
+    assert prefix == "CRM" and year.isdigit() and seq.isdigit() and len(seq) == 6
     assert uuid.UUID(body["lead_id"])  # valide
+
+
+async def test_list_my_leads_returns_submitted_need(
+    client: AsyncClient,
+    seed_company: Company,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """GET /client/leads renvoie les besoins créés par le client connecté."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    _user, token, _party = await _make_client_with_party(db_session, seed_company)
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Liste vide au départ.
+    empty = await client.get("/api/v1/client/leads", headers=headers)
+    assert empty.status_code == 200, empty.text
+    assert empty.json() == []
+
+    # Le client exprime un besoin.
+    created = await client.post(
+        "/api/v1/client/needs",
+        json={
+            "text": "Je cherche une villa à Palm Jumeirah, budget 3 millions AED",
+            "locale": "fr",
+            "source": "portal_text",
+        },
+        headers=headers,
+    )
+    assert created.status_code == 201, created.text
+    crm_ref = created.json()["crm_ref"]
+
+    # Il le retrouve dans « Mes leads ».
+    resp = await client.get("/api/v1/client/leads", headers=headers)
+    assert resp.status_code == 200, resp.text
+    leads = resp.json()
+    assert len(leads) == 1
+    lead = leads[0]
+    assert lead["reference"] == crm_ref
+    assert lead["category"] == "realestate"
+    assert lead["status"] == "new"
+    assert lead["source"] == "portal_text"
+    assert lead["budget"] == 3_000_000
+
+
+async def test_list_my_leads_isolated_per_client(
+    client: AsyncClient,
+    seed_company: Company,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un client ne voit JAMAIS les leads d'un autre client (isolation)."""
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    _u1, token1, _p1 = await _make_client_with_party(db_session, seed_company)
+    _u2, token2, _p2 = await _make_client_with_party(db_session, seed_company)
+
+    await client.post(
+        "/api/v1/client/needs",
+        json={
+            "text": "Villa à Dubai Marina, budget 2 millions AED",
+            "locale": "fr",
+            "source": "portal_text",
+        },
+        headers={"Authorization": f"Bearer {token1}"},
+    )
+
+    # Le second client ne voit aucun lead du premier.
+    resp2 = await client.get(
+        "/api/v1/client/leads", headers={"Authorization": f"Bearer {token2}"}
+    )
+    assert resp2.status_code == 200, resp2.text
+    assert resp2.json() == []
 
 
 async def test_submit_need_category_override(

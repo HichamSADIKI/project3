@@ -23,6 +23,58 @@ Ne pas charger pour : correction de bug simple, changement de texte, ajustement 
 
 ---
 
+## Stratégie de modèles — Opus pour réfléchir, Sonnet pour exécuter
+
+**Règle transversale, obligatoire pour tout besoin exprimé par l'utilisateur.** Chaque demande se déroule en deux temps, avec un modèle dédié à chaque temps :
+
+### Temps 1 — Réflexion & solution → modèle **Opus**
+
+Tout ce qui relève de la **compréhension du besoin, de l'analyse et de la présentation de la solution** se fait avec **Opus** (`claude-opus-4-8`), le modèle le plus capable pour le raisonnement :
+
+- Reformuler et clarifier le besoin (questions `AskUserQuestion`)
+- Analyser le besoin au regard du contexte SGI (multi-tenant, RTL, UAE, Golden Visa)
+- Concevoir l'architecture et arbitrer les choix techniques
+- Présenter la solution et le plan à l'utilisateur, puis obtenir sa confirmation
+
+→ Correspond aux **Phases A, B, C** (Découverte → Architecte → Plan unifié) et à l'**Étape 1** (Plan minimal) du workflow standard. Ne jamais commencer à coder tant que la solution n'a pas été pensée et présentée avec Opus.
+
+### Temps 2 — Code, tests & audit → modèle **Sonnet**
+
+Une fois la solution validée par l'utilisateur, **basculer sur Sonnet** (`claude-sonnet-4-6`) pour toute l'**exécution** : écrire le code, lancer les tests, et auditer le code produit :
+
+- Implémenter le code (migration, models, service, router, écrans, composants)
+- Écrire et exécuter les tests (pytest, vitest, Playwright)
+- Auditer le code (sécurité, multi-tenant, RTL+i18n, perf)
+- Vérifications par fichier, TypeScript check, lint
+
+→ Correspond aux **Phases D → M** et aux **Étapes 2-3** du workflow standard.
+
+**Comment basculer de modèle :**
+- Si des agents sont lancés (Phase D, audits Phase H), passer `model: "opus"` aux agents de réflexion/architecture (`Plan`) et `model: "sonnet"` aux agents d'implémentation et d'audit (`general-purpose`, `Explore`).
+- Pour le travail effectué dans la boucle principale, indiquer clairement à l'utilisateur le passage Opus → Sonnet au moment de commencer à coder, et lui suggérer `/model sonnet` si un changement de modèle de session est requis.
+
+Synthèse : **on réfléchit et on décide avec Opus ; on code, on teste et on audite avec Sonnet.**
+
+### Affichage obligatoire du modèle à chaque étape
+
+**À chaque partie / phase du workflow**, afficher en tête de message le modèle de réflexion actif, sous forme d'une bannière sur sa propre ligne :
+
+```
+🧠 Modèle : Opus — réflexion / analyse / solution
+```
+ou
+```
+⚙️ Modèle : Sonnet — code / tests / audit
+```
+
+Règle :
+- La bannière est la **première ligne** du message qui ouvre la phase (ou la partie du workflow standard).
+- `🧠 Opus` pour les Phases A→C (et Étape 1 « Plan minimal »). `⚙️ Sonnet` pour les Phases D→M (et Étapes 2-3).
+- Si une bascule de modèle a lieu (passage Opus → Sonnet au moment de coder), l'annoncer explicitement : `🔄 Bascule Opus → Sonnet`.
+- Ne jamais omettre la bannière : l'utilisateur doit savoir en un coup d'œil avec quel modèle chaque partie est traitée.
+
+---
+
 ## Nouvelle fonctionnalité — workflow spécifique (à exécuter AVANT le workflow standard)
 
 À déclencher **dès que l'utilisateur demande une fonctionnalité qui n'existe pas encore** dans le projet (nouveau module, nouvelle page, nouveau flux métier, intégration externe inédite, nouveau type d'utilisateur, etc.).
@@ -61,6 +113,7 @@ Format de l'appel :
 ```
 Agent(
   subagent_type: "Plan",
+  model: "opus",
   description: "Architecture <nom-feature>",
   prompt: "<contexte SGI + besoin clarifié + contraintes + fichiers pertinents + sortie attendue>"
 )
@@ -237,21 +290,23 @@ Boucler la feature en capitalisant :
 
 ### Tableau récapitulatif des phases (A → M)
 
-| Phase | Objet | Sortie | Son fin |
-|---|---|---|---|
-| A | Découverte (questions + propositions) | Besoin clarifié | `Pop` |
-| B | Architecte (agent `Plan`) | Stratégie d'implémentation | `Pop` |
-| C | Plan unifié + confirmation utilisateur | Go/no-go | `Pop` |
-| D | Multi-agents parallèles (dev) | Code livré par les agents | `Pop` |
-| E | Intégration & vérifications par fichier | Checklist 7 points OK | `Pop` |
-| F | Vérification visuelle (Chrome DevTools) | Screenshots desktop / mobile / RTL | `Pop` |
-| G | Tests automatisés (tsc, pytest, vitest, lint) | 0 erreur | `Pop` |
-| H | Audit qualité (3 agents : sécu, RTL+i18n, perf) | Rapports + corrections | `Pop` |
-| I | Livraison & commit | Commit (+ PR si demandée) | `Pop` |
-| J | Mémoire & clôture | Résumé + « fin de tache » | `Pop` + `Hero` |
-| K | Documentation projet | CLAUDE.md, README, OpenAPI à jour | `Pop` |
-| L | Observabilité & monitoring | Sentry / Loki / Grafana branchés | `Pop` |
-| M | Rétrospective & amélioration continue | Issues, dette, mémoire enrichie | `Pop` |
+| Phase | Objet | Modèle | Sortie | Son fin |
+|---|---|---|---|---|
+| A | Découverte (questions + propositions) | **Opus** | Besoin clarifié | `Pop` |
+| B | Architecte (agent `Plan`) | **Opus** | Stratégie d'implémentation | `Pop` |
+| C | Plan unifié + confirmation utilisateur | **Opus** | Go/no-go | `Pop` |
+| D | Multi-agents parallèles (dev) | **Sonnet** | Code livré par les agents | `Pop` |
+| E | Intégration & vérifications par fichier | **Sonnet** | Checklist 7 points OK | `Pop` |
+| F | Vérification visuelle (Chrome DevTools) | **Sonnet** | Screenshots desktop / mobile / RTL | `Pop` |
+| G | Tests automatisés (tsc, pytest, vitest, lint) | **Sonnet** | 0 erreur | `Pop` |
+| H | Audit qualité (3 agents : sécu, RTL+i18n, perf) | **Sonnet** | Rapports + corrections | `Pop` |
+| I | Livraison & commit | **Sonnet** | Commit (+ PR si demandée) | `Pop` |
+| J | Mémoire & clôture | **Sonnet** | Résumé + « fin de tache » | `Pop` + `Hero` |
+| K | Documentation projet | **Sonnet** | CLAUDE.md, README, OpenAPI à jour | `Pop` |
+| L | Observabilité & monitoring | **Sonnet** | Sentry / Loki / Grafana branchés | `Pop` |
+| M | Rétrospective & amélioration continue | **Sonnet** | Issues, dette, mémoire enrichie | `Pop` |
+
+Rappel : **Phases A→C = Opus (réfléchir, analyser, présenter la solution) · Phases D→M = Sonnet (coder, tester, auditer).**
 
 Les phases K, L, M sont **optionnelles selon la criticité** de la feature : pour une feature mineure on s'arrête à J ; pour une feature critique (paiement, contrat, Golden Visa, multi-tenant structurant) **les trois sont obligatoires**.
 

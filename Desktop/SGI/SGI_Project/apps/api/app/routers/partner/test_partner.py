@@ -253,3 +253,54 @@ async def test_patch_service_not_found(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 404
+
+
+# ── Helpers métier purs (missions + documents) ──────────────────────────────
+
+from datetime import date as _date  # noqa: E402
+
+from app.routers.partner.service import (  # noqa: E402
+    days_until_expiry,
+    document_status,
+    is_valid_mission_transition,
+)
+
+
+class TestMissionTransitions:
+    def test_assigned_can_be_accepted_or_cancelled(self) -> None:
+        assert is_valid_mission_transition("assigned", "accepted") is True
+        assert is_valid_mission_transition("assigned", "cancelled") is True
+
+    def test_assigned_cannot_jump_to_done(self) -> None:
+        assert is_valid_mission_transition("assigned", "done") is False
+
+    def test_accepted_to_in_progress_to_done(self) -> None:
+        assert is_valid_mission_transition("accepted", "in_progress") is True
+        assert is_valid_mission_transition("in_progress", "done") is True
+
+    def test_terminal_states_block(self) -> None:
+        assert is_valid_mission_transition("done", "in_progress") is False
+        assert is_valid_mission_transition("cancelled", "assigned") is False
+
+    def test_unknown_status_rejected(self) -> None:
+        assert is_valid_mission_transition("weird", "done") is False
+
+
+class TestDocumentExpiry:
+    today = _date(2026, 5, 29)
+
+    def test_no_expiry_is_active(self) -> None:
+        assert document_status(None, self.today) == "active"
+        assert days_until_expiry(None, self.today) is None
+
+    def test_future_expiry_active(self) -> None:
+        assert document_status(_date(2027, 1, 1), self.today) == "active"
+        assert days_until_expiry(_date(2026, 6, 8), self.today) == 10
+
+    def test_past_expiry_expired(self) -> None:
+        assert document_status(_date(2026, 5, 28), self.today) == "expired"
+        assert days_until_expiry(_date(2026, 5, 28), self.today) == -1
+
+    def test_expiring_today_still_active(self) -> None:
+        assert document_status(self.today, self.today) == "active"
+        assert days_until_expiry(self.today, self.today) == 0

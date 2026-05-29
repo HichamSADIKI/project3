@@ -3,9 +3,12 @@
     "dashboard": "لوحة التحكم",
     "submitProperty": "إضافة عقار",
     "leads": "العملاء المحتملون",
-    "commissions": "العمولات",
+    "commissions": "عمولاتي",
     "services": "خدماتي",
-    "profile": "الملف الشخصي"
+    "profile": "ملف المورّد",
+    "documents": "مستنداتي",
+    "missions": "مهامي",
+    "messages": "المراسلات"
   },
   "dashboard": {
     "welcome": "مرحباً، {{name}}",
@@ -129,5 +132,103 @@
       "valuation": "تقييم",
       "other": "أخرى"
     }
+  },
+  "profile": {
+    "title": "ملف المورّد",
+    "subtitle": "معلومات شركتك وفئتك وحالة التحقق.",
+    "account": "الحساب",
+    "name": "الاسم",
+    "email": "البريد الإلكتروني",
+    "accountStatus": "حالة الحساب",
+    "profileSection": "ملف مزوّد الخدمة",
+    "category": "الفئة",
+    "verificationStatus": "حالة التحقق",
+    "licence": "الرخصة التجارية",
+    "licenceNumber": "رقم الرخصة",
+    "licenceExpiry": "تاريخ الانتهاء",
+    "licenceAuthority": "جهة الإصدار",
+    "viewDoc": "عرض المستند",
+    "noDoc": "لا يوجد مستند",
+    "rating": "التقييم",
+    "reviews": "مراجعات",
+    "serviceAreas": "مناطق الخدمة",
+    "specialities": "التخصصات",
+    "rejectionReason": "سبب الرفض",
+    "noProfile": "لا يوجد ملف مزوّد مرتبط بهذا الحساب بعد.",
+    "verif": {
+      "pending": "في انتظار التحقق",
+      "verified": "مُتحقَّق",
+      "rejected": "مرفوض"
+    },
+    "acct": {
+      "active": "نشط",
+      "pending": "قيد الانتظار",
+      "rejected": "مرفوض",
+      "suspended": "موقوف"
+    }
+  },
+  "documents": {
+    "title": "مستنداتي",
+    "subtitle": "أدِر مستنداتك (الرخصة التجارية، التأمين…) وحافظ على تحديثها.",
+    "empty": "لا توجد مستندات بعد.",
+    "add": "إضافة مستند",
+    "docType": "نوع المستند",
+    "expiry": "تاريخ الانتهاء",
+    "expiryHint": "اختياري. يُملأ تلقائياً من الرخصة إن أمكن.",
+    "file": "الملف",
+    "fileHint": "PDF أو JPG أو PNG — بحد أقصى 8 ميغابايت.",
+    "status": "الحالة",
+    "active": "سارٍ",
+    "expired": "منتهٍ",
+    "expiresInDays": "ينتهي خلال {{n}} يوم",
+    "view": "عرض",
+    "send": "رفع",
+    "sending": "جارٍ الرفع…",
+    "success": "تم رفع المستند.",
+    "error": "فشل الرفع.",
+    "types": {
+      "trade_licence": "الرخصة التجارية",
+      "insurance": "التأمين",
+      "vat": "شهادة ضريبة القيمة المضافة",
+      "id": "الهوية",
+      "other": "أخرى"
+    }
+  },
+  "missions": {
+    "title": "مهامي",
+    "subtitle": "طلبات الخدمة المُسندة إليك من الوكالة.",
+    "empty": "لا توجد مهام مُسندة بعد.",
+    "scheduled": "مجدولة",
+    "location": "الموقع",
+    "amount": "المبلغ",
+    "updating": "جارٍ التحديث…",
+    "actions": {
+      "accept": "قبول",
+      "in_progress": "بدء",
+      "done": "إنهاء",
+      "cancel": "رفض"
+    },
+    "status": {
+      "assigned": "مُسندة",
+      "accepted": "مقبولة",
+      "in_progress": "قيد التنفيذ",
+      "done": "منجزة",
+      "cancelled": "ملغاة"
+    }
+  },
+  "messages": {
+    "title": "المراسلات",
+    "subtitle": "تواصل مباشرة مع وكالة SGI.",
+    "empty": "لا توجد رسائل. ابدأ المحادثة أدناه.",
+    "you": "أنت",
+    "agency": "الوكالة",
+    "subject": "الموضوع",
+    "subjectPlaceholder": "الموضوع (اختياري)",
+    "body": "الرسالة",
+    "bodyPlaceholder": "اكتب رسالتك…",
+    "send": "إرسال",
+    "sending": "جارٍ الإرسال…",
+    "success": "تم إرسال الرسالة.",
+    "error": "تعذّر إرسال الرسالة."
   }
 }

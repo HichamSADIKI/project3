@@ -10,6 +10,8 @@
     "messages": "Messages",
     "visits": "Visits",
     "newNeed": "Submit a need",
+    "myLeads": "My leads",
+    "maintenance": "Maintenance",
     "profile": "Profile"
   },
   "dashboard": {
@@ -45,6 +47,69 @@
       "cancelled": "Cancelled",
       "no_show": "No show"
     }
+  },
+  "leads": {
+    "title": "My leads",
+    "subtitle": "Find here all the needs you've submitted and their progress.",
+    "empty": "You haven't submitted any need yet.",
+    "cta": "Submit a need",
+    "budgetLabel": "Budget",
+    "noBudget": "Not specified",
+    "locationLabel": "Location",
+    "goldenVisa": "Golden Visa eligible",
+    "createdOn": "Created on",
+    "allSectors": "All sectors",
+    "scoreLabel": "Score",
+    "detailTitle": "Request details",
+    "propertyTypeLabel": "Property type",
+    "status": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "proposal_sent": "Proposal sent",
+      "visit_planned": "Visit planned",
+      "visit_done": "Visit done",
+      "negotiation": "In negotiation",
+      "won": "Closed won",
+      "lost": "Closed"
+    },
+    "category": {
+      "realestate": "Real estate",
+      "tourisme": "Tourism",
+      "sante": "Health",
+      "assurance": "Insurance",
+      "banques": "Banking",
+      "amazon": "E-commerce",
+      "consultants": "Consulting",
+      "admin": "Administrative",
+      "travail": "Employment"
+    }
+  },
+  "maintenance": {
+    "title": "My maintenance requests",
+    "subtitle": "Track the progress of your maintenance requests.",
+    "cta": "New request",
+    "empty": "No maintenance requests yet.",
+    "status": {
+      "new": "New", "triaged": "Under review", "assigned": "Assigned",
+      "in_progress": "In progress", "on_hold": "On hold",
+      "resolved": "Resolved", "closed": "Closed", "cancelled": "Cancelled"
+    },
+    "priority": { "urgent": "Urgent", "high": "High", "medium": "Medium", "low": "Low" },
+    "category": {
+      "plumbing": "Plumbing", "electrical": "Electrical", "hvac": "HVAC",
+      "appliance": "Appliance", "structural": "Structural", "cleaning": "Cleaning", "other": "Other"
+    },
+    "form": {
+      "title": "Title *", "titlePlaceholder": "E.g. Leak under the sink",
+      "category": "Category", "description": "Description",
+      "descPlaceholder": "Describe the issue in detail…",
+      "submit": "Submit request", "submitting": "Submitting…",
+      "success": "Your request has been registered.",
+      "error": "Something went wrong. Please try again."
+    },
+    "slaBreached": "⚠ Overdue",
+    "createdOn": "Created on"
   },
   "messages": {
     "empty": "No messages.",

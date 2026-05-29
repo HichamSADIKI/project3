@@ -3,9 +3,12 @@
     "dashboard": "Tableau de bord",
     "submitProperty": "Soumettre un bien",
     "leads": "Mes leads",
-    "commissions": "Commissions",
-    "services": "Mes prestations",
-    "profile": "Profil"
+    "commissions": "Mes commissions",
+    "services": "Mes services",
+    "profile": "Profil fournisseur",
+    "documents": "Mes documents",
+    "missions": "Mes missions",
+    "messages": "Messagerie"
   },
   "dashboard": {
     "welcome": "Bienvenue, {{name}}",
@@ -129,5 +132,103 @@
       "valuation": "Évaluation",
       "other": "Autre"
     }
+  },
+  "profile": {
+    "title": "Profil fournisseur",
+    "subtitle": "Les informations de votre société, votre catégorie et votre statut de validation.",
+    "account": "Compte",
+    "name": "Nom",
+    "email": "Email",
+    "accountStatus": "Statut du compte",
+    "profileSection": "Profil prestataire",
+    "category": "Catégorie",
+    "verificationStatus": "Statut de validation",
+    "licence": "Licence commerciale",
+    "licenceNumber": "N° licence",
+    "licenceExpiry": "Expiration",
+    "licenceAuthority": "Autorité",
+    "viewDoc": "Voir le document",
+    "noDoc": "Aucun document",
+    "rating": "Notation",
+    "reviews": "avis",
+    "serviceAreas": "Zones de service",
+    "specialities": "Spécialités",
+    "rejectionReason": "Motif du rejet",
+    "noProfile": "Aucun profil prestataire n'est encore rattaché à ce compte.",
+    "verif": {
+      "pending": "En attente de validation",
+      "verified": "Validé",
+      "rejected": "Rejeté"
+    },
+    "acct": {
+      "active": "Actif",
+      "pending": "En attente",
+      "rejected": "Rejeté",
+      "suspended": "Suspendu"
+    }
+  },
+  "documents": {
+    "title": "Mes documents",
+    "subtitle": "Gérez vos documents KYC (licence commerciale, assurance…) et gardez-les à jour.",
+    "empty": "Aucun document pour le moment.",
+    "add": "Ajouter un document",
+    "docType": "Type de document",
+    "expiry": "Date d'expiration",
+    "expiryHint": "Optionnel. Pré-rempli depuis la licence quand c'est possible.",
+    "file": "Fichier",
+    "fileHint": "PDF, JPG ou PNG — max 8 Mo.",
+    "status": "Statut",
+    "active": "Valide",
+    "expired": "Expiré",
+    "expiresInDays": "Expire dans {{n}} j",
+    "view": "Voir",
+    "send": "Téléverser",
+    "sending": "Envoi…",
+    "success": "Document téléversé.",
+    "error": "Échec du téléversement.",
+    "types": {
+      "trade_licence": "Licence commerciale",
+      "insurance": "Assurance",
+      "vat": "Attestation TVA",
+      "id": "Pièce d'identité",
+      "other": "Autre"
+    }
+  },
+  "missions": {
+    "title": "Mes missions",
+    "subtitle": "Les interventions qui vous sont confiées par l'agence.",
+    "empty": "Aucune mission assignée pour le moment.",
+    "scheduled": "Planifiée",
+    "location": "Lieu",
+    "amount": "Montant",
+    "updating": "Mise à jour…",
+    "actions": {
+      "accept": "Accepter",
+      "in_progress": "Démarrer",
+      "done": "Terminer",
+      "cancel": "Refuser"
+    },
+    "status": {
+      "assigned": "Assignée",
+      "accepted": "Acceptée",
+      "in_progress": "En cours",
+      "done": "Terminée",
+      "cancelled": "Annulée"
+    }
+  },
+  "messages": {
+    "title": "Messagerie",
+    "subtitle": "Échangez directement avec votre agence SGI.",
+    "empty": "Aucun message. Démarrez la conversation ci-dessous.",
+    "you": "Vous",
+    "agency": "Agence",
+    "subject": "Objet",
+    "subjectPlaceholder": "Objet (optionnel)",
+    "body": "Message",
+    "bodyPlaceholder": "Écrivez votre message…",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "success": "Message envoyé.",
+    "error": "Impossible d'envoyer le message."
   }
 }

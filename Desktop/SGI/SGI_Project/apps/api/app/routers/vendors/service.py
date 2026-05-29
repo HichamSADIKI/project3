@@ -10,7 +10,6 @@ from app.models.client import Client
 from app.models.party_vendor import Vendor
 from app.routers.vendors.schemas import VendorCreate, VendorUpdate
 
-
 # ─── Logique métier pure ──────────────────────────────────────────────────
 
 
@@ -42,14 +41,21 @@ def is_eligible_for_marketplace(
     rating_count: int,
     trade_licence_expiry: date | None,
     today: date,
+    verification_status: str = "verified",
 ) -> bool:
     """
     Éligibilité au marketplace prestataires.
     Critères :
+      - profil validé par un admin (verification_status = 'verified')
       - is_active = True
       - licence commerciale valide (non expirée)
       - note ≥ 3.5 OU pas encore de note (nouveau prestataire)
+
+    `verification_status` est optionnel (défaut 'verified') pour rester
+    rétro-compatible avec les fiches créées avant le workflow d'onboarding.
     """
+    if verification_status != "verified":
+        return False
     if not is_active:
         return False
     if trade_licence_expiry is not None and trade_licence_expiry < today:

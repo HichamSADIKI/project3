@@ -1,12 +1,70 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   IcSearch, IcPlus, IcPhone, IcMail, IcChat,
   IcArrowUp, IcArrowDown, IcCheck,
 } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
+
+/* ─── Backend lead (GET /api/admin/crm/leads) ────────────────────────── */
+interface BackendLead {
+  id: string;
+  reference: string | null;
+  client_name: string | null;
+  agent_id: string | null;
+  status: string;
+  category: string;
+  source: string | null;
+  budget: string | null;
+  preferred_location: string | null;
+  score: number;
+  notes: string | null;
+  created_at: string;
+}
+
+// Le pipeline backend a plus de statuts que les 6 colonnes du CRM secteur.
+function mapBackendStatus(s: string): PipelineStage {
+  switch (s) {
+    case "contacted": return "contacted";
+    case "qualified":
+    case "visit_planned":
+    case "visit_done": return "qualified";
+    case "proposal_sent":
+    case "negotiation": return "proposal";
+    case "won": return "won";
+    case "lost": return "lost";
+    default: return "new";
+  }
+}
+
+function backendToLead(b: BackendLead): Lead {
+  const src: Lead["source"] =
+    b.source === "portal_voice" ? "portal_voice"
+    : b.source === "portal_text" ? "portal_text"
+    : "wizard";
+  const name = b.client_name || "Client";
+  return {
+    // Code métier persisté (CRM-YYYY-NNNNNN) ; repli sur l'UUID si absent.
+    id: b.reference || `CRM-${b.id.slice(0, 8).toUpperCase()}`,
+    name,
+    name_ar: name,
+    flag: "👤",
+    service: b.preferred_location || "—",
+    budget: b.budget ? Number(b.budget) : 0,
+    stage: mapBackendStatus(b.status),
+    score: b.score ?? 0,
+    agent: b.agent_id ? "—" : "—",
+    date: (b.created_at || "").slice(0, 10),
+    phone: "—",
+    email: "—",
+    notes: b.notes || "",
+    isFromClient: b.source?.startsWith("portal") ?? false,
+    source: src,
+    fromBackend: true,
+  };
+}
 
 /* ─── Local icons (not exported from sgi-ui) ─────────────────────────── */
 function IcX()     { return <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>; }
@@ -131,6 +189,8 @@ interface Lead {
   isFromClient?: boolean;
   // Canal d'origine — utilisé pour différencier voix/écrit sur les deals portal.
   source?: "wizard" | "portal_voice" | "portal_text";
+  // Vrai si le lead vient du backend (CRM réel) et non des mocks.
+  fromBackend?: boolean;
 }
 
 /* ─── Mock generators ────────────────────────────────────────────────── */
@@ -504,6 +564,35 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
     return [...clientLeads, ...genLeads(sector, lang)];
   });
 
+  // Charge les vrais deals du secteur depuis le backend (inclut ceux soumis
+  // depuis le portail client). On remplace les leads "réels" par ceux du
+  // backend et on conserve les mocks de démo en dessous.
+  useEffect(() => {
+    if (sector === "callcenter") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/crm/leads?category=${sector}&limit=100`,
+          { cache: "no-store" },
+        );
+        if (!res.ok || cancelled) return;
+        const json = (await res.json()) as { data?: BackendLead[] };
+        if (cancelled) return;
+        const real = (json.data ?? []).map(backendToLead);
+        setLeads((prev) => {
+          const mocks = prev.filter((l) => !l.fromBackend && !l.isFromClient);
+          return [...real, ...mocks];
+        });
+      } catch {
+        /* réseau indisponible → on garde les mocks */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [sector]);
+
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<PipelineStage | "all">("all");
   const [view, setView] = useState<"list" | "pipeline">("list");
@@ -704,6 +793,7 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
               <thead>
                 <tr style={{ background: "var(--bg-cream)", borderBottom: "1px solid var(--line-soft)" }}>
                   {[
+                    cl("Code",         "الرمز",          "Code"),
                     cl("Lead",         "عميل",           "Lead"),
                     cl("Need",         "الحاجة",         "Besoin"),
                     cl("Budget (AED)", "الميزانية",      "Budget"),
@@ -719,7 +809,7 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
               </thead>
               <tbody>
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={8} style={{ padding: 40, textAlign: "center", color: "var(--ink-4)", fontSize: 13 }}>{cl("No results", "لا توجد نتائج", "Aucun résultat")}</td></tr>
+                  <tr><td colSpan={9} style={{ padding: 40, textAlign: "center", color: "var(--ink-4)", fontSize: 13 }}>{cl("No results", "لا توجد نتائج", "Aucun résultat")}</td></tr>
                 ) : filtered.map((lead, i) => {
                   const sc = STAGE_CFG[lead.stage];
                   const rowBg = lead.isFromClient ? `${meta.color}08` : "";
@@ -730,6 +820,10 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
                       onMouseEnter={e => (e.currentTarget.style.background = lead.isFromClient ? `${meta.color}14` : "var(--bg-cream)")}
                       onMouseLeave={e => (e.currentTarget.style.background = rowBg)}
                     >
+                      {/* Code */}
+                      <td style={{ padding: "11px 14px", cursor: "pointer" }} onClick={() => setDetailId(lead.id)}>
+                        <span className="tnum" style={{ display: "inline-block", fontSize: 11.5, fontWeight: 700, padding: "2px 8px", borderRadius: "var(--r-sm)", background: `${meta.color}12`, color: meta.color, letterSpacing: "0.04em", whiteSpace: "nowrap" }}>{lead.id}</span>
+                      </td>
                       {/* Lead name */}
                       <td style={{ padding: "11px 14px", cursor: "pointer" }} onClick={() => setDetailId(lead.id)}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -740,7 +834,6 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
                               {sourceIcon(lead.source) && <span title={lead.source} style={{ fontSize: 12 }}>{sourceIcon(lead.source)}</span>}
                               {lead.isFromClient && <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: meta.color, color: "#fff" }}>CLIENT</span>}
                             </div>
-                            <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{lead.id}</div>
                           </div>
                         </div>
                       </td>

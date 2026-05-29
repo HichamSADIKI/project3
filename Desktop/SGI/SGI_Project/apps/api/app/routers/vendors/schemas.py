@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 VendorType = Literal[
     "maintenance",
     "cleaning",
@@ -82,6 +81,13 @@ class VendorOut(BaseModel):
     preferred_payment_terms: str | None
     emergency_24_7: bool
     is_active: bool
+    # Onboarding fournisseur unifié (compte + licence + validation)
+    account_user_id: uuid.UUID | None = None
+    verification_status: str = "verified"
+    commercial_license_path: str | None = None
+    commercial_license_extracted: dict[str, Any] = Field(default_factory=dict)
+    verified_at: datetime | None = None
+    rejection_reason: str | None = None
     created_at: datetime
     updated_at: datetime
 

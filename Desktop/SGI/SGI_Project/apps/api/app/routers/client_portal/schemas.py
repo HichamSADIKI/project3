@@ -38,6 +38,26 @@ class VisitRequestOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+# ── Mes leads (besoins/deals créés par le client) ────────────────────────
+class MyLeadOut(BaseModel):
+    """Deal CRM créé par le client connecté — vue portail « Mes leads »."""
+
+    id: uuid.UUID
+    reference: str | None
+    status: str
+    category: str
+    source: str | None
+    budget: float | None
+    property_type: str | None
+    preferred_location: str | None
+    golden_visa_eligible: bool
+    score: int
+    notes: str | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 # ── Messages ─────────────────────────────────────────────────────────────
 class MessageCreate(BaseModel):
     recipient_user_id: uuid.UUID
@@ -93,6 +113,7 @@ class ParsedNeedOut(BaseModel):
     """Aperçu de l'analyse IA — affiché au client avant confirmation."""
 
     category: str
+    categories: list[str] = []  # toutes les catégories détectées (multi-secteurs)
     service_type: str | None = None
     budget_aed: float | None = None
     preferred_location: str | None = None
@@ -109,6 +130,36 @@ class NeedSubmitOut(BaseModel):
     lead_id: uuid.UUID
     crm_ref: str
     category: str
+    parsed: ParsedNeedOut
+
+
+class NeedSubmitMultiIn(BaseModel):
+    """Soumission multi-catégories — une fois la popup validée par le client."""
+
+    text: str = Field(..., min_length=10, max_length=4000)
+    locale: str = Field(default="fr", pattern="^(ar|en|fr)$")
+    source: str = Field(default="portal_text", pattern="^(portal_text|portal_voice)$")
+    categories: list[str] = Field(
+        ...,
+        min_length=1,
+        max_length=9,
+        description="Catégories validées par le client (1 deal créé par catégorie).",
+    )
+
+
+class DealRef(BaseModel):
+    """Référence d'un deal créé."""
+
+    lead_id: uuid.UUID
+    crm_ref: str
+    category: str
+
+
+class NeedSubmitMultiOut(BaseModel):
+    """Résultat multi — un deal par catégorie + détails IA communs."""
+
+    deals: list[DealRef]
+    categories: list[str]
     parsed: ParsedNeedOut
 
 
@@ -138,6 +189,8 @@ class ClientMeProfileOut(BaseModel):
     budget_max: float | None
     preferred_property_type: str | None
     preferred_location: str | None
+    # Langue préférée — portée par le compte User, attachée dynamiquement.
+    preferred_language: str = "en"
     created_at: datetime
     updated_at: datetime
 
@@ -164,3 +217,5 @@ class ClientMeProfileUpdate(BaseModel):
     budget_max: float | None = Field(default=None, ge=0)
     preferred_property_type: str | None = Field(default=None, max_length=50)
     preferred_location: str | None = Field(default=None, max_length=150)
+    # Langue préférée du compte (ar/en/fr) — appliquée au User, pas au Client.
+    preferred_language: str | None = Field(default=None, pattern="^(ar|en|fr)$")

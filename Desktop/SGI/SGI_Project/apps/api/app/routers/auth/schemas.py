@@ -21,6 +21,37 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     expires_in: int  # seconds
+    # MFA : si True, le token est temporaire — doit être validé via /auth/mfa/validate
+    mfa_required: bool = False
+    tmp_token: str | None = None
+
+
+# ── MFA TOTP ──────────────────────────────────────────────────────────────
+
+class MfaSetupOut(BaseModel):
+    """Réponse au setup MFA — QR code URI (une seule fois)."""
+    provisioning_uri: str
+    issuer: str = "SGI ERP"
+
+
+class MfaVerifySetupIn(BaseModel):
+    """Confirmation du setup MFA avec le premier code TOTP."""
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MfaValidateIn(BaseModel):
+    """Validation TOTP après login (échange tmp_token → JWT final)."""
+    tmp_token: str
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MfaDisableIn(BaseModel):
+    """Désactivation MFA — le code TOTP courant est requis."""
+    code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+class MfaStatusOut(BaseModel):
+    mfa_enabled: bool
 
 
 class UserMe(BaseModel):
@@ -77,6 +108,32 @@ class RegisterResponse(BaseModel):
     role: str
     status: str
     message: str
+
+
+class FournisseurRegisterResponse(RegisterResponse):
+    """Réponse à l'inscription fournisseur prestataire (compte + profil + licence)."""
+
+    party_id: uuid.UUID
+    vendor_type: str
+    verification_status: str
+    license_uploaded: bool
+    # Champs pré-remplis par l'OCR de la licence (best-effort, peut être vide).
+    extracted: dict[str, object] = Field(default_factory=dict)
+
+
+class PendingFournisseurItem(BaseModel):
+    """Fournisseur en attente de validation, enrichi de son profil prestataire."""
+
+    user_id: uuid.UUID
+    party_id: uuid.UUID | None = None
+    email: str
+    full_name: str
+    status: str
+    created_at: str
+    vendor_type: str | None = None
+    verification_status: str | None = None
+    commercial_license_url: str | None = None
+    extracted: dict[str, object] = Field(default_factory=dict)
 
 
 class PendingUserItem(BaseModel):

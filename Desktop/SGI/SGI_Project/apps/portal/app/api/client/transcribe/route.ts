@@ -26,7 +26,8 @@ export async function POST(req: Request) {
   }
 
   // On relaie tel quel : Content-Type multipart/form-data avec boundary,
-  // body en stream pour préserver l'encodage.
+  // body en stream pour préserver l'encodage. `duplex: "half"` est exigé par
+  // undici lorsque body est un ReadableStream — pas encore dans lib.dom.d.ts.
   const upstream = await fetch(`${BACKEND_URL}/api/v1/client/needs/transcribe`, {
     method: "POST",
     headers: {
@@ -34,11 +35,10 @@ export async function POST(req: Request) {
       // Préserve l'en-tête multipart d'origine (boundary inclus)
       "Content-Type": req.headers.get("content-type") ?? "multipart/form-data",
     },
-    // @ts-expect-error — Node 18+ fetch accepte ReadableStream comme body
     body: req.body,
-    duplex: "half",
     cache: "no-store",
-  });
+    duplex: "half",
+  } as RequestInit & { duplex: "half" });
 
   const text = await upstream.text();
   return new NextResponse(text, {

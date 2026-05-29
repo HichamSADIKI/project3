@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -107,6 +108,91 @@ class PartnerServiceOut(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# ── Profil fournisseur ─────────────────────────────────────────────────────
+class VendorProfileOut(BaseModel):
+    """Profil prestataire lié au compte fournisseur (table vendors)."""
+
+    party_id: uuid.UUID
+    vendor_type: str
+    verification_status: str
+    specialities: list[str] = Field(default_factory=list)
+    service_areas: list[str] = Field(default_factory=list)
+    trade_licence_number: str | None = None
+    trade_licence_expiry: date | None = None
+    trade_licence_authority: str | None = None
+    insurance_policy_number: str | None = None
+    insurance_expiry: date | None = None
+    rating_avg: Decimal = Decimal("0")
+    rating_count: int = 0
+    emergency_24_7: bool = False
+    is_active: bool = True
+    commercial_license_url: str | None = None
+    commercial_license_extracted: dict[str, Any] = Field(default_factory=dict)
+    rejection_reason: str | None = None
+    verified_at: datetime | None = None
+
+
+class FournisseurProfileOut(BaseModel):
+    """Vue « Profil fournisseur » de l'espace portail (compte + profil prestataire)."""
+
+    email: str
+    full_name: str
+    role: str
+    status: str
+    profile: VendorProfileOut | None = None
+
+
+# ── Documents KYC ───────────────────────────────────────────────────────────
+class VendorDocumentOut(BaseModel):
+    id: uuid.UUID
+    doc_type: str
+    original_filename: str | None = None
+    expiry_date: date | None = None
+    status: str
+    days_until_expiry: int | None = None
+    url: str | None = None
+    extracted: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+
+
+# ── Missions / interventions ────────────────────────────────────────────────
+class MissionOut(BaseModel):
+    id: uuid.UUID
+    title: str
+    description: str | None
+    status: str
+    scheduled_date: date | None
+    location_text: str | None
+    amount_aed: Decimal | None
+    completed_at: datetime | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MissionStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(accepted|in_progress|done|cancelled)$")
+
+
+# ── Messagerie agence ───────────────────────────────────────────────────────
+class MessageOut(BaseModel):
+    id: uuid.UUID
+    sender_user_id: uuid.UUID
+    recipient_user_id: uuid.UUID
+    subject: str | None
+    body: str
+    read_at: datetime | None
+    created_at: datetime
+    outgoing: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MessageCreate(BaseModel):
+    subject: str | None = Field(default=None, max_length=255)
+    body: str = Field(..., min_length=1, max_length=5000)
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────

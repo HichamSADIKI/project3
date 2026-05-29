@@ -102,7 +102,27 @@
     "errors": {
       "email_already_registered": "هذا البريد الإلكتروني مسجّل بالفعل.",
       "company_not_found": "رمز الشركة غير معروف.",
-      "generic": "تعذّر التسجيل. حاول مرة أخرى."
+      "generic": "تعذّر التسجيل. حاول مرة أخرى.",
+      "invalid_vendor_type": "يرجى اختيار فئة صحيحة.",
+      "invalid_license": "ملف الرخصة غير صالح (PDF/JPG/PNG، بحد أقصى 8 ميغابايت)."
+    },
+    "categoryLabel": "فئة الخدمة",
+    "categoryHint": "اختر الفئة المطابقة لرخصتك التجارية.",
+    "categoryPlaceholder": "اختر فئة",
+    "license": "الرخصة التجارية",
+    "licenseHint": "PDF أو JPG أو PNG — بحد أقصى 8 ميغابايت. مطلوبة للتحقق من فئتك.",
+    "vendorTypes": {
+      "maintenance": "صيانة",
+      "cleaning": "تنظيف",
+      "security": "أمن",
+      "landscaping": "تنسيق حدائق",
+      "pest_control": "مكافحة آفات",
+      "elevator": "مصاعد",
+      "moving": "نقل أثاث",
+      "hvac": "تكييف",
+      "electrical": "كهرباء",
+      "plumbing": "سباكة",
+      "other": "أخرى"
     }
   },
   "shell": {

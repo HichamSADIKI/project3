@@ -10,6 +10,8 @@
     "messages": "Messagerie",
     "visits": "Visites",
     "newNeed": "Exprimer un besoin",
+    "myLeads": "Mes leads",
+    "maintenance": "Maintenance",
     "profile": "Profil"
   },
   "dashboard": {
@@ -45,6 +47,69 @@
       "cancelled": "Annulée",
       "no_show": "Absence"
     }
+  },
+  "leads": {
+    "title": "Mes leads",
+    "subtitle": "Retrouvez ici toutes les demandes que vous avez exprimées et leur avancement.",
+    "empty": "Vous n'avez pas encore exprimé de besoin.",
+    "cta": "Exprimer un besoin",
+    "budgetLabel": "Budget",
+    "noBudget": "Non précisé",
+    "locationLabel": "Localisation",
+    "goldenVisa": "Éligible Golden Visa",
+    "createdOn": "Créé le",
+    "allSectors": "Tous les secteurs",
+    "scoreLabel": "Score",
+    "detailTitle": "Détail de la demande",
+    "propertyTypeLabel": "Type de bien",
+    "status": {
+      "new": "Nouveau",
+      "contacted": "Contacté",
+      "qualified": "Qualifié",
+      "proposal_sent": "Proposition envoyée",
+      "visit_planned": "Visite planifiée",
+      "visit_done": "Visite effectuée",
+      "negotiation": "En négociation",
+      "won": "Conclu",
+      "lost": "Clôturé"
+    },
+    "category": {
+      "realestate": "Immobilier",
+      "tourisme": "Tourisme",
+      "sante": "Santé",
+      "assurance": "Assurance",
+      "banques": "Banque",
+      "amazon": "E-commerce",
+      "consultants": "Conseil",
+      "admin": "Administratif",
+      "travail": "Emploi"
+    }
+  },
+  "maintenance": {
+    "title": "Mes demandes de maintenance",
+    "subtitle": "Suivez l'avancement de vos demandes d'intervention.",
+    "cta": "Nouvelle demande",
+    "empty": "Aucune demande de maintenance pour le moment.",
+    "status": {
+      "new": "Nouveau", "triaged": "En étude", "assigned": "Assigné",
+      "in_progress": "En cours", "on_hold": "En attente",
+      "resolved": "Résolu", "closed": "Clôturé", "cancelled": "Annulé"
+    },
+    "priority": { "urgent": "Urgent", "high": "Élevée", "medium": "Normale", "low": "Basse" },
+    "category": {
+      "plumbing": "Plomberie", "electrical": "Électricité", "hvac": "Climatisation",
+      "appliance": "Équipement", "structural": "Structure", "cleaning": "Nettoyage", "other": "Autre"
+    },
+    "form": {
+      "title": "Titre *", "titlePlaceholder": "Ex : Fuite sous l'évier",
+      "category": "Catégorie", "description": "Description",
+      "descPlaceholder": "Décrivez le problème en détail…",
+      "submit": "Envoyer la demande", "submitting": "Envoi…",
+      "success": "Votre demande a été enregistrée.",
+      "error": "Une erreur est survenue. Réessayez."
+    },
+    "slaBreached": "⚠ Délai dépassé",
+    "createdOn": "Créé le"
   },
   "messages": {
     "empty": "Aucun message.",

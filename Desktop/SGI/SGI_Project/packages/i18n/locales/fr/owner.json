@@ -1,0 +1,38 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "properties": "Mes biens",
+    "revenues": "Revenus",
+    "profile": "Profil"
+  },
+  "dashboard": {
+    "title": "Espace propriétaire",
+    "subtitle": "Suivez vos biens, vos revenus locatifs et les dépenses à approuver.",
+    "properties": "Biens",
+    "received": "Encaissé",
+    "pending": "En attente",
+    "overdue": "En retard"
+  },
+  "properties": {
+    "title": "Mes biens",
+    "empty": "Aucun bien rattaché à votre compte.",
+    "unitsLabel": "unités"
+  },
+  "revenues": {
+    "title": "Revenus & paiements",
+    "empty": "Aucun paiement enregistré.",
+    "reference": "Référence",
+    "type": "Type",
+    "amount": "Montant",
+    "dueDate": "Échéance",
+    "status": "Statut",
+    "statusLabels": {
+      "pending": "En attente", "paid": "Payé",
+      "overdue": "En retard", "cancelled": "Annulé"
+    },
+    "typeLabels": {
+      "rent": "Loyer", "charges": "Charges", "deposit": "Dépôt",
+      "deposit_return": "Restitution dépôt", "owner_payout": "Versement", "other": "Autre"
+    }
+  }
+}

@@ -5,10 +5,22 @@ Lié à Client (party). Notation moyenne mise à jour après chaque intervention
 Specialités et zones de service stockées en JSONB pour requêtes flexibles.
 """
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, Boolean, Date, ForeignKey, Index, Integer, String
+from sqlalchemy import (
+    DECIMAL,
+    Boolean,
+    CheckConstraint,
+    Date,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    text,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -80,9 +92,49 @@ class Vendor(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # Statut d'éligibilité au marketplace (pause manuelle possible)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
+    # ── Onboarding fournisseur unifié (compte portail + licence + validation) ──
+
+    # Compte de connexion (User role=fournisseur) qui pilote ce profil.
+    # NULL = fiche créée en interne par l'agence sans compte portail.
+    account_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Statut de validation KYC par un admin : pending | verified | rejected
+    verification_status: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="pending", server_default="pending"
+    )
+
+    # Licence commerciale UAE uploadée (clé objet MinIO) + extraction OCR/IA
+    commercial_license_path: Mapped[str | None] = mapped_column(
+        String(500), nullable=True
+    )
+    commercial_license_extracted = mapped_column(
+        JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
+    )
+
+    # Traçabilité de la décision admin
+    verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     __table_args__ = (
+        CheckConstraint(
+            "verification_status IN ('pending','verified','rejected')",
+            name="ck_vendors_verification_status",
+        ),
         Index("idx_vendors_company", "company_id"),
         Index("idx_vendors_type", "vendor_type"),
         Index("idx_vendors_rating", "rating_avg"),
         Index("idx_vendors_licence_expiry", "trade_licence_expiry"),
+        Index("idx_vendors_account_user", "account_user_id"),
+        Index("idx_vendors_verification", "verification_status"),
     )

@@ -20,6 +20,11 @@ RUN uv run playwright install chromium
 
 COPY app/ ./app/
 COPY migrations/ ./migrations/
+COPY scripts/ ./scripts/
 COPY alembic.ini .
+# Fixtures pytest partagées (db_session, client, seed_admin…). Sans ce fichier,
+# `pytest` dans le conteneur échoue avec « fixture not found » sur toute la
+# suite d'intégration.
+COPY conftest.py .
 
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--loop", "uvloop", "--http", "httptools"]

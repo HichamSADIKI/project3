@@ -13,6 +13,9 @@ import fournisseurAr from "../locales/ar/fournisseur.json";
 import commonFr from "../locales/fr/common.json";
 import commonEn from "../locales/en/common.json";
 import commonAr from "../locales/ar/common.json";
+import ownerFr from "../locales/fr/owner.json";
+import ownerEn from "../locales/en/owner.json";
+import ownerAr from "../locales/ar/owner.json";
 
 export const SUPPORTED_LOCALES = ["ar", "en", "fr"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -23,6 +26,7 @@ export const bundles = {
   common: { ar: commonAr, en: commonEn, fr: commonFr },
   client: { ar: clientAr, en: clientEn, fr: clientFr },
   fournisseur: { ar: fournisseurAr, en: fournisseurEn, fr: fournisseurFr },
+  owner: { ar: ownerAr, en: ownerEn, fr: ownerFr },
 } as const;
 
 export type Namespace = keyof typeof bundles;

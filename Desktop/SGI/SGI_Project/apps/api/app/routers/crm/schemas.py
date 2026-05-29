@@ -88,9 +88,12 @@ class ActivityCreate(BaseModel):
 
 class LeadOut(BaseModel):
     id: uuid.UUID
+    reference: str | None = None
     client_id: uuid.UUID
+    client_name: str | None = None
     agent_id: uuid.UUID | None
     status: str
+    category: str
     source: str | None
     budget: Decimal | None
     property_type: str | None

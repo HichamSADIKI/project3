@@ -59,3 +59,6 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     preferred_language: Mapped[str] = mapped_column(
         String(2), nullable=False, default="en", server_default="en"
     )
+    # MFA TOTP — secret chiffré (Fernet). NULL = MFA non activé.
+    mfa_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
+    mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

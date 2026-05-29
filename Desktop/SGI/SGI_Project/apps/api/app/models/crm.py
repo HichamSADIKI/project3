@@ -28,6 +28,12 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
 
+    # Code métier lisible — format CRM-YYYY-NNNNNN, unique par tenant.
+    # Généré à la création (cf. service.generate_reference). Affiché dans la
+    # liste des deals du back-office. Index unique composite (company_id,
+    # reference) défini en migration 0009.
+    reference: Mapped[str | None] = mapped_column(String(20), nullable=True)
+
     # Relations principales
     client_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

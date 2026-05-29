@@ -17,7 +17,7 @@ migrate:
 	$(COMPOSE) exec api uv run alembic upgrade head
 
 seed:
-	$(COMPOSE) exec api uv run python scripts/seed.py
+	$(COMPOSE) exec -e PYTHONPATH=/app api uv run python scripts/seed.py
 
 test:
 	pnpm turbo test && $(COMPOSE) exec api uv run pytest

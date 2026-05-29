@@ -9,11 +9,16 @@ class TenantMiddleware(BaseHTTPMiddleware):
             try:
                 from app.core.auth import decode_jwt
                 payload = decode_jwt(token)
-                request.state.company_id = payload.get("company_id")
-                request.state.user_id = payload.get("sub")
-                request.state.role = payload.get("role")
-                request.state.email = payload.get("email")
-                request.state.language = payload.get("language")
+                # Sécurité MFA : un tmp_token (claim mfa_pending) n'authentifie
+                # PAS — il ne sert qu'à /auth/mfa/validate (qui lit le token
+                # dans le corps de la requête, pas via request.state). On laisse
+                # donc la requête anonyme pour bloquer tout contournement du 2FA.
+                if not payload.get("mfa_pending"):
+                    request.state.company_id = payload.get("company_id")
+                    request.state.user_id = payload.get("sub")
+                    request.state.role = payload.get("role")
+                    request.state.email = payload.get("email")
+                    request.state.language = payload.get("language")
             except Exception:
                 pass
         return await call_next(request)
