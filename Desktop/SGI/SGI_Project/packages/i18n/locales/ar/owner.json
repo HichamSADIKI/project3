@@ -1,0 +1,38 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "properties": "عقاراتي",
+    "revenues": "الإيرادات",
+    "profile": "الملف الشخصي"
+  },
+  "dashboard": {
+    "title": "بوابة المالك",
+    "subtitle": "تابع عقاراتك وإيرادات الإيجار والمصاريف المطلوب اعتمادها.",
+    "properties": "العقارات",
+    "received": "المُحصَّل",
+    "pending": "قيد الانتظار",
+    "overdue": "متأخر"
+  },
+  "properties": {
+    "title": "عقاراتي",
+    "empty": "لا يوجد عقار مرتبط بحسابك.",
+    "unitsLabel": "وحدة"
+  },
+  "revenues": {
+    "title": "الإيرادات والمدفوعات",
+    "empty": "لا توجد مدفوعات مسجلة.",
+    "reference": "المرجع",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "dueDate": "تاريخ الاستحقاق",
+    "status": "الحالة",
+    "statusLabels": {
+      "pending": "قيد الانتظار", "paid": "مدفوع",
+      "overdue": "متأخر", "cancelled": "ملغى"
+    },
+    "typeLabels": {
+      "rent": "إيجار", "charges": "رسوم", "deposit": "وديعة",
+      "deposit_return": "إرجاع الوديعة", "owner_payout": "تحويل", "other": "أخرى"
+    }
+  }
+}

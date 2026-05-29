@@ -1,0 +1,38 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "properties": "My properties",
+    "revenues": "Revenues",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "title": "Owner portal",
+    "subtitle": "Track your properties, rental income and expenses to approve.",
+    "properties": "Properties",
+    "received": "Received",
+    "pending": "Pending",
+    "overdue": "Overdue"
+  },
+  "properties": {
+    "title": "My properties",
+    "empty": "No property linked to your account.",
+    "unitsLabel": "units"
+  },
+  "revenues": {
+    "title": "Revenues & payments",
+    "empty": "No payment recorded.",
+    "reference": "Reference",
+    "type": "Type",
+    "amount": "Amount",
+    "dueDate": "Due date",
+    "status": "Status",
+    "statusLabels": {
+      "pending": "Pending", "paid": "Paid",
+      "overdue": "Overdue", "cancelled": "Cancelled"
+    },
+    "typeLabels": {
+      "rent": "Rent", "charges": "Charges", "deposit": "Deposit",
+      "deposit_return": "Deposit return", "owner_payout": "Payout", "other": "Other"
+    }
+  }
+}
