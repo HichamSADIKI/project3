@@ -52,6 +52,7 @@ class MyLeadOut(BaseModel):
     preferred_location: str | None
     golden_visa_eligible: bool
     score: int
+    notes: str | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

@@ -57,6 +57,10 @@
     "locationLabel": "الموقع",
     "goldenVisa": "مؤهل للتأشيرة الذهبية",
     "createdOn": "أُنشئ في",
+    "allSectors": "كل القطاعات",
+    "scoreLabel": "النقاط",
+    "detailTitle": "تفاصيل الطلب",
+    "propertyTypeLabel": "نوع العقار",
     "status": {
       "new": "جديد",
       "contacted": "تم التواصل",

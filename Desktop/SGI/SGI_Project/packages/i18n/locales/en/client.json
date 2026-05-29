@@ -57,6 +57,10 @@
     "locationLabel": "Location",
     "goldenVisa": "Golden Visa eligible",
     "createdOn": "Created on",
+    "allSectors": "All sectors",
+    "scoreLabel": "Score",
+    "detailTitle": "Request details",
+    "propertyTypeLabel": "Property type",
     "status": {
       "new": "New",
       "contacted": "Contacted",
