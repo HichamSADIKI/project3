@@ -4,12 +4,19 @@ services:
   # ── Frontend Backoffice ───────────────────────────────────────────────
   web:
     build:
-      context: ./apps/web
+      context: .
+      dockerfile: apps/web/Dockerfile
       target: runner
     ports:
       - "3000:3000"
     environment:
       - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      # Proxy server-side vers le backend (réseau interne Docker).
+      - BACKEND_API_URL=http://api:8000
+      # DOIT correspondre au SECRET_KEY du backend : le middleware Edge
+      # re-vérifie la signature du JWT émis par le backend.
+      - JWT_SECRET=${SECRET_KEY}
+      - NEXT_PUBLIC_PORTAL_URL=http://localhost:3001
     networks:
       - frontend
     depends_on:
@@ -19,10 +26,15 @@ services:
   # ── Frontend Portal ───────────────────────────────────────────────────
   portal:
     build:
-      context: ./apps/portal
+      context: .
+      dockerfile: apps/portal/Dockerfile
       target: runner
     ports:
       - "3001:3001"
+    environment:
+      - BACKEND_API_URL=http://api:8000
+      - JWT_SECRET=${SECRET_KEY}
+      - NEXT_PUBLIC_DEFAULT_COMPANY_SLUG=${NEXT_PUBLIC_DEFAULT_COMPANY_SLUG:-infinity-uae}
     networks:
       - frontend
     depends_on:
@@ -36,6 +48,25 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    # Code source monté : les modifications sont prises en compte sans rebuild
+    # (le venv reste dans l'image à /app/.venv, non masqué par ces montages).
+    volumes:
+      - ./apps/api/app:/app/app
+      - ./apps/api/migrations:/app/migrations
+      - ./apps/api/scripts:/app/scripts
+      # Fixtures pytest partagées — requises par `docker compose exec api pytest`.
+      - ./apps/api/conftest.py:/app/conftest.py
+    # Hot-reload dev : uvicorn redémarre à chaque changement de fichier.
+    command:
+      - uv
+      - run
+      - uvicorn
+      - app.main:app
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --reload
     networks:
       - frontend
       - backend
@@ -45,7 +76,12 @@ services:
       valkey:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      # curl n'est pas dans python:3.13-slim — on utilise urllib (stdlib).
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,6 +92,10 @@ services:
       context: ./apps/api
     command: uv run celery -A app.tasks.celery_app worker -l info -Q notifications,exports,reminders
     env_file: .env
+    # Même code source que l'API (restart requis pour recharger les tâches).
+    volumes:
+      - ./apps/api/app:/app/app
+      - ./apps/api/scripts:/app/scripts
     networks:
       - backend
     depends_on:
@@ -68,6 +108,9 @@ services:
       context: ./apps/api
     command: uv run celery -A app.tasks.celery_app beat -l info
     env_file: .env
+    volumes:
+      - ./apps/api/app:/app/app
+      - ./apps/api/scripts:/app/scripts
     networks:
       - backend
     depends_on:
