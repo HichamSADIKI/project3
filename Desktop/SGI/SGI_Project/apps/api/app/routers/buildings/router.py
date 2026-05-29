@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.buildings.schemas import (
     BuildingCreate,
@@ -43,7 +43,7 @@ async def list_buildings_endpoint(
     status_filter: str | None = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> BuildingListOut:
     company_id = await get_company_id(db)
     buildings, total = await list_buildings(
@@ -63,7 +63,7 @@ async def list_buildings_endpoint(
 )
 async def create_building_endpoint(
     body: BuildingCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> BuildingDetailOut:
     company_id = await get_company_id(db)
     building = await create_building(db, company_id, body)
@@ -73,7 +73,7 @@ async def create_building_endpoint(
 @router.get("/{building_id}", response_model=BuildingDetailOut)
 async def get_building_endpoint(
     building_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> BuildingDetailOut:
     company_id = await get_company_id(db)
     building = await get_building(db, company_id, building_id)
@@ -92,7 +92,7 @@ async def get_building_endpoint(
 async def update_building_endpoint(
     building_id: uuid.UUID,
     body: BuildingUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> BuildingDetailOut:
     company_id = await get_company_id(db)
     building = await update_building(db, company_id, building_id, body)
@@ -110,7 +110,7 @@ async def update_building_endpoint(
 )
 async def delete_building_endpoint(
     building_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await get_company_id(db)
     deleted = await delete_building(db, company_id, building_id)
@@ -123,7 +123,7 @@ async def delete_building_endpoint(
 @router.get("/{building_id}/occupancy", response_model=OccupancySummaryOut)
 async def occupancy_endpoint(
     building_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> OccupancySummaryOut:
     company_id = await get_company_id(db)
     summary = await occupancy_summary(db, company_id, building_id)
@@ -140,7 +140,7 @@ async def occupancy_endpoint(
 @router.get("/{building_id}/floors", response_model=FloorListOut)
 async def list_floors_endpoint(
     building_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> FloorListOut:
     company_id = await get_company_id(db)
     floors = await list_floors(db, company_id, building_id)
@@ -159,7 +159,7 @@ async def list_floors_endpoint(
 async def create_floor_endpoint(
     building_id: uuid.UUID,
     body: FloorCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> FloorOut:
     if body.building_id != building_id:
         raise HTTPException(

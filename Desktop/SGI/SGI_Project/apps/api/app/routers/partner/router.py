@@ -15,7 +15,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import storage
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.gemini import extract_trade_licence
 from app.core.route_deps import require_roles
 from app.models.party_vendor import Vendor
@@ -87,7 +87,7 @@ def _ctx(request: Request) -> tuple[uuid.UUID, uuid.UUID, str]:
 # ── Dashboard ────────────────────────────────────────────────────────────
 @router.get("/dashboard", response_model=PartnerDashboardOut)
 async def get_dashboard(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerDashboardOut:
     user_id, company_id, email = _ctx(request)
     data = await compute_dashboard(
@@ -99,7 +99,7 @@ async def get_dashboard(
 # ── Profil fournisseur ─────────────────────────────────────────────────────
 @router.get("/profile", response_model=FournisseurProfileOut)
 async def get_profile(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> FournisseurProfileOut:
     """Profil du fournisseur connecté : infos compte + profil prestataire
     (catégorie, licence commerciale, statut de validation, notation)."""
@@ -149,7 +149,7 @@ async def get_profile(
 # ── Submissions ──────────────────────────────────────────────────────────
 @router.get("/submissions", response_model=list[PropertySubmissionOut])
 async def list_submissions(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[PropertySubmissionOut]:
     user_id, company_id, _ = _ctx(request)
     items = await list_my_submissions(db, user_id, company_id)
@@ -164,7 +164,7 @@ async def list_submissions(
 async def post_submission(
     body: PropertySubmissionCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PropertySubmissionOut:
     user_id, company_id, _ = _ctx(request)
     sub = await create_submission(
@@ -180,7 +180,7 @@ async def post_submission(
 # ── Leads ────────────────────────────────────────────────────────────────
 @router.get("/leads", response_model=list[PartnerLeadOut])
 async def list_leads(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[PartnerLeadOut]:
     user_id, company_id, _ = _ctx(request)
     leads = await list_my_leads(db, user_id, company_id)
@@ -191,7 +191,7 @@ async def list_leads(
     "/leads", response_model=PartnerLeadOut, status_code=status.HTTP_201_CREATED
 )
 async def post_lead(
-    body: PartnerLeadCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: PartnerLeadCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerLeadOut:
     user_id, company_id, _ = _ctx(request)
     data = body.model_dump()
@@ -206,7 +206,7 @@ async def post_lead(
 # ── Commissions ──────────────────────────────────────────────────────────
 @router.get("/commissions", response_model=list[CommissionOut])
 async def list_commissions(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[CommissionOut]:
     user_id, company_id, _ = _ctx(request)
     items = await list_my_commissions(db, user_id, company_id)
@@ -216,7 +216,7 @@ async def list_commissions(
 # ── Services ─────────────────────────────────────────────────────────────
 @router.get("/services", response_model=list[PartnerServiceOut])
 async def list_services(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[PartnerServiceOut]:
     user_id, company_id, _ = _ctx(request)
     items = await list_my_services(db, user_id, company_id)
@@ -229,7 +229,7 @@ async def list_services(
     status_code=status.HTTP_201_CREATED,
 )
 async def post_service(
-    body: PartnerServiceCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: PartnerServiceCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerServiceOut:
     user_id, company_id, _ = _ctx(request)
     svc = await create_service(
@@ -244,7 +244,7 @@ async def patch_service(
     service_id: uuid.UUID,
     body: PartnerServiceUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PartnerServiceOut:
     user_id, _, _ = _ctx(request)
     svc = await update_service(
@@ -276,7 +276,7 @@ async def _require_vendor(
 # ── Documents KYC ───────────────────────────────────────────────────────────
 @router.get("/documents", response_model=list[VendorDocumentOut])
 async def list_documents(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[VendorDocumentOut]:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
@@ -309,7 +309,7 @@ async def upload_document(
     doc_type: str = Form(...),
     expiry_date: str | None = Form(default=None),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> VendorDocumentOut:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
@@ -393,7 +393,7 @@ async def upload_document(
 # ── Missions / interventions ────────────────────────────────────────────────
 @router.get("/missions", response_model=list[MissionOut])
 async def list_missions(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[MissionOut]:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
@@ -406,7 +406,7 @@ async def update_mission_status(
     mission_id: uuid.UUID,
     body: MissionStatusUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> MissionOut:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
@@ -426,7 +426,7 @@ async def update_mission_status(
 # ── Messagerie agence ───────────────────────────────────────────────────────
 @router.get("/messages", response_model=list[MessageOut])
 async def list_messages(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[MessageOut]:
     user_id, company_id, _ = _ctx(request)
     msgs = await list_my_messages(db, user_id, company_id)
@@ -444,7 +444,7 @@ async def list_messages(
 async def post_message(
     body: MessageCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> MessageOut:
     user_id, company_id, _ = _ctx(request)
     recipient = await resolve_agency_recipient(db, company_id)

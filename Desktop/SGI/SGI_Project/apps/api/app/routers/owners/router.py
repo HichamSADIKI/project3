@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.owners.schemas import (
     OwnerCreate,
@@ -34,7 +34,7 @@ async def list_owners_endpoint(
     residency_uae: bool | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> OwnerListOut:
     company_id = await get_company_id(db)
     owners, total = await list_owners(db, company_id, page, limit, residency_uae)
@@ -52,7 +52,7 @@ async def list_owners_endpoint(
 )
 async def create_owner_endpoint(
     body: OwnerCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> OwnerDetailOut:
     company_id = await get_company_id(db)
     owner = await create_owner(db, company_id, body)
@@ -68,7 +68,7 @@ async def create_owner_endpoint(
 @router.get("/{party_id}", response_model=OwnerDetailOut)
 async def get_owner_endpoint(
     party_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> OwnerDetailOut:
     company_id = await get_company_id(db)
     owner = await get_owner(db, company_id, party_id)
@@ -87,7 +87,7 @@ async def get_owner_endpoint(
 async def update_owner_endpoint(
     party_id: uuid.UUID,
     body: OwnerUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> OwnerDetailOut:
     company_id = await get_company_id(db)
     owner = await update_owner(db, company_id, party_id, body)
@@ -105,7 +105,7 @@ async def update_owner_endpoint(
 )
 async def delete_owner_endpoint(
     party_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await get_company_id(db)
     deleted = await delete_owner(db, company_id, party_id)

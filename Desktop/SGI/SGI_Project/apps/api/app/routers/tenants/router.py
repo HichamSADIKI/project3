@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.tenants.schemas import (
     TenantCreate,
@@ -38,7 +38,7 @@ async def list_tenants_endpoint(
     ),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TenantListOut:
     company_id = await get_company_id(db)
     tenants, total = await list_tenants(db, company_id, page, limit, lifecycle_status)
@@ -56,7 +56,7 @@ async def list_tenants_endpoint(
 )
 async def create_tenant_endpoint(
     body: TenantCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TenantDetailOut:
     company_id = await get_company_id(db)
     tenant = await create_tenant(db, company_id, body)
@@ -71,7 +71,7 @@ async def create_tenant_endpoint(
 @router.get("/{party_id}", response_model=TenantDetailOut)
 async def get_tenant_endpoint(
     party_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TenantDetailOut:
     company_id = await get_company_id(db)
     tenant = await get_tenant(db, company_id, party_id)
@@ -90,7 +90,7 @@ async def get_tenant_endpoint(
 async def update_tenant_endpoint(
     party_id: uuid.UUID,
     body: TenantUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TenantDetailOut:
     company_id = await get_company_id(db)
     tenant = await update_tenant(db, company_id, party_id, body)
@@ -109,7 +109,7 @@ async def update_tenant_endpoint(
 async def change_status_endpoint(
     party_id: uuid.UUID,
     body: TenantStatusChange,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TenantDetailOut:
     """Transition de cycle de vie (candidate → active → former, etc.)."""
     company_id = await get_company_id(db)
@@ -135,7 +135,7 @@ async def change_status_endpoint(
 )
 async def delete_tenant_endpoint(
     party_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await get_company_id(db)
     deleted = await delete_tenant(db, company_id, party_id)

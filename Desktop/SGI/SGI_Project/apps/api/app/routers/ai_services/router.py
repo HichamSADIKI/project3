@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 
 from .schemas import (
@@ -21,7 +21,7 @@ router = APIRouter(prefix="/ai", tags=["ai_services"])
 @router.post("/contracts/{contract_id}/summary", response_model=ContractSummaryOut)
 async def ai_contract_summary(
     contract_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> ContractSummaryOut:
     cid = await get_company_id(db)
@@ -34,7 +34,7 @@ async def ai_contract_summary(
 @router.get("/maintenance/risk", response_model=RiskOut)
 async def ai_unit_risk(
     unit_id: uuid.UUID = Query(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> RiskOut:
     cid = await get_company_id(db)
@@ -52,7 +52,7 @@ async def ai_unit_risk(
 @router.get("/maintenance/predictions", response_model=PredictionListOut)
 async def ai_predictions(
     min_score: int = Query(25, ge=0, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> PredictionListOut:
     cid = await get_company_id(db)

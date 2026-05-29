@@ -4,7 +4,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 
 from .schemas import (
@@ -36,7 +36,7 @@ async def list_reqs(
     owner_client_id: uuid.UUID | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> RequestListOut:
     cid = await get_company_id(db)
@@ -55,7 +55,7 @@ async def list_reqs(
              status_code=status.HTTP_201_CREATED)
 async def create_req(
     body: RequestCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> RequestOut:
     cid = await get_company_id(db)
@@ -65,7 +65,7 @@ async def create_req(
 @router.get("/requests/{request_id}", response_model=RequestOut)
 async def get_req(
     request_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> RequestOut:
     cid = await get_company_id(db)
@@ -80,7 +80,7 @@ async def pay_req(
     request_id: uuid.UUID,
     body: PayIn,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> RequestOut:
     cid = await get_company_id(db)
@@ -111,7 +111,7 @@ async def pay_req(
 @router.get("/owner/{owner_client_id}/summary", response_model=OwnerSummaryOut)
 async def owner_sum(
     owner_client_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> OwnerSummaryOut:
     cid = await get_company_id(db)
