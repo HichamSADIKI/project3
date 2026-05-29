@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.routers.contracts.schemas import (
     ContractCreate,
     ContractDetailOut,
@@ -68,7 +68,7 @@ async def list_contracts_endpoint(
     client_id: uuid.UUID | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ContractListOut:
     company_id = await _get_company_id(db)
     contracts, total = await list_contracts(
@@ -88,7 +88,7 @@ async def list_contracts_endpoint(
 )
 async def create_contract_endpoint(
     body: ContractCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ContractDetailOut:
     company_id = await _get_company_id(db)
     contract = await create_contract(db, company_id, body)
@@ -98,7 +98,7 @@ async def create_contract_endpoint(
 @router.get("/{contract_id}", response_model=ContractDetailOut)
 async def get_contract_endpoint(
     contract_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ContractDetailOut:
     company_id = await _get_company_id(db)
     contract = await get_contract(db, company_id, contract_id)
@@ -117,7 +117,7 @@ async def get_contract_endpoint(
 async def update_contract_endpoint(
     contract_id: uuid.UUID,
     body: ContractUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ContractDetailOut:
     company_id = await _get_company_id(db)
     try:
@@ -140,7 +140,7 @@ async def update_contract_endpoint(
 )
 async def delete_contract_endpoint(
     contract_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await _get_company_id(db)
     try:
