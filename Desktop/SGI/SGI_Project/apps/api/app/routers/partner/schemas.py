@@ -116,6 +116,7 @@ class VendorProfileOut(BaseModel):
 
     party_id: uuid.UUID
     vendor_type: str
+    categories: list[str] = Field(default_factory=list)
     verification_status: str
     specialities: list[str] = Field(default_factory=list)
     service_areas: list[str] = Field(default_factory=list)

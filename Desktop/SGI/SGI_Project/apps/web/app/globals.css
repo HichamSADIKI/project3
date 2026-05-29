@@ -23,9 +23,9 @@
   /* Ink (text) */
   --ink:   #111827;
   --ink-2: #374151;
-  --ink-3: #6B7280;
-  --ink-4: #9CA3AF;
-  --ink-5: #D1D5DB;
+  --ink-3: #5A616B;
+  --ink-4: #6E7682;
+  --ink-5: #9AA1AC;
 
   /* Gold accent — reste l'identité SGI */
   --gold:       #B8924F;
@@ -88,11 +88,11 @@
   --line-soft:   #243040;
   --line-strong: #3E5068;
 
-  --ink:   #E2E8F0;
-  --ink-2: #CBD5E1;
-  --ink-3: #94A3B8;
-  --ink-4: #64748B;
-  --ink-5: #334155;
+  --ink:   #F5F8FC;
+  --ink-2: #DCE4EE;
+  --ink-3: #A7B4C4;
+  --ink-4: #8593A5;
+  --ink-5: #5A6B80;
 
   --gold:       #D9B777;
   --gold-deep:  #F0CB89;

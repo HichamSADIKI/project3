@@ -176,6 +176,7 @@ async def create_fournisseur_with_profile(
         party_id=party_id,
         company_id=company_id,
         vendor_type=vendor_type,
+        categories=[vendor_type],
         account_user_id=user.id,
         verification_status="pending",
         commercial_license_path=commercial_license_path,

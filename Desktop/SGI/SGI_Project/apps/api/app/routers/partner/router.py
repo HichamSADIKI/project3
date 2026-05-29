@@ -119,6 +119,7 @@ async def get_profile(
         profile = VendorProfileOut(
             party_id=vendor.party_id,
             vendor_type=vendor.vendor_type,
+            categories=vendor.categories or [],
             verification_status=vendor.verification_status,
             specialities=vendor.specialities or [],
             service_areas=vendor.service_areas or [],

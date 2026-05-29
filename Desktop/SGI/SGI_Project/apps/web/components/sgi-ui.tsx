@@ -142,7 +142,8 @@ export type NavKey =
   | "travail" | "travail_crm" | "travail_news"
   | "callcenter" | "callcenter_crm" | "callcenter_news"
   | "erp" | "workspace" | "audit"
-  | "backoffice" | "hr" | "it" | "finance" | "marketing" | "fournisseurs"
+  | "backoffice" | "hr" | "it" | "finance" | "marketing"
+  | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation"
   | "report" | "parametres";
 
 type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey };
@@ -153,6 +154,12 @@ type NavEntry =
 
 const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
+  { type: "group", id: "fournisseurs", groupKey: "fournisseurs", icon: <IcDoc />,
+    children: [
+      { key: "fournisseurs_fiches",     icon: <IcDoc /> },
+      { key: "fournisseurs_validation", icon: <IcClients /> },
+    ],
+  },
   { type: "group", id: "clients",      groupKey: "clients", icon: <IcClients />,
     children: [
       { key: "personne", icon: <IcPersonne /> },
@@ -242,7 +249,6 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "it",        icon: <IcIT /> },
       { key: "finance",   icon: <IcFinance /> },
       { key: "marketing", icon: <IcMarketing /> },
-      { key: "fournisseurs", icon: <IcDoc /> },
     ],
   },
   { type: "item",  key: "report",      icon: <IcReport /> },
@@ -346,6 +352,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
       backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, marketing: t.nav_marketing,
       fournisseurs: t.nav_fournisseurs,
+      fournisseurs_fiches: t.nav_fournisseurs_fiches,
+      fournisseurs_validation: t.nav_fournisseurs_validation,
       report: t.nav_report, parametres: t.nav_parametres,
     };
     return map[key];

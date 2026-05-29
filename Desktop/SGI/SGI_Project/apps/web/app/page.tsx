@@ -38,6 +38,8 @@ import { ScreenMarketing } from "./screens/marketing";
 import { ScreenSectorCRM } from "./screens/sector-crm";
 import { ScreenSectorNews } from "./screens/sector-news";
 import { ScreenFournisseurValidation } from "./screens/fournisseur-validation";
+import { ScreenFournisseurs } from "./screens/fournisseurs";
+import { ScreenFournisseursFiches } from "./screens/fournisseurs-fiches";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
 
@@ -53,7 +55,8 @@ type ScreenKey =
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "visa" | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
   | "finance" | "marketing" | "report" | "parametres"
-  | "clients" | "personne" | "societe" | "fournisseurs";
+  | "clients" | "personne" | "societe"
+  | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
 
 type ScreenProps = {
   onNavigateToClient?: (name: string) => void;
@@ -120,9 +123,13 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "it":         (_)  => <ScreenIT />,
   "finance":    (_)  => <ScreenFinance />,
   "marketing":  (_)  => <ScreenMarketing />,
-  "fournisseurs": (_) => <ScreenFournisseurValidation />,
   "report":     (_)  => <ScreenReports />,
   "parametres": (_)  => <ScreenParametres />,
+
+  // Fournisseurs (catégorie placée avant Clients)
+  "fournisseurs":            (p) => <ScreenFournisseurs onNavigate={p.onNavigate} />,
+  "fournisseurs_fiches":     (_) => <ScreenFournisseursFiches />,
+  "fournisseurs_validation": (_) => <ScreenFournisseurValidation />,
 
   // Client screens
   "clients":  (p) => <ScreenClients onNavigate={p.onNavigate} />,
