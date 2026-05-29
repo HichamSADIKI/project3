@@ -52,6 +52,23 @@ class PublicRegisterRequest(BaseModel):
         pattern="^(ar|en|fr)$",
         description="Langue préférée de l'utilisateur (ar/en/fr).",
     )
+    client_type: str | None = Field(
+        default=None,
+        pattern="^(person|company)$",
+        description="Client uniquement : 'person' (particulier) ou 'company' (société).",
+    )
+    trn: str | None = Field(
+        default=None,
+        min_length=15,
+        max_length=20,
+        description="Client société uniquement : numéro TRN UAE (15 chiffres, espaces tolérés).",
+    )
+    address: str | None = Field(
+        default=None,
+        min_length=4,
+        max_length=500,
+        description="Client uniquement : adresse postale complète aux EAU.",
+    )
 
 
 class RegisterResponse(BaseModel):

@@ -25,6 +25,12 @@ export interface PublicRegisterRequest {
   password: string;
   full_name: string;
   company_slug: string;
+  /** Client only — "person" (individual) or "company" (legal entity). */
+  client_type?: "person" | "company";
+  /** Client only, when client_type === "company" — UAE Tax Registration Number (15 digits). */
+  trn?: string;
+  /** Client only — full postal address in the UAE. */
+  address?: string;
 }
 
 export interface RegisterResponse {

@@ -193,6 +193,7 @@ function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      className="sgi-login-theme-toggle"
       style={{
         position: "absolute",
         top: 12,
@@ -314,6 +315,7 @@ export function LoginForm({
 
   return (
     <div
+      className="sgi-login-wrap"
       style={{
         width: "100%",
         minHeight: "100vh",
@@ -329,8 +331,27 @@ export function LoginForm({
     >
       <BgPattern />
 
+      <style>{`
+        @media (max-width: 480px) {
+          .sgi-login-wrap { padding: 0.75rem !important; }
+          .sgi-login-card { padding: 20px !important; }
+          .sgi-login-theme-toggle { top: 8px !important; insetInlineEnd: 8px !important; width: 30px !important; height: 30px !important; }
+        }
+        @media (max-width: 380px) {
+          .sgi-help-header { flex-direction: column; align-items: stretch !important; gap: 4px !important; }
+          .sgi-help-availability { font-size: 10px !important; }
+        }
+        @media (max-width: 420px) {
+          .sgi-help-ctas { grid-template-columns: 1fr !important; }
+          .sgi-help-socials { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+          .sgi-help-socials-divider, .sgi-help-socials-label { display: none !important; }
+          .sgi-social-pill { justify-content: center; }
+        }
+      `}</style>
+
       {/* Centered card */}
       <div
+        className="sgi-login-card"
         style={{
           position: "relative",
           zIndex: 1,
@@ -692,6 +713,7 @@ function HelpCard({
     >
       {/* Header */}
       <div
+        className="sgi-help-header"
         style={{
           display: "flex",
           alignItems: "center",
@@ -710,11 +732,17 @@ function HelpCard({
         >
           {needHelp}
         </div>
-        <div style={{ fontSize: 10.5, color: "var(--ink-3)" }}>{available247}</div>
+        <div
+          className="sgi-help-availability"
+          style={{ fontSize: 10.5, color: "var(--ink-3)" }}
+        >
+          {available247}
+        </div>
       </div>
 
       {/* Two CTAs */}
       <div
+        className="sgi-help-ctas"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",
@@ -766,6 +794,7 @@ function HelpCard({
 
       {/* Social — Snapchat + Instagram */}
       <div
+        className="sgi-help-socials"
         style={{
           display: "flex",
           alignItems: "center",
@@ -774,6 +803,7 @@ function HelpCard({
         }}
       >
         <span
+          className="sgi-help-socials-label"
           style={{
             fontSize: 10.5,
             color: "var(--ink-3)",
@@ -785,7 +815,10 @@ function HelpCard({
         >
           {followUs}
         </span>
-        <span style={{ flex: 1, height: 1, background: "var(--gold-line)" }} />
+        <span
+          className="sgi-help-socials-divider"
+          style={{ flex: 1, height: 1, background: "var(--gold-line)" }}
+        />
         <SocialPill
           href={`https://www.snapchat.com/add/${snapchatHandle}`}
           aria-label={`${snapchatAction} @${snapchatHandle}`}
@@ -861,6 +894,7 @@ function SocialPill({
       style={{
         display: "inline-flex",
         alignItems: "center",
+        justifyContent: "center",
         gap: 6,
         padding: "6px 10px",
         background,
@@ -870,6 +904,7 @@ function SocialPill({
         fontSize: 11.5,
         fontWeight: 600,
         boxShadow: "0 2px 5px rgba(0,0,0,0.08)",
+        minWidth: 0,
       }}
     >
       {icon}
@@ -916,6 +951,7 @@ function ContactAction({
         textDecoration: "none",
         boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
         minWidth: 0,
+        overflow: "hidden",
       }}
     >
       <span
@@ -936,7 +972,9 @@ function ContactAction({
           display: "flex",
           flexDirection: "column",
           minWidth: 0,
+          flex: 1,
           lineHeight: 1.15,
+          overflow: "hidden",
         }}
       >
         <span

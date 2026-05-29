@@ -4,13 +4,25 @@ import Link from "next/link";
 import { useState } from "react";
 import { register } from "@/lib/auth";
 
+type ClientType = "person" | "company";
+
 export interface RegisterFormLabels {
   fullName: string;
+  companyName: string;
   email: string;
   password: string;
   passwordHint: string;
   companySlug: string;
   companySlugPlaceholder: string;
+  clientTypeLabel: string;
+  clientTypePerson: string;
+  clientTypeCompany: string;
+  trn: string;
+  trnPlaceholder: string;
+  trnHint: string;
+  address: string;
+  addressPlaceholder: string;
+  addressHint: string;
   submit: string;
   submitting: string;
   alreadyAccount: string;
@@ -23,6 +35,9 @@ export interface RegisterFormLabels {
   };
 }
 
+const DEFAULT_CLIENT_COMPANY_SLUG =
+  process.env.NEXT_PUBLIC_DEFAULT_COMPANY_SLUG ?? "infinity-uae";
+
 export function RegisterForm({
   kind,
   locale,
@@ -32,15 +47,21 @@ export function RegisterForm({
   locale: string;
   labels: RegisterFormLabels;
 }) {
+  const isClient = kind === "client";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [companySlug, setCompanySlug] = useState(
-    process.env.NEXT_PUBLIC_DEFAULT_COMPANY_SLUG ?? "",
+    isClient ? DEFAULT_CLIENT_COMPANY_SLUG : DEFAULT_CLIENT_COMPANY_SLUG,
   );
+  const [clientType, setClientType] = useState<ClientType>("person");
+  const [trn, setTrn] = useState("");
+  const [address, setAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const showCompanyFields = isClient && clientType === "company";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -52,6 +73,11 @@ export function RegisterForm({
         password,
         full_name: fullName,
         company_slug: companySlug,
+        ...(isClient && {
+          client_type: clientType,
+          ...(address.trim() ? { address: address.trim() } : {}),
+          ...(clientType === "company" && trn.trim() ? { trn: trn.trim() } : {}),
+        }),
       });
       setSubmitted(true);
     } catch (err) {
@@ -108,8 +134,47 @@ export function RegisterForm({
 
   return (
     <form onSubmit={onSubmit} style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+      {isClient && (
+        <div>
+          <span
+            className="sgi-label"
+            style={{ display: "block", marginBottom: 8 }}
+          >
+            {labels.clientTypeLabel}
+          </span>
+          <div
+            role="radiogroup"
+            aria-label={labels.clientTypeLabel}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 8,
+              padding: 4,
+              background: "var(--bg-ivory)",
+              border: "1px solid var(--line)",
+              borderRadius: "var(--r)",
+            }}
+          >
+            <ClientTypeOption
+              active={clientType === "person"}
+              onClick={() => setClientType("person")}
+              icon="👤"
+              label={labels.clientTypePerson}
+            />
+            <ClientTypeOption
+              active={clientType === "company"}
+              onClick={() => setClientType("company")}
+              icon="🏢"
+              label={labels.clientTypeCompany}
+            />
+          </div>
+        </div>
+      )}
+
       <div>
-        <label className="sgi-label" htmlFor="fullName">{labels.fullName}</label>
+        <label className="sgi-label" htmlFor="fullName">
+          {showCompanyFields ? labels.companyName : labels.fullName}
+        </label>
         <input
           id="fullName"
           type="text"
@@ -121,6 +186,60 @@ export function RegisterForm({
           onChange={(e) => setFullName(e.target.value)}
         />
       </div>
+
+      {showCompanyFields && (
+        <div>
+          <label className="sgi-label" htmlFor="trn">{labels.trn}</label>
+          <input
+            id="trn"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9 ]*"
+            maxLength={20}
+            className="sgi-input"
+            value={trn}
+            onChange={(e) => setTrn(e.target.value)}
+            placeholder={labels.trnPlaceholder}
+          />
+          <small
+            style={{
+              display: "block",
+              marginTop: 6,
+              color: "var(--ink-3)",
+              fontSize: "0.75rem",
+            }}
+          >
+            {labels.trnHint}
+          </small>
+        </div>
+      )}
+
+      {isClient && (
+        <div>
+          <label className="sgi-label" htmlFor="address">{labels.address}</label>
+          <textarea
+            id="address"
+            className="sgi-input"
+            rows={2}
+            maxLength={500}
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder={labels.addressPlaceholder}
+            style={{ resize: "vertical", minHeight: 64, fontFamily: "inherit" }}
+          />
+          <small
+            style={{
+              display: "block",
+              marginTop: 6,
+              color: "var(--ink-3)",
+              fontSize: "0.75rem",
+            }}
+          >
+            {labels.addressHint}
+          </small>
+        </div>
+      )}
+
       <div>
         <label className="sgi-label" htmlFor="email">{labels.email}</label>
         <input
@@ -149,20 +268,23 @@ export function RegisterForm({
           {labels.passwordHint}
         </small>
       </div>
-      <div>
-        <label className="sgi-label" htmlFor="companySlug">{labels.companySlug}</label>
-        <input
-          id="companySlug"
-          type="text"
-          required
-          minLength={2}
-          maxLength={100}
-          className="sgi-input"
-          value={companySlug}
-          onChange={(e) => setCompanySlug(e.target.value)}
-          placeholder={labels.companySlugPlaceholder}
-        />
-      </div>
+
+      {!isClient && (
+        <div>
+          <label className="sgi-label" htmlFor="companySlug">{labels.companySlug}</label>
+          <input
+            id="companySlug"
+            type="text"
+            required
+            minLength={2}
+            maxLength={100}
+            className="sgi-input"
+            value={companySlug}
+            onChange={(e) => setCompanySlug(e.target.value)}
+            placeholder={labels.companySlugPlaceholder}
+          />
+        </div>
+      )}
       {error && (
         <div
           role="alert"
@@ -187,5 +309,48 @@ export function RegisterForm({
         </Link>
       </div>
     </form>
+  );
+}
+
+function ClientTypeOption({
+  active,
+  onClick,
+  icon,
+  label,
+}: {
+  active: boolean;
+  onClick: () => void;
+  icon: string;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={active ? "true" : "false"}
+      onClick={onClick}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: "0.55rem 0.75rem",
+        background: active ? "var(--bg-paper)" : "transparent",
+        border: "1px solid",
+        borderColor: active ? "var(--gold)" : "transparent",
+        borderRadius: "var(--r-sm)",
+        color: active ? "var(--ink)" : "var(--ink-3)",
+        fontSize: "0.875rem",
+        fontWeight: active ? 600 : 500,
+        cursor: "pointer",
+        boxShadow: active ? "var(--shadow-1)" : "none",
+        transition: "all var(--transition-base)",
+      }}
+    >
+      <span aria-hidden="true" style={{ fontSize: "1.05rem" }}>
+        {icon}
+      </span>
+      <span>{label}</span>
+    </button>
   );
 }
