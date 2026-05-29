@@ -1,0 +1,122 @@
+{
+  "brand": {
+    "name": "SGI",
+    "tagline": "Infinity International"
+  },
+  "header": {
+    "login": "Login",
+    "logout": "Logout",
+    "backoffice": "Back Office"
+  },
+  "footer": {
+    "copyright": "© {{year}} SGI · Infinity International Facilities Management UAE"
+  },
+  "home": {
+    "title": "Client Client & Partner Portal Vendor Portal",
+    "subtitle": "Manage your properties, contracts, visits and commissions from a unified interface — UAE · multilingual AR · EN · FR.",
+    "clientCard": {
+      "kicker": "For clients",
+      "title": "Find your property",
+      "description": "Catalog, favorites, visit requests, contract & payment tracking, Golden Visa file.",
+      "cta": "Create a client account →"
+    },
+    "fournisseurCard": {
+      "kicker": "For vendors",
+      "title": "Work with SGI",
+      "description": "Submit your properties, bring leads, offer your services & track your commissions.",
+      "cta": "Become a vendor →"
+    }
+  },
+  "login": {
+    "title": "Login",
+    "subtitle": "SGI Client Client & Partner Portal Vendor Portal",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "becomeClient": "Become a client",
+    "becomeFournisseur": "Become a vendor",
+    "demoTitle": "Demo accounts",
+    "demoClient": "Demo Client",
+    "demoFournisseur": "Demo Vendor",
+    "profileTitle": "I am a…",
+    "profileSubtitle": "Pick your account type to continue.",
+    "profileClient": "Client",
+    "profileClientDesc": "You are searching for or tracking a property.",
+    "profileFournisseur": "Vendor",
+    "profileFournisseurDesc": "You submit properties, bring leads or provide services.",
+    "back": "← Change profile",
+    "companySlug": "Company code",
+    "companySlugPlaceholder": "e.g. infinity-uae",
+    "companySlugHint": "This code was given to you by SGI when registering your company.",
+    "developedBy": "Developed by Infinity",
+    "versionLabel": "Version",
+    "callCenter": "Call Center",
+    "needHelp": "Need help?",
+    "callUs": "Call us",
+    "available247": "Available 24/7",
+    "callAction": "Call",
+    "whatsappAction": "WhatsApp",
+    "followUs": "Follow us",
+    "snapchatAction": "Snapchat",
+    "instagramAction": "Instagram",
+    "errors": {
+      "invalid_credentials": "Invalid email or password.",
+      "account_not_active": "Account pending administrator validation.",
+      "use_backoffice_portal": "This account must use the backoffice.",
+      "company_required": "Company code required for vendors.",
+      "company_mismatch": "Company code does not match your account.",
+      "generic": "Cannot sign in. Please retry."
+    }
+  },
+  "register": {
+    "clientTitle": "Create a client account",
+    "fournisseurTitle": "Become a vendor",
+    "clientSubtitle": "Access the catalog and track your files.",
+    "fournisseurSubtitle": "Submit properties & leads, track your commissions.",
+    "fullName": "Full name",
+    "email": "Email",
+    "password": "Password",
+    "passwordHint": "At least 8 characters.",
+    "companySlug": "Company code (slug)",
+    "companySlugPlaceholder": "e.g. infinity-uae",
+    "submit": "Create my account",
+    "submitting": "Sending…",
+    "alreadyAccount": "Already have an account?",
+    "loginLink": "Sign in",
+    "success": {
+      "title": "Registration submitted",
+      "body": "An SGI administrator will validate your account within 24h. You will receive an email upon activation.",
+      "back": "Back to login"
+    },
+    "errors": {
+      "email_already_registered": "This email is already registered.",
+      "company_not_found": "Company code not found.",
+      "generic": "Cannot register. Please retry."
+    }
+  },
+  "shell": {
+    "clientSpace": "Client Portal",
+    "fournisseurSpace": "Vendor Portal",
+    "logout": "Logout"
+  },
+  "common": {
+    "unavailable": "Data unavailable",
+    "loading": "Loading…",
+    "noData": "No items to display.",
+    "noSubject": "(no subject)"
+  },
+  "sitemap": {
+    "title": "Application links",
+    "subtitle": "All useful URLs across the back-end, client front-end and server back-office.",
+    "demoAccounts": "Demo accounts",
+    "demoNote": "Password: DemoPass!23 — Company: infinity-uae",
+    "backend": "Back-end (FastAPI API)",
+    "frontClient": "Front-end Client / Vendor (Portal)",
+    "frontServer": "Server back-office (Web Admin)",
+    "languages": "Supported languages",
+    "open": "Open",
+    "copy": "Copy",
+    "copied": "Copied!"
+  }
+}

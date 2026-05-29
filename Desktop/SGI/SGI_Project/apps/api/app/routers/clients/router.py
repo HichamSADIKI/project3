@@ -2,7 +2,6 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -24,12 +23,10 @@ from app.routers.clients.service import (
 router = APIRouter(prefix="/clients", tags=["clients"])
 
 
-async def _get_company_id(db: AsyncSession) -> uuid.UUID:
-    """Récupère le company_id depuis la session PostgreSQL (injecté par le middleware JWT)."""
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
-    raw = result.scalar()
+def _get_company_id(request: Request) -> uuid.UUID:
+    """Récupère le company_id depuis l'état de la requête (posé par TenantMiddleware
+    à partir du JWT). Aligné sur les autres routers (auth.me, client_portal…)."""
+    raw = getattr(request.state, "company_id", None)
     if not raw:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -59,13 +56,14 @@ async def health() -> dict[str, str]:
 
 @router.get("/", response_model=ClientListOut)
 async def list_clients_endpoint(
+    request: Request,
     type: str | None = Query(None, alias="type", pattern="^(individual|company)$"),
     q: str | None = Query(None, description="Recherche fulltext"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> ClientListOut:
-    company_id = await _get_company_id(db)
+    company_id = _get_company_id(request)
     clients, total = await list_clients(db, company_id, page, limit, type, q)
     return ClientListOut(
         data=[ClientOut.model_validate(c) for c in clients],
@@ -81,9 +79,10 @@ async def list_clients_endpoint(
 )
 async def create_client_endpoint(
     body: ClientCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> ClientDetailOut:
-    company_id = await _get_company_id(db)
+    company_id = _get_company_id(request)
     client = await create_client(db, company_id, body)
     return ClientDetailOut(data=ClientOut.model_validate(client))
 
@@ -91,9 +90,10 @@ async def create_client_endpoint(
 @router.get("/{client_id}", response_model=ClientDetailOut)
 async def get_client_endpoint(
     client_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> ClientDetailOut:
-    company_id = await _get_company_id(db)
+    company_id = _get_company_id(request)
     client = await get_client(db, company_id, client_id)
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="client_not_found")
@@ -108,9 +108,10 @@ async def get_client_endpoint(
 async def update_client_endpoint(
     client_id: uuid.UUID,
     body: ClientUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> ClientDetailOut:
-    company_id = await _get_company_id(db)
+    company_id = _get_company_id(request)
     client = await update_client(db, company_id, client_id, body)
     if not client:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="client_not_found")
@@ -124,9 +125,10 @@ async def update_client_endpoint(
 )
 async def delete_client_endpoint(
     client_id: uuid.UUID,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    company_id = await _get_company_id(db)
+    company_id = _get_company_id(request)
     deleted = await delete_client(db, company_id, client_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="client_not_found")

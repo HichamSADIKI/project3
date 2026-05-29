@@ -1,0 +1,122 @@
+{
+  "brand": {
+    "name": "SGI",
+    "tagline": "إنفينيتي إنترناشيونال"
+  },
+  "header": {
+    "login": "تسجيل الدخول",
+    "logout": "تسجيل الخروج",
+    "backoffice": "لوحة الإدارة"
+  },
+  "footer": {
+    "copyright": "© {{year}} SGI · إنفينيتي إنترناشيونال لإدارة المرافق الإمارات"
+  },
+  "home": {
+    "title": "بوابة العميل والمورّد",
+    "subtitle": "إدارة عقاراتك وعقودك وزياراتك وعمولاتك من واجهة موحّدة — الإمارات · متعدّد اللغات AR · EN · FR.",
+    "clientCard": {
+      "kicker": "للعملاء",
+      "title": "اعثر على عقارك",
+      "description": "الكتالوج، المفضلة، طلبات الزيارة، متابعة العقود والمدفوعات، ملف التأشيرة الذهبية.",
+      "cta": "إنشاء حساب عميل ←"
+    },
+    "fournisseurCard": {
+      "kicker": "للمورّدين",
+      "title": "اعمل مع SGI",
+      "description": "أرسل عقاراتك، أحضر العملاء المحتملين، اعرض خدماتك وتابع عمولاتك.",
+      "cta": "كن مورّداً ←"
+    }
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "بوابة عميل ومورّد SGI",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "submit": "تسجيل الدخول",
+    "submitting": "جاري تسجيل الدخول…",
+    "becomeClient": "كن عميلاً",
+    "becomeFournisseur": "كن مورّداً",
+    "demoTitle": "حسابات تجريبية",
+    "demoClient": "تجريبي عميل",
+    "demoFournisseur": "تجريبي مورّد",
+    "profileTitle": "أنا…",
+    "profileSubtitle": "اختر نوع حسابك للمتابعة.",
+    "profileClient": "عميل",
+    "profileClientDesc": "تبحث عن عقار أو تتابع ملفك العقاري.",
+    "profileFournisseur": "مورّد",
+    "profileFournisseurDesc": "تقدّم عقارات، تأتي بعملاء محتملين أو تعرض خدمات.",
+    "back": "← تغيير الملف",
+    "companySlug": "رمز الشركة",
+    "companySlugPlaceholder": "مثال: infinity-uae",
+    "companySlugHint": "هذا الرمز قدّمته لك SGI عند تسجيل شركتك.",
+    "developedBy": "تطوير إنفينيتي",
+    "versionLabel": "الإصدار",
+    "callCenter": "مركز الاتصال",
+    "needHelp": "تحتاج مساعدة؟",
+    "callUs": "اتصل بنا",
+    "available247": "متاح 24/7",
+    "callAction": "اتصال",
+    "whatsappAction": "واتساب",
+    "followUs": "تابعنا",
+    "snapchatAction": "سناب شات",
+    "instagramAction": "إنستغرام",
+    "errors": {
+      "invalid_credentials": "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+      "account_not_active": "الحساب قيد المراجعة من قبل المسؤول.",
+      "use_backoffice_portal": "يجب أن يستخدم هذا الحساب لوحة الإدارة.",
+      "company_required": "رمز الشركة مطلوب للمورّدين.",
+      "company_mismatch": "رمز الشركة لا يطابق حسابك.",
+      "generic": "تعذّر تسجيل الدخول. حاول مرة أخرى."
+    }
+  },
+  "register": {
+    "clientTitle": "إنشاء حساب عميل",
+    "fournisseurTitle": "كن مورّداً",
+    "clientSubtitle": "تصفح الكتالوج وتابع ملفاتك.",
+    "fournisseurSubtitle": "أرسل العقارات والعملاء المحتملين، وتابع عمولاتك.",
+    "fullName": "الاسم الكامل",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "passwordHint": "8 أحرف على الأقل.",
+    "companySlug": "رمز الشركة (slug)",
+    "companySlugPlaceholder": "مثال: infinity-uae",
+    "submit": "إنشاء حسابي",
+    "submitting": "إرسال…",
+    "alreadyAccount": "لديك حساب بالفعل؟",
+    "loginLink": "تسجيل الدخول",
+    "success": {
+      "title": "تم إرسال التسجيل",
+      "body": "سيقوم مسؤول SGI بالتحقق من حسابك خلال 24 ساعة. ستتلقى بريداً إلكترونياً عند التفعيل.",
+      "back": "العودة إلى تسجيل الدخول"
+    },
+    "errors": {
+      "email_already_registered": "هذا البريد الإلكتروني مسجّل بالفعل.",
+      "company_not_found": "رمز الشركة غير معروف.",
+      "generic": "تعذّر التسجيل. حاول مرة أخرى."
+    }
+  },
+  "shell": {
+    "clientSpace": "بوابة العميل",
+    "fournisseurSpace": "بوابة المورّد",
+    "logout": "تسجيل الخروج"
+  },
+  "common": {
+    "unavailable": "البيانات غير متاحة",
+    "loading": "جاري التحميل…",
+    "noData": "لا توجد عناصر لعرضها.",
+    "noSubject": "(بدون موضوع)"
+  },
+  "sitemap": {
+    "title": "روابط التطبيق",
+    "subtitle": "خريطة الروابط المفيدة من الخلفية وواجهة العميل ولوحة الإدارة.",
+    "demoAccounts": "حسابات تجريبية",
+    "demoNote": "كلمة المرور: DemoPass!23 — الشركة: infinity-uae",
+    "backend": "الخلفية (FastAPI API)",
+    "frontClient": "واجهة العميل / المورّد (Portal)",
+    "frontServer": "لوحة الإدارة الخلفية (Web Admin)",
+    "languages": "اللغات المدعومة",
+    "open": "فتح",
+    "copy": "نسخ",
+    "copied": "تم النسخ!"
+  }
+}

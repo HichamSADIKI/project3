@@ -12,6 +12,17 @@
 apps/web/.next/
 apps/web/out/
 apps/web/.turbo/
+apps/portal/.next/
+apps/portal/out/
+apps/portal/.turbo/
+
+# ── Expo / React Native ────────────────────────────────────────────────
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/web-build/
+
+# ── Kombai (design tool) ───────────────────────────────────────────────
+.kombai/
 
 # ── Node ────────────────────────────────────────────────────────────────
 node_modules/

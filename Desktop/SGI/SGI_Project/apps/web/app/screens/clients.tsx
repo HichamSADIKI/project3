@@ -15,6 +15,7 @@ const KPIS = [
 ];
 
 const TOP_CLIENTS = [
+  { name: "Ahmed Al Demo",         type: "personne", country: "🇦🇪", volume: 12_000_000, deals: 3, status: "VIP" },
   { name: "Al Maktoum Holding",    type: "societe",  country: "🇦🇪", volume: 18_400_000, deals: 4, status: "VIP" },
   { name: "Reem Al Hashemi",       type: "personne", country: "🇦🇪", volume: 11_200_000, deals: 2, status: "VIP" },
   { name: "Abdullah Al Rashid",    type: "personne", country: "🇸🇦", volume: 8_500_000,  deals: 3, status: "Active" },

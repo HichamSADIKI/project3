@@ -3,13 +3,17 @@
  */
 import "../lib/i18n";
 import { useEffect } from "react";
+import { View } from "react-native";
 import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useAuthStore } from "@/stores/auth";
+import { usePreferencesStore } from "@/stores/preferences";
 import { loadSavedLanguage } from "@/lib/i18n";
+import { SessionWarningModal } from "@/components/ui/SessionWarningModal";
+import { useInactivityTimeout } from "@/hooks/useInactivityTimeout";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -21,11 +25,13 @@ const queryClient = new QueryClient({
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { token, loadToken } = useAuthStore();
+  const hydratePrefs = usePreferencesStore((s) => s.hydrate);
   const segments = useSegments();
   const router = useRouter();
+  const reportActivity = useInactivityTimeout();
 
   useEffect(() => {
-    loadToken().finally(() => SplashScreen.hideAsync());
+    Promise.all([loadToken(), hydratePrefs()]).finally(() => SplashScreen.hideAsync());
   }, []);
 
   useEffect(() => {
@@ -37,7 +43,21 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [token, segments]);
 
-  return <>{children}</>;
+  return (
+    <View
+      style={{ flex: 1 }}
+      onStartShouldSetResponderCapture={() => {
+        reportActivity();
+        return false;
+      }}
+      onMoveShouldSetResponderCapture={() => {
+        reportActivity();
+        return false;
+      }}
+    >
+      {children}
+    </View>
+  );
 }
 
 export default function RootLayout() {
@@ -66,6 +86,7 @@ export default function RootLayout() {
               options={{ headerShown: true, headerStyle: { backgroundColor: "#1F2937" }, headerTintColor: "#E2E8F0", title: "" }}
             />
           </Stack>
+          <SessionWarningModal />
         </AuthGuard>
       </QueryClientProvider>
     </GestureHandlerRootView>

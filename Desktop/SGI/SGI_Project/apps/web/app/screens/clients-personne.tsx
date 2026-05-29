@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Topbar, Ic, IcPhone, IcMail, IcArrowUp, ConfirmModal } from "@/components/sgi-ui";
 import { DealWizard, type ConfirmedDeal } from "@/components/deal-wizard";
 import { useLang, useT } from "@/components/language-provider";
@@ -139,6 +139,7 @@ const STATUS_CFG: Record<Status, { en: string; ar: string; fr: string; color: st
 const aed = (n: number) => new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
 
 const PERSONS: Person[] = [
+  { id: "11111111-1111-1111-1111-111111111111", name: "Ahmed Al Demo",     name_ar: "أحمد الديمو",      nat: "ae", flag: "🇦🇪", phone: "+971 50 000 0001", email: "ahmed.demo@infinity-uae.com", budget: 12_000_000, status: "vip",      deals: 3, lastContact: "2026-05-29", agent: "Yasmine K.", visa: true,  languages: ["ar", "en", "fr"], address: "Palm Jumeirah, Dubai",      dob: "1984-01-01", passportNo: "AE000001" },
   { id: "p001", name: "Reem Al Hashemi",    name_ar: "ريم الهاشمي",     nat: "ae", flag: "🇦🇪", phone: "+971 50 123 4567", email: "reem@email.ae",       budget: 11_200_000, status: "vip",      deals: 2, lastContact: "2026-05-24", agent: "Yasmine K.", visa: true,  languages: ["ar", "en"],       address: "Dubai Hills Estate, Dubai", dob: "1985-03-14", passportNo: "AE123456" },
   { id: "p002", name: "Abdullah Al Rashid", name_ar: "عبدالله الراشد",   nat: "sa", flag: "🇸🇦", phone: "+966 55 987 6543", email: "a.rashid@gmail.com",  budget: 8_500_000,  status: "vip",      deals: 3, lastContact: "2026-05-22", agent: "Omar B.",    visa: true,  languages: ["ar", "en"],       address: "Al Olaya District, Riyadh", dob: "1978-07-22", passportNo: "SA987654" },
   { id: "p003", name: "Sophie Martin",      name_ar: "صوفي مارتان",      nat: "fr", flag: "🇫🇷", phone: "+33 6 12 34 56 78", email: "s.martin@gmail.com", budget: 6_400_000,  status: "active",   deals: 1, lastContact: "2026-05-20", agent: "Reem M.",    visa: false, languages: ["fr", "en"],       address: "JBR, Dubai Marina, Dubai",  dob: "1990-11-05", passportNo: "FR456789" },
@@ -154,6 +155,74 @@ const PERSONS: Person[] = [
 ];
 
 const AGENTS = ["All agents", "Yasmine K.", "Omar B.", "Reem M.", "Adel H.", "Nadia K."];
+
+/* ── API client mapping ────────────────────────────────────────────────
+   Convertit la ligne `clients` retournée par /api/v1/clients/ en `Person`
+   pour l'écran. Les champs qui n'existent pas encore en base (deals,
+   languages, visa, agent, nat…) sont par défaut neutres — la fiche reste
+   éditable côté CRM et s'enrichit avec l'usage. */
+interface ApiClient {
+  id: string;
+  type: "individual" | "company";
+  first_name: string | null;
+  last_name: string | null;
+  company_name: string | null;
+  email: string | null;
+  phone: string | null;
+  phone2: string | null;
+  nationality: string | null;
+  country_of_residence: string | null;
+  budget_min: number | string | null;
+  budget_max: number | string | null;
+  preferred_property_type: string | null;
+  preferred_location: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+const NAT_BY_KEYWORD: { kw: RegExp; nat: Nat; flag: string }[] = [
+  { kw: /(uae|emirat|الإمارات)/i,           nat: "ae", flag: "🇦🇪" },
+  { kw: /(saudi|سعود)/i,                    nat: "sa", flag: "🇸🇦" },
+  { kw: /(moroc|maroc|مغرب)/i,              nat: "ma", flag: "🇲🇦" },
+  { kw: /(french|france|فرنس)/i,            nat: "fr", flag: "🇫🇷" },
+  { kw: /(british|england|uk|بريطان)/i,     nat: "gb", flag: "🇬🇧" },
+  { kw: /(india|هند)/i,                     nat: "in", flag: "🇮🇳" },
+  { kw: /(russ|روس)/i,                      nat: "ru", flag: "🇷🇺" },
+  { kw: /(china|chinese|صين)/i,             nat: "cn", flag: "🇨🇳" },
+];
+
+function natFrom(text: string | null | undefined): { nat: Nat; flag: string } {
+  if (!text) return { nat: "ae", flag: "🌍" };
+  for (const m of NAT_BY_KEYWORD) if (m.kw.test(text)) return { nat: m.nat, flag: m.flag };
+  return { nat: "ae", flag: "🌍" };
+}
+
+function apiClientToPerson(c: ApiClient): Person {
+  const fullName = [c.first_name, c.last_name].filter(Boolean).join(" ").trim()
+    || c.company_name?.trim()
+    || c.email
+    || "—";
+  const { nat, flag } = natFrom(c.nationality ?? c.country_of_residence);
+  const budgetMax = c.budget_max != null ? Number(c.budget_max) : 0;
+  const budgetMin = c.budget_min != null ? Number(c.budget_min) : 0;
+  const budget = budgetMax || budgetMin || 0;
+  return {
+    id: c.id,
+    name: fullName as string,
+    name_ar: fullName as string,
+    nat, flag,
+    phone: c.phone ?? "",
+    email: c.email ?? "",
+    budget,
+    status: "prospect",
+    deals: 0,
+    lastContact: (c.updated_at ?? c.created_at ?? "").slice(0, 10),
+    agent: "—",
+    visa: budget >= 2_000_000,
+    languages: ["en"],
+    address: c.preferred_location ?? undefined,
+  };
+}
 
 /* ── Mock detail data generators ─────────────────────────────────────── */
 function mockDeals(p: Person) {
@@ -810,10 +879,38 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
   const [agent,   setAgent]   = useState("All agents");
   const [visaOnly, setVisaOnly] = useState(false);
 
-  const selected = selectedId ? PERSONS.find(p => p.id === selectedId) : null;
+  // Liste réelle des clients (depuis /api/v1/clients/) fusionnée avec les
+  // mocks. Les comptes créés via le portail apparaissent ici dès leur
+  // inscription, et toute modification de profil portail (PATCH
+  // /client/me/profile) est visible au prochain refresh — la source de
+  // vérité unique est la table `clients` du backend.
+  const [apiPersons, setApiPersons] = useState<Person[]>([]);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    fetch("/api/admin/clients?type=individual&limit=200", {
+      signal: ctrl.signal,
+      cache: "no-store",
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then((j: { data?: ApiClient[] } | null) => {
+        if (!j?.data) return;
+        setApiPersons(j.data.map(apiClientToPerson));
+      })
+      .catch(() => { /* offline / unauthenticated → fallback to mocks only */ });
+    return () => ctrl.abort();
+  }, []);
+
+  // API d'abord (clients réels), puis mocks pour les démos. Dédupliqué par
+  // email pour ne pas afficher deux fois un client présent dans les deux.
+  const allPersons: Person[] = (() => {
+    const seenEmails = new Set(apiPersons.map(p => p.email).filter(Boolean));
+    return [...apiPersons, ...PERSONS.filter(p => !seenEmails.has(p.email))];
+  })();
+
+  const selected = selectedId ? allPersons.find(p => p.id === selectedId) : null;
   if (selected) return <PersonDetail person={selected} onBack={() => setSelectedId(null)} lang={lang} onDealConfirmed={onDealConfirmed} />;
 
-  const filtered = PERSONS.filter(p => {
+  const filtered = allPersons.filter(p => {
     const q = search.toLowerCase();
     const matchSearch = !q || p.name.toLowerCase().includes(q) || p.email.includes(q) || p.phone.includes(q);
     const matchStatus = status === "all" || p.status === status;
@@ -848,7 +945,7 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
               return (
                 <button key={s} onClick={() => setStatus(s)} style={{ padding: "6px 12px", borderRadius: 999, fontSize: 11.5, fontWeight: active ? 600 : 400, cursor: "pointer", whiteSpace: "nowrap", background: active ? (cfg ? `${cfg.color}18` : "var(--gold)") : "transparent", color: active ? (cfg ? cfg.color : "#1A1610") : "var(--ink-4)", border: active ? (cfg ? `1px solid ${cfg.color}` : "1px solid var(--gold)") : "1px solid var(--line-soft)" }}>
                   {s === "all" ? (lang === "ar" ? "الكل" : lang === "fr" ? "Tous" : "All") : (lang === "ar" ? cfg!.ar : lang === "fr" ? cfg!.fr : cfg!.en)}
-                  <span style={{ marginInlineStart: 5, fontSize: 10, opacity: 0.6 }}>{s === "all" ? PERSONS.length : PERSONS.filter(p => p.status === s).length}</span>
+                  <span style={{ marginInlineStart: 5, fontSize: 10, opacity: 0.6 }}>{s === "all" ? allPersons.length : allPersons.filter(p => p.status === s).length}</span>
                 </button>
               );
             })}

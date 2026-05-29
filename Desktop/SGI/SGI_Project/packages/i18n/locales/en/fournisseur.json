@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "submitProperty": "Submit a property",
+    "leads": "My leads",
+    "commissions": "Commissions",
+    "services": "My services",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}",
+    "subtitle": "Welcome to your SGI partner portal.",
+    "activeMandates": "Active mandates",
+    "pendingLeads": "Pending leads",
+    "convertedLeads": "Converted leads",
+    "pendingSubmissions": "Pending submissions",
+    "monthCommissionsAED": "This month commissions (AED)",
+    "commissionsPendingHint": "to receive",
+    "performance": "Performance"
+  },
+  "submitProperty": {
+    "title": "Submit a property",
+    "subtitle": "Send us the property details and an SGI agent will follow up.",
+    "mySubmissions": "My submissions",
+    "empty": "No submissions yet.",
+    "successMessage": "Submission sent — an SGI agent will review it.",
+    "form": {
+      "title": "Property title",
+      "type": "Type",
+      "district": "District",
+      "districtPlaceholder": "Dubai Marina",
+      "askingPrice": "Asking price (AED)",
+      "bedrooms": "Bedrooms",
+      "contactPhone": "Contact phone",
+      "submit": "Send proposal",
+      "submitting": "Sending…"
+    },
+    "types": {
+      "apartment": "Apartment",
+      "villa": "Villa",
+      "townhouse": "Townhouse",
+      "office": "Office",
+      "retail": "Retail",
+      "land": "Land"
+    }
+  },
+  "mandates": {
+    "active": "Active",
+    "expired": "Expired",
+    "pendingApproval": "Pending"
+  },
+  "leads": {
+    "title": "My leads",
+    "subtitle": "Bring prospects to SGI and track their status.",
+    "empty": "No leads submitted yet.",
+    "successMessage": "Lead recorded.",
+    "cols": {
+      "prospect": "Prospect",
+      "contact": "Contact",
+      "interest": "Interest",
+      "budget": "Budget",
+      "status": "Status"
+    },
+    "form": {
+      "firstName": "Prospect first name",
+      "lastName": "Last name",
+      "email": "Email",
+      "phone": "Phone",
+      "interest": "Interest",
+      "budget": "Budget (AED)",
+      "notes": "Notes",
+      "submit": "Submit lead",
+      "submitting": "Sending…"
+    },
+    "interest": {
+      "buy": "Purchase",
+      "rent": "Rental",
+      "golden_visa": "Golden Visa",
+      "commercial": "Commercial"
+    },
+    "status": {
+      "new": "New",
+      "contacted": "Contacted",
+      "qualified": "Qualified",
+      "converted": "Converted",
+      "lost": "Lost"
+    }
+  },
+  "commissions": {
+    "totalDue": "Total due",
+    "totalPaid": "Total paid",
+    "thisMonth": "This month",
+    "empty": "No commission to display.",
+    "cols": {
+      "source": "Source",
+      "base": "Base",
+      "rate": "Rate",
+      "commission": "Commission",
+      "status": "Status",
+      "date": "Date"
+    },
+    "status": {
+      "pending": "Pending",
+      "payable": "Payable",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    }
+  },
+  "services": {
+    "subtitle": "Services you offer (notary, bank, insurance, etc.).",
+    "empty": "No service yet.",
+    "successMessage": "Service recorded.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "form": {
+      "type": "Service type",
+      "title": "Title",
+      "description": "Description",
+      "fee": "Fee (AED)",
+      "submit": "Add service",
+      "submitting": "Sending…"
+    },
+    "types": {
+      "notary": "Notary",
+      "bank": "Bank",
+      "insurance": "Insurance",
+      "legal": "Legal",
+      "translation": "Translation",
+      "valuation": "Valuation",
+      "other": "Other"
+    }
+  }
+}

@@ -22,6 +22,11 @@ export interface ConfirmedDeal {
   clientName: string;
   clientId: string;
   clientAgent: string;
+  // Origine du deal — utilisé pour les deals créés depuis le portal client.
+  // "wizard" (par défaut) = créé en backoffice via l'assistant.
+  // "portal_voice"        = portal client, dicté au micro (Web Speech / Whisper).
+  // "portal_text"         = portal client, saisi au clavier.
+  source?: "wizard" | "portal_voice" | "portal_text";
 }
 
 /* ─── Categories (8 SGI sectors) ────────────────────────────── */

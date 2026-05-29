@@ -1,0 +1,122 @@
+{
+  "brand": {
+    "name": "SGI",
+    "tagline": "Infinity International"
+  },
+  "header": {
+    "login": "Connexion",
+    "logout": "Déconnexion",
+    "backoffice": "Back Office"
+  },
+  "footer": {
+    "copyright": "© {{year}} SGI · Infinity International Facilities Management UAE"
+  },
+  "home": {
+    "title": "Espace Client & Fournisseur",
+    "subtitle": "Gérez vos biens, vos contrats, vos visites et vos commissions depuis une interface unifiée — UAE · multilingue AR · EN · FR.",
+    "clientCard": {
+      "kicker": "Pour les clients",
+      "title": "Trouvez votre bien",
+      "description": "Catalogue, favoris, demandes de visite, suivi de contrats & paiements, dossier Golden Visa.",
+      "cta": "Créer un compte client →"
+    },
+    "fournisseurCard": {
+      "kicker": "Pour les fournisseurs",
+      "title": "Travaillez avec SGI",
+      "description": "Soumettez vos biens, apportez des leads, proposez vos prestations & suivez vos commissions.",
+      "cta": "Devenir fournisseur →"
+    }
+  },
+  "login": {
+    "title": "Connexion",
+    "subtitle": "Espace Client & Fournisseur SGI",
+    "email": "Email",
+    "password": "Mot de passe",
+    "submit": "Se connecter",
+    "submitting": "Connexion…",
+    "becomeClient": "Devenir client",
+    "becomeFournisseur": "Devenir fournisseur",
+    "demoTitle": "Comptes de démonstration",
+    "demoClient": "Demo Client",
+    "demoFournisseur": "Demo Fournisseur",
+    "profileTitle": "Je suis…",
+    "profileSubtitle": "Choisissez votre type de compte pour continuer.",
+    "profileClient": "Client",
+    "profileClientDesc": "Vous cherchez ou suivez un bien immobilier.",
+    "profileFournisseur": "Fournisseur",
+    "profileFournisseurDesc": "Vous soumettez des biens, apportez des leads ou fournissez des prestations.",
+    "back": "← Changer de profil",
+    "companySlug": "Code de société",
+    "companySlugPlaceholder": "ex: infinity-uae",
+    "companySlugHint": "Ce code vous a été communiqué par SGI lors de l'enregistrement de votre société.",
+    "developedBy": "Développé par Infinity",
+    "versionLabel": "Version",
+    "callCenter": "Centre d'appels",
+    "needHelp": "Besoin d'aide ?",
+    "callUs": "Appelez-nous",
+    "available247": "Disponible 24h/24 · 7j/7",
+    "callAction": "Appeler",
+    "whatsappAction": "WhatsApp",
+    "followUs": "Suivez-nous",
+    "snapchatAction": "Snapchat",
+    "instagramAction": "Instagram",
+    "errors": {
+      "invalid_credentials": "Email ou mot de passe incorrect.",
+      "account_not_active": "Compte en attente de validation par un administrateur.",
+      "use_backoffice_portal": "Ce compte doit utiliser le backoffice.",
+      "company_required": "Code de société requis pour les fournisseurs.",
+      "company_mismatch": "Le code de société ne correspond pas à votre compte.",
+      "generic": "Connexion impossible. Réessayez."
+    }
+  },
+  "register": {
+    "clientTitle": "Créer un compte client",
+    "fournisseurTitle": "Devenir fournisseur",
+    "clientSubtitle": "Accédez au catalogue et suivez vos dossiers.",
+    "fournisseurSubtitle": "Soumettez biens & leads, suivez vos commissions.",
+    "fullName": "Nom complet",
+    "email": "Email",
+    "password": "Mot de passe",
+    "passwordHint": "Au moins 8 caractères.",
+    "companySlug": "Code société (slug)",
+    "companySlugPlaceholder": "ex: infinity-uae",
+    "submit": "Créer mon compte",
+    "submitting": "Envoi…",
+    "alreadyAccount": "Déjà un compte ?",
+    "loginLink": "Se connecter",
+    "success": {
+      "title": "Inscription envoyée",
+      "body": "Un administrateur SGI validera votre compte sous 24h. Vous recevrez un email dès activation.",
+      "back": "Retour à la connexion"
+    },
+    "errors": {
+      "email_already_registered": "Cet email est déjà utilisé.",
+      "company_not_found": "Code société inconnu.",
+      "generic": "Inscription impossible. Réessayez."
+    }
+  },
+  "shell": {
+    "clientSpace": "Espace Client",
+    "fournisseurSpace": "Espace Fournisseur",
+    "logout": "Déconnexion"
+  },
+  "common": {
+    "unavailable": "Données indisponibles",
+    "loading": "Chargement…",
+    "noData": "Aucun élément à afficher.",
+    "noSubject": "(sans sujet)"
+  },
+  "sitemap": {
+    "title": "Liens de l'application",
+    "subtitle": "Cartographie des URL utiles côté back-end, front-end client et back-office serveur.",
+    "demoAccounts": "Comptes de démonstration",
+    "demoNote": "Mot de passe : DemoPass!23 — Société : infinity-uae",
+    "backend": "Back-end (API FastAPI)",
+    "frontClient": "Front-end Client / Fournisseur (Portal)",
+    "frontServer": "Back-office serveur (Web Admin)",
+    "languages": "Langues supportées",
+    "open": "Ouvrir",
+    "copy": "Copier",
+    "copied": "Copié !"
+  }
+}

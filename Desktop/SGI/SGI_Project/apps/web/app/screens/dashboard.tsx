@@ -6,6 +6,7 @@ import {
   IcDownload, IcPlus, IcArrowUp, IcTrend,
 } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
+import { FavoritesPanel } from "@/components/favorites-panel";
 
 /* ─── Types ──────────────────────────────────────────────────────────── */
 type Period         = "week" | "month" | "quarter";
@@ -117,7 +118,7 @@ const ACT_LABEL: Record<ActivityFilter, L3> = {
 };
 
 /* ─── Screen ─────────────────────────────────────────────────────────── */
-export function ScreenDashboard() {
+export function ScreenDashboard({ onNavigate }: { onNavigate?: (screen: string) => void } = {}) {
   const t = useT();
   const { lang } = useLang();
   const bp = useBreakpoint();
@@ -172,6 +173,9 @@ export function ScreenDashboard() {
             </div>
           )}
         </div>
+
+        {/* ── Favorites quick-access ─────────────────────────────────── */}
+        <FavoritesPanel onNavigate={onNavigate} />
 
         {/* ── KPI row ────────────────────────────────────────────────── */}
         <div style={{ display: "grid", gridTemplateColumns: isMob ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: 16 }}>

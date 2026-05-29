@@ -74,6 +74,7 @@ export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7
 export const IcTravail   = () => <Ic><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M12 12h.01M2 12h20"/></Ic>;
 export const IcMarketing = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/><circle cx="19" cy="5" r="2"/><path d="M19 3v4M17 5h4"/></Ic>;
 export const IcNews      = () => <Ic><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></Ic>;
+export const IcCallCenter= () => <Ic><path d="M4 12a8 8 0 0 1 16 0"/><path d="M22 13v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2zM2 13v3a2 2 0 0 0 2 2h1v-7H4a2 2 0 0 0-2 2z"/><path d="M19 18v1a3 3 0 0 1-3 3h-3"/></Ic>;
 export const IcHamburger = () => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
     <path d="M4 6h16M4 12h16M4 18h16" />
@@ -139,6 +140,7 @@ export type NavKey =
   | "consultants" | "consultants_crm" | "consultants_news"
   | "admin" | "admin_crm" | "admin_news"
   | "travail" | "travail_crm" | "travail_news"
+  | "callcenter" | "callcenter_crm" | "callcenter_news"
   | "erp" | "workspace" | "audit"
   | "backoffice" | "hr" | "it" | "finance" | "marketing"
   | "report" | "parametres";
@@ -222,6 +224,13 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "travail",      icon: <IcTravail />, labelKey: "dash" },
       { key: "travail_crm",  icon: <IcCRM /> },
       { key: "travail_news", icon: <IcNews /> },
+    ],
+  },
+  { type: "group", id: "callcenter",  groupKey: "callcenter",  icon: <IcCallCenter />,
+    children: [
+      { key: "callcenter",      icon: <IcCallCenter />, labelKey: "dash" },
+      { key: "callcenter_crm",  icon: <IcCRM /> },
+      { key: "callcenter_news", icon: <IcNews /> },
     ],
   },
   { type: "group", id: "backoffice",   groupKey: "backoffice", icon: <IcBackOffice />,
@@ -324,13 +333,15 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
-      visa: t.nav_visa, travail: t.nav_travail,
+      visa: t.nav_visa, travail: t.nav_travail, callcenter: t.nav_callcenter,
       realestate_crm: t.nav_crm,  tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
       assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
       consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
+      callcenter_crm: t.nav_crm,
       realestate_news: t.nav_news, tourisme_news: t.nav_news, sante_news: t.nav_news,
       assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
       consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
+      callcenter_news: t.nav_news,
       erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
       backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, marketing: t.nav_marketing,
       report: t.nav_report, parametres: t.nav_parametres,

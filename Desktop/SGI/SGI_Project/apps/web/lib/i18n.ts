@@ -16,6 +16,7 @@ export type Translations = {
   nav_clients: string; nav_personne: string; nav_societe: string;
   nav_orders: string;
   nav_travail: string;
+  nav_callcenter: string;
   nav_erp: string; nav_workspace: string; nav_audit: string;
   nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_marketing: string;
   nav_news: string;
@@ -76,6 +77,7 @@ const ar: Translations = {
   nav_clients: "العملاء", nav_personne: "الأشخاص", nav_societe: "الشركات",
   nav_orders: "الطلبات",
   nav_travail: "التوظيف",
+  nav_callcenter: "مركز الاتصال",
   nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة",
   nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_marketing: "التسويق",
   nav_news: "الأخبار",
@@ -139,6 +141,7 @@ const en: Translations = {
   nav_clients: "Clients", nav_personne: "Individuals", nav_societe: "Companies",
   nav_orders: "Orders",
   nav_travail: "Employment",
+  nav_callcenter: "Call Center",
   nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit",
   nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
   nav_news: "News",
@@ -202,6 +205,7 @@ const fr: Translations = {
   nav_clients: "Clients", nav_personne: "Personnes", nav_societe: "Sociétés",
   nav_orders: "Commandes",
   nav_travail: "Travail",
+  nav_callcenter: "Call Center",
   nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit",
   nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
   nav_news: "Actualités",

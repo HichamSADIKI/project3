@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "submitProperty": "إضافة عقار",
+    "leads": "العملاء المحتملون",
+    "commissions": "العمولات",
+    "services": "خدماتي",
+    "profile": "الملف الشخصي"
+  },
+  "dashboard": {
+    "welcome": "مرحباً، {{name}}",
+    "subtitle": "مرحباً بك في بوابة شريك SGI الخاصة بك.",
+    "activeMandates": "التفويضات النشطة",
+    "pendingLeads": "العملاء المحتملون قيد المتابعة",
+    "convertedLeads": "العملاء المحوّلون",
+    "pendingSubmissions": "العروض قيد الانتظار",
+    "monthCommissionsAED": "عمولات هذا الشهر (درهم)",
+    "commissionsPendingHint": "للقبض",
+    "performance": "الأداء"
+  },
+  "submitProperty": {
+    "title": "عرض عقار",
+    "subtitle": "أرسل تفاصيل العقار وسيقوم وكيل SGI بالتواصل معك.",
+    "mySubmissions": "عروضي",
+    "empty": "لا توجد عروض بعد.",
+    "successMessage": "تم إرسال العرض — سيقوم وكيل SGI بمراجعته.",
+    "form": {
+      "title": "عنوان العقار",
+      "type": "النوع",
+      "district": "الحيّ",
+      "districtPlaceholder": "مرسى دبي",
+      "askingPrice": "السعر المطلوب (درهم)",
+      "bedrooms": "غرف النوم",
+      "contactPhone": "هاتف الاتصال",
+      "submit": "إرسال العرض",
+      "submitting": "جاري الإرسال…"
+    },
+    "types": {
+      "apartment": "شقة",
+      "villa": "فيلا",
+      "townhouse": "تاون هاوس",
+      "office": "مكتب",
+      "retail": "محل تجاري",
+      "land": "أرض"
+    }
+  },
+  "mandates": {
+    "active": "نشطة",
+    "expired": "منتهية",
+    "pendingApproval": "قيد الانتظار"
+  },
+  "leads": {
+    "title": "العملاء المحتملون",
+    "subtitle": "أحضر عملاء محتملين إلى SGI وتابع حالتهم.",
+    "empty": "لم يتم تقديم أي عميل محتمل بعد.",
+    "successMessage": "تم تسجيل العميل المحتمل.",
+    "cols": {
+      "prospect": "العميل المحتمل",
+      "contact": "جهة الاتصال",
+      "interest": "الاهتمام",
+      "budget": "الميزانية",
+      "status": "الحالة"
+    },
+    "form": {
+      "firstName": "الاسم الأول للعميل",
+      "lastName": "اسم العائلة",
+      "email": "البريد الإلكتروني",
+      "phone": "الهاتف",
+      "interest": "الاهتمام",
+      "budget": "الميزانية (درهم)",
+      "notes": "ملاحظات",
+      "submit": "تقديم العميل",
+      "submitting": "جاري الإرسال…"
+    },
+    "interest": {
+      "buy": "شراء",
+      "rent": "إيجار",
+      "golden_visa": "التأشيرة الذهبية",
+      "commercial": "تجاري"
+    },
+    "status": {
+      "new": "جديد",
+      "contacted": "تم التواصل",
+      "qualified": "مؤهَّل",
+      "converted": "محوَّل",
+      "lost": "مفقود"
+    }
+  },
+  "commissions": {
+    "totalDue": "إجمالي المستحق",
+    "totalPaid": "إجمالي المدفوع",
+    "thisMonth": "هذا الشهر",
+    "empty": "لا توجد عمولة لعرضها.",
+    "cols": {
+      "source": "المصدر",
+      "base": "الأساس",
+      "rate": "النسبة",
+      "commission": "العمولة",
+      "status": "الحالة",
+      "date": "التاريخ"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "payable": "مستحقة الدفع",
+      "paid": "مدفوعة",
+      "cancelled": "ملغاة"
+    }
+  },
+  "services": {
+    "subtitle": "الخدمات التي تقدّمها (كاتب عدل، بنك، تأمين، إلخ).",
+    "empty": "لا توجد خدمة بعد.",
+    "successMessage": "تم تسجيل الخدمة.",
+    "active": "نشطة",
+    "inactive": "غير نشطة",
+    "form": {
+      "type": "نوع الخدمة",
+      "title": "العنوان",
+      "description": "الوصف",
+      "fee": "الرسوم (درهم)",
+      "submit": "إضافة الخدمة",
+      "submitting": "جاري الإرسال…"
+    },
+    "types": {
+      "notary": "كاتب العدل",
+      "bank": "بنك",
+      "insurance": "تأمين",
+      "legal": "قانوني",
+      "translation": "ترجمة",
+      "valuation": "تقييم",
+      "other": "أخرى"
+    }
+  }
+}

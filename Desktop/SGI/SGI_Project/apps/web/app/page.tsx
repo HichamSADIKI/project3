@@ -19,6 +19,7 @@ import { ScreenRealEstate } from "./screens/real-estate";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
+import { ScreenCallCenter } from "./screens/callcenter";
 import { ScreenFinance } from "./screens/finance";
 import { ScreenReports } from "./screens/reports";
 import { ScreenERP } from "./screens/erp";
@@ -45,10 +46,10 @@ type ScreenKey =
   | "dash" | "prop" | "crm" | "orders" | "contract" | "rental"
   | "realestate" | "admin" | "travail"
   | "realestate_crm" | "tourisme_crm" | "sante_crm" | "assurance_crm"
-  | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm"
+  | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "realestate_news" | "tourisme_news" | "sante_news" | "assurance_news"
-  | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news"
-  | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants"
+  | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
+  | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "visa" | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
   | "finance" | "marketing" | "report" | "parametres"
   | "clients" | "personne" | "societe";
@@ -65,7 +66,7 @@ type ScreenProps = {
 
 const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode> = {
   // Core screens
-  "dash":        (_)  => <ScreenDashboard />,
+  "dash":        (p)  => <ScreenDashboard onNavigate={p.onNavigate} />,
   "prop":        (_)  => <ScreenProperties />,
   "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} />,
   "orders":      (_)  => <ScreenOrders />,
@@ -85,6 +86,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "consultants_crm": (p) => <ScreenSectorCRM sector="consultants" confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
   "admin_crm":       (p) => <ScreenSectorCRM sector="admin"       confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
   "travail_crm":     (p) => <ScreenSectorCRM sector="travail"     confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
+  "callcenter_crm":  (p) => <ScreenSectorCRM sector="callcenter"  confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
 
   // Sector News screens
   "realestate_news":  (_) => <ScreenSectorNews sector="realestate" />,
@@ -96,6 +98,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "consultants_news": (_) => <ScreenSectorNews sector="consultants" />,
   "admin_news":       (_) => <ScreenSectorNews sector="admin" />,
   "travail_news":     (_) => <ScreenSectorNews sector="travail" />,
+  "callcenter_news":  (_) => <ScreenSectorNews sector="callcenter" />,
 
   // Sector home screens
   "tourisme":    (_) => <ScreenTourisme />,
@@ -104,6 +107,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "banques":     (_) => <ScreenBanques />,
   "amazon":      (_) => <ScreenAmazon />,
   "consultants": (_) => <ScreenConsultants />,
+  "callcenter":  (_) => <ScreenCallCenter />,
 
   // Back-office & tools
   "visa":       (_)  => <ScreenGoldenVisa />,

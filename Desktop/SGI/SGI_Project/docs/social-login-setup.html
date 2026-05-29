@@ -1,0 +1,405 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<title>SGI Mobile — Activation Social Login</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Helvetica Neue", Arial, sans-serif;
+    color: #0F172A;
+    font-size: 11pt;
+    line-height: 1.55;
+    background: #fff;
+  }
+
+  /* ── Cover header ─────────────────────────────────────────────── */
+  .cover {
+    background: linear-gradient(135deg, #161B22 0%, #2A1F0F 100%);
+    color: #fff;
+    padding: 22mm 14mm 16mm;
+    margin: -18mm -16mm 10mm;
+    border-radius: 0 0 8px 8px;
+  }
+  .brand-line {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 10pt; letter-spacing: 3px; text-transform: uppercase;
+    color: #B8924F; margin-bottom: 8mm;
+  }
+  .brand-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: rgba(184,146,79,0.18);
+    border: 1px solid rgba(184,146,79,0.5);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 16pt; color: #B8924F;
+  }
+  .cover h1 {
+    font-size: 26pt; margin: 0 0 4mm; font-weight: 800;
+    letter-spacing: -0.3pt;
+  }
+  .cover .sub {
+    font-size: 12pt; color: #CBD5E1; margin: 0;
+  }
+  .cover .meta {
+    margin-top: 8mm; font-size: 9pt; color: #94A3B8;
+    display: flex; gap: 18px; flex-wrap: wrap;
+  }
+  .cover .meta span b { color: #E2E8F0; font-weight: 600; }
+
+  /* ── TOC ──────────────────────────────────────────────────────── */
+  .toc {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 6px;
+    padding: 5mm 7mm;
+    margin-bottom: 8mm;
+  }
+  .toc h3 {
+    margin: 0 0 3mm; font-size: 9pt; letter-spacing: 2px;
+    color: #64748B; text-transform: uppercase;
+  }
+  .toc ol { margin: 0; padding-left: 18px; }
+  .toc li { padding: 1px 0; font-size: 10.5pt; }
+  .toc li::marker { color: #B8924F; font-weight: 700; }
+
+  /* ── Section / steps ──────────────────────────────────────────── */
+  section { page-break-inside: avoid; margin-bottom: 8mm; }
+  .step {
+    border-left: 3px solid #B8924F;
+    padding: 4mm 6mm 4mm 7mm;
+    margin: 6mm 0;
+    background: #FFFDF8;
+    border-radius: 0 4px 4px 0;
+  }
+  .step .num {
+    display: inline-block;
+    background: #B8924F; color: #fff;
+    font-weight: 800; font-size: 10pt;
+    padding: 2px 9px; border-radius: 12px;
+    margin-bottom: 3mm;
+  }
+  .step h2 {
+    font-size: 14pt; margin: 0 0 3mm;
+    color: #0F172A; font-weight: 700;
+  }
+  .step p { margin: 0 0 2mm; }
+  .step ul, .step ol { margin: 2mm 0 3mm 5mm; padding: 0; }
+  .step li { margin-bottom: 1.5mm; }
+
+  .why {
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 4px;
+    padding: 3mm 4mm;
+    margin: 3mm 0;
+    font-size: 10pt; color: #1E3A8A;
+  }
+  .why b { color: #1E40AF; }
+
+  .warn {
+    background: #FEF3C7;
+    border: 1px solid #FCD34D;
+    border-radius: 4px;
+    padding: 3mm 4mm;
+    margin: 3mm 0;
+    font-size: 10pt; color: #92400E;
+  }
+  .warn b { color: #B45309; }
+
+  code, .code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 9.5pt;
+    background: #F1F5F9;
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: #B8924F;
+  }
+  pre {
+    background: #0F172A; color: #E2E8F0;
+    border-radius: 5px;
+    padding: 4mm 5mm;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 9pt; line-height: 1.45;
+    overflow-x: auto;
+    margin: 3mm 0;
+  }
+  pre .c1 { color: #94A3B8; }       /* comment */
+  pre .k  { color: #B8924F; }       /* keyword */
+  pre .s  { color: #86EFAC; }       /* string */
+
+  h3.section-title {
+    font-size: 12pt; margin: 8mm 0 4mm;
+    color: #B8924F; font-weight: 800;
+    letter-spacing: 1px; text-transform: uppercase;
+    border-bottom: 1px solid #E2E8F0; padding-bottom: 2mm;
+  }
+
+  table.creds {
+    width: 100%; border-collapse: collapse;
+    margin: 4mm 0; font-size: 10pt;
+  }
+  table.creds th, table.creds td {
+    border: 1px solid #E2E8F0;
+    padding: 3mm 4mm; text-align: left;
+    vertical-align: top;
+  }
+  table.creds th {
+    background: #F1F5F9; font-weight: 700;
+    color: #475569;
+  }
+  table.creds code { font-size: 8.5pt; }
+
+  .checklist { list-style: none; padding-left: 0; margin: 3mm 0; }
+  .checklist li {
+    padding: 2mm 0 2mm 8mm; position: relative;
+    border-bottom: 1px dashed #E2E8F0;
+  }
+  .checklist li:before {
+    content: "☐"; position: absolute; left: 0; top: 1.5mm;
+    color: #B8924F; font-size: 13pt; font-weight: 700;
+  }
+  .checklist li:last-child { border-bottom: none; }
+
+  footer {
+    margin-top: 12mm; padding-top: 4mm;
+    border-top: 1px solid #E2E8F0;
+    font-size: 9pt; color: #64748B;
+    text-align: center;
+  }
+  footer b { color: #B8924F; }
+
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<div class="cover">
+  <div class="brand-line">
+    <span class="brand-mark">∞</span>
+    SGI · Infinity International UAE
+  </div>
+  <h1>Activer la connexion sociale</h1>
+  <p class="sub">Google · Apple — Guide pas à pas pour aller du code prêt à la production</p>
+  <div class="meta">
+    <span><b>App :</b> SGI Mobile (Expo SDK 51)</span>
+    <span><b>Bundle iOS :</b> com.infinity-uae.sgi</span>
+    <span><b>Package Android :</b> com.infinityuae.sgi</span>
+  </div>
+</div>
+
+<div class="toc">
+  <h3>Sommaire</h3>
+  <ol>
+    <li>Vérifier que le code est prêt (rien à faire, déjà fait)</li>
+    <li>Créer les identifiants Google (Google Cloud Console)</li>
+    <li>Activer Sign in with Apple (Apple Developer)</li>
+    <li>Coller les clés dans le fichier <code>.env</code></li>
+    <li>Compiler une <i>dev build</i> EAS (Expo Go ne suffit pas)</li>
+    <li>Tester sur ton iPhone et ton Android</li>
+    <li>Activer côté backend (à faire par l'équipe API)</li>
+  </ol>
+</div>
+
+<!-- ── STEP 1 ──────────────────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 1</span>
+  <h2>Le code est déjà prêt</h2>
+  <p>L'application sait déjà parler à Google et à Apple. Tu n'as <b>rien à coder</b>. Tu dois juste fournir les « clés » des deux fournisseurs pour que l'app puisse se présenter chez eux.</p>
+  <div class="why"><b>Pourquoi :</b> ces clés (Client IDs / Services IDs) sont des identités numériques. Apple et Google ne te font pas confiance tant que tu n'as pas créé une identité reconnue de leur côté.</div>
+</div>
+</section>
+
+<!-- ── STEP 2 — GOOGLE ────────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 2</span>
+  <h2>Créer les identifiants Google</h2>
+  <p>Rends-toi sur <code>https://console.cloud.google.com/</code> et connecte-toi avec le compte Google de l'entreprise.</p>
+
+  <ol>
+    <li><b>Créer un projet</b> : menu en haut « Sélectionner un projet » → <i>Nouveau projet</i> → nom <code>SGI Mobile</code>.</li>
+    <li><b>Écran de consentement OAuth</b> : menu de gauche → <i>APIs et services</i> → <i>Écran de consentement OAuth</i>.
+      <ul>
+        <li>Type d'utilisateur : <b>Externe</b></li>
+        <li>Nom de l'application : <code>SGI — Infinity International</code></li>
+        <li>Email du support : ton email</li>
+        <li>Domaine autorisé : ton domaine (ex. <code>infinity-uae.com</code>)</li>
+      </ul>
+    </li>
+    <li><b>Créer 3 OAuth Client IDs</b> : menu de gauche → <i>Identifiants</i> → <i>Créer des identifiants</i> → <i>ID client OAuth</i>. Recommence 3 fois :</li>
+  </ol>
+
+  <table class="creds">
+    <tr><th style="width:20%">Type</th><th>À renseigner</th><th>Variable .env</th></tr>
+    <tr>
+      <td><b>iOS</b></td>
+      <td>Bundle ID : <code>com.infinity-uae.sgi</code></td>
+      <td><code>EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID</code></td>
+    </tr>
+    <tr>
+      <td><b>Android</b></td>
+      <td>
+        Nom du package : <code>com.infinityuae.sgi</code><br>
+        Empreinte SHA-1 : ouvre un terminal et fais<br>
+        <code>eas credentials</code> puis copie le SHA-1
+      </td>
+      <td><code>EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID</code></td>
+    </tr>
+    <tr>
+      <td><b>Web</b></td>
+      <td>Origines JavaScript autorisées : laisser vide<br>URI de redirection autorisée : <code>https://auth.expo.io/@&lt;ton-username-expo&gt;/sgi-mobile</code></td>
+      <td><code>EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID</code></td>
+    </tr>
+  </table>
+
+  <div class="warn"><b>Important :</b> garde la fenêtre ouverte — chaque création te donne un long <i>Client ID</i> qui finit par <code>.apps.googleusercontent.com</code>. C'est lui qu'il faut copier.</div>
+</div>
+</section>
+
+<!-- ── STEP 3 — APPLE ─────────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 3</span>
+  <h2>Activer Sign in with Apple</h2>
+  <p>Rends-toi sur <code>https://developer.apple.com/account/</code> avec ton compte Apple Developer (compte payant 99 USD/an obligatoire).</p>
+
+  <ol>
+    <li><b>App ID</b> : <i>Certificates, IDs &amp; Profiles</i> → <i>Identifiers</i> → trouve <code>com.infinity-uae.sgi</code> (ou crée-le).
+      <ul>
+        <li>Coche <b>Sign In with Apple</b> dans la liste des Capabilities</li>
+        <li>Clique <i>Save</i></li>
+      </ul>
+    </li>
+    <li><b>Service ID</b> (pour le backend) :
+      <ul>
+        <li>Onglet <i>Identifiers</i> → <i>+</i> → <i>Services IDs</i></li>
+        <li>Description : <code>SGI Backend</code></li>
+        <li>Identifier : <code>com.infinity-uae.sgi.web</code></li>
+        <li>Coche <i>Sign In with Apple</i> → <i>Configure</i></li>
+        <li>Primary App ID : <code>com.infinity-uae.sgi</code></li>
+        <li>Return URLs : URL backend, ex. <code>https://api.sgi-uae.com/api/v1/auth/social/apple/callback</code></li>
+      </ul>
+    </li>
+    <li><b>Clé privée</b> (pour signer côté backend) :
+      <ul>
+        <li>Onglet <i>Keys</i> → <i>+</i></li>
+        <li>Key Name : <code>SGI Sign in with Apple</code></li>
+        <li>Coche <i>Sign In with Apple</i> → <i>Configure</i> → choisis l'App ID</li>
+        <li>Télécharge le fichier <code>.p8</code> — <b>tu ne pourras le télécharger qu'une seule fois !</b></li>
+        <li>Note le <b>Key ID</b> (10 caractères) et ton <b>Team ID</b> (visible en haut à droite)</li>
+      </ul>
+    </li>
+  </ol>
+
+  <div class="warn"><b>À transmettre au backend :</b> le fichier <code>.p8</code>, le Key ID, le Team ID et le Services ID. Ces 4 valeurs serviront à vérifier que les utilisateurs viennent vraiment d'Apple.</div>
+</div>
+</section>
+
+<!-- ── STEP 4 — .env ──────────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 4</span>
+  <h2>Coller les clés dans le fichier <code>.env</code></h2>
+  <p>Dans le dossier <code>apps/mobile/</code>, ouvre (ou crée) le fichier <code>.env</code> et complète :</p>
+
+  <pre><span class="c1"># API</span>
+<span class="k">EXPO_PUBLIC_API_URL</span>=<span class="s">https://api.sgi-uae.com/api/v1</span>
+<span class="k">EXPO_PUBLIC_APP_ENV</span>=<span class="s">production</span>
+
+<span class="c1"># Google OAuth — coller les 3 Client IDs récupérés à l'étape 2</span>
+<span class="k">EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID</span>=<span class="s">1234-xxx.apps.googleusercontent.com</span>
+<span class="k">EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID</span>=<span class="s">1234-yyy.apps.googleusercontent.com</span>
+<span class="k">EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID</span>=<span class="s">1234-zzz.apps.googleusercontent.com</span></pre>
+
+  <div class="why"><b>Apple :</b> rien à mettre dans <code>.env</code> côté mobile — la config Apple est dans <code>app.json</code> (<code>usesAppleSignIn: true</code>, déjà fait). Les 4 valeurs Apple (Key ID, Team ID, Services ID, fichier .p8) vont uniquement côté backend.</div>
+</div>
+</section>
+
+<!-- ── STEP 5 — EAS BUILD ─────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 5</span>
+  <h2>Compiler une <i>dev build</i> EAS</h2>
+  <p>L'application Expo Go classique <b>ne peut pas</b> tester Sign in with Apple — c'est une limitation Apple. Il faut générer une vraie build qui s'installe sur ton téléphone.</p>
+
+  <pre><span class="c1"># 1. Installe le CLI EAS (une seule fois)</span>
+<span class="k">npm</span> install -g eas-cli
+
+<span class="c1"># 2. Connecte-toi à ton compte Expo</span>
+<span class="k">eas</span> login
+
+<span class="c1"># 3. Lance la build (depuis apps/mobile/)</span>
+<span class="k">cd</span> apps/mobile
+<span class="k">eas</span> build --profile development --platform ios
+<span class="k">eas</span> build --profile development --platform android</pre>
+
+  <p>EAS te donne un lien — ouvre-le sur ton téléphone, installe, puis lance <code>npx expo start --dev-client</code> pour te connecter.</p>
+
+  <div class="warn"><b>Astuce :</b> la première build prend 10–20 minutes. Les suivantes sont plus rapides. Tu n'as besoin de re-builder que si tu changes les <i>plugins</i> ou les <i>credentials natifs</i>.</div>
+</div>
+</section>
+
+<!-- ── STEP 6 — TESTER ────────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 6</span>
+  <h2>Tester sur tes appareils</h2>
+  <ul class="checklist">
+    <li>Ouvrir l'app sur un iPhone — le bouton <b>Apple</b> (noir) doit apparaître</li>
+    <li>Cliquer sur Apple → l'écran natif iOS s'ouvre → choisir email → un JWT est envoyé au backend</li>
+    <li>Ouvrir l'app sur un Android — le bouton Apple est masqué automatiquement, Google reste visible</li>
+    <li>Cliquer sur Google → un onglet Chrome/Safari s'ouvre → choisir compte → retour à l'app</li>
+    <li>Vérifier que la modale de sécurité s'affiche après la connexion (rappels confidentialité)</li>
+    <li>Vérifier les tabs : seuls les modules choisis dans « Options avancées » doivent apparaître</li>
+  </ul>
+
+  <div class="why"><b>Si Google échoue avec 501 :</b> normal tant que l'étape 7 (backend) n'est pas faite. Le côté mobile remonte bien le <code>id_token</code> mais le backend ne sait pas encore le valider.</div>
+</div>
+</section>
+
+<!-- ── STEP 7 — BACKEND ───────────────────────────────────────── -->
+<section>
+<div class="step">
+  <span class="num">Étape 7</span>
+  <h2>Activer côté backend (équipe API)</h2>
+  <p>Le mobile envoie déjà <code>POST /api/v1/auth/social</code> avec <code>{ provider, id_token }</code>. Le backend retourne actuellement <code>501</code>. Pour activer :</p>
+
+  <ol>
+    <li><b>Google :</b> vérifier le JWT via <code>https://www.googleapis.com/oauth2/v3/certs</code> (JWKS). Audience doit matcher l'un des 3 Client IDs.</li>
+    <li><b>Apple :</b> vérifier le JWT via <code>https://appleid.apple.com/auth/keys</code>. Audience = Services ID.</li>
+    <li><b>Lookup utilisateur :</b> chercher par <code>email</code> issu du token. Si inconnu → créer en <code>status=pending</code> (workflow d'approbation admin existant).</li>
+    <li><b>Émission JWT SGI :</b> appeler <code>encode_jwt(...)</code> comme dans le login classique, retourner <code>TokenResponse</code>.</li>
+  </ol>
+
+  <p>Fichier à modifier : <code>apps/api/app/routers/auth/router.py</code>, fonction <code>social_login()</code>.</p>
+</div>
+</section>
+
+<!-- ── CHECKLIST FINALE ──────────────────────────────────────── -->
+<section>
+<h3 class="section-title">Checklist finale</h3>
+<ul class="checklist">
+  <li>Projet Google Cloud créé + écran de consentement configuré</li>
+  <li>3 OAuth Client IDs Google (iOS, Android, Web) récupérés</li>
+  <li>Apple Sign In activé sur l'App ID</li>
+  <li>Services ID Apple créé + Key ID + Team ID notés</li>
+  <li>Fichier <code>.p8</code> téléchargé et transmis au backend (en sécurité)</li>
+  <li>Variables <code>EXPO_PUBLIC_GOOGLE_*</code> remplies dans <code>apps/mobile/.env</code></li>
+  <li>EAS dev build iOS installée sur l'iPhone de test</li>
+  <li>EAS dev build Android installée sur le smartphone Android de test</li>
+  <li>Backend <code>/auth/social</code> remplacé (501 → vérification JWKS)</li>
+  <li>Test bout-en-bout réussi : Google iPhone, Google Android, Apple iPhone</li>
+</ul>
+</section>
+
+<footer>
+<b>SGI — Infinity International Facilities Management UAE</b><br>
+Document généré pour faciliter la mise en production du social login.<br>
+En cas de blocage, vérifier que les <code>EXPO_PUBLIC_GOOGLE_*_CLIENT_ID</code> sont bien chargés (<code>npx expo start</code> imprime <i>env: load .env</i>).
+</footer>
+
+</body>
+</html>

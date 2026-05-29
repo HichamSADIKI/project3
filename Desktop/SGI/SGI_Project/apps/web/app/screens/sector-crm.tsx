@@ -16,7 +16,8 @@ function IcEdit()  { return <svg width={14} height={14} viewBox="0 0 24 24" fill
 /* ─── Sector config ──────────────────────────────────────────────────── */
 export type Sector =
   | "realestate" | "tourisme" | "sante" | "assurance"
-  | "banques" | "amazon" | "consultants" | "admin" | "travail";
+  | "banques" | "amazon" | "consultants" | "admin" | "travail"
+  | "callcenter";
 
 type PipelineStage = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
 
@@ -91,6 +92,13 @@ const SECTORS: Record<Sector, SectorMeta> = {
     services_fr: ["Recrutement cadre", "Placement temporaire", "Chasseur de tête", "Audit RH", "Formation", "Outplacement"],
     budgetRange: [10000, 120000],
   },
+  callcenter: {
+    label: "Call Center", label_ar: "مركز الاتصال", label_fr: "Call Center", color: "#0D9488",
+    services_en: ["Inbound support", "Outbound campaigns", "Lead qualification", "Appointment setting", "After-sales follow-up", "Customer surveys"],
+    services_ar: ["دعم وارد", "حملات صادرة", "تأهيل العملاء المحتملين", "تحديد المواعيد", "متابعة ما بعد البيع", "استطلاعات العملاء"],
+    services_fr: ["Support entrant", "Campagnes sortantes", "Qualification de leads", "Prise de rendez-vous", "Suivi après-vente", "Enquêtes client"],
+    budgetRange: [5000, 80000],
+  },
 };
 
 const STAGE_CFG: Record<PipelineStage, { label_fr: string; label_ar: string; label_en: string; color: string; bg: string }> = {
@@ -121,6 +129,8 @@ interface Lead {
   score: number; agent: string; date: string;
   phone: string; email: string; notes: string;
   isFromClient?: boolean;
+  // Canal d'origine — utilisé pour différencier voix/écrit sur les deals portal.
+  source?: "wizard" | "portal_voice" | "portal_text";
 }
 
 /* ─── Mock generators ────────────────────────────────────────────────── */
@@ -153,7 +163,15 @@ function dealToLead(d: ConfirmedDeal): Lead {
     agent: d.clientAgent, date: d.date,
     phone: "—", email: "—", notes: d.notes || "",
     isFromClient: true,
+    source: d.source ?? "wizard",
   };
+}
+
+// Pictogramme de canal pour les deals venus du portal (voix vs écrit).
+function sourceIcon(s: Lead["source"]): string | null {
+  if (s === "portal_voice") return "🎤";
+  if (s === "portal_text") return "✍️";
+  return null;
 }
 
 const fmt = (n: number) => new Intl.NumberFormat("en-AE", { notation: n >= 1_000_000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(n);
@@ -651,6 +669,7 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
                       >
                         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                           <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{l.flag} {l.name}</span>
+                          {sourceIcon(l.source) && <span title={l.source} style={{ fontSize: 11 }}>{sourceIcon(l.source)}</span>}
                           {l.isFromClient && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 999, background: meta.color, color: "#fff" }}>CLIENT</span>}
                         </div>
                         <div style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{l.service}</div>
@@ -718,6 +737,7 @@ export function ScreenSectorCRM({ sector, confirmedDeals = [], onNavigateToClien
                           <div>
                             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                               <span style={{ fontWeight: 600, fontSize: 13, color: "var(--ink)" }}>{lead.name}</span>
+                              {sourceIcon(lead.source) && <span title={lead.source} style={{ fontSize: 12 }}>{sourceIcon(lead.source)}</span>}
                               {lead.isFromClient && <span style={{ fontSize: 9.5, fontWeight: 700, padding: "1px 6px", borderRadius: 999, background: meta.color, color: "#fff" }}>CLIENT</span>}
                             </div>
                             <div style={{ fontSize: 11, color: "var(--ink-4)" }}>{lead.id}</div>

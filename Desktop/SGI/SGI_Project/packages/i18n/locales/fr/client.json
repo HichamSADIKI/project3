@@ -1,0 +1,114 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "search": "Rechercher",
+    "favorites": "Favoris",
+    "contracts": "Mes contrats",
+    "payments": "Mes paiements",
+    "rentals": "Mes locations",
+    "goldenVisa": "Golden Visa",
+    "messages": "Messagerie",
+    "visits": "Visites",
+    "newNeed": "Exprimer un besoin",
+    "profile": "Profil"
+  },
+  "dashboard": {
+    "welcome": "Bienvenue, {{name}}",
+    "subtitle": "Bienvenue dans votre espace client SGI.",
+    "myFavorites": "Mes biens favoris",
+    "upcomingPayments": "Paiements à venir",
+    "activeContracts": "Contrats actifs",
+    "scheduledVisits": "Visites planifiées",
+    "unreadMessages": "Messages non lus",
+    "unreadHint": "non lus"
+  },
+  "favorites": {
+    "empty": "Aucun favori pour le moment",
+    "add": "Ajouter aux favoris",
+    "remove": "Retirer des favoris",
+    "cols": {
+      "propertyId": "Identifiant du bien",
+      "addedOn": "Ajouté le"
+    }
+  },
+  "visits": {
+    "request": "Demander une visite",
+    "preferredDate": "Date souhaitée",
+    "preferredTime": "Créneau",
+    "submit": "Envoyer la demande",
+    "empty": "Aucune visite planifiée pour le moment.",
+    "propertyLabel": "Bien",
+    "status": {
+      "pending": "En attente",
+      "confirmed": "Confirmée",
+      "done": "Effectuée",
+      "cancelled": "Annulée",
+      "no_show": "Absence"
+    }
+  },
+  "messages": {
+    "empty": "Aucun message.",
+    "unread": "Non lu"
+  },
+  "profile": {
+    "title": "Mon profil",
+    "subtitle": "Vos informations personnelles sont synchronisées avec votre conseiller SGI.",
+    "section": {
+      "identity": "Identité",
+      "contact": "Coordonnées",
+      "preferences": "Préférences immobilières"
+    },
+    "field": {
+      "firstName": "Prénom",
+      "lastName": "Nom",
+      "companyName": "Société (optionnel)",
+      "email": "Email",
+      "emailLocked": "Pour changer votre email, contactez votre conseiller.",
+      "phone": "Téléphone",
+      "phone2": "Téléphone secondaire",
+      "nationality": "Nationalité",
+      "countryOfResidence": "Pays de résidence",
+      "budgetMin": "Budget minimum (AED)",
+      "budgetMax": "Budget maximum (AED)",
+      "preferredPropertyType": "Type de bien recherché",
+      "preferredLocation": "Quartier / zone souhaitée"
+    },
+    "submit": "Enregistrer les modifications",
+    "submitting": "Enregistrement…",
+    "success": "Profil mis à jour. Vos informations sont visibles par votre conseiller.",
+    "errorGeneric": "Impossible d'enregistrer. Réessayez."
+  },
+  "need": {
+    "title": "Exprimer un besoin",
+    "subtitle": "Décrivez votre besoin librement ou dictez-le au micro. Notre IA crée automatiquement votre demande dans le bon secteur (immobilier, tourisme, santé, etc.) et un conseiller vous rappelle.",
+    "textareaLabel": "Votre besoin",
+    "textareaPlaceholder": "Ex : Je cherche un appartement 2 chambres à Dubai Marina, budget 2,5M AED, pour habitation principale, Golden Visa souhaité…",
+    "micStart": "Démarrer la dictée",
+    "micStop": "Arrêter la dictée",
+    "micUnsupported": "Votre navigateur ne supporte ni la dictée vocale ni l'enregistrement. Veuillez taper votre besoin.",
+    "listening": "Écoute en cours…",
+    "transcribing": "Transcription de l'audio…",
+    "categoryLabel": "Catégorie (optionnel)",
+    "categoryAuto": "Laisser l'IA décider",
+    "submit": "Envoyer mon besoin",
+    "submitting": "Analyse en cours…",
+    "success": "Votre besoin a été enregistré",
+    "errorEmpty": "Veuillez décrire votre besoin.",
+    "errorTooShort": "Votre besoin doit comporter au moins 15 caractères.",
+    "errorGeneric": "Une erreur est survenue. Veuillez réessayer.",
+    "errorNotLinked": "Votre compte n'est pas encore lié à une fiche client. Contactez votre conseiller.",
+    "errorMicDenied": "Accès au micro refusé. Autorisez le micro dans les réglages de votre navigateur.",
+    "errorTooLargeAudio": "L'enregistrement est trop long (max 5 Mo). Essayez un message plus court.",
+    "errorWhisperUnavailable": "Le service de transcription est indisponible. Veuillez taper votre besoin.",
+    "errorEmptyTranscript": "Aucun texte détecté. Réessayez en parlant plus près du micro.",
+    "parsedTitle": "Analyse de votre demande",
+    "parsedCategory": "Catégorie",
+    "parsedBudget": "Budget",
+    "parsedLocation": "Localisation",
+    "parsedUrgency": "Urgence",
+    "parsedConfidence": "Confiance IA :",
+    "viewDeal": "Retour à mon espace",
+    "newOne": "Exprimer un autre besoin",
+    "charsCount": "caractères"
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "search": "Search",
+    "favorites": "Favorites",
+    "contracts": "My contracts",
+    "payments": "My payments",
+    "rentals": "My rentals",
+    "goldenVisa": "Golden Visa",
+    "messages": "Messages",
+    "visits": "Visits",
+    "newNeed": "Submit a need",
+    "profile": "Profile"
+  },
+  "dashboard": {
+    "welcome": "Welcome, {{name}}",
+    "subtitle": "Welcome to your SGI client portal.",
+    "myFavorites": "My favorite properties",
+    "upcomingPayments": "Upcoming payments",
+    "activeContracts": "Active contracts",
+    "scheduledVisits": "Scheduled visits",
+    "unreadMessages": "Unread messages",
+    "unreadHint": "unread"
+  },
+  "favorites": {
+    "empty": "No favorites yet",
+    "add": "Add to favorites",
+    "remove": "Remove from favorites",
+    "cols": {
+      "propertyId": "Property ID",
+      "addedOn": "Added on"
+    }
+  },
+  "visits": {
+    "request": "Request a visit",
+    "preferredDate": "Preferred date",
+    "preferredTime": "Time slot",
+    "submit": "Send request",
+    "empty": "No visit planned yet.",
+    "propertyLabel": "Property",
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "done": "Done",
+      "cancelled": "Cancelled",
+      "no_show": "No show"
+    }
+  },
+  "messages": {
+    "empty": "No messages.",
+    "unread": "Unread"
+  },
+  "profile": {
+    "title": "My profile",
+    "subtitle": "Your personal information stays in sync with your SGI advisor.",
+    "section": {
+      "identity": "Identity",
+      "contact": "Contact",
+      "preferences": "Property preferences"
+    },
+    "field": {
+      "firstName": "First name",
+      "lastName": "Last name",
+      "companyName": "Company (optional)",
+      "email": "Email",
+      "emailLocked": "To change your email, please contact your advisor.",
+      "phone": "Phone",
+      "phone2": "Secondary phone",
+      "nationality": "Nationality",
+      "countryOfResidence": "Country of residence",
+      "budgetMin": "Minimum budget (AED)",
+      "budgetMax": "Maximum budget (AED)",
+      "preferredPropertyType": "Property type sought",
+      "preferredLocation": "Preferred area / location"
+    },
+    "submit": "Save changes",
+    "submitting": "Saving…",
+    "success": "Profile updated. Your advisor can see your information.",
+    "errorGeneric": "Could not save. Please try again."
+  },
+  "need": {
+    "title": "Submit a need",
+    "subtitle": "Describe your need in plain words or dictate it. Our AI routes your request to the right sector (real estate, tourism, health, etc.) and an advisor will get back to you.",
+    "textareaLabel": "Your need",
+    "textareaPlaceholder": "E.g. Looking for a 2-bedroom apartment in Dubai Marina, budget 2.5M AED, primary residence, Golden Visa wanted…",
+    "micStart": "Start dictation",
+    "micStop": "Stop dictation",
+    "micUnsupported": "Your browser supports neither voice dictation nor audio recording. Please type your need.",
+    "listening": "Listening…",
+    "transcribing": "Transcribing audio…",
+    "categoryLabel": "Category (optional)",
+    "categoryAuto": "Let the AI decide",
+    "submit": "Send my need",
+    "submitting": "Analyzing…",
+    "success": "Your need has been registered",
+    "errorEmpty": "Please describe your need.",
+    "errorTooShort": "Your need must be at least 15 characters long.",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "errorNotLinked": "Your account is not linked to a client record yet. Contact your advisor.",
+    "errorMicDenied": "Microphone access denied. Allow it from your browser settings.",
+    "errorTooLargeAudio": "Recording is too long (max 5 MB). Try a shorter message.",
+    "errorWhisperUnavailable": "Transcription service is unavailable. Please type your need.",
+    "errorEmptyTranscript": "No speech detected. Try again closer to the microphone.",
+    "parsedTitle": "Request analysis",
+    "parsedCategory": "Category",
+    "parsedBudget": "Budget",
+    "parsedLocation": "Location",
+    "parsedUrgency": "Urgency",
+    "parsedConfidence": "AI confidence:",
+    "viewDeal": "Back to my portal",
+    "newOne": "Submit another need",
+    "charsCount": "characters"
+  }
+}

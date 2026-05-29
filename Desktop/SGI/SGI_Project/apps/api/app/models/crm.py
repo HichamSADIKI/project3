@@ -46,6 +46,13 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="new")
     source: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
+    # Secteur métier — route le lead vers le pipeline sectoriel correspondant.
+    # Valeurs autorisées : realestate, tourisme, sante, assurance, banques,
+    # amazon, consultants, admin, travail (cf. migration 0007).
+    category: Mapped[str] = mapped_column(
+        String(30), nullable=False, default="realestate"
+    )
+
     # Budget AED
     budget: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 

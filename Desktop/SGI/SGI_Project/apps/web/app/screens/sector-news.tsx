@@ -398,6 +398,23 @@ const NEWS: Record<Sector, NewsArticle[]> = {
       body_fr: "La croissance salariale aux EAU a moyenné 8,5% en 2026, dépassant la moyenne régionale de 6,2%. Les professionnels tech ont reçu les plus fortes hausses (14-18%), notamment ceux avec des compétences IA/ML, cybersécurité et architecture cloud.",
     },
   ],
+  callcenter: [
+    {
+      id: "cc-001",
+      date: "2026-05-22",
+      source: "Khaleej Times",
+      tag: "Market",
+      title_en: "UAE BPO market crosses AED 3.1 billion as contact-centre outsourcing accelerates",
+      title_ar: "سوق الاستعانة بمصادر خارجية في الإمارات يتجاوز 3.1 مليار درهم مع تسارع تعهيد مراكز الاتصال",
+      title_fr: "Le marché BPO aux EAU franchit 3,1 milliards AED, l'externalisation des centres de contact s'accélère",
+      summary_en: "The UAE business-process outsourcing market reached AED 3.1 billion in 2025, with contact-centre services accounting for 46% of total revenue as banks, telcos and government entities expand multilingual customer support.",
+      summary_ar: "بلغ سوق تعهيد العمليات في الإمارات 3.1 مليار درهم في 2025، مع استحواذ خدمات مراكز الاتصال على 46٪ من الإيرادات مع توسع البنوك والاتصالات والجهات الحكومية في الدعم متعدد اللغات.",
+      summary_fr: "Le marché de l'externalisation des processus d'affaires aux EAU a atteint 3,1 milliards AED en 2025, les services de centres de contact représentant 46% des revenus alors que banques, télécoms et entités publiques étendent le support multilingue.",
+      body_en: "The UAE BPO market reached AED 3.1 billion in 2025, with contact-centre services accounting for 46% of total revenue. Demand is driven by banks expanding 24/7 multilingual support, telco operators consolidating customer experience platforms, and government entities outsourcing tier-1 citizen services. Arabic-English-Hindi-Tagalog agents remain the most sought-after profiles. AI-assisted agent platforms — combining LLM copilots with traditional ACD/CTI stacks — have reduced average handle time by 18% in pilot deployments. Infinity International's call-centre arm offers shared and dedicated seats from Dubai and Abu Dhabi, supporting inbound support, outbound campaigns, lead qualification and after-sales follow-up across 11 languages.",
+      body_ar: "بلغ سوق تعهيد العمليات في الإمارات 3.1 مليار درهم في 2025، مع استحواذ خدمات مراكز الاتصال على 46٪ من الإيرادات. الطلب مدفوع بتوسع البنوك في الدعم متعدد اللغات على مدار الساعة، وتوحيد منصات تجربة العملاء لدى مشغلي الاتصالات، وتعهيد خدمات المواطنين من المستوى الأول من قبل الجهات الحكومية.",
+      body_fr: "Le marché BPO aux EAU a atteint 3,1 milliards AED en 2025, les services de centres de contact représentant 46% des revenus. La demande est tirée par les banques étendant le support multilingue 24/7, les opérateurs télécoms consolidant les plateformes d'expérience client, et les entités publiques externalisant les services citoyens de niveau 1.",
+    },
+  ],
 };
 
 /* ─── Sector labels ────────────────────────────────────────────────────────── */
@@ -411,6 +428,7 @@ const SECTOR_LABELS: Record<Sector, { en: string; ar: string; fr: string; color:
   consultants: { en: "Consultants",  ar: "المستشارون",     fr: "Consultants", color: "#EC4899" },
   admin:       { en: "Admin",        ar: "الإدارات",       fr: "Admin",       color: "#64748B" },
   travail:     { en: "Employment",   ar: "التوظيف",        fr: "Emploi",      color: "#F97316" },
+  callcenter:  { en: "Call Center",  ar: "مركز الاتصال",   fr: "Call Center", color: "#0D9488" },
 };
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */

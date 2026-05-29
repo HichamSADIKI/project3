@@ -5,9 +5,15 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Alert,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/auth";
 import { setLanguage } from "@/lib/i18n";
+import {
+  INACTIVITY_TIMEOUT_OPTIONS_MIN,
+  InactivityTimeoutMin,
+  usePreferencesStore,
+} from "@/stores/preferences";
 
 const LANGS = [
   { code: "en" as const, label: "English", flag: "🇬🇧" },
@@ -20,9 +26,18 @@ const ROLE_LABELS: Record<string, string> = {
   agent: "Agent", accounting: "Comptable", legal: "Juridique",
 };
 
+function formatTimeout(min: InactivityTimeoutMin, t: TFunction): string {
+  if (min === 0) return t("sec_inactivity_never");
+  if (min === 60) return t("sec_inactivity_hour");
+  if (min === 1) return t("sec_inactivity_minutes", { n: 1 });
+  return t("sec_inactivity_minutes_plural", { n: min });
+}
+
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuthStore();
+  const inactivityTimeoutMin = usePreferencesStore((s) => s.inactivityTimeoutMin);
+  const setInactivityTimeoutMin = usePreferencesStore((s) => s.setInactivityTimeoutMin);
   const insets = useSafeAreaInsets();
 
   const handleLogout = () => {
@@ -69,6 +84,30 @@ export default function ProfileScreen() {
             {i18n.language === l.code && <Text style={pr.checkmark}>✓</Text>}
           </TouchableOpacity>
         ))}
+      </View>
+
+      {/* Security */}
+      <View style={pr.section}>
+        <Text style={pr.sectionTitle}>{t("sec_title")}</Text>
+        <Text style={pr.secDesc}>{t("sec_inactivity_title")}</Text>
+        <Text style={pr.secHelp}>{t("sec_inactivity_desc")}</Text>
+        <View style={pr.chipRow}>
+          {INACTIVITY_TIMEOUT_OPTIONS_MIN.map((min) => {
+            const active = inactivityTimeoutMin === min;
+            return (
+              <TouchableOpacity
+                key={min}
+                style={[pr.chip, active && pr.chipActive]}
+                onPress={() => setInactivityTimeoutMin(min)}
+                activeOpacity={0.8}
+              >
+                <Text style={[pr.chipTxt, active && pr.chipTxtActive]}>
+                  {formatTimeout(min, t)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
       </View>
 
       {/* App info */}
@@ -140,6 +179,18 @@ const pr = StyleSheet.create({
   langLabel: { flex: 1, fontSize: 14, color: "#94A3B8", fontWeight: "500" },
   langLabelActive: { color: "#E2E8F0", fontWeight: "700" },
   checkmark: { fontSize: 16, color: "#B8924F", fontWeight: "700" },
+
+  secDesc: { fontSize: 14, color: "#E2E8F0", fontWeight: "600", marginBottom: 4 },
+  secHelp: { fontSize: 12, color: "#64748B", lineHeight: 17, marginBottom: 12 },
+  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 14, paddingVertical: 9,
+    backgroundColor: "#1F2937", borderRadius: 999,
+    borderWidth: 1, borderColor: "#374151",
+  },
+  chipActive: { borderColor: "#B8924F", backgroundColor: "rgba(184,146,79,0.12)" },
+  chipTxt: { fontSize: 13, color: "#94A3B8", fontWeight: "500" },
+  chipTxtActive: { color: "#B8924F", fontWeight: "700" },
 
   infoRow: {
     flexDirection: "row", justifyContent: "space-between", alignItems: "center",

@@ -1,5 +1,8 @@
 /**
- * Dashboard SGI Mobile — KPIs principaux + alertes + accès rapide.
+ * Dashboard SGI Mobile — adapté selon le rôle de l'utilisateur :
+ * - client → KPIs portail client (favoris, contrats, paiements, visites, messages)
+ * - fournisseur → KPIs portail partenaire (mandats, leads, commissions, services)
+ * - agent / manager / admin → KPIs métier (pipeline CRM, biens, Golden Visa, finance)
  */
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl,
@@ -10,6 +13,8 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/auth";
 import { crmApi, propertiesApi, goldenVisaApi, financeApi } from "@/lib/api";
+import { ClientDashboard } from "./dashboard-client";
+import { FournisseurDashboard } from "./dashboard-fournisseur";
 
 function KpiCard({ label, value, delta, color }: { label: string; value: string; delta?: string; color: string }) {
   return (
@@ -31,6 +36,13 @@ function QuickAction({ icon, label, onPress }: { icon: string; label: string; on
 }
 
 export default function DashboardScreen() {
+  const role = useAuthStore((s) => s.user?.role ?? "agent");
+  if (role === "client") return <ClientDashboard />;
+  if (role === "fournisseur" || role === "partner") return <FournisseurDashboard />;
+  return <AgentDashboard />;
+}
+
+function AgentDashboard() {
   const { t } = useTranslation();
   const { user, logout } = useAuthStore();
   const router = useRouter();

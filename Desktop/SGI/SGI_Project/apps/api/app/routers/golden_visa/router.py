@@ -4,7 +4,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import get_db
+from app.core.database import get_db
 from app.routers.golden_visa import schemas, service
 
 router = APIRouter(prefix="/golden-visa", tags=["golden_visa"])

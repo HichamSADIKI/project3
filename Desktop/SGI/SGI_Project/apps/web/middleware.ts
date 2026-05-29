@@ -58,10 +58,19 @@ function b64urlDecode(s: string): Uint8Array {
   return Uint8Array.from(bin, (c) => c.charCodeAt(0));
 }
 
-async function verifyJwt(token: string, secret: string): Promise<boolean> {
+type JwtPayloadLite = {
+  exp?: number;
+  role?: string;
+  status?: string;
+};
+
+async function verifyJwt(
+  token: string,
+  secret: string,
+): Promise<{ valid: boolean; payload: JwtPayloadLite | null }> {
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return false;
+    if (parts.length !== 3) return { valid: false, payload: null };
 
     const [headerB64, payloadB64, sigB64] = parts;
 
@@ -79,22 +88,33 @@ async function verifyJwt(token: string, secret: string): Promise<boolean> {
     const signingInput = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
     const signature = b64urlDecode(sigB64);
 
-    const valid = await crypto.subtle.verify("HMAC", key, signature.buffer as ArrayBuffer, signingInput.buffer as ArrayBuffer);
-    if (!valid) return false;
+    const valid = await crypto.subtle.verify(
+      "HMAC",
+      key,
+      signature.buffer as ArrayBuffer,
+      signingInput.buffer as ArrayBuffer,
+    );
+    if (!valid) return { valid: false, payload: null };
 
     // Verify expiry
-    const payload = JSON.parse(new TextDecoder().decode(b64urlDecode(payloadB64))) as {
-      exp?: number;
-    };
+    const payload = JSON.parse(
+      new TextDecoder().decode(b64urlDecode(payloadB64)),
+    ) as JwtPayloadLite;
     if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
-      return false; // Token expired
+      return { valid: false, payload: null }; // Token expired
     }
 
-    return true;
+    return { valid: true, payload };
   } catch {
-    return false;
+    return { valid: false, payload: null };
   }
 }
+
+// Rôles autorisés sur le backoffice web. Les rôles publics (client/fournisseur) sont
+// redirigés vers leur espace dédié sur le portal.
+const BACKOFFICE_ROLES = new Set(["admin", "manager", "agent"]);
+const PORTAL_BASE_URL =
+  process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
 
 // ─── Middleware principal ──────────────────────────────────────────────────────
 
@@ -133,15 +153,33 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  const valid = await verifyJwt(token, jwtSecret);
-  if (!valid) {
+  const { valid, payload } = await verifyJwt(token, jwtSecret);
+  if (!valid || !payload) {
     // Cookie présent mais invalide ou expiré → supprimer et rediriger
     const response = NextResponse.redirect(new URL("/", request.url));
     response.cookies.delete("sgi-session");
     return response;
   }
 
-  // 6. Session valide → continuer avec security headers
+  // 6. RBAC : rôles publics (client/fournisseur) ne peuvent pas accéder au backoffice.
+  //    On les redirige vers le portal dédié.
+  const role = payload.role ?? "agent";
+  if (!BACKOFFICE_ROLES.has(role)) {
+    const target =
+      role === "fournisseur" ? `${PORTAL_BASE_URL}/fr/fournisseur` : `${PORTAL_BASE_URL}/fr/client`;
+    const response = NextResponse.redirect(target);
+    response.cookies.delete("sgi-session");
+    return response;
+  }
+
+  // 7. Statut : seul `active` accède au backoffice. `pending` → page d'attente.
+  if (payload.status && payload.status !== "active") {
+    const response = NextResponse.redirect(new URL("/", request.url));
+    response.cookies.delete("sgi-session");
+    return response;
+  }
+
+  // 8. Session valide → continuer avec security headers
   const response = NextResponse.next();
   return applySecurityHeaders(response);
 }

@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     MINIO_BUCKET: str = "sgi-media"
 
     GOOGLE_MAPS_API_KEY: str = ""
+    GEMINI_API_KEY: str = ""
+    OPENAI_API_KEY: str = ""
 
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30

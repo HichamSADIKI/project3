@@ -19,7 +19,6 @@ from urllib.parse import urlparse
 from app.routers.scraping.parsers import (
     parse_bayut_html,
     parse_dubizzle_html,
-    parse_generic_html,
     parse_propertyfinder_html,
     _parse_generic_html,
 )

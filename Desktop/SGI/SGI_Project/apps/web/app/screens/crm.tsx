@@ -1715,7 +1715,7 @@ type MetaProfile = {
   name: string;
   location: string;
   bio: string;
-  platforms: ("facebook" | "instagram" | "whatsapp")[];
+  platforms: ("facebook" | "instagram" | "whatsapp" | "snapchat")[];
   phone?: string;
   confidence: number;
   mutualInterests?: string;
@@ -1748,20 +1748,20 @@ function mockMetaSearch(query: string): MetaProfile[] {
     {
       id: "mp1", name: q,
       location: pick(META_LOCS, 0), bio: pick(META_BIOS, 0),
-      platforms: ["facebook", "instagram", "whatsapp"],
+      platforms: ["facebook", "instagram", "whatsapp", "snapchat"],
       phone: ph("50"), confidence: 91,
       mutualInterests: "Real estate · Luxury properties",
     },
     {
       id: "mp2", name: `${first} ${pick(META_SURNAMES[0], 1)}`,
       location: pick(META_LOCS, 1), bio: pick(META_BIOS, 2),
-      platforms: ["facebook", "whatsapp"],
+      platforms: ["facebook", "whatsapp", "snapchat"],
       phone: ph("55"), confidence: 74,
     },
     {
       id: "mp3", name: `${first} ${pick(META_SURNAMES[1], 2)}`,
       location: pick(META_LOCS, 2), bio: pick(META_BIOS, 4),
-      platforms: ["instagram"],
+      platforms: ["instagram", "snapchat"],
       confidence: 55,
     },
     {
@@ -1818,12 +1818,14 @@ function PlatformBadge({ p, name, phone }: { p: MetaProfile["platforms"][0]; nam
     facebook:  { label: "Facebook",  bg: "rgba(24,119,242,0.1)",  color: "#1877f2", border: "rgba(24,119,242,0.3)"  },
     instagram: { label: "Instagram", bg: "rgba(225,48,108,0.1)",  color: "#e1306c", border: "rgba(225,48,108,0.3)"  },
     whatsapp:  { label: "WhatsApp",  bg: "rgba(37,211,102,0.1)",  color: "#25d366", border: "rgba(37,211,102,0.3)"  },
+    snapchat:  { label: "Snapchat",  bg: "rgba(255,252,0,0.18)",  color: "#1a1700", border: "rgba(255,252,0,0.55)" },
   }[p];
 
   const slug = metaSlug(name);
   const href =
     p === "facebook"  ? `https://www.facebook.com/search/people/?q=${encodeURIComponent(name)}` :
     p === "instagram" ? `https://www.instagram.com/${slug}/` :
+    p === "snapchat"  ? `https://www.snapchat.com/add/${slug}` :
     phone             ? `https://wa.me/${phone.replace(/\D/g, "")}` : undefined;
 
   const badge = (
@@ -1949,7 +1951,7 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
             <div style={{ padding: "44px 0", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}>
               <div style={{ opacity: 0.35, fontSize: 32 }}>🔍</div>
               <div style={{ fontSize: 12, color: "var(--ink-4)", maxWidth: 320, lineHeight: 1.7 }}>
-                Saisissez le nom d'un prospect pour retrouver ses profils Facebook, Instagram ou WhatsApp Business via le connecteur Meta Snapshot.
+                Saisissez le nom d'un prospect pour retrouver ses profils Facebook, Instagram, WhatsApp Business ou Snapchat via le connecteur Meta Snapshot.
               </div>
             </div>
           )}

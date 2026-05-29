@@ -1,0 +1,63 @@
+import { notFound } from "next/navigation";
+import { isValidLocale, makeT, type Locale } from "@/lib/i18n";
+import { PublicShell } from "@/components/public-shell";
+import { RegisterForm } from "./RegisterForm";
+
+export default async function RegisterPage({
+  params,
+}: {
+  params: Promise<{ locale: string; kind: string }>;
+}) {
+  const { locale, kind } = await params;
+  if (!isValidLocale(locale)) notFound();
+  if (kind !== "client" && kind !== "fournisseur") notFound();
+  const lc: Locale = locale;
+  const t = makeT("common", lc);
+
+  const title = kind === "client" ? t("register.clientTitle") : t("register.fournisseurTitle");
+  const subtitle =
+    kind === "client" ? t("register.clientSubtitle") : t("register.fournisseurSubtitle");
+
+  return (
+    <PublicShell locale={lc}>
+      <section style={{ display: "grid", placeItems: "center", padding: "3rem 1.5rem" }}>
+        <div style={{ width: "100%", maxWidth: 480 }}>
+          <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.75rem", color: "var(--ink)" }}>
+            {title}
+          </h1>
+          <p style={{ margin: "0 0 1.5rem", color: "var(--ink-3)", fontSize: "0.9rem" }}>
+            {subtitle}
+          </p>
+          <div className="sgi-card">
+            <RegisterForm
+              kind={kind as "client" | "fournisseur"}
+              locale={lc}
+              labels={{
+                fullName: t("register.fullName"),
+                email: t("register.email"),
+                password: t("register.password"),
+                passwordHint: t("register.passwordHint"),
+                companySlug: t("register.companySlug"),
+                companySlugPlaceholder: t("register.companySlugPlaceholder"),
+                submit: t("register.submit"),
+                submitting: t("register.submitting"),
+                alreadyAccount: t("register.alreadyAccount"),
+                loginLink: t("register.loginLink"),
+                success: {
+                  title: t("register.success.title"),
+                  body: t("register.success.body"),
+                  back: t("register.success.back"),
+                },
+                errors: {
+                  email_already_registered: t("register.errors.email_already_registered"),
+                  company_not_found: t("register.errors.company_not_found"),
+                  generic: t("register.errors.generic"),
+                },
+              }}
+            />
+          </div>
+        </div>
+      </section>
+    </PublicShell>
+  );
+}

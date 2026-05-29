@@ -1,0 +1,395 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── SGI Portal — palette Slate Pro alignée avec le backoffice ──────────── */
+:root {
+  /* Backgrounds */
+  --bg-base:     #F1F3F5;
+  --bg-cream:    #F4F6F8;
+  --bg-paper:    #F8F9FA;
+  --bg-ivory:    #FFFFFF;
+  --bg-inset:    #E8EAED;
+
+  --surface-1: var(--bg-base);
+  --surface-2: var(--bg-paper);
+  --surface-3: var(--bg-ivory);
+
+  --line:        #D0D5DB;
+  --line-soft:   #E2E6EA;
+  --line-strong: #B0B8C1;
+
+  /* Ink (text) */
+  --ink:   #111827;
+  --ink-2: #374151;
+  --ink-3: #6B7280;
+  --ink-4: #9CA3AF;
+  --ink-5: #D1D5DB;
+
+  /* Gold accent SGI */
+  --gold:       #B8924F;
+  --gold-deep:  #8A6B30;
+  --gold-soft:  #F0E4C8;
+  --gold-ghost: rgba(184,146,79,0.09);
+  --gold-line:  rgba(184,146,79,0.30);
+
+  /* Semantic */
+  --emerald:      #059669;
+  --emerald-soft: #D1FAE5;
+  --rose:         #DC2626;
+  --rose-soft:    #FEE2E2;
+  --azure:        #2563EB;
+  --azure-soft:   #DBEAFE;
+
+  --shadow-1: 0 1px 2px rgba(17,24,39,0.05);
+  --shadow-2: 0 2px 8px rgba(17,24,39,0.09), 0 1px 3px rgba(17,24,39,0.06);
+  --shadow-3: 0 8px 28px rgba(17,24,39,0.13), 0 3px 8px rgba(17,24,39,0.07);
+
+  --r-sm: 4px;
+  --r:    8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-full: 999px;
+
+  --focus-ring: 0 0 0 3px rgba(184,146,79,0.25);
+
+  --transition-fast:   0.15s ease;
+  --transition-base:   0.2s ease;
+  --transition-medium: 0.3s ease;
+}
+
+/* ── Dark · Slate Profond (aligné avec apps/web) ────────────────────────── */
+.dark {
+  --bg-base:     #161B22;
+  --bg-cream:    #1B2330;
+  --bg-paper:    #1F2937;
+  --bg-ivory:    #253346;
+  --bg-inset:    #0D1117;
+
+  --surface-1: var(--bg-base);
+  --surface-2: var(--bg-paper);
+  --surface-3: var(--bg-ivory);
+
+  --line:        #30404D;
+  --line-soft:   #243040;
+  --line-strong: #3E5068;
+
+  --ink:   #E2E8F0;
+  --ink-2: #CBD5E1;
+  --ink-3: #94A3B8;
+  --ink-4: #64748B;
+  --ink-5: #334155;
+
+  --gold:       #D9B777;
+  --gold-deep:  #F0CB89;
+  --gold-soft:  #3D3020;
+  --gold-ghost: rgba(217,183,119,0.11);
+  --gold-line:  rgba(217,183,119,0.32);
+
+  --emerald:      #34D399;
+  --emerald-soft: #064E3B;
+  --rose:         #F87171;
+  --rose-soft:    #450A0A;
+  --azure:        #60A5FA;
+  --azure-soft:   #1E3A5F;
+
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.45);
+  --shadow-2: 0 2px 8px rgba(0,0,0,0.55), 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-3: 0 8px 28px rgba(0,0,0,0.70), 0 3px 8px rgba(0,0,0,0.45);
+
+  --focus-ring: 0 0 0 3px rgba(217,183,119,0.28);
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background-color: var(--bg-base);
+  color: var(--ink);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+[dir="rtl"] body {
+  font-family: 'Noto Sans Arabic', 'Inter', system-ui, sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ── Typography helpers ───────────────────────────────────────────── */
+.font-display {
+  font-family: 'Cormorant Garamond', 'Playfair Display', Georgia, serif;
+  letter-spacing: -0.01em;
+}
+.font-ar {
+  font-family: 'Noto Naskh Arabic', 'Noto Sans Arabic', 'Inter', system-ui, sans-serif;
+}
+
+/* ── Composants atomiques portal ───────────────────────────────────── */
+
+.sgi-card {
+  background: var(--surface-3);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-1);
+  padding: 1.5rem;
+}
+
+.sgi-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-radius: var(--r);
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all var(--transition-base);
+  border: 1px solid transparent;
+}
+
+.sgi-button-primary {
+  background: var(--gold);
+  color: white;
+  border-color: var(--gold-deep);
+}
+.sgi-button-primary:hover:not(:disabled) {
+  background: var(--gold-deep);
+}
+.sgi-button-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sgi-button-secondary {
+  background: var(--surface-3);
+  color: var(--ink);
+  border-color: var(--line);
+}
+.sgi-button-secondary:hover {
+  background: var(--bg-paper);
+  border-color: var(--line-strong);
+}
+
+.sgi-button-ghost {
+  background: transparent;
+  color: var(--ink-2);
+}
+.sgi-button-ghost:hover {
+  background: var(--bg-inset);
+}
+
+.sgi-input {
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface-3);
+  color: var(--ink);
+  font-size: 0.9rem;
+  transition: border-color var(--transition-base), background-color var(--transition-base);
+}
+.sgi-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: var(--focus-ring);
+}
+.sgi-input::placeholder {
+  color: var(--ink-4);
+}
+
+.sgi-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-bottom: 0.375rem;
+}
+
+.sgi-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.125rem 0.625rem;
+  border-radius: var(--r-sm);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sgi-badge-pending  { background: var(--gold-ghost); color: var(--gold-deep); }
+.sgi-badge-active   { background: var(--emerald-soft); color: var(--emerald); }
+.sgi-badge-rejected { background: var(--rose-soft); color: var(--rose); }
+.sgi-badge-info     { background: var(--azure-soft); color: var(--azure); }
+
+/* ── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: var(--r-full); }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-4); }
+
+/* ── Focus global ──────────────────────────────────────────────────── */
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Animations ────────────────────────────────────────────────────── */
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Responsive — variables fluides + container + media queries ──── */
+
+:root {
+  /* Padding fluide pour les sections de page (16px mobile → 48px desktop) */
+  --page-px: clamp(1rem, 4vw, 3rem);
+  --page-py: clamp(1.25rem, 4vw, 3.5rem);
+  --section-gap: clamp(1rem, 3vw, 2rem);
+  --card-pad: clamp(1rem, 2.5vw, 1.5rem);
+  --h1-size: clamp(1.5rem, 4.5vw, 2.25rem);
+  --h2-size: clamp(1.125rem, 2.5vw, 1.375rem);
+  --hero-size: clamp(1.875rem, 6vw, 3rem);
+}
+
+/* Container max-width 1200px, padding fluide */
+.sgi-container {
+  width: 100%;
+  max-width: 1200px;
+  margin-inline: auto;
+  padding-inline: var(--page-px);
+  box-sizing: border-box;
+}
+
+/* Grille auto-responsive */
+.sgi-grid-auto {
+  display: grid;
+  gap: var(--section-gap);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.sgi-grid-auto-sm {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+}
+
+/* Image responsive par défaut */
+img, svg, video { max-width: 100%; height: auto; }
+
+/* Tableau scrollable horizontalement sur petit écran */
+.sgi-table-wrap { width: 100%; overflow-x: auto; }
+.sgi-table-wrap table { min-width: 480px; }
+
+/* Carte responsive — padding fluide */
+.sgi-card { padding: var(--card-pad); }
+
+/* ── Layout shell responsive ────────────────────────────────────────── */
+
+.sgi-shell { display: flex; min-height: 100vh; }
+.sgi-shell-aside {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--surface-3);
+  border-inline-end: 1px solid var(--line-soft);
+  padding-block: 1.5rem;
+  display: flex;
+  flex-direction: column;
+}
+.sgi-shell-main { flex: 1; min-width: 0; padding: var(--page-py) var(--page-px); background: var(--bg-base); }
+.sgi-burger {
+  display: none;
+  width: 40px; height: 40px;
+  align-items: center; justify-content: center;
+  border-radius: var(--r);
+  border: 1px solid var(--line);
+  background: var(--surface-3);
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+/* Topbar mobile (burger + titre) — visible uniquement < 768px */
+.sgi-mobile-topbar {
+  display: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.875rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* Header public — empilable */
+.sgi-public-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem var(--page-px);
+  background: var(--surface-3);
+  border-bottom: 1px solid var(--line-soft);
+}
+
+/* ── Breakpoint tablette : < 1024px ─────────────────────────────────── */
+@media (max-width: 1023px) {
+  .sgi-shell-aside { width: 200px; }
+}
+
+/* ── Breakpoint mobile : < 768px ────────────────────────────────────── */
+@media (max-width: 767px) {
+  :root {
+    --page-px: 1rem;
+    --page-py: 1.25rem;
+    --card-pad: 1rem;
+  }
+
+  /* Sidebar drawer overlay */
+  .sgi-shell { flex-direction: column; }
+  .sgi-shell-aside {
+    position: fixed;
+    inset-inline-start: 0;
+    top: 0;
+    height: 100vh;
+    width: min(82vw, 320px);
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: var(--shadow-3);
+  }
+  [dir="rtl"] .sgi-shell-aside { transform: translateX(100%); }
+  .sgi-shell-aside.is-open { transform: translateX(0); }
+
+  .sgi-burger { display: inline-flex; }
+  .sgi-mobile-topbar { display: flex; }
+  .sgi-aside-close { display: inline-flex !important; }
+  .sgi-shell-main { padding-block-start: 0.75rem; }
+
+  /* Backdrop quand le drawer est ouvert */
+  .sgi-drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    z-index: 49;
+  }
+
+  /* Tableaux compacts */
+  table { font-size: 0.85rem; }
+  th, td { padding: 0.5rem !important; }
+
+  /* Hero / titres */
+  .sgi-public-header { padding-block: 0.75rem; }
+  .sgi-public-header > nav { gap: 0.75rem !important; }
+}
+
+/* ── Breakpoint très petit : < 480px ────────────────────────────────── */
+@media (max-width: 479px) {
+  :root { --section-gap: 0.75rem; }
+  .sgi-card { border-radius: var(--r); }
+  .sgi-button { font-size: 0.8rem; padding: 0.55rem 0.875rem; }
+}

@@ -26,17 +26,26 @@ make migrate          # Alembic upgrade head
 make seed             # Load Dubai test data
 make backup           # pg_dump compressed → ./backups/
 
-# Dev
+# Dev (web/portal use pnpm via Turborepo)
 pnpm dev                        # All frontend apps (Turborepo)
-pnpm dev --filter=web           # Backoffice only (port 3000)
+pnpm dev --filter=web           # Backoffice only (port 5001 local · 3000 in Docker)
 pnpm dev --filter=portal        # Public portal only (port 3001)
-make scale n=5                  # 5 FastAPI replicas
+
+# Mobile (apps/mobile uses npm — separate lockfile, Expo 51 + Expo Router)
+cd apps/mobile && npm install
+npm start                       # Expo dev server
+npm run ios                     # iOS simulator
+npm run android                 # Android emulator
+npm run typecheck               # tsc --noEmit
 
 # Tests
-make test             # Vitest + pytest + Playwright (full suite)
-pnpm vitest run       # Frontend unit tests only
-pytest tests/routers/test_{module}.py  # Single backend module
-pnpm playwright test  # E2E only
+make test                                              # Full suite (pnpm turbo test + pytest in container)
+pnpm vitest run                                        # Frontend unit tests only
+docker compose exec api uv run pytest app/routers/crm/test_crm.py   # Single backend module (tests are co-located)
+pnpm playwright test                                   # E2E only
+
+# Infra scaling
+make scale n=5        # Scale FastAPI to N replicas
 
 # Quality
 make lint             # ESLint + Ruff + Prettier
@@ -45,10 +54,11 @@ make lint             # ESLint + Ruff + Prettier
 make ssl-init         # Let's Encrypt certificates (first run only)
 ```
 
-Custom slash commands (in `.claude/commands/`):
-- `/project:new-module` — scaffold a complete SGI module
-- `/project:new-component` — create an RTL-safe component
-- `/project:check-tenant` — audit multi-tenant isolation
+MCP servers configured in `.mcp.json`:
+- `gemini` — custom Node server at `.claude/mcp-servers/gemini/`. Exposes domain tools: `gemini_analyze_property`, `gemini_score_lead`, `gemini_generate_contract_summary`, `gemini_whatsapp_message`, `gemini_translate`, `gemini_generate`.
+- `puppeteer` — `@modelcontextprotocol/server-puppeteer` (headed Chrome).
+
+`.claude/commands/` is currently empty — no project slash commands are scaffolded yet.
 
 ## Stack
 
@@ -58,9 +68,10 @@ Custom slash commands (in `.claude/commands/`):
 | UI | shadcn/ui (RTL) · Radix UI · Tailwind CSS v4 |
 | State | TanStack Query v5 · Zustand v5 · React Hook Form + Zod v4 |
 | i18n | i18next · AR/EN/FR · Noto Sans Arabic · Geist |
+| Mobile | Expo 51 · React Native 0.74 · Expo Router · NativeWind · react-native-maps · MMKV · expo-secure-store |
 | Backend | FastAPI 0.136 · Python 3.13 · Pydantic v2 · Uvicorn + uvloop |
 | ORM | SQLAlchemy 2 async · GeoAlchemy2 · Alembic migrations |
-| Tasks | Celery + Beat · 3 queues: notifications, exports, relances |
+| Tasks | Celery + Beat · 3 queues: notifications, exports, reminders |
 | DB | PostgreSQL 17 + PostGIS 3.5 · RLS · GIST index |
 | Cache | Valkey 8 (Redis OSS fork) · sessions · Celery broker |
 | Search | Meilisearch (AR/EN/FR · typo-tolerant · self-hosted) |
@@ -153,7 +164,22 @@ Example: `feat(m2-crm): ajouter calcul lead scoring automatique`
 Red test → minimum code → green → refactor → commit.
 Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 
-## Module Structure (uniform pattern)
+## Monorepo Layout
+
+```
+apps/
+  api/      FastAPI · uv · pytest co-located in app/routers/{module}/test_{module}.py
+  web/      Next.js backoffice (port 3000)
+  portal/   Next.js public portal (port 3001)
+  mobile/   Expo / React Native (own npm lockfile — NOT in the pnpm workspace install graph)
+packages/
+  shared-types/   TypeScript types shared between web/portal
+  ui/             Shared shadcn-based components
+  i18n/           AR/EN/FR translation bundles
+infra/      nginx · certbot · monitoring (prometheus/grafana/loki) configs
+```
+
+## API Module Structure (uniform pattern)
 
 ```
 apps/api/app/routers/{module}/
@@ -163,8 +189,64 @@ apps/api/app/routers/{module}/
   service.py       # Business logic · always filter by company_id
   models.py        # SQLAlchemy models (if module-specific)
   test_{module}.py # pytest-asyncio · isolated multi-tenant fixtures
-  CLAUDE.md        # Module-specific business rules
+  CLAUDE.md        # Module-specific business rules (when present)
 ```
+
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`.
+
+### RealEstate party-role pattern (migration 0002)
+
+`clients` is the umbrella **party** table (any individual or company the agency interacts with). Each business role is a **profile table** with PK = FK to the party, so a single client can hold multiple roles without duplication:
+
+| Table | Extends | Purpose |
+|---|---|---|
+| `owners` | `clients.id` | Property owner. Carries mandate, IBAN, payout preferences. |
+| `tenant_profiles` | `clients.id` | Tenant / candidate. Lifecycle: `candidate → active → former / blacklisted`. Loyalty score 0-100. |
+| `vendors` | `clients.id` | External provider (maintenance, cleaning, security…). Trade licence, rating cumulé, marketplace eligibility. |
+| `technicians` | `users.id` | **Internal salaried staff**, not a client. Skills + mobile app KPIs. |
+
+Routes: `/api/v1/{owners,tenants,vendors,technicians}` — CRUD + specific endpoints (`POST /tenants/{id}/status` for lifecycle transitions, `POST /vendors/{id}/ratings`, `POST /technicians/{id}/ratings`).
+
+Pure business helpers (testable without DB) live in `service.py`:
+- `owners.service`: `mandate_is_active`, `days_until_mandate_expiry`, `needs_renewal_alert`
+- `tenants.service`: `is_valid_transition`, `compute_loyalty_score`, `visa_alert_level`
+- `vendors.service`: `merge_rating` (numerically stable cumulative avg, reused by technicians), `cancellation_rate`, `is_eligible_for_marketplace`
+
+Shared FastAPI deps: `app/core/route_deps.py` (`get_company_id`, `require_roles`). New routers use this; legacy routers keep their inline copy for now.
+
+### RealEstate physical hierarchy (migration 0003)
+
+| Table | Parent | Purpose |
+|---|---|---|
+| `buildings` | — | Physical asset (tower, compound, mixed-use). PostGIS `location` + optional `footprint` polygon. DLD reference. Links to `owners`. |
+| `floors` | `buildings.id` (CASCADE) | Optional intermediate level — present for towers, absent for villa compounds. Unique `(building_id, floor_number)`. |
+| `units` | `buildings.id` (RESTRICT) + optional `floors.id` | Rentable / sellable atom. Holds Ejari/DEWA/ADDC account numbers, inventory JSONB, list rent/sale prices. Optional `legacy_property_id` FK bridges to the legacy `properties` table for progressive migration. |
+
+The legacy `properties` table is untouched. New modules (maintenance, inspections, meters, parking — to come) target `units`. Routes: `/api/v1/buildings`, `/api/v1/buildings/{id}/floors`, `/api/v1/buildings/{id}/occupancy`, `/api/v1/units`, `/api/v1/units/{id}/status`.
+
+Pure helpers: `buildings.service.compute_occupancy` (occupied+reserved vs vacant; excludes maintenance/renovation/off_market from denominator), `units.service.is_valid_status_transition` (state machine `vacant → reserved → occupied → vacant | maintenance → renovation → vacant`, `off_market → vacant`).
+
+### PDC — Post-dated cheques (migration 0003)
+
+`pdc_cheques` is the UAE-specific first-class entity. One PDC links to **exactly one** of `rentals` or `contracts` (check-constraint), plus a drawer (`clients.id`). State machine:
+
+```
+pending ─┬─→ deposited ─┬─→ cleared        (terminal)
+         │              └─→ bounced ─→ replaced  (terminal — chained via replaced_by_pdc_id)
+         └─→ cancelled                            (terminal)
+```
+
+Routes: `/api/v1/pdc` (CRUD), plus state actions `/pdc/{id}/{deposit,clear,bounce,cancel,replace,legal-notice}`. Reference auto-generated as `PDC-YYYY-NNNNNN` (6 digits, lexicographically sortable). Calendar endpoint `/api/v1/pdc/calendar?horizon_days=60` returns active cheques due in the window, used by Celery beat to schedule deposit reminders and overdue alerts (UAE Federal Penal Code art. 401 — bounced cheque = offence; `legal_notices_sent` counter tracks the workflow).
+
+Pure helpers in `pdc.service`: `is_valid_pdc_transition`, `days_to_due`, `is_overdue`, `generate_reference`, `aggregate_outstanding`.
+
+## API Wiring
+
+- Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
+- **Middleware order matters** (last added = first executed): `CORSMiddleware` → `TenantMiddleware` → `AuditMiddleware` → `GZipMiddleware`. `TenantMiddleware` ([app/middleware/tenant.py](apps/api/app/middleware/tenant.py)) decodes the JWT and `SET LOCAL app.current_company_id` per request — this is the runtime enforcement of Law 1. Do not reorder.
+- Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
+- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container.
+- All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
 
 ## CRM Business Rules
 
@@ -243,6 +325,8 @@ api_key = "sk-..."  # use os.getenv()
 
 ## Skills (load on demand from `.claude/skills/`)
 
+Only the skills below actually exist on disk — verified against `.claude/skills/`.
+
 | Skill | Quand l'utiliser |
 |---|---|
 | `saas-architect` | Conception d'architecture, décision technique, planification AI, nouveau module stratégique |
@@ -250,11 +334,5 @@ api_key = "sk-..."  # use os.getenv()
 | `postgis-queries` | Requêtes géospatiales, index GIST, calculs de distance |
 | `fastapi-patterns` | Patterns FastAPI, middlewares, dépendances async |
 | `rtl-components` | Composants RTL-safe, CSS logique, i18n |
-| `audit-trail` | Système d'audit, traçabilité des actions |
-| `nginx-security` | Configuration Nginx, headers sécurité, rate-limiting |
-| `crm-business-rules` | Règles pipeline CRM, scoring, relances |
-| `docker-compose-ops` | Opérations Docker, healthchecks, réseaux |
-| `test-coverage` | Stratégie tests, couverture, fixtures multi-tenant |
-| `perf-optimizer` | Optimisation performances, caching, N+1 queries |
 | `dev-process` | **Toute demande complexe** : questions → sous-questions → solution → plan → confirmation → dev → déploiement → tests → audit sécurité → validation. Son à chaque étape. |
-| `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. Pipeline 6 phases, règles de coordination, templates de prompts, checklist GitHub. |
+| `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. |

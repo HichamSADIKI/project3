@@ -8,6 +8,9 @@ from app.core.database import create_db_pool
 from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import AuditMiddleware
 from app.routers import auth, clients, properties, crm, contracts, golden_visa, rentals, finance, reporting, scraping
+from app.routers import owners, tenants, vendors, technicians
+from app.routers import buildings, units, pdc
+from app.routers import client_portal, partner
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -41,16 +44,31 @@ app.add_middleware(
 )
 
 # Routers
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(clients.router, prefix="/api/v1")
-app.include_router(properties.router, prefix="/api/v1")
-app.include_router(crm.router, prefix="/api/v1")
-app.include_router(contracts.router, prefix="/api/v1")
-app.include_router(golden_visa.router, prefix="/api/v1")
-app.include_router(rentals.router, prefix="/api/v1")
-app.include_router(finance.router, prefix="/api/v1")
-app.include_router(reporting.router, prefix="/api/v1")
-app.include_router(scraping.router, prefix="/api/v1")
+app.include_router(auth, prefix="/api/v1")
+app.include_router(clients, prefix="/api/v1")
+app.include_router(properties, prefix="/api/v1")
+app.include_router(crm, prefix="/api/v1")
+app.include_router(contracts, prefix="/api/v1")
+app.include_router(golden_visa, prefix="/api/v1")
+app.include_router(rentals, prefix="/api/v1")
+app.include_router(finance, prefix="/api/v1")
+app.include_router(reporting, prefix="/api/v1")
+app.include_router(scraping, prefix="/api/v1")
+
+# RealEstate — profils de rôles (party-roles, voir migration 0002)
+app.include_router(owners, prefix="/api/v1")
+app.include_router(tenants, prefix="/api/v1")
+app.include_router(vendors, prefix="/api/v1")
+app.include_router(technicians, prefix="/api/v1")
+
+# RealEstate — hiérarchie physique + PDC UAE (voir migration 0003)
+app.include_router(buildings, prefix="/api/v1")
+app.include_router(units, prefix="/api/v1")
+app.include_router(pdc, prefix="/api/v1")
+
+# Phase 1 — Espaces Client + Partenaire (voir migration 0005)
+app.include_router(client_portal, prefix="/api/v1")
+app.include_router(partner, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])

@@ -1,0 +1,133 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "submitProperty": "Soumettre un bien",
+    "leads": "Mes leads",
+    "commissions": "Commissions",
+    "services": "Mes prestations",
+    "profile": "Profil"
+  },
+  "dashboard": {
+    "welcome": "Bienvenue, {{name}}",
+    "subtitle": "Bienvenue dans votre espace partenaire SGI.",
+    "activeMandates": "Mandats actifs",
+    "pendingLeads": "Leads en cours",
+    "convertedLeads": "Leads convertis",
+    "pendingSubmissions": "Soumissions en attente",
+    "monthCommissionsAED": "Commissions ce mois (AED)",
+    "commissionsPendingHint": "à percevoir",
+    "performance": "Performance"
+  },
+  "submitProperty": {
+    "title": "Proposer un bien",
+    "subtitle": "Soumettez les détails du bien et un agent SGI vous recontactera.",
+    "mySubmissions": "Mes soumissions",
+    "empty": "Aucune soumission pour l'instant.",
+    "successMessage": "Soumission envoyée — un agent SGI va l'examiner.",
+    "form": {
+      "title": "Titre du bien",
+      "type": "Type",
+      "district": "Quartier",
+      "districtPlaceholder": "Dubai Marina",
+      "askingPrice": "Prix demandé (AED)",
+      "bedrooms": "Chambres",
+      "contactPhone": "Téléphone de contact",
+      "submit": "Envoyer la proposition",
+      "submitting": "Envoi…"
+    },
+    "types": {
+      "apartment": "Appartement",
+      "villa": "Villa",
+      "townhouse": "Maison de ville",
+      "office": "Bureau",
+      "retail": "Commerce",
+      "land": "Terrain"
+    }
+  },
+  "mandates": {
+    "active": "Actifs",
+    "expired": "Expirés",
+    "pendingApproval": "En attente"
+  },
+  "leads": {
+    "title": "Mes leads",
+    "subtitle": "Apportez des prospects à SGI et suivez leur statut.",
+    "empty": "Aucun lead soumis pour l'instant.",
+    "successMessage": "Lead enregistré.",
+    "cols": {
+      "prospect": "Prospect",
+      "contact": "Contact",
+      "interest": "Intérêt",
+      "budget": "Budget",
+      "status": "Statut"
+    },
+    "form": {
+      "firstName": "Prénom du prospect",
+      "lastName": "Nom",
+      "email": "Email",
+      "phone": "Téléphone",
+      "interest": "Intérêt",
+      "budget": "Budget (AED)",
+      "notes": "Notes",
+      "submit": "Soumettre le lead",
+      "submitting": "Envoi…"
+    },
+    "interest": {
+      "buy": "Achat",
+      "rent": "Location",
+      "golden_visa": "Golden Visa",
+      "commercial": "Commercial"
+    },
+    "status": {
+      "new": "Nouveau",
+      "contacted": "Contacté",
+      "qualified": "Qualifié",
+      "converted": "Converti",
+      "lost": "Perdu"
+    }
+  },
+  "commissions": {
+    "totalDue": "Total à percevoir",
+    "totalPaid": "Total payé",
+    "thisMonth": "Ce mois",
+    "empty": "Aucune commission à afficher.",
+    "cols": {
+      "source": "Source",
+      "base": "Base",
+      "rate": "Taux",
+      "commission": "Commission",
+      "status": "Statut",
+      "date": "Date"
+    },
+    "status": {
+      "pending": "En attente",
+      "payable": "À payer",
+      "paid": "Payée",
+      "cancelled": "Annulée"
+    }
+  },
+  "services": {
+    "subtitle": "Prestations que vous proposez (notaire, banque, assurance, etc.).",
+    "empty": "Aucune prestation pour l'instant.",
+    "successMessage": "Prestation enregistrée.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "form": {
+      "type": "Type de prestation",
+      "title": "Titre",
+      "description": "Description",
+      "fee": "Tarif (AED)",
+      "submit": "Ajouter la prestation",
+      "submitting": "Envoi…"
+    },
+    "types": {
+      "notary": "Notaire",
+      "bank": "Banque",
+      "insurance": "Assurance",
+      "legal": "Juridique",
+      "translation": "Traduction",
+      "valuation": "Évaluation",
+      "other": "Autre"
+    }
+  }
+}

@@ -8,5 +8,34 @@ from app.routers.rentals import router as rentals
 from app.routers.finance import router as finance
 from app.routers.reporting import router as reporting
 from app.routers.scraping import router as scraping
+from app.routers.owners import router as owners
+from app.routers.tenants import router as tenants
+from app.routers.vendors import router as vendors
+from app.routers.technicians import router as technicians
+from app.routers.buildings import router as buildings
+from app.routers.units import router as units
+from app.routers.pdc import router as pdc
+from app.routers.client_portal import router as client_portal
+from app.routers.partner import router as partner
 
-__all__ = ["auth", "clients", "properties", "crm", "contracts", "golden_visa", "rentals", "finance", "reporting", "scraping"]
+__all__ = [
+    "auth",
+    "clients",
+    "properties",
+    "crm",
+    "contracts",
+    "golden_visa",
+    "rentals",
+    "finance",
+    "reporting",
+    "scraping",
+    "owners",
+    "tenants",
+    "vendors",
+    "technicians",
+    "buildings",
+    "units",
+    "pdc",
+    "client_portal",
+    "partner",
+]
