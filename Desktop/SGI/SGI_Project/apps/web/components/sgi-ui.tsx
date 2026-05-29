@@ -21,6 +21,7 @@ export const IcCRM       = () => <Ic><circle cx="9" cy="8" r="3.5"/><path d="M2 
 export const IcContract  = () => <Ic><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></Ic>;
 export const IcRental    = () => <Ic><path d="M21 10V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l3-1.7"/><circle cx="17" cy="17" r="3"/><path d="M19.5 19.5 22 22"/></Ic>;
 export const IcVisa      = () => <Ic><path d="M12 2 14.5 9 22 9.3l-6 4.6 2.2 7.4L12 17.5 5.8 21.3 8 13.9 2 9.3 9.5 9z"/></Ic>;
+export const IcCalendar  = () => <Ic><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></Ic>;
 export const IcFinance   = () => <Ic><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 6-7"/></Ic>;
 export const IcReport    = () => <Ic><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12v5M12 8v9M16 14v3"/></Ic>;
 export const IcSearch    = () => <Ic><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></Ic>;
@@ -131,7 +132,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news"
+  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news" | "realestate_agenda"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -168,6 +169,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "visa",           icon: <IcVisa />, badge: 3 },
       { key: "realestate_crm",  icon: <IcCRM /> },
       { key: "realestate_news", icon: <IcNews /> },
+      { key: "realestate_agenda", icon: <IcCalendar /> },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
@@ -339,6 +341,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
       consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
       callcenter_crm: t.nav_crm,
+      realestate_agenda: t.nav_agenda,
       realestate_news: t.nav_news, tourisme_news: t.nav_news, sante_news: t.nav_news,
       assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
       consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
