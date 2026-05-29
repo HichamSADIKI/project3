@@ -29,12 +29,47 @@ async def lifespan(app: FastAPI):
     await stop_browser()
 
 
+# Ordre des catégories dans la doc OpenAPI/Swagger.
+# Les tags listés ici apparaissent dans cet ordre ; ceux absents suivent dans
+# l'ordre de montage des routers. La catégorie Fournisseur (fournisseur +
+# vendors) est volontairement placée AVANT Clients — miroir du menu back-office.
+TAGS_METADATA = [
+    {"name": "System", "description": "Santé & supervision."},
+    {"name": "auth", "description": "Authentification, MFA, sessions."},
+    {"name": "fournisseur", "description": "Espace fournisseur (self-service prestataires : KYC, missions)."},
+    {"name": "vendors", "description": "Fiches fournisseurs / prestataires (party-role)."},
+    {"name": "clients", "description": "Parties (particuliers / sociétés) — table umbrella."},
+    {"name": "owners", "description": "Propriétaires (mandats, IBAN, payouts)."},
+    {"name": "tenants", "description": "Locataires / candidats (cycle de vie, loyauté)."},
+    {"name": "technicians", "description": "Techniciens internes (salariés)."},
+    {"name": "properties", "description": "Catalogue legacy (PostGIS)."},
+    {"name": "buildings", "description": "Bâtiments (PostGIS, DLD)."},
+    {"name": "units", "description": "Unités louables / vendables."},
+    {"name": "crm", "description": "Leads, scoring, pipeline, relances."},
+    {"name": "contracts", "description": "Contrats."},
+    {"name": "golden_visa", "description": "Golden Visa UAE."},
+    {"name": "rentals", "description": "Locations."},
+    {"name": "pdc", "description": "Chèques post-datés (UAE)."},
+    {"name": "payments", "description": "Demandes de paiement & transactions."},
+    {"name": "finance", "description": "Finance & comptabilité."},
+    {"name": "maintenance", "description": "Tickets, devis, plans préventifs."},
+    {"name": "inspections", "description": "États des lieux (check-in/out)."},
+    {"name": "workflows", "description": "Moteur de workflows générique."},
+    {"name": "communication", "description": "Conversations + WebSocket."},
+    {"name": "client_portal", "description": "Portail client (self-service)."},
+    {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
+    {"name": "ai_services", "description": "Services IA (Gemini)."},
+    {"name": "reporting", "description": "Rapports & exports."},
+    {"name": "scraping", "description": "Scraping (Playwright)."},
+]
+
 app = FastAPI(
     title="SGI API",
     version="0.1.0",
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
+    openapi_tags=TAGS_METADATA,
     lifespan=lifespan,
 )
 
