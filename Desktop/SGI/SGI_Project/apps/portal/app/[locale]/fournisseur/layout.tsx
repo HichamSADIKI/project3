@@ -16,10 +16,13 @@ export default async function FournisseurLayout({
 
   const nav = [
     { href: `/${lc}/fournisseur`, label: t("nav.dashboard") },
-    { href: `/${lc}/fournisseur/submissions`, label: t("nav.submitProperty") },
+    { href: `/${lc}/fournisseur/profile`, label: t("nav.profile") },
+    { href: `/${lc}/fournisseur/documents`, label: t("nav.documents") },
+    { href: `/${lc}/fournisseur/missions`, label: t("nav.missions") },
     { href: `/${lc}/fournisseur/leads`, label: t("nav.leads") },
     { href: `/${lc}/fournisseur/commissions`, label: t("nav.commissions") },
     { href: `/${lc}/fournisseur/services`, label: t("nav.services") },
+    { href: `/${lc}/fournisseur/messages`, label: t("nav.messages") },
   ];
 
   return (

@@ -1,16 +1,75 @@
 """Logique métier de l'espace Partenaire."""
 import uuid
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.message import Message
 from app.models.partner_commission import PartnerCommissionEntry
 from app.models.partner_lead import PartnerLead
 from app.models.partner_service import PartnerService
 from app.models.party_owner import Owner
+from app.models.party_vendor import Vendor
 from app.models.property_submission import PropertySubmission
-from app.models.user import User
+from app.models.user import User, UserRole
+from app.models.vendor_document import VendorDocument
+from app.models.vendor_mission import VendorMission
+
+# ── Helpers métier purs (testables sans DB) ─────────────────────────────────
+
+# Machine à états des missions fournisseur.
+_MISSION_TRANSITIONS: dict[str, set[str]] = {
+    "assigned": {"accepted", "cancelled"},
+    "accepted": {"in_progress", "cancelled"},
+    "in_progress": {"done", "cancelled"},
+    "done": set(),
+    "cancelled": set(),
+}
+
+
+def is_valid_mission_transition(current: str, target: str) -> bool:
+    """True si la transition de statut de mission est autorisée."""
+    return target in _MISSION_TRANSITIONS.get(current, set())
+
+
+def document_status(expiry_date: date | None, today: date) -> str:
+    """Statut effectif d'un document selon son expiration."""
+    if expiry_date is not None and expiry_date < today:
+        return "expired"
+    return "active"
+
+
+def days_until_expiry(expiry_date: date | None, today: date) -> int | None:
+    """Jours restants avant expiration (négatif si déjà expiré), None si pas de date."""
+    if expiry_date is None:
+        return None
+    return (expiry_date - today).days
+
+
+# ── Profil fournisseur ─────────────────────────────────────────────────────
+async def get_account_user(
+    db: AsyncSession, user_id: uuid.UUID
+) -> User | None:
+    return (
+        await db.execute(select(User).where(User.id == user_id))
+    ).scalar_one_or_none()
+
+
+async def get_my_vendor_profile(
+    db: AsyncSession, partner_user_id: uuid.UUID, company_id: uuid.UUID
+) -> Vendor | None:
+    """Profil prestataire (vendors) rattaché au compte fournisseur courant."""
+    return (
+        await db.execute(
+            select(Vendor).where(
+                Vendor.account_user_id == partner_user_id,
+                Vendor.company_id == company_id,
+                Vendor.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
 
 
 # ── Submissions ──────────────────────────────────────────────────────────
@@ -268,3 +327,150 @@ async def compute_dashboard(
         "commissions_paid_aed": Decimal(commissions_paid),
         "active_services": int(active_services),
     }
+
+
+# ── Documents KYC ───────────────────────────────────────────────────────────
+async def list_my_documents(
+    db: AsyncSession, vendor_party_id: uuid.UUID, company_id: uuid.UUID
+) -> list[VendorDocument]:
+    result = await db.execute(
+        select(VendorDocument)
+        .where(
+            VendorDocument.vendor_party_id == vendor_party_id,
+            VendorDocument.company_id == company_id,
+            VendorDocument.deleted_at.is_(None),
+        )
+        .order_by(VendorDocument.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def create_document(
+    db: AsyncSession,
+    *,
+    vendor_party_id: uuid.UUID,
+    company_id: uuid.UUID,
+    doc_type: str,
+    file_path: str,
+    original_filename: str | None,
+    expiry_date: date | None,
+    extracted: dict,
+) -> VendorDocument:
+    doc = VendorDocument(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        vendor_party_id=vendor_party_id,
+        doc_type=doc_type,
+        file_path=file_path,
+        original_filename=original_filename,
+        expiry_date=expiry_date,
+        extracted=extracted or {},
+        status="active",
+    )
+    db.add(doc)
+    await db.commit()
+    await db.refresh(doc)
+    return doc
+
+
+# ── Missions / interventions ────────────────────────────────────────────────
+async def list_my_missions(
+    db: AsyncSession, vendor_party_id: uuid.UUID, company_id: uuid.UUID
+) -> list[VendorMission]:
+    result = await db.execute(
+        select(VendorMission)
+        .where(
+            VendorMission.vendor_party_id == vendor_party_id,
+            VendorMission.company_id == company_id,
+            VendorMission.deleted_at.is_(None),
+        )
+        .order_by(VendorMission.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_mission(
+    db: AsyncSession, mission_id: uuid.UUID, vendor_party_id: uuid.UUID, company_id: uuid.UUID
+) -> VendorMission | None:
+    return (
+        await db.execute(
+            select(VendorMission).where(
+                VendorMission.id == mission_id,
+                VendorMission.vendor_party_id == vendor_party_id,
+                VendorMission.company_id == company_id,
+                VendorMission.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+
+
+async def set_mission_status(
+    db: AsyncSession, mission: VendorMission, target: str
+) -> VendorMission:
+    mission.status = target
+    if target == "done":
+        mission.completed_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(mission)
+    return mission
+
+
+# ── Messagerie agence ───────────────────────────────────────────────────────
+async def resolve_agency_recipient(
+    db: AsyncSession, company_id: uuid.UUID
+) -> uuid.UUID | None:
+    """Boîte de réception « agence » : premier admin/manager actif du tenant."""
+    return (
+        await db.execute(
+            select(User.id)
+            .where(
+                User.company_id == company_id,
+                User.role.in_([UserRole.ADMIN.value, UserRole.MANAGER.value]),
+                User.status == "active",
+                User.deleted_at.is_(None),
+            )
+            .order_by(User.created_at.asc())
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+
+
+async def list_my_messages(
+    db: AsyncSession, user_id: uuid.UUID, company_id: uuid.UUID
+) -> list[Message]:
+    result = await db.execute(
+        select(Message)
+        .where(
+            Message.company_id == company_id,
+            Message.deleted_at.is_(None),
+            or_(
+                Message.sender_user_id == user_id,
+                Message.recipient_user_id == user_id,
+            ),
+        )
+        .order_by(Message.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def send_message_to_agency(
+    db: AsyncSession,
+    *,
+    sender_user_id: uuid.UUID,
+    recipient_user_id: uuid.UUID,
+    company_id: uuid.UUID,
+    subject: str | None,
+    body: str,
+) -> Message:
+    msg = Message(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        sender_user_id=sender_user_id,
+        recipient_user_id=recipient_user_id,
+        subject=subject,
+        body=body,
+    )
+    db.add(msg)
+    await db.commit()
+    await db.refresh(msg)
+    return msg

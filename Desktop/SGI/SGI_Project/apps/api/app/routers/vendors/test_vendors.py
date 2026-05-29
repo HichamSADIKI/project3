@@ -10,7 +10,6 @@ from app.routers.vendors.service import (
     merge_rating,
 )
 
-
 # ─── merge_rating ──────────────────────────────────────────────────────────
 
 
@@ -110,3 +109,50 @@ class TestMarketplaceEligibility:
             )
             is True
         )
+
+    def test_pending_verification_not_eligible(self) -> None:
+        # Profil non validé par un admin → jamais éligible, même bien noté.
+        assert (
+            is_eligible_for_marketplace(
+                True, Decimal("4.8"), 10, date(2027, 1, 1), self.today, "pending"
+            )
+            is False
+        )
+
+    def test_rejected_verification_not_eligible(self) -> None:
+        assert (
+            is_eligible_for_marketplace(
+                True, Decimal("4.8"), 10, date(2027, 1, 1), self.today, "rejected"
+            )
+            is False
+        )
+
+    def test_verified_default_is_eligible(self) -> None:
+        # Le défaut 'verified' garde la rétro-compatibilité des fiches anciennes.
+        assert (
+            is_eligible_for_marketplace(
+                True, Decimal("4.8"), 10, date(2027, 1, 1), self.today
+            )
+            is True
+        )
+
+
+# ─── extract_trade_licence (OCR best-effort) ───────────────────────────────
+
+
+class TestTradeLicenceExtraction:
+    @pytest.mark.asyncio
+    async def test_unsupported_mime_returns_empty(self) -> None:
+        from app.core.gemini import extract_trade_licence
+
+        out = await extract_trade_licence(b"plain text", "text/plain")
+        assert out["engine"] == "unsupported_mime"
+        assert out["trade_licence_number"] is None
+        assert out["confidence"] == 0.0
+
+    @pytest.mark.asyncio
+    async def test_empty_document_returns_empty(self) -> None:
+        from app.core.gemini import extract_trade_licence
+
+        out = await extract_trade_licence(b"", "application/pdf")
+        assert out["engine"] == "unsupported_mime"
