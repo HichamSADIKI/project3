@@ -345,6 +345,7 @@ async def ws_endpoint(
     websocket: WebSocket,
     conv_id: str,
     token: str = Query(..., description="JWT d'authentification"),
+    db: AsyncSession = Depends(get_db),
 ) -> None:
     """
     WS /api/v1/comms/ws/conversations/{conv_id}?token=<jwt>
@@ -353,17 +354,35 @@ async def ws_endpoint(
     Le company_id et user_id sont extraits du token — aucune donnée sensible
     n'est exposée dans l'URL (le token est ephémère, TTL = session).
     """
+    from .service import _check_participant
     from .ws import ws_handler
 
     try:
         payload = decode_jwt(token)
         company_id = payload.get("company_id")
         user_id = payload.get("sub")
-        if not company_id or not user_id:
+        # Un tmp_token MFA (mfa_pending) ne donne pas accès au temps réel.
+        if not company_id or not user_id or payload.get("mfa_pending"):
             await websocket.close(code=4401)
             return
     except Exception:
         await websocket.close(code=4401)
+        return
+
+    # Autorisation au niveau objet : l'utilisateur doit être participant de la
+    # conversation (même garde que les routes REST). Empêche l'écoute des
+    # conversations d'autrui dans le même tenant (BOLA temps réel).
+    try:
+        conv_uuid = uuid.UUID(conv_id)
+        company_uuid = uuid.UUID(company_id)
+        user_uuid = uuid.UUID(user_id)
+    except (ValueError, TypeError):
+        await websocket.close(code=4401)
+        return
+
+    is_participant = await _check_participant(db, company_uuid, conv_uuid, user_uuid)
+    if not is_participant:
+        await websocket.close(code=4403)
         return
 
     await ws_handler(websocket, company_id, conv_id, user_id)

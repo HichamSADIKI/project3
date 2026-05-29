@@ -79,10 +79,27 @@ async def get_req(
 async def pay_req(
     request_id: uuid.UUID,
     body: PayIn,
+    request: Request,
     db: AsyncSession = Depends(get_db),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> RequestOut:
     cid = await get_company_id(db)
+
+    # Un compte 'client' ne peut régler QUE ses propres demandes (BOLA) :
+    # le tenant_client_id de la demande doit correspondre à sa fiche client.
+    # Le staff (admin/manager/agent) peut régler au nom du client.
+    role = getattr(request.state, "role", None)
+    if role == "client":
+        from app.routers.client_portal.service import find_linked_client_id
+        from app.routers.payments.service import get_request
+        email = getattr(request.state, "email", "") or ""
+        my_client_id = await find_linked_client_id(db, email, cid)
+        existing = await get_request(db, cid, request_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="request_not_found")
+        if not my_client_id or existing.tenant_client_id != my_client_id:
+            raise HTTPException(status_code=403, detail="not_your_payment_request")
+
     req = await pay_request(db, cid, request_id, body)
     if not req:
         raise HTTPException(status_code=404, detail="request_not_found")

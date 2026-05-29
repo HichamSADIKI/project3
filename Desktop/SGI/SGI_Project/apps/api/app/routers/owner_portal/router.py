@@ -38,6 +38,57 @@ async def _owner_client_id(db: AsyncSession, email: str, company_id: uuid.UUID) 
     return await find_linked_client_id(db, email, company_id)
 
 
+async def _owner_owns_quote(
+    db: AsyncSession, company_id: uuid.UUID, owner_client_id: uuid.UUID, quote_id: uuid.UUID
+) -> bool:
+    """Vérifie que le devis concerne un bien du propriétaire connecté.
+
+    Chaîne : quote → ticket → (unit→building | building) → owner_party_id.
+    Empêche un propriétaire d'agir sur les devis d'un autre (BOLA intra-tenant).
+    """
+    from app.models.building import Building
+    from app.models.maintenance import MaintenanceTicket
+    from app.models.maintenance_ext import MaintenanceQuote
+    from app.models.unit import Unit
+
+    quote = (await db.execute(
+        select(MaintenanceQuote).where(
+            MaintenanceQuote.id == quote_id,
+            MaintenanceQuote.company_id == company_id,
+            MaintenanceQuote.deleted_at.is_(None),
+        )
+    )).scalar_one_or_none()
+    if not quote:
+        return False
+
+    ticket = (await db.execute(
+        select(MaintenanceTicket).where(
+            MaintenanceTicket.id == quote.ticket_id,
+            MaintenanceTicket.company_id == company_id,
+        )
+    )).scalar_one_or_none()
+    if not ticket:
+        return False
+
+    # Résout le building du ticket (directement ou via l'unité).
+    building_id = ticket.building_id
+    if building_id is None and ticket.unit_id is not None:
+        building_id = (await db.execute(
+            select(Unit.building_id).where(
+                Unit.id == ticket.unit_id, Unit.company_id == company_id
+            )
+        )).scalar_one_or_none()
+    if building_id is None:
+        return False
+
+    owner_party = (await db.execute(
+        select(Building.owner_party_id).where(
+            Building.id == building_id, Building.company_id == company_id
+        )
+    )).scalar_one_or_none()
+    return owner_party == owner_client_id
+
+
 # ── Dashboard ──────────────────────────────────────────────────────────────
 
 @router.get("/dashboard")
@@ -134,7 +185,10 @@ async def approve_expense(
 ):
     """Le propriétaire approuve un devis de maintenance le concernant."""
     from app.routers.maintenance.service import approve_quote
-    _uid, cid, _email = _ctx(request)
+    _uid, cid, email = _ctx(request)
+    owner_id = await _owner_client_id(db, email, cid)
+    if not owner_id or not await _owner_owns_quote(db, cid, owner_id, quote_id):
+        raise HTTPException(status_code=404, detail="quote_not_found")
     quote = await approve_quote(db, cid, quote_id)
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
@@ -146,7 +200,10 @@ async def reject_expense(
     quote_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)
 ):
     from app.routers.maintenance.service import reject_quote
-    _uid, cid, _email = _ctx(request)
+    _uid, cid, email = _ctx(request)
+    owner_id = await _owner_client_id(db, email, cid)
+    if not owner_id or not await _owner_owns_quote(db, cid, owner_id, quote_id):
+        raise HTTPException(status_code=404, detail="quote_not_found")
     quote = await reject_quote(db, cid, quote_id)
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
