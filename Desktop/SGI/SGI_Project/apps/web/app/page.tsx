@@ -37,6 +37,7 @@ import { ScreenTravail } from "./screens/travail";
 import { ScreenMarketing } from "./screens/marketing";
 import { ScreenSectorCRM } from "./screens/sector-crm";
 import { ScreenSectorNews } from "./screens/sector-news";
+import { ScreenFournisseurValidation } from "./screens/fournisseur-validation";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
 
@@ -52,7 +53,7 @@ type ScreenKey =
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "visa" | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
   | "finance" | "marketing" | "report" | "parametres"
-  | "clients" | "personne" | "societe";
+  | "clients" | "personne" | "societe" | "fournisseurs";
 
 type ScreenProps = {
   onNavigateToClient?: (name: string) => void;
@@ -119,6 +120,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "it":         (_)  => <ScreenIT />,
   "finance":    (_)  => <ScreenFinance />,
   "marketing":  (_)  => <ScreenMarketing />,
+  "fournisseurs": (_) => <ScreenFournisseurValidation />,
   "report":     (_)  => <ScreenReports />,
   "parametres": (_)  => <ScreenParametres />,
 

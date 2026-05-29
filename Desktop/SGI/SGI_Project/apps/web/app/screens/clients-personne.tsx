@@ -138,8 +138,11 @@ const STATUS_CFG: Record<Status, { en: string; ar: string; fr: string; color: st
 
 const aed = (n: number) => new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
 
+/* Ahmed Al Demo n'est plus dans le mock : il est désormais persisté en base
+   par `apps/api/scripts/seed.py` (UUID 11111111-…1111). Le fetch
+   /api/admin/clients le restitue, le mapper apiClientToPerson le convertit
+   en Person. Aucune duplication, le back-office reflète la DB. */
 const PERSONS: Person[] = [
-  { id: "11111111-1111-1111-1111-111111111111", name: "Ahmed Al Demo",     name_ar: "أحمد الديمو",      nat: "ae", flag: "🇦🇪", phone: "+971 50 000 0001", email: "ahmed.demo@infinity-uae.com", budget: 12_000_000, status: "vip",      deals: 3, lastContact: "2026-05-29", agent: "Yasmine K.", visa: true,  languages: ["ar", "en", "fr"], address: "Palm Jumeirah, Dubai",      dob: "1984-01-01", passportNo: "AE000001" },
   { id: "p001", name: "Reem Al Hashemi",    name_ar: "ريم الهاشمي",     nat: "ae", flag: "🇦🇪", phone: "+971 50 123 4567", email: "reem@email.ae",       budget: 11_200_000, status: "vip",      deals: 2, lastContact: "2026-05-24", agent: "Yasmine K.", visa: true,  languages: ["ar", "en"],       address: "Dubai Hills Estate, Dubai", dob: "1985-03-14", passportNo: "AE123456" },
   { id: "p002", name: "Abdullah Al Rashid", name_ar: "عبدالله الراشد",   nat: "sa", flag: "🇸🇦", phone: "+966 55 987 6543", email: "a.rashid@gmail.com",  budget: 8_500_000,  status: "vip",      deals: 3, lastContact: "2026-05-22", agent: "Omar B.",    visa: true,  languages: ["ar", "en"],       address: "Al Olaya District, Riyadh", dob: "1978-07-22", passportNo: "SA987654" },
   { id: "p003", name: "Sophie Martin",      name_ar: "صوفي مارتان",      nat: "fr", flag: "🇫🇷", phone: "+33 6 12 34 56 78", email: "s.martin@gmail.com", budget: 6_400_000,  status: "active",   deals: 1, lastContact: "2026-05-20", agent: "Reem M.",    visa: false, languages: ["fr", "en"],       address: "JBR, Dubai Marina, Dubai",  dob: "1990-11-05", passportNo: "FR456789" },
@@ -867,6 +870,135 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
   );
 }
 
+/* ── New client modal ────────────────────────────────────────────────────
+   Champs alignés 1:1 avec ClientCreate (apps/api/.../clients/schemas.py).
+   Tout autre champ enrichi (agent, langues, statut VIP, visa, dob…) reste
+   purement local côté back-office : il n'est pas stocké en DB. */
+function NewClientModal({ lang, onClose, onCreated }: { lang: string; onClose: () => void; onCreated: () => void }) {
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [nationality, setNationality] = useState("");
+  const [preferredLocation, setPreferredLocation] = useState("");
+  const [budgetMax, setBudgetMax] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const canSubmit = (firstName.trim() || lastName.trim()) && !submitting;
+
+  const lbl = (en: string, ar: string, fr: string) =>
+    lang === "ar" ? ar : lang === "fr" ? fr : en;
+
+  async function submit() {
+    if (!canSubmit) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const body = {
+        type: "individual",
+        first_name: firstName.trim() || null,
+        last_name: lastName.trim() || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+        nationality: nationality.trim() || null,
+        preferred_location: preferredLocation.trim() || null,
+        budget_max: budgetMax.trim() ? Number(budgetMax.replace(/[^0-9.]/g, "")) : null,
+        source: "crm",
+      };
+      const res = await fetch("/api/admin/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => null);
+        setError(typeof j?.detail === "string" ? j.detail : `error_${res.status}`);
+        setSubmitting(false);
+        return;
+      }
+      onCreated();
+    } catch {
+      setError("network_error");
+      setSubmitting(false);
+    }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px", borderRadius: "var(--r-sm)",
+    border: "1px solid var(--line-soft)", background: "var(--bg-paper)",
+    fontSize: 13, color: "var(--ink)", outline: "none",
+  };
+  const fieldStyle: React.CSSProperties = { display: "flex", flexDirection: "column", gap: 4 };
+  const labelStyle: React.CSSProperties = { fontSize: 11, color: "var(--ink-3)", fontWeight: 500 };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(26,22,16,0.45)", zIndex: 300, backdropFilter: "blur(3px)" }} />
+      <div style={{
+        position: "fixed", top: "50%", insetInlineStart: "50%",
+        transform: "translate(-50%,-50%)",
+        width: "min(520px, calc(100vw - 24px))", maxHeight: "90vh",
+        background: "var(--bg-ivory)", borderRadius: "var(--r-md)",
+        boxShadow: "var(--shadow-3)", zIndex: 301,
+        display: "flex", flexDirection: "column", overflow: "hidden",
+      }}>
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--ink)" }}>
+            {lbl("New individual client", "عميل فرد جديد", "Nouveau client (individu)")}
+          </div>
+          <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", color: "var(--ink-4)", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+        </div>
+
+        <div style={{ padding: "16px 18px", overflowY: "auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>{lbl("First name", "الاسم", "Prénom")}</label>
+            <input style={inputStyle} value={firstName} onChange={e => setFirstName(e.target.value)} autoFocus maxLength={150} />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>{lbl("Last name", "اللقب", "Nom")}</label>
+            <input style={inputStyle} value={lastName} onChange={e => setLastName(e.target.value)} maxLength={150} />
+          </div>
+          <div style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>{lbl("Email", "البريد الإلكتروني", "Email")}</label>
+            <input style={inputStyle} type="email" value={email} onChange={e => setEmail(e.target.value)} maxLength={255} />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>{lbl("Phone", "الهاتف", "Téléphone")}</label>
+            <input style={inputStyle} value={phone} onChange={e => setPhone(e.target.value)} maxLength={50} placeholder="+971 …" />
+          </div>
+          <div style={fieldStyle}>
+            <label style={labelStyle}>{lbl("Nationality", "الجنسية", "Nationalité")}</label>
+            <input style={inputStyle} value={nationality} onChange={e => setNationality(e.target.value)} maxLength={100} placeholder="UAE, France…" />
+          </div>
+          <div style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>{lbl("Preferred location", "الموقع المفضل", "Localisation préférée")}</label>
+            <input style={inputStyle} value={preferredLocation} onChange={e => setPreferredLocation(e.target.value)} maxLength={150} placeholder="Dubai Marina, Palm Jumeirah…" />
+          </div>
+          <div style={{ ...fieldStyle, gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>{lbl("Max budget (AED)", "الميزانية القصوى (د.إ)", "Budget max (AED)")}</label>
+            <input style={inputStyle} inputMode="numeric" value={budgetMax} onChange={e => setBudgetMax(e.target.value)} placeholder="2 000 000" />
+          </div>
+          {error && (
+            <div style={{ gridColumn: "1 / -1", padding: "8px 10px", borderRadius: "var(--r-sm)", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)", color: "var(--rose)", fontSize: 11.5 }}>
+              {error}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: "12px 18px", borderTop: "1px solid var(--line-soft)", background: "var(--bg-paper)", display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <button onClick={onClose} style={{ padding: "8px 14px", borderRadius: "var(--r)", background: "transparent", color: "var(--ink-3)", border: "1px solid var(--line-soft)", cursor: "pointer", fontSize: 12.5 }}>
+            {lbl("Cancel", "إلغاء", "Annuler")}
+          </button>
+          <button onClick={submit} disabled={!canSubmit} style={{ padding: "8px 16px", borderRadius: "var(--r)", background: canSubmit ? "var(--gold)" : "var(--line-soft)", color: "#1A1610", border: "none", cursor: canSubmit ? "pointer" : "not-allowed", fontSize: 12.5, fontWeight: 600 }}>
+            {submitting ? lbl("Saving…", "جارٍ الحفظ…", "Enregistrement…") : lbl("Create", "إنشاء", "Créer")}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 /* ── List view ───────────────────────────────────────────────────────── */
 export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDealConfirmed?: (deal: ConfirmedDeal) => void; initialSearch?: string } = {}) {
   const { lang } = useLang();
@@ -878,6 +1010,7 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
   const [status,  setStatus]  = useState<Status | "all">("all");
   const [agent,   setAgent]   = useState("All agents");
   const [visaOnly, setVisaOnly] = useState(false);
+  const [showNewClient, setShowNewClient] = useState(false);
 
   // Liste réelle des clients (depuis /api/v1/clients/) fusionnée avec les
   // mocks. Les comptes créés via le portail apparaissent ici dès leur
@@ -885,6 +1018,7 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
   // /client/me/profile) est visible au prochain refresh — la source de
   // vérité unique est la table `clients` du backend.
   const [apiPersons, setApiPersons] = useState<Person[]>([]);
+  const [refreshTick, setRefreshTick] = useState(0);
   useEffect(() => {
     const ctrl = new AbortController();
     fetch("/api/admin/clients?type=individual&limit=200", {
@@ -898,7 +1032,7 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
       })
       .catch(() => { /* offline / unauthenticated → fallback to mocks only */ });
     return () => ctrl.abort();
-  }, []);
+  }, [refreshTick]);
 
   // API d'abord (clients réels), puis mocks pour les démos. Dédupliqué par
   // email pour ne pas afficher deux fois un client présent dans les deux.
@@ -924,10 +1058,20 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={title} crumb={[lang === "ar" ? t.nav_clients : "Clients"]}>
-        <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: "var(--r)", background: "var(--gold)", color: "#1A1610", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}>
+        <button
+          onClick={() => setShowNewClient(true)}
+          style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "8px 14px", borderRadius: "var(--r)", background: "var(--gold)", color: "#1A1610", border: "none", cursor: "pointer", fontSize: 12.5, fontWeight: 600 }}
+        >
           <IcPlus2 />{lang === "ar" ? "عميل جديد" : lang === "fr" ? "Nouveau client" : "New Client"}
         </button>
       </Topbar>
+      {showNewClient && (
+        <NewClientModal
+          lang={lang}
+          onClose={() => setShowNewClient(false)}
+          onCreated={() => { setShowNewClient(false); setRefreshTick(t => t + 1); }}
+        />
+      )}
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "var(--bg-cream)" }}>
         {/* Filter bar */}

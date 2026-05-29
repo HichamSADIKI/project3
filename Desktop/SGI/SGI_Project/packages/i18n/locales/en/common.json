@@ -102,7 +102,27 @@
     "errors": {
       "email_already_registered": "This email is already registered.",
       "company_not_found": "Company code not found.",
-      "generic": "Cannot register. Please retry."
+      "generic": "Cannot register. Please retry.",
+      "invalid_vendor_type": "Please select a valid category.",
+      "invalid_license": "Invalid license file (PDF/JPG/PNG, max 8 MB)."
+    },
+    "categoryLabel": "Service category",
+    "categoryHint": "Choose the category matching your trade license.",
+    "categoryPlaceholder": "Select a category",
+    "license": "Commercial license",
+    "licenseHint": "PDF, JPG or PNG — max 8 MB. Required to validate your category.",
+    "vendorTypes": {
+      "maintenance": "Maintenance",
+      "cleaning": "Cleaning",
+      "security": "Security",
+      "landscaping": "Landscaping",
+      "pest_control": "Pest control",
+      "elevator": "Elevator",
+      "moving": "Moving",
+      "hvac": "HVAC (A/C)",
+      "electrical": "Electrical",
+      "plumbing": "Plumbing",
+      "other": "Other"
     }
   },
   "shell": {

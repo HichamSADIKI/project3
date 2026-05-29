@@ -102,7 +102,27 @@
     "errors": {
       "email_already_registered": "Cet email est déjà utilisé.",
       "company_not_found": "Code société inconnu.",
-      "generic": "Inscription impossible. Réessayez."
+      "generic": "Inscription impossible. Réessayez.",
+      "invalid_vendor_type": "Veuillez sélectionner une catégorie valide.",
+      "invalid_license": "Fichier de licence invalide (PDF/JPG/PNG, max 8 Mo)."
+    },
+    "categoryLabel": "Catégorie de prestation",
+    "categoryHint": "Choisissez la catégorie correspondant à votre licence commerciale.",
+    "categoryPlaceholder": "Sélectionnez une catégorie",
+    "license": "Licence commerciale",
+    "licenseHint": "PDF, JPG ou PNG — max 8 Mo. Requise pour valider votre catégorie.",
+    "vendorTypes": {
+      "maintenance": "Maintenance",
+      "cleaning": "Nettoyage",
+      "security": "Sécurité",
+      "landscaping": "Espaces verts",
+      "pest_control": "Désinsectisation",
+      "elevator": "Ascenseurs",
+      "moving": "Déménagement",
+      "hvac": "Climatisation (CVC)",
+      "electrical": "Électricité",
+      "plumbing": "Plomberie",
+      "other": "Autre"
     }
   },
   "shell": {
