@@ -1,7 +1,16 @@
 import uuid
 
 from geoalchemy2 import Geometry
-from sqlalchemy import DECIMAL, Boolean, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import (
+    DECIMAL,
+    Boolean,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,8 +30,8 @@ class Property(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
 
-    # Référence interne unique (ex: "DXB-2024-1182")
-    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    # Référence interne — unique PAR société (multi-tenant), pas globalement.
+    reference: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Catégorie du bien
     type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -87,6 +96,8 @@ class Property(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     __table_args__ = (
+        # Référence unique PAR société (multi-tenant) — pas globalement.
+        UniqueConstraint("company_id", "reference", name="uq_properties_company_reference"),
         # Index GIST pour les requêtes géospatiales (Loi 2)
         Index("idx_properties_location_gist", "location", postgresql_using="gist"),
         # Index tenant standard (Loi 1)

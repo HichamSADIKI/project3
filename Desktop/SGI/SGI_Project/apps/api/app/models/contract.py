@@ -1,7 +1,15 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import DECIMAL, Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import (
+    DECIMAL,
+    Date,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,8 +30,8 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
 
-    # Référence unique lisible
-    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    # Référence lisible — unique PAR société (multi-tenant), pas globalement.
+    reference: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # "sale" | "rental"
     type: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -87,4 +95,9 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # E-signature (M5) — document M2 servant de support de signature
     signing_document_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
+    )
+
+    __table_args__ = (
+        # Référence unique PAR société (multi-tenant) — pas globalement.
+        UniqueConstraint("company_id", "reference", name="uq_contracts_company_reference"),
     )

@@ -1,7 +1,7 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import DECIMAL, Date, DateTime, ForeignKey, String
+from sqlalchemy import DECIMAL, Date, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -21,8 +21,8 @@ class FinanceTransaction(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
 
-    # Référence unique lisible
-    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    # Référence lisible — unique PAR société (multi-tenant), pas globalement.
+    reference: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # Catégorie
     type: Mapped[str] = mapped_column(String(30), nullable=False)
@@ -71,3 +71,10 @@ class FinanceTransaction(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # Moyen de paiement
     payment_method: Mapped[str | None] = mapped_column(String(50), nullable=True)
     bank_reference: Mapped[str | None] = mapped_column(String(150), nullable=True)
+
+    __table_args__ = (
+        # Référence unique PAR société (multi-tenant) — pas globalement.
+        UniqueConstraint(
+            "company_id", "reference", name="uq_finance_transactions_company_reference"
+        ),
+    )
