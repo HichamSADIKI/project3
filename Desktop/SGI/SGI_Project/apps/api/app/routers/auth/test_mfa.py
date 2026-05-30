@@ -37,6 +37,24 @@ def test_encrypt_different_each_call() -> None:
     assert encrypt_secret(s) != encrypt_secret(s)
 
 
+def test_key_derives_from_settings_secret_key(monkeypatch) -> None:
+    """La clé dérive de settings.SECRET_KEY (HKDF) — aucun fallback codé en dur.
+
+    Changer SECRET_KEY doit rendre un ancien chiffré indéchiffrable : preuve que
+    la dérivation dépend réellement du secret de config et non d'une valeur fixe.
+    """
+    from cryptography.fernet import InvalidToken
+
+    from app.core.config import settings
+
+    secret = generate_totp_secret()
+    encrypted = encrypt_secret(secret)
+
+    monkeypatch.setattr(settings, "SECRET_KEY", "cle-de-config-completement-differente-xyz")
+    with pytest.raises(InvalidToken):
+        decrypt_secret(encrypted)
+
+
 def test_provisioning_uri_format() -> None:
     secret = generate_totp_secret()
     uri = generate_provisioning_uri(secret, "test@sgi.ae")

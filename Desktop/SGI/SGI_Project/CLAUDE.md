@@ -354,3 +354,4 @@ Only the skills below actually exist on disk — verified against `.claude/skill
 | `rtl-components` | Composants RTL-safe, CSS logique, i18n |
 | `dev-process` | **Toute demande complexe** : questions → sous-questions → solution → plan → confirmation → dev → déploiement → tests → audit sécurité → validation. Son à chaque étape. |
 | `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. |
+| `progression` | **Tableau de bord graphique** du taux de réalisation (tâche principale + sous-tâches) dans le terminal : barres Unicode + %. Invocable `/progression`. À afficher au début d'une demande multi-étapes (≥ 2 sous-tâches), à chaque fin de phase, et quand l'utilisateur demande « où on en est » / « taux de réalisation ». Se combine avec `dev-process`. |
