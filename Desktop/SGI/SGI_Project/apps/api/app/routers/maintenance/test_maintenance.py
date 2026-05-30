@@ -11,17 +11,41 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal
 from unittest.mock import MagicMock
 
 import pytest
+from fastapi import HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.building import Building
+from app.models.client import Client
+from app.models.company import Company
+from app.models.user import User
+from app.routers.maintenance.schemas import (
+    QuoteCreate,
+    TicketAssign,
+    TicketCreate,
+    TicketStatusUpdate,
+    TicketUpdate,
+)
 from app.routers.maintenance.service import (
     SLA_HOURS,
+    approve_quote,
+    assign_ticket,
     compute_sla_due,
+    create_quote,
+    create_ticket,
     generate_reference,
+    get_ticket,
     is_sla_breached,
     is_valid_transition,
+    list_tickets,
     next_cron_run,
+    reject_quote,
+    soft_delete_ticket,
+    update_ticket,
+    update_ticket_status,
 )
 
 
@@ -165,10 +189,228 @@ def test_is_sla_breached_no_due_date() -> None:
     assert is_sla_breached(ticket) is False
 
 
-# ── Tests d'intégration (nécessitent conftest DB + fixtures) ─────────────
-# Les tests ci-dessous utilisent les fixtures `client`, `seed_company`, et
-# `db_session` définies dans conftest.py (montées via docker-compose volume).
-# Ils seront activés lors de l'exécution via `make test` ou
-# `docker compose exec -e PYTHONPATH=/app api uv run pytest`.
+# ── Tests d'intégration : CRUD tickets + devis (DB) ──────────────────────────
 
-pytestmark = pytest.mark.asyncio
+
+async def _building(db: AsyncSession, company: Company) -> uuid.UUID:
+    b = Building(
+        id=uuid.uuid4(), company_id=company.id,
+        reference=f"BLD-{uuid.uuid4().hex[:10]}", building_type="residential_tower",
+    )
+    db.add(b)
+    await db.commit()
+    return b.id
+
+
+async def _ticket(db, company, admin, **overrides):
+    building_id = await _building(db, company)
+    data = TicketCreate(
+        title=overrides.pop("title", "Fuite robinet"),
+        category=overrides.pop("category", "plumbing"),
+        priority=overrides.pop("priority", "medium"),
+        building_id=building_id,
+        **overrides,
+    )
+    return await create_ticket(db, company.id, data, admin.id)
+
+
+def _company_of(admin: User) -> Company:
+    c = Company(id=admin.company_id, name="x", slug="x")
+    return c
+
+
+# ── CRUD tickets ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_ticket_reference_and_sla(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    ticket = await _ticket(db_session, _company_of(admin), admin)
+    assert ticket.reference.startswith("MNT-")
+    assert ticket.status == "new"
+    assert ticket.sla_due_at is not None
+
+
+@pytest.mark.asyncio
+async def test_create_ticket_requires_location(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    with pytest.raises(HTTPException) as exc:
+        await create_ticket(
+            db_session, admin.company_id,
+            TicketCreate(title="Sans lieu", category="plumbing"), admin.id,
+        )
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_get_cross_tenant_none(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    ticket = await _ticket(db_session, _company_of(admin), admin)
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro", is_active=True,
+    )
+    db_session.add(other)
+    await db_session.commit()
+    assert await get_ticket(db_session, other.id, ticket.id) is None
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_status(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    await _ticket(db_session, company, admin)
+    _, n_new = await list_tickets(db_session, company.id, status="new")
+    assert n_new >= 1
+
+
+@pytest.mark.asyncio
+async def test_update_priority_recomputes_sla(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin, priority="low")
+    updated = await update_ticket(
+        db_session, company.id, ticket.id, TicketUpdate(priority="urgent")
+    )
+    assert updated is not None and updated.priority == "urgent"
+    # SLA urgent < SLA low → l'échéance recalculée est plus proche.
+    assert updated.sla_due_at is not None
+
+
+# ── Transitions de statut ────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_status_valid_and_resolved_sets_timestamp(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    # new → triaged → assigned → in_progress → resolved
+    for target in ("triaged", "assigned", "in_progress", "resolved"):
+        ticket = await update_ticket_status(
+            db_session, company.id, ticket.id, TicketStatusUpdate(status=target)
+        )
+    assert ticket is not None and ticket.status == "resolved"
+    assert ticket.resolved_at is not None
+
+
+@pytest.mark.asyncio
+async def test_status_invalid_transition_422(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    with pytest.raises(HTTPException) as exc:
+        await update_ticket_status(
+            db_session, company.id, ticket.id, TicketStatusUpdate(status="closed")
+        )
+    assert exc.value.status_code == 422
+
+
+# ── Assignation ──────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_assign_requires_exactly_one_target(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    # Aucun des deux → 422
+    with pytest.raises(HTTPException) as exc:
+        await assign_ticket(db_session, company.id, ticket.id, TicketAssign(), admin.id)
+    assert exc.value.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_assign_to_technician(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    assigned = await assign_ticket(
+        db_session, company.id, ticket.id, TicketAssign(technician_id=admin.id), admin.id
+    )
+    assert assigned is not None
+    assert assigned.assigned_technician_id == admin.id
+    assert assigned.status == "assigned"
+
+
+@pytest.mark.asyncio
+async def test_soft_delete(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    assert await soft_delete_ticket(db_session, company.id, ticket.id) is True
+    assert await get_ticket(db_session, company.id, ticket.id) is None
+
+
+# ── Devis (quotes) ───────────────────────────────────────────────────────────
+
+
+async def _vendor_party(db: AsyncSession, company: Company) -> uuid.UUID:
+    c = Client(
+        id=uuid.uuid4(), company_id=company.id, type="company", company_name="Vendor FZE",
+    )
+    db.add(c)
+    await db.commit()
+    return c.id
+
+
+@pytest.mark.asyncio
+async def test_create_and_approve_quote_updates_ticket_cost(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    vendor_id = await _vendor_party(db_session, company)
+
+    quote = await create_quote(
+        db_session, company.id, ticket.id,
+        QuoteCreate(vendor_party_id=vendor_id, amount_aed=Decimal("1500.00")),
+    )
+    assert quote is not None and quote.status == "pending"
+
+    approved = await approve_quote(db_session, company.id, quote.id)
+    assert approved is not None and approved.status == "approved"
+    # Le coût estimé du ticket reflète le devis approuvé.
+    refreshed = await get_ticket(db_session, company.id, ticket.id)
+    assert refreshed is not None and refreshed.cost_estimate_aed == Decimal("1500.00")
+
+
+@pytest.mark.asyncio
+async def test_reject_quote_then_cannot_reapprove(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    company = _company_of(admin)
+    ticket = await _ticket(db_session, company, admin)
+    vendor_id = await _vendor_party(db_session, company)
+    quote = await create_quote(
+        db_session, company.id, ticket.id,
+        QuoteCreate(vendor_party_id=vendor_id, amount_aed=Decimal("900.00")),
+    )
+    rejected = await reject_quote(db_session, company.id, quote.id)
+    assert rejected is not None and rejected.status == "rejected"
+    # Un devis non-pending ne peut plus être approuvé.
+    with pytest.raises(HTTPException) as exc:
+        await approve_quote(db_session, company.id, quote.id)
+    assert exc.value.status_code == 422
