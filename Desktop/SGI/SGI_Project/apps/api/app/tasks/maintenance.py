@@ -15,6 +15,7 @@ from sqlalchemy import and_, select
 from app.core.database import sync_session_maker  # session synchrone pour Celery
 from app.models.maintenance import MaintenanceTicket
 from app.models.maintenance_ext import MaintenancePlan
+from app.models.notification import Notification
 from app.routers.maintenance.service import (
     compute_sla_due,
     generate_reference,
@@ -38,14 +39,41 @@ def check_maintenance_sla(self):
             ).scalars().all()
 
             breached = [t for t in rows if is_sla_breached(t)]
+            notified = 0
+            for ticket in breached:
+                # Dédup : une notif de breach par ticket.
+                exists = db.execute(
+                    select(Notification.id).where(
+                        Notification.company_id == ticket.company_id,
+                        Notification.type == "maintenance_sla_breach",
+                        Notification.payload["ticket_id"].astext == str(ticket.id),
+                    )
+                ).first()
+                if exists:
+                    continue
+                db.add(
+                    Notification(
+                        company_id=ticket.company_id,
+                        recipient_user_id=ticket.assigned_technician_id,
+                        type="maintenance_sla_breach",
+                        channel="in_app",
+                        title=f"SLA dépassé — ticket {ticket.reference}",
+                        body=f"Priorité {ticket.priority}, échéance {ticket.sla_due_at}",
+                        payload={"ticket_id": str(ticket.id)},
+                        status="sent",
+                        sent_at=datetime.now(timezone.utc),
+                    )
+                )
+                notified += 1
             if breached:
                 logger.warning(
-                    "SLA breached: %d tickets — refs: %s",
-                    len(breached),
+                    "SLA breached: %d tickets (%d notifiés) — refs: %s",
+                    len(breached), notified,
                     [t.reference for t in breached[:10]],
                 )
-                # TODO Phase 3 : envoyer une notification temps réel au manager.
-            return {"checked": len(rows), "breached": len(breached)}
+                if notified:
+                    db.commit()
+            return {"checked": len(rows), "breached": len(breached), "notified": notified}
     except Exception as exc:
         logger.error("check_maintenance_sla failed: %s", exc)
         raise self.retry(exc=exc, countdown=300, max_retries=3)
