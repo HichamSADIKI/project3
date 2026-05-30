@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-
 PdcStatus = Literal[
     "pending", "deposited", "cleared", "bounced", "replaced", "cancelled"
 ]

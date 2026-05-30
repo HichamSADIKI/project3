@@ -36,7 +36,7 @@ async def get_db_session(
         try:
             await db.execute(_CLEAR_TENANT)
             await db.commit()
-        except Exception:
+        except Exception:  # noqa: S110  reset best-effort du GUC en fin de requête
             pass
 
 

@@ -1,6 +1,6 @@
 """Service Inspections — CRUD + machine à états + helpers purs."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -19,9 +19,7 @@ from .schemas import (
     ItemCreate,
     ItemUpdate,
     SectionCreate,
-    SignIn,
 )
-
 
 # ── Machine à états ───────────────────────────────────────────────────────
 
@@ -46,7 +44,7 @@ def generate_reference(year: int, sequence: int) -> str:
 
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count = (await db.execute(
         select(func.count(Inspection.id)).where(
             Inspection.company_id == company_id,
@@ -168,7 +166,7 @@ async def transition_inspection(
             detail=f"invalid_transition: '{insp.status}'→'{target}' "
                    f"(autorisées: {VALID_TRANSITIONS.get(insp.status, [])})",
         )
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     insp.status = target
     if target == "completed":
         insp.completed_at = now
@@ -204,7 +202,7 @@ async def soft_delete_inspection(
     insp = await get_inspection(db, company_id, inspection_id)
     if not insp:
         return False
-    insp.deleted_at = datetime.now(timezone.utc)
+    insp.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 
@@ -313,7 +311,7 @@ async def add_photo(
         item_id=item_id,
         file_key=file_key,
         caption=caption,
-        uploaded_at=datetime.now(timezone.utc),
+        uploaded_at=datetime.now(UTC),
     )
     db.add(photo)
     await db.commit()

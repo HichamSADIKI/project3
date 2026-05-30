@@ -14,7 +14,6 @@ from app.routers.pdc.service import (
     pdc_reminder_level,
 )
 
-
 # ─── Transitions de cycle de vie ──────────────────────────────────────────
 
 

@@ -4,7 +4,7 @@ Toutes les fonctions filtrent par company_id (Loi 1).
 Un utilisateur ne peut lire/écrire que dans les conversations dont il est participant.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -18,7 +18,6 @@ from app.models.conversation import (
 )
 
 from .schemas import ConversationCreate, MessageCreate, ParticipantAdd
-
 
 # ── Helpers purs ──────────────────────────────────────────────────────────
 
@@ -194,7 +193,7 @@ async def add_participant(
         await db.refresh(part)
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="already_participant")
+        raise HTTPException(status_code=409, detail="already_participant") from None
     return part
 
 
@@ -214,7 +213,7 @@ async def mark_read(
     part = result.scalar_one_or_none()
     if not part:
         return False
-    part.last_read_at = datetime.now(timezone.utc)
+    part.last_read_at = datetime.now(UTC)
     await db.commit()
     return True
 
@@ -233,7 +232,7 @@ async def send_message(
     if not data.body and data.kind == "text":
         raise HTTPException(status_code=422, detail="body_required_for_text_message")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     msg = ConversationMessage(
         company_id=company_id,
         conversation_id=conv_id,

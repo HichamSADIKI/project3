@@ -19,6 +19,6 @@ class TenantMiddleware(BaseHTTPMiddleware):
                     request.state.role = payload.get("role")
                     request.state.email = payload.get("email")
                     request.state.language = payload.get("language")
-            except Exception:
+            except Exception:  # noqa: S110  JWT invalide → requête anonyme (pas d'auth posée)
                 pass
         return await call_next(request)

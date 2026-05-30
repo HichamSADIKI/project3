@@ -1,6 +1,6 @@
 """Router FastAPI — Tenants (profil locataire / candidat + KYC)."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -199,7 +199,7 @@ async def kyc_report_endpoint(
 ) -> KycReportOut:
     company_id = await get_company_id(db)
     tenant = await _get_tenant_or_404(db, company_id, party_id)
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     report = await kyc_status_report(db, company_id, tenant, today)
     return KycReportOut(data=KycReport(**report))
 
@@ -221,7 +221,7 @@ async def kyc_submit_endpoint(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition"
         )
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     present = await tenant_document_types(db, company_id, party_id)
     if not is_kyc_complete(
         present_doc_types=present,

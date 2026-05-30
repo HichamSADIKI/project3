@@ -6,7 +6,7 @@ Lancer avec : `docker compose exec api uv run pytest app/routers/rentals/test_re
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -25,7 +25,6 @@ from app.routers.rentals.service import (
     list_rentals,
     update_rental,
 )
-
 
 # ── Helpers purs : _add_months ───────────────────────────────────────────────
 
@@ -236,7 +235,7 @@ async def test_soft_deleted_excluded_from_list(
     r = await create_rental(
         db_session, seed_company.id, _rental_create(cid_, client_id, prop_id)
     )
-    r.deleted_at = datetime.now(timezone.utc)
+    r.deleted_at = datetime.now(UTC)
     await db_session.commit()
 
     assert await get_rental(db_session, seed_company.id, r.id) is None

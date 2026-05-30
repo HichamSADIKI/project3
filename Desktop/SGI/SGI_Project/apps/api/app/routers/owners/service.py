@@ -1,6 +1,6 @@
 """Service — Owners. Toujours filtrer par company_id (Loi 1)."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +8,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.client import Client
 from app.models.party_owner import Owner
 from app.routers.owners.schemas import OwnerCreate, OwnerUpdate
-
 
 # ─── Helpers métier purs (testables sans DB) ──────────────────────────────
 
@@ -149,7 +148,7 @@ async def update_owner(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(owner, field, value)
-    owner.updated_at = datetime.now(timezone.utc)
+    owner.updated_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(owner)
@@ -162,6 +161,6 @@ async def delete_owner(
     owner = await get_owner(db, company_id, party_id)
     if owner is None:
         return False
-    owner.deleted_at = datetime.now(timezone.utc)
+    owner.deleted_at = datetime.now(UTC)
     await db.commit()
     return True

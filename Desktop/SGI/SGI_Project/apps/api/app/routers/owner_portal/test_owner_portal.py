@@ -12,7 +12,7 @@ Lancer avec : `docker compose exec api uv run pytest app/routers/owner_portal/te
 from __future__ import annotations
 
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import pytest
@@ -144,7 +144,7 @@ async def _make_statement(
         commission_aed=Decimal("500"),
         net_payout_aed=Decimal(net),
         line_items=[{"label": "loyer", "amount": "10000"}],
-        generated_at=datetime.now(timezone.utc),
+        generated_at=datetime.now(UTC),
     )
     db.add(st)
     await db.commit()
@@ -166,7 +166,7 @@ async def _make_notification(
         title="Relevé disponible",
         body="Votre relevé mensuel est prêt.",
         status=status,
-        sent_at=datetime.now(timezone.utc),
+        sent_at=datetime.now(UTC),
     )
     db.add(n)
     await db.commit()

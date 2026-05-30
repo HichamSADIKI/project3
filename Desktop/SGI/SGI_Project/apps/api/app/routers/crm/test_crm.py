@@ -6,7 +6,7 @@ Lancer avec : `docker compose exec api uv run pytest app/routers/crm/test_crm.py
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -84,19 +84,19 @@ class TestCalculateScore:
         assert calculate_score(None, False, None, 0.5, None) == 10
 
     def test_recent_contact_bonus(self) -> None:
-        recent = datetime.now(timezone.utc) - timedelta(days=1)
+        recent = datetime.now(UTC) - timedelta(days=1)
         assert calculate_score(None, False, None, 0.0, recent) == 10
 
     def test_old_contact_no_bonus(self) -> None:
-        old = datetime.now(timezone.utc) - timedelta(days=30)
+        old = datetime.now(UTC) - timedelta(days=30)
         assert calculate_score(None, False, None, 0.0, old) == 0
 
     def test_naive_datetime_assumed_utc(self) -> None:
-        recent_naive = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=1)
+        recent_naive = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=1)
         assert calculate_score(None, False, None, 0.0, recent_naive) == 10
 
     def test_combined_high_score(self) -> None:
-        recent = datetime.now(timezone.utc) - timedelta(hours=2)
+        recent = datetime.now(UTC) - timedelta(hours=2)
         # 25 + 20 + 15 + 20 + 10 = 90
         assert calculate_score(Decimal("2500000"), True, "villa", 1.0, recent) == 90
 

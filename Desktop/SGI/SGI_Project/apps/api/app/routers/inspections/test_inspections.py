@@ -39,7 +39,6 @@ from app.routers.inspections.service import (
     update_item,
 )
 
-
 # ── Helpers purs (conservés) ─────────────────────────────────────────────────
 
 

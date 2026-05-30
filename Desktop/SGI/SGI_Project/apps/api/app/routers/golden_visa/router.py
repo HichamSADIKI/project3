@@ -1,5 +1,4 @@
 import uuid
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,8 +13,8 @@ router = APIRouter(prefix="/golden-visa", tags=["golden_visa"])
 async def list_applications(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None),
-    client_id: Optional[uuid.UUID] = Query(None),
+    status: str | None = Query(None),
+    client_id: uuid.UUID | None = Query(None),
     db: AsyncSession = Depends(get_db_session),
 ):
     result = await service.list_applications(

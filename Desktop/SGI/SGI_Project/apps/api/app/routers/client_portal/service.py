@@ -5,11 +5,11 @@ via l'email (les deux tables ont un index sur email). Cette correspondance
 permet de retrouver contrats/paiements/locations/GV du client.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import and_, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.gemini import VALID_CATEGORIES, detect_categories, parse_client_need
@@ -265,7 +265,7 @@ async def mark_message_read(
     if not msg:
         return False
     if msg.read_at is None:
-        msg.read_at = datetime.now(timezone.utc)
+        msg.read_at = datetime.now(UTC)
         await db.flush()
     return True
 
@@ -600,7 +600,7 @@ async def update_my_profile(
     )
     for field, value in data.items():
         setattr(client, field, value)
-    client.updated_at = datetime.now(timezone.utc)
+    client.updated_at = datetime.now(UTC)
 
     if language:
         user = (

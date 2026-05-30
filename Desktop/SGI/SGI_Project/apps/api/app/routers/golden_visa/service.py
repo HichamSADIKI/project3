@@ -1,6 +1,5 @@
 import uuid
-from datetime import date, timedelta
-from typing import Optional
+from datetime import UTC, date, timedelta
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,8 +25,8 @@ async def list_applications(
     *,
     page: int = 1,
     limit: int = 20,
-    status: Optional[str] = None,
-    client_id: Optional[uuid.UUID] = None,
+    status: str | None = None,
+    client_id: uuid.UUID | None = None,
 ) -> dict:
     cid = await _company_id(db)
     q = (
@@ -103,11 +102,11 @@ async def update_application(
 
 
 async def delete_application(db: AsyncSession, app_id: uuid.UUID) -> bool:
-    from datetime import datetime, timezone
+    from datetime import datetime
     app = await get_application(db, app_id)
     if not app:
         return False
-    app.deleted_at = datetime.now(timezone.utc)
+    app.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 

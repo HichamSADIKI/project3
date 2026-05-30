@@ -105,10 +105,14 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
         baths_m = re.search(r"(\d+)-bath", meta_desc)
         type_m  = re.search(r"sqft\s+([\w]+)\s+for\s+(sale|rent)", meta_desc, re.I)
 
-        if price_m: price = price_m.group(1).replace(",", "")
-        if sqft_m:  sqft  = sqft_m.group(1).replace(",", "")
-        if beds_m:  beds_meta  = beds_m.group(1)
-        if baths_m: baths_meta = baths_m.group(1)
+        if price_m:
+            price = price_m.group(1).replace(",", "")
+        if sqft_m:
+            sqft = sqft_m.group(1).replace(",", "")
+        if beds_m:
+            beds_meta = beds_m.group(1)
+        if baths_m:
+            baths_meta = baths_m.group(1)
         if type_m:
             prop_type    = normalise_prop_type(type_m.group(1))
             listing_type = "Rent" if "rent" in type_m.group(2).lower() else "Sale"
@@ -131,7 +135,11 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
     if loc_arr_m:
         try:
             locs = json.loads(loc_arr_m.group(1))
-            names = [l.get("name") or l.get("externalID") or "" for l in locs if isinstance(l, dict)]
+            names = [
+                loc.get("name") or loc.get("externalID") or ""
+                for loc in locs
+                if isinstance(loc, dict)
+            ]
             emirate = normalise_emirate(names)
             if not community:
                 # Use the deepest location that isn't a country/emirate name
@@ -305,11 +313,11 @@ def _parse_generic_html(
             for item in graph:
                 raw_t = item.get("@type", "")
                 types = raw_t if isinstance(raw_t, list) else [raw_t]
-                KNOWN = {
+                known_types = {
                     "Product", "Apartment", "House", "Accommodation",
                     "RealEstateListing", "LodgingBusiness", "SingleFamilyResidence",
                 }
-                if not any(str(t) in KNOWN for t in types):
+                if not any(str(t) in known_types for t in types):
                     continue
                 if not result.get("title_en"):
                     result["title_en"] = (item.get("name") or item.get("headline") or "").strip()

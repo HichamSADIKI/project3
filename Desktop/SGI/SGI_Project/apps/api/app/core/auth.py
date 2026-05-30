@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import bcrypt
@@ -31,11 +31,11 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def encode_jwt(data: dict[str, Any], expires_delta: timedelta | None = None) -> str:
     payload = data.copy()
-    expire = datetime.now(timezone.utc) + (
+    expire = datetime.now(UTC) + (
         expires_delta or timedelta(hours=settings.JWT_ACCESS_EXPIRE_HOURS)
     )
     payload["exp"] = expire
-    payload["iat"] = datetime.now(timezone.utc)
+    payload["iat"] = datetime.now(UTC)
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 

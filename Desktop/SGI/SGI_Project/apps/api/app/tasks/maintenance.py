@@ -7,10 +7,10 @@ Beat :
 """
 import logging
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from celery import shared_task
-from sqlalchemy import and_, select
+from sqlalchemy import select
 
 from app.core.database import sync_session_maker  # session synchrone pour Celery
 from app.models.maintenance import MaintenanceTicket
@@ -62,7 +62,7 @@ def check_maintenance_sla(self):
                         body=f"Priorité {ticket.priority}, échéance {ticket.sla_due_at}",
                         payload={"ticket_id": str(ticket.id)},
                         status="sent",
-                        sent_at=datetime.now(timezone.utc),
+                        sent_at=datetime.now(UTC),
                     )
                 )
                 notified += 1
@@ -77,13 +77,13 @@ def check_maintenance_sla(self):
             return {"checked": len(rows), "breached": len(breached), "notified": notified}
     except Exception as exc:
         logger.error("check_maintenance_sla failed: %s", exc)
-        raise self.retry(exc=exc, countdown=300, max_retries=3)
+        raise self.retry(exc=exc, countdown=300, max_retries=3) from exc
 
 
 @shared_task(name="app.tasks.maintenance.generate_preventive_tickets", bind=True)
 def generate_preventive_tickets(self):
     """Génère les tickets de maintenance préventive dont la date est atteinte."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     generated = 0
     try:
         with sync_session_maker() as db:
@@ -140,4 +140,4 @@ def generate_preventive_tickets(self):
         return {"generated": generated}
     except Exception as exc:
         logger.error("generate_preventive_tickets failed: %s", exc)
-        raise self.retry(exc=exc, countdown=300, max_retries=3)
+        raise self.retry(exc=exc, countdown=300, max_retries=3) from exc

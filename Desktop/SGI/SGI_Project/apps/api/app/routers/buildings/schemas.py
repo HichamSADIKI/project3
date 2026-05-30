@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 BuildingType = Literal[
     "residential_tower", "villa_compound", "mixed_use", "commercial", "warehouse"
 ]

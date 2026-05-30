@@ -1,6 +1,6 @@
 """Service Properties — toutes les fonctions filtrent par company_id."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from geoalchemy2.elements import WKTElement
@@ -11,14 +11,13 @@ from app.models.property import Property
 
 from .schemas import PropertyCreate, PropertyUpdate
 
-
 # ---------------------------------------------------------------------------
 # Helpers internes
 # ---------------------------------------------------------------------------
 
 def _gen_reference(seq: int) -> str:
     """Génère une référence de type DXB-YYYY-NNNN."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     return f"DXB-{year}-{seq:04d}"
 
 
@@ -215,7 +214,7 @@ async def delete_property(
     prop = await get_property(db, company_id, property_id)
     if not prop:
         return False
-    prop.deleted_at = datetime.now(timezone.utc)
+    prop.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 

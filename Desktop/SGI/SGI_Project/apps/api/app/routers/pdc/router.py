@@ -1,6 +1,6 @@
 """Router FastAPI — PDC (post-dated cheques)."""
 import uuid
-from datetime import date
+from datetime import UTC, date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -109,10 +109,10 @@ async def deposit_calendar_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> DepositCalendarOut:
     """Calendrier des PDC à venir dans les `horizon_days` prochains jours."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     company_id = await get_company_id(db)
-    ref_today = today or datetime.now(timezone.utc).date()
+    ref_today = today or datetime.now(UTC).date()
     entries = await deposit_calendar(db, company_id, ref_today, horizon_days)
     return DepositCalendarOut(
         data=[DepositCalendarEntry.model_validate(e) for e in entries],
