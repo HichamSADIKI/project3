@@ -1,8 +1,16 @@
-"""Tests unitaires — helpers métier purs du module buildings."""
+"""Tests unitaires — helpers métier purs du module buildings.
+
+Inclut aussi un test d'intégration de l'endpoint imbriqué
+GET /buildings/{id}/units (requiert PostgreSQL — lancer dans le conteneur).
+"""
+import uuid
 from decimal import Decimal
 
 import pytest
+from httpx import AsyncClient
 
+from app.models.company import Company
+from app.models.user import User
 from app.routers.buildings.service import compute_occupancy
 
 
@@ -56,3 +64,51 @@ class TestComputeOccupancy:
     ) -> None:
         occ, _ = compute_occupancy({"occupied": occupied, "vacant": vacant})
         assert occ == expected_occ
+
+
+# ─── Endpoint imbriqué GET /buildings/{id}/units (intégration) ──────────────
+# (asyncio_mode = "auto" → les fonctions async sont détectées automatiquement)
+
+
+def _admin_headers(seed_admin: tuple[User, str]) -> dict[str, str]:
+    _admin, token = seed_admin
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_nested_units_lists_only_building_units(
+    client: AsyncClient, seed_admin: tuple[User, str], seed_company: Company
+) -> None:
+    headers = _admin_headers(seed_admin)
+
+    # Deux bâtiments dans le même tenant.
+    b1 = await client.post("/api/v1/buildings/", headers=headers,
+        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"})
+    assert b1.status_code == 201, b1.text
+    b1_id = b1.json()["data"]["id"]
+    b2 = await client.post("/api/v1/buildings/", headers=headers,
+        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"})
+    b2_id = b2.json()["data"]["id"]
+
+    # Une unité dans chaque bâtiment.
+    u1 = await client.post("/api/v1/units/", headers=headers,
+        json={"building_id": b1_id, "unit_number": "101", "unit_type": "apartment_1br"})
+    assert u1.status_code == 201, u1.text
+    await client.post("/api/v1/units/", headers=headers,
+        json={"building_id": b2_id, "unit_number": "201", "unit_type": "studio"})
+
+    # L'endpoint imbriqué ne renvoie que les unités du bâtiment 1.
+    resp = await client.get(f"/api/v1/buildings/{b1_id}/units", headers=headers)
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    returned_buildings = {u["building_id"] for u in body["data"]}
+    assert returned_buildings == {b1_id}
+    assert body["meta"]["total"] == 1
+
+
+async def test_nested_units_unknown_building_404(
+    client: AsyncClient, seed_admin: tuple[User, str], seed_company: Company
+) -> None:
+    headers = _admin_headers(seed_admin)
+    resp = await client.get(f"/api/v1/buildings/{uuid.uuid4()}/units", headers=headers)
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "building_not_found"

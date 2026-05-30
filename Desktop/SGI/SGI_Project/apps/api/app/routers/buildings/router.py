@@ -27,6 +27,8 @@ from app.routers.buildings.service import (
     occupancy_summary,
     update_building,
 )
+from app.routers.units.schemas import UnitListOut, UnitOut
+from app.routers.units.service import list_units
 
 router = APIRouter(prefix="/buildings", tags=["buildings"])
 
@@ -147,6 +149,32 @@ async def list_floors_endpoint(
     return FloorListOut(
         data=[FloorOut.model_validate(f) for f in floors],
         meta={"total": len(floors)},
+    )
+
+
+@router.get("/{building_id}/units", response_model=UnitListOut)
+async def list_building_units_endpoint(
+    building_id: uuid.UUID,
+    floor_id: uuid.UUID | None = Query(None),
+    unit_type: str | None = Query(None),
+    status_filter: str | None = Query(None, alias="status"),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db_session),
+) -> UnitListOut:
+    """Liste imbriquée des unités d'un bâtiment (confort hiérarchique)."""
+    company_id = await get_company_id(db)
+    building = await get_building(db, company_id, building_id)
+    if building is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
+        )
+    units, total = await list_units(
+        db, company_id, page, limit, building_id, floor_id, unit_type, status_filter
+    )
+    return UnitListOut(
+        data=[UnitOut.model_validate(u) for u in units],
+        meta={"total": total, "page": page, "limit": limit},
     )
 
 

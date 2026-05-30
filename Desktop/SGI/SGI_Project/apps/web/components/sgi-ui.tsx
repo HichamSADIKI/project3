@@ -132,7 +132,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -164,6 +164,8 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "crm",         icon: <IcCRM />,    badge: 12 },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
+      { key: "realestate_buildings", icon: <IcProp /> },
+      { key: "realestate_units", icon: <IcGrid /> },
       { key: "realestate_branches", icon: <IcPin /> },
       { key: "realestate_documents", icon: <IcDoc /> },
       { key: "realestate_settings", icon: <IcSettings /> },
@@ -330,6 +332,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate,
+      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,

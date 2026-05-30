@@ -21,6 +21,8 @@ export type Translations = {
   nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_marketing: string;
   nav_fournisseurs: string;
   nav_news: string;
+  nav_buildings: string;
+  nav_units: string;
   nav_branches: string;
   nav_documents: string;
   nav_re_settings: string;
@@ -86,6 +88,8 @@ const ar: Translations = {
   nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_marketing: "التسويق",
   nav_fournisseurs: "اعتماد المورّدين",
   nav_news: "الأخبار",
+  nav_buildings: "المباني",
+  nav_units: "الوحدات",
   nav_branches: "الفروع",
   nav_documents: "المستندات",
   nav_re_settings: "إعدادات العقارات",
@@ -154,6 +158,8 @@ const en: Translations = {
   nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
   nav_fournisseurs: "Vendor approval",
   nav_news: "News",
+  nav_buildings: "Buildings",
+  nav_units: "Units",
   nav_branches: "Branches",
   nav_documents: "Documents",
   nav_re_settings: "Real Estate Settings",
@@ -222,6 +228,8 @@ const fr: Translations = {
   nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
   nav_fournisseurs: "Validation fournisseurs",
   nav_news: "Actualités",
+  nav_buildings: "Bâtiments",
+  nav_units: "Unités",
   nav_branches: "Succursales",
   nav_documents: "Documents",
   nav_re_settings: "Paramètres Immobilier",
