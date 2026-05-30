@@ -32,6 +32,9 @@ from app.models.partner_commission import PartnerCommissionEntry
 from app.models.partner_service import PartnerService
 from app.models.branch import Branch
 from app.models.company_settings import CompanySettings
+from app.models.document import Document
+from app.models.document_version import DocumentVersion
+from app.models.document_signature import DocumentSignature
 
 __all__ = [
     "Base",
@@ -63,4 +66,7 @@ __all__ = [
     "PartnerService",
     "Branch",
     "CompanySettings",
+    "Document",
+    "DocumentVersion",
+    "DocumentSignature",
 ]
