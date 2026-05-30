@@ -162,16 +162,7 @@ const NAV_ENTRIES: NavEntry[] = [
     ],
   },
   { type: "item",  key: "crm",         icon: <IcCRM />,    badge: 12 },
-  { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
-    children: [
-      { key: "prop",           icon: <IcProp /> },
-      { key: "contract",       icon: <IcContract /> },
-      { key: "rental",         icon: <IcRental /> },
-      { key: "visa",           icon: <IcVisa />, badge: 3 },
-      { key: "realestate_crm",  icon: <IcCRM /> },
-      { key: "realestate_news", icon: <IcNews /> },
-    ],
-  },
+  { type: "item",  key: "realestate", icon: <IcProp /> },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
     children: [
       { key: "tourisme",      icon: <IcTourisme />, labelKey: "dash" },
