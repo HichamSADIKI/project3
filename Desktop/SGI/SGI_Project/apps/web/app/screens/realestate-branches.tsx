@@ -1,30 +1,31 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Topbar, IcPin, IcPlus, IcPhone, IcMail } from "@/components/sgi-ui";
+import React, { useCallback, useEffect, useState } from "react";
+import { Topbar, IcPin, IcPlus, IcPhone, IcMail, IcClose } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
-import { getJson } from "@/lib/api-client";
+import { getJson, postJson, extractError } from "@/lib/api-client";
 
-// Écran câblé sur l'API réelle : GET /api/admin/branches → proxy → /api/v1/branches
-// (module realestate_core, M1). Slice verticale de référence pour le wiring.
+// Écran câblé sur l'API réelle : GET + POST /api/admin/branches → /api/v1/branches
+// (module realestate_core, M1). Gabarit du wiring écriture (création).
 
-const EMIRATE_LABEL: Record<string, string> = {
-  DXB: "Dubai", AUH: "Abu Dhabi", SHJ: "Sharjah", AJM: "Ajman",
-  RAK: "Ras Al Khaimah", FUJ: "Fujairah", UAQ: "Umm Al Quwain",
-};
+const EMIRATES: { code: string; label: string }[] = [
+  { code: "DXB", label: "Dubai" }, { code: "AUH", label: "Abu Dhabi" },
+  { code: "SHJ", label: "Sharjah" }, { code: "AJM", label: "Ajman" },
+  { code: "RAK", label: "Ras Al Khaimah" }, { code: "FUJ", label: "Fujairah" },
+  { code: "UAQ", label: "Umm Al Quwain" },
+];
+const EMIRATE_LABEL: Record<string, string> = Object.fromEntries(EMIRATES.map(e => [e.code, e.label]));
 
 type Branch = {
-  id: string;
-  code: string;
-  name: string;
-  emirate: string;
-  phone: string | null;
-  email: string | null;
-  manager_user_id: string | null;
-  is_active: boolean;
+  id: string; code: string; name: string; emirate: string;
+  phone: string | null; email: string | null; manager_user_id: string | null; is_active: boolean;
 };
-
 type BranchListResponse = { success: boolean; data: Branch[]; meta: { total: number } };
+
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "9px 11px", border: "1px solid var(--line)",
+  borderRadius: 8, background: "var(--bg-cream)", color: "var(--ink)", fontSize: 13,
+};
 
 export function ScreenRealEstateBranches() {
   const t = useT();
@@ -32,15 +33,42 @@ export function ScreenRealEstateBranches() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  // Création
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", emirate: "DXB", phone: "", email: "" });
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const load = useCallback(() => {
     setLoading(true);
     getJson<BranchListResponse>("/api/admin/branches?limit=100")
-      .then(res => { if (!cancelled) { setBranches(res.data ?? []); setError(null); } })
-      .catch(err => { if (!cancelled) setError(err.message ?? "load_failed"); })
-      .finally(() => { if (!cancelled) setLoading(false); });
-    return () => { cancelled = true; };
+      .then(res => { setBranches(res.data ?? []); setError(null); })
+      .catch(err => setError(err instanceof Error ? err.message : "load_failed"))
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function submit() {
+    if (!form.name.trim()) { setFormError("Le nom est obligatoire."); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/branches", {
+        name: form.name.trim(),
+        emirate: form.emirate,
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+      });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false);
+      setForm({ name: "", emirate: "DXB", phone: "", email: "" });
+      load();
+    } catch {
+      setFormError("create_failed");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   const activeCount = branches.filter(b => b.is_active).length;
 
@@ -49,19 +77,15 @@ export function ScreenRealEstateBranches() {
       <Topbar title={t.nav_branches} />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "var(--bg-cream)" }}>
-
-        {/* Header row */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 22, gap: 16, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ color: "var(--gold)" }}><IcPin /></span>
             <div>
               <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_branches}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
-                {loading ? "Chargement…" : `${branches.length} · ${activeCount} active(s)`}
-              </div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${branches.length} · ${activeCount} active(s)`}</div>
             </div>
           </div>
-          <button style={{
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{
             display: "flex", alignItems: "center", gap: 8, padding: "9px 16px",
             background: "var(--gold)", color: "#1A1610", border: "none",
             borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer",
@@ -76,7 +100,6 @@ export function ScreenRealEstateBranches() {
           </div>
         )}
 
-        {/* Table */}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -103,11 +126,7 @@ export function ScreenRealEstateBranches() {
                     {!b.phone && !b.email && <span style={{ color: "var(--ink-4)" }}>—</span>}
                   </td>
                   <td style={{ padding: "13px 16px" }}>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999,
-                      background: b.is_active ? "rgba(16,185,129,0.12)" : "var(--line-soft)",
-                      color: b.is_active ? "var(--emerald)" : "var(--ink-4)",
-                    }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: b.is_active ? "rgba(16,185,129,0.12)" : "var(--line-soft)", color: b.is_active ? "var(--emerald)" : "var(--ink-4)" }}>
                       {b.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
@@ -117,6 +136,41 @@ export function ScreenRealEstateBranches() {
           </table>
         </div>
       </div>
+
+      {/* Modal création */}
+      {open && (
+        <div onClick={() => !saving && setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", overflow: "hidden" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line-soft)" }}>
+              <span className="font-display" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Nouvelle succursale</span>
+              <button onClick={() => !saving && setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)" }}><IcClose /></button>
+            </div>
+            <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Nom *
+                <input autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="Dubai Marina" />
+              </label>
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Émirat
+                <select value={form.emirate} onChange={e => setForm({ ...form, emirate: e.target.value })} style={{ ...inputStyle, marginTop: 5 }}>
+                  {EMIRATES.map(e => <option key={e.code} value={e.code}>{e.label}</option>)}
+                </select>
+              </label>
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Téléphone
+                <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="+971 4 …" />
+              </label>
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Email
+                <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="marina@infinity.ae" />
+              </label>
+              {formError && <div style={{ color: "var(--rose)", fontSize: 12.5 }}>Erreur : {formError}</div>}
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "14px 20px", borderTop: "1px solid var(--line-soft)" }}>
+              <button onClick={() => setOpen(false)} disabled={saving} style={{ padding: "8px 16px", background: "transparent", color: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "var(--r)", fontSize: 13, cursor: "pointer" }}>{t.cancel}</button>
+              <button onClick={submit} disabled={saving} style={{ padding: "8px 18px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1 }}>
+                {saving ? "…" : t.save}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
