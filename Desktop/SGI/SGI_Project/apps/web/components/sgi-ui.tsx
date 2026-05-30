@@ -132,7 +132,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news"
+  | "realestate"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -321,17 +321,17 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
-      dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm, orders: t.nav_orders,
+      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
-      contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
+      realestate: t.nav_realestate,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
-      visa: t.nav_visa, travail: t.nav_travail, callcenter: t.nav_callcenter,
-      realestate_crm: t.nav_crm,  tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
+      travail: t.nav_travail, callcenter: t.nav_callcenter,
+      tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
       assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
       consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
       callcenter_crm: t.nav_crm,
-      realestate_news: t.nav_news, tourisme_news: t.nav_news, sante_news: t.nav_news,
+      tourisme_news: t.nav_news, sante_news: t.nav_news,
       assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
       consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
       callcenter_news: t.nav_news,
