@@ -1,11 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Topbar, IcProp, IcPlus, IcPin } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { postJson, extractError } from "@/lib/api-client";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 
 // Câblé sur /api/admin/buildings → /api/v1/buildings.
+
+const BUILDING_TYPES = ["residential_tower", "villa_compound", "mixed_use", "commercial", "warehouse"];
+const EMIRATES = ["DXB", "AUH", "SHJ", "AJM", "RAK", "FUJ", "UAQ"];
 
 const EMIRATE_LABEL: Record<string, string> = {
   DXB: "Dubai", AUH: "Abu Dhabi", SHJ: "Sharjah", AJM: "Ajman",
@@ -28,8 +33,26 @@ type Building = {
 
 export function ScreenRealEstateBuildings() {
   const t = useT();
-  const { items, loading, error } = useApiList<Building>("/api/admin/buildings?limit=100");
+  const { items, loading, error, reload } = useApiList<Building>("/api/admin/buildings?limit=100");
   const name = (b: Building) => b.name_en || b.name_fr || b.name_ar || b.reference;
+
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({ reference: "", name_en: "", building_type: "residential_tower", emirate: "DXB" });
+
+  async function submit() {
+    if (!form.reference.trim()) { setFormError("La référence est obligatoire."); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/buildings", {
+        reference: form.reference.trim(), name_en: form.name_en.trim() || null,
+        building_type: form.building_type, emirate: form.emirate,
+      });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false); setForm({ reference: "", name_en: "", building_type: "residential_tower", emirate: "DXB" }); reload();
+    } catch { setFormError("create_failed"); } finally { setSaving(false); }
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -43,7 +66,7 @@ export function ScreenRealEstateBuildings() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} bâtiment(s)`}</div>
             </div>
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
@@ -78,6 +101,13 @@ export function ScreenRealEstateBuildings() {
           </table>
         </div>
       </div>
+
+      <CreateModal title="Nouveau bâtiment" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label="Référence *"><input autoFocus value={form.reference} onChange={e => setForm({ ...form, reference: e.target.value })} style={fieldInput} placeholder="BLD-DXB-MARINA-A" /></Field>
+        <Field label="Nom"><input value={form.name_en} onChange={e => setForm({ ...form, name_en: e.target.value })} style={fieldInput} placeholder="Marina Tower A" /></Field>
+        <Field label="Type"><select value={form.building_type} onChange={e => setForm({ ...form, building_type: e.target.value })} style={fieldInput}>{BUILDING_TYPES.map(x => <option key={x} value={x}>{TYPE_LABEL[x] ?? x}</option>)}</select></Field>
+        <Field label="Émirat"><select value={form.emirate} onChange={e => setForm({ ...form, emirate: e.target.value })} style={fieldInput}>{EMIRATES.map(x => <option key={x} value={x}>{EMIRATE_LABEL[x] ?? x}</option>)}</select></Field>
+      </CreateModal>
     </div>
   );
 }
