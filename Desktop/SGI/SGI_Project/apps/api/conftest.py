@@ -116,6 +116,43 @@ async def seed_admin(db_session: AsyncSession, seed_company: Company) -> tuple[U
 
 
 @pytest_asyncio.fixture
+async def second_admin(db_session: AsyncSession) -> tuple[Company, str]:
+    """Une 2ᵉ société + admin actif + son JWT — pour tester l'isolation
+    multi-tenant (Loi 1) : ce que crée `seed_admin` ne doit pas être visible
+    avec ce token-ci. Slug/email uniques → pas de collision inter-tests."""
+    company = Company(
+        id=uuid.uuid4(),
+        name="Other Co",
+        slug=f"other-co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
+    )
+    db_session.add(company)
+    admin = User(
+        id=uuid.uuid4(),
+        company_id=company.id,
+        email=f"admin2-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("AdminPass!23"),
+        full_name="Other Admin",
+        role=UserRole.ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    token = encode_jwt(
+        {
+            "sub": str(admin.id),
+            "company_id": str(company.id),
+            "role": admin.role,
+            "status": admin.status,
+            "email": admin.email,
+        }
+    )
+    return company, token
+
+
+@pytest_asyncio.fixture
 def unique_email() -> str:
     """Email unique par test pour éviter les collisions (les tests committent)."""
     return f"user-{uuid.uuid4().hex[:10]}@example.com"

@@ -55,3 +55,65 @@ class TestNetPayout:
     def test_quantized(self) -> None:
         result = net_payout(Decimal("100.5"), Decimal("0"), Decimal("0"))
         assert result.as_tuple().exponent == -2
+
+
+# ─── Tests d'intégration endpoints (auth + multi-tenant) ────────────────────
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+from httpx import AsyncClient
+
+from app.models.company import Company
+from app.models.user import User
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_owner(client: AsyncClient, token: str) -> str:
+    """Crée un client (party) puis son profil propriétaire ; renvoie party_id."""
+    c = await client.post("/api/v1/clients/", headers=_auth(token),
+                          json={"type": "individual", "first_name": "Omar", "last_name": "Saïd"})
+    assert c.status_code == 201, c.text
+    party_id = c.json()["data"]["id"]
+    o = await client.post("/api/v1/owners/", headers=_auth(token), json={"party_id": party_id})
+    assert o.status_code == 201, o.text
+    return party_id
+
+
+async def test_owner_statements_requires_auth(client: AsyncClient) -> None:
+    import uuid
+    resp = await client.get(f"/api/v1/owners/{uuid.uuid4()}/statements")
+    assert resp.status_code == 401
+
+
+async def test_generate_then_list_statement(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    party_id = await _create_owner(client, token)
+
+    gen = await client.post(f"/api/v1/owners/{party_id}/statements?year=2026&month=1", headers=_auth(token))
+    assert gen.status_code == 201, gen.text
+    body = gen.json()["data"]
+    assert body["period_year"] == 2026
+    assert body["status"] == "draft"
+
+    listed = await client.get(f"/api/v1/owners/{party_id}/statements", headers=_auth(token))
+    assert listed.status_code == 200
+    assert any(s["period_year"] == 2026 and s["period_month"] == 1 for s in listed.json()["data"])
+
+
+async def test_owner_statement_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Les relevés d'un propriétaire de A ne sont pas visibles via le token B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+    party_id = await _create_owner(client, token_a)
+    await client.post(f"/api/v1/owners/{party_id}/statements?year=2026&month=2", headers=_auth(token_a))
+
+    # Sous le contexte tenant B, l'owner de A n'existe pas → aucun relevé.
+    list_b = await client.get(f"/api/v1/owners/{party_id}/statements", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    assert list_b.json()["data"] == []

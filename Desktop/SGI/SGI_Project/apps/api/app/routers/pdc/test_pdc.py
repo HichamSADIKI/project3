@@ -169,3 +169,98 @@ class TestPdcReminderLevel:
     def test_custom_window(self) -> None:
         level = pdc_reminder_level(self.today, date(2026, 6, 15), "pending", due_soon_days=30)
         assert level == "due_soon"
+
+
+# ─── Tests d'intégration endpoints (auth + multi-tenant + machine à états) ──
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+from httpx import AsyncClient
+
+from app.models.company import Company
+from app.models.user import User
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_pending_pdc(client: AsyncClient, token: str) -> tuple[str, str]:
+    """Chaîne complète client → bien → contrat → PDC. Renvoie (pdc_id, reference)."""
+    c = await client.post("/api/v1/clients/", headers=_auth(token),
+                          json={"type": "individual", "first_name": "Ali", "last_name": "Noor"})
+    assert c.status_code == 201, c.text
+    party_id = c.json()["data"]["id"]
+
+    p = await client.post("/api/v1/properties/", headers=_auth(token),
+                          json={"type": "apartment", "price": "900000.00"})
+    assert p.status_code == 201, p.text
+    property_id = p.json()["data"]["id"]
+
+    ct = await client.post("/api/v1/contracts/", headers=_auth(token),
+                           json={"type": "rental", "client_id": party_id,
+                                 "property_id": property_id, "amount": 120000})
+    assert ct.status_code == 201, ct.text
+    contract_id = ct.json()["data"]["id"]
+
+    pdc = await client.post("/api/v1/pdc/", headers=_auth(token), json={
+        "contract_id": contract_id, "drawer_party_id": party_id,
+        "cheque_number": "100123", "bank_name": "Emirates NBD",
+        "account_holder_name": "Ali Noor", "amount_aed": "10000.00",
+        "due_date": "2026-06-30",
+    })
+    assert pdc.status_code == 201, pdc.text
+    data = pdc.json()["data"]
+    assert data["status"] == "pending"
+    return data["id"], data["reference"]
+
+
+async def test_pdc_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/pdc/")
+    assert resp.status_code == 401
+
+
+async def test_create_then_list_pdc(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    _pdc_id, reference = await _create_pending_pdc(client, token)
+    listed = await client.get("/api/v1/pdc/", headers=_auth(token))
+    assert listed.status_code == 200
+    refs = [c["reference"] for c in listed.json()["data"]]
+    assert reference in refs
+
+
+async def test_pdc_state_machine(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    pdc_id, _ref = await _create_pending_pdc(client, token)
+
+    # pending → clear directement : interdit (il faut déposer d'abord).
+    bad = await client.post(f"/api/v1/pdc/{pdc_id}/clear", headers=_auth(token))
+    assert bad.status_code == 422
+    assert bad.json()["detail"] == "invalid_status_transition"
+
+    # pending → deposited → cleared : chemin valide.
+    dep = await client.post(f"/api/v1/pdc/{pdc_id}/deposit", headers=_auth(token),
+                            json={"deposit_date": "2026-06-25"})
+    assert dep.status_code == 200, dep.text
+    assert dep.json()["data"]["status"] == "deposited"
+
+    clr = await client.post(f"/api/v1/pdc/{pdc_id}/clear", headers=_auth(token))
+    assert clr.status_code == 200, clr.text
+    assert clr.json()["data"]["status"] == "cleared"
+
+
+async def test_pdc_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Un PDC de A n'est pas visible par B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+    _pdc_id, reference = await _create_pending_pdc(client, token_a)
+
+    list_b = await client.get("/api/v1/pdc/", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    refs_b = [c["reference"] for c in list_b.json()["data"]]
+    assert reference not in refs_b

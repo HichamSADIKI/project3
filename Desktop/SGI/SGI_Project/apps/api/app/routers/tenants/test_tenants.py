@@ -189,3 +189,65 @@ class TestIsKycComplete:
     def test_incomplete_expired_document(self) -> None:
         # Passeport expiré → KYC incomplet.
         assert is_kyc_complete(**self._full_kwargs(passport_expiry=date(2025, 1, 1))) is False
+
+
+# ─── Tests d'intégration endpoints (auth + multi-tenant + KYC) ──────────────
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+from httpx import AsyncClient
+
+from app.models.company import Company
+from app.models.user import User
+
+# asyncio_mode = "auto" (pyproject) → les tests async sont détectés sans marqueur.
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_tenant(client: AsyncClient, token: str) -> str:
+    """Crée un client (party) puis sa fiche locataire ; renvoie party_id."""
+    c = await client.post("/api/v1/clients/", headers=_auth(token),
+                          json={"type": "individual", "first_name": "Sara", "last_name": "Khan"})
+    assert c.status_code == 201, c.text
+    party_id = c.json()["data"]["id"]
+    tn = await client.post("/api/v1/tenants/", headers=_auth(token), json={"party_id": party_id})
+    assert tn.status_code == 201, tn.text
+    return party_id
+
+
+async def test_tenants_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/tenants/")
+    assert resp.status_code == 401
+
+
+async def test_kyc_report_and_submit_guard(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    party_id = await _create_tenant(client, token)
+
+    # Le rapport KYC démarre à not_started.
+    report = await client.get(f"/api/v1/tenants/{party_id}/kyc", headers=_auth(token))
+    assert report.status_code == 200, report.text
+    assert report.json()["data"]["kyc_status"] == "not_started"
+
+    # Soumettre un KYC sans documents (Emirates ID + passeport) → refus métier.
+    submit = await client.post(f"/api/v1/tenants/{party_id}/kyc/submit", headers=_auth(token))
+    assert submit.status_code == 422, submit.text
+    assert submit.json()["detail"] == "kyc_incomplete"
+
+
+async def test_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Une fiche locataire de A n'est pas visible par B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+    party_id = await _create_tenant(client, token_a)
+
+    list_b = await client.get("/api/v1/tenants/", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    ids_b = [tn["party_id"] for tn in list_b.json()["data"]]
+    assert party_id not in ids_b
