@@ -5,8 +5,18 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from app.core.config import settings
 
+# Engine PRIVILÉGIÉ (sgi_user) — migrations bootstrap + tâches Celery cron qui
+# scannent légitimement toutes les sociétés (cross-tenant). Bypasse la RLS.
 engine = create_async_engine(settings.DATABASE_URL, echo=settings.DEBUG, pool_pre_ping=True)
 async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+
+# Engine APPLICATIF RESTREINT (sgi_app) — requêtes API. La RLS s'applique
+# réellement (rôle non-superuser, non-propriétaire). Retombe sur l'engine
+# privilégié si APP_DB_PASSWORD n'est pas configuré (comportement historique).
+app_engine = create_async_engine(
+    settings.APP_DATABASE_URL, echo=settings.DEBUG, pool_pre_ping=True
+)
+app_session_maker = async_sessionmaker(app_engine, expire_on_commit=False)
 
 
 @contextmanager
@@ -62,5 +72,13 @@ async def create_db_pool() -> None:
 
 
 async def get_db() -> AsyncSession:
-    async with async_session_maker() as session:
-        yield session
+    """Session API — rôle restreint sgi_app (RLS appliquée), connexion épinglée.
+
+    La session est liée à UNE connexion physique pour toute la requête : le GUC
+    tenant posé au niveau session (cf. get_db_session) survit ainsi aux commits
+    des services (commit puis refresh), au lieu d'être perdu si la session
+    reprenait une autre connexion du pool après commit.
+    """
+    async with app_engine.connect() as conn:
+        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+            yield session

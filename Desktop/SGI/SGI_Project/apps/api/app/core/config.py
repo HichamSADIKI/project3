@@ -14,6 +14,12 @@ class Settings(BaseSettings):
     POSTGRES_USER: str = "sgi_user"
     POSTGRES_PASSWORD: str
 
+    # Rôle applicatif restreint (C1) — non-superuser, RLS appliquée.
+    # Utilisé par les requêtes API. Si APP_DB_PASSWORD est vide, l'API retombe
+    # sur le rôle privilégié (comportement historique, RLS non appliquée).
+    APP_DB_USER: str = "sgi_app"
+    APP_DB_PASSWORD: str = ""
+
     VALKEY_URL: str = "redis://valkey:6379/0"
 
     MEILI_HOST: str = "http://meilisearch:7700"
@@ -33,8 +39,23 @@ class Settings(BaseSettings):
 
     @property
     def DATABASE_URL(self) -> str:
+        """Connexion privilégiée (sgi_user) — migrations + worker Celery."""
         return (
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
+            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def APP_DATABASE_URL(self) -> str:
+        """Connexion restreinte (sgi_app) pour les requêtes API — RLS appliquée.
+
+        Retombe sur DATABASE_URL si APP_DB_PASSWORD n'est pas fourni, pour ne
+        pas casser un environnement qui n'a pas encore créé le rôle restreint.
+        """
+        if not self.APP_DB_PASSWORD:
+            return self.DATABASE_URL
+        return (
+            f"postgresql+asyncpg://{self.APP_DB_USER}:{self.APP_DB_PASSWORD}"
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 

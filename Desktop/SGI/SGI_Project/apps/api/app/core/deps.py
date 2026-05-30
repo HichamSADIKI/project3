@@ -4,6 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 
+# GUC tenant lue par les policies RLS : current_setting('app.current_company_id').
+_SET_TENANT = text("SELECT set_config('app.current_company_id', :cid, false)")
+_CLEAR_TENANT = text("SELECT set_config('app.current_company_id', '', false)")
+
 
 async def get_company_id(request: Request) -> str:
     company_id = getattr(request.state, "company_id", None)
@@ -16,11 +20,24 @@ async def get_db_session(
     db: AsyncSession = Depends(get_db),
     company_id: str = Depends(get_company_id),
 ) -> AsyncSession:
-    await db.execute(
-        text("SELECT set_config('app.current_company_id', :cid, true)"),
-        {"cid": company_id},
-    )
-    yield db
+    """Session API avec contexte tenant pour la RLS.
+
+    Le GUC `app.current_company_id` est posé au niveau **session** (is_local=
+    false) → il survit aux commits faits par les services (pattern commit puis
+    refresh), contrairement à un SET LOCAL transactionnel. `get_db` épingle la
+    connexion pour la requête, donc le SET reste valable. Reset fail-closed en
+    fin de requête pour éviter toute fuite cross-tenant via le pool.
+    """
+    await db.execute(_SET_TENANT, {"cid": company_id})
+    await db.commit()  # clôt la tx implicite ; le SET (session) persiste
+    try:
+        yield db
+    finally:
+        try:
+            await db.execute(_CLEAR_TENANT)
+            await db.commit()
+        except Exception:
+            pass
 
 
 def require_role(*roles: str):
