@@ -7,12 +7,14 @@ Tâches :
 """
 import logging
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 
 from app.core.database import sync_session_maker
-from app.tasks.celery_app import celery_app
 from app.models.conversation import ConversationMessage, MessageMention
+from app.models.notification import Notification
+from app.tasks.celery_app import celery_app
 
 logger = logging.getLogger(__name__)
 
@@ -97,13 +99,39 @@ def notify_mentions(self, message_id: str, company_id: str) -> dict:
             if not mentions:
                 return {"status": "no_mentions"}
 
-            user_ids = [str(m.mentioned_user_id) for m in mentions]
+            created = 0
+            for mention in mentions:
+                # Dédup : une notif de mention par (message, utilisateur).
+                exists = db.execute(
+                    select(Notification.id).where(
+                        Notification.company_id == mention.company_id,
+                        Notification.type == "message_mention",
+                        Notification.recipient_user_id == mention.mentioned_user_id,
+                        Notification.payload["message_id"].astext == message_id,
+                    )
+                ).first()
+                if exists:
+                    continue
+                db.add(
+                    Notification(
+                        company_id=mention.company_id,
+                        recipient_user_id=mention.mentioned_user_id,
+                        type="message_mention",
+                        channel="in_app",
+                        title="Vous avez été mentionné dans une conversation",
+                        payload={"message_id": message_id},
+                        status="sent",
+                        sent_at=datetime.now(timezone.utc),
+                    )
+                )
+                created += 1
+            if created:
+                db.commit()
             logger.info(
-                "notify_mentions: message=%s users=%s", message_id, user_ids
+                "notify_mentions: message=%s, %d notification(s) créée(s)",
+                message_id, created,
             )
-            # TODO Phase 5 : push notification temps réel via ws.publish_event
-            # pour chaque user_id (si connecté).
-            return {"status": "ok", "notified": len(user_ids)}
+            return {"status": "ok", "notified": created}
 
     except Exception as exc:
         logger.error("notify_mentions failed: %s", exc)
