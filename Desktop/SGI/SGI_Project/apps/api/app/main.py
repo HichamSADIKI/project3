@@ -20,6 +20,8 @@ from app.routers import owner_portal
 from app.routers import ai_services
 from app.routers import realestate_core
 from app.routers import documents
+from app.routers import owner_statements
+from app.routers import notifications
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -133,6 +135,9 @@ app.include_router(ai_services.router, prefix="/api/v1")
 app.include_router(realestate_core.router, prefix="/api/v1")
 # Documents & Signature — versioning + e-signature UAE (migration 0021)
 app.include_router(documents.router, prefix="/api/v1")
+# Propriétaires — relevés mensuels + notifications in-app (migration 0025)
+app.include_router(owner_statements.router, prefix="/api/v1")
+app.include_router(notifications.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])
