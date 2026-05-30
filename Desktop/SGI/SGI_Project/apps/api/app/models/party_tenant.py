@@ -65,6 +65,21 @@ class TenantProfile(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # Loyauté (0-100) calculée à partir de l'historique
     loyalty_score: Mapped[int] = mapped_column(Integer, nullable=False, default=50)
 
+    # KYC — vérification d'identité (workflow M4)
+    # not_started → pending → verified | rejected
+    kyc_status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="not_started"
+    )
+    kyc_verified_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    kyc_verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    kyc_rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
     # Jalons du cycle de vie
     candidacy_submitted_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True

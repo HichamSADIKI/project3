@@ -23,6 +23,7 @@ export type Translations = {
   nav_news: string;
   nav_buildings: string;
   nav_units: string;
+  nav_tenants: string;
   nav_branches: string;
   nav_documents: string;
   nav_re_settings: string;
@@ -90,6 +91,7 @@ const ar: Translations = {
   nav_news: "الأخبار",
   nav_buildings: "المباني",
   nav_units: "الوحدات",
+  nav_tenants: "المستأجرون",
   nav_branches: "الفروع",
   nav_documents: "المستندات",
   nav_re_settings: "إعدادات العقارات",
@@ -160,6 +162,7 @@ const en: Translations = {
   nav_news: "News",
   nav_buildings: "Buildings",
   nav_units: "Units",
+  nav_tenants: "Tenants",
   nav_branches: "Branches",
   nav_documents: "Documents",
   nav_re_settings: "Real Estate Settings",
@@ -230,6 +233,7 @@ const fr: Translations = {
   nav_news: "Actualités",
   nav_buildings: "Bâtiments",
   nav_units: "Unités",
+  nav_tenants: "Locataires",
   nav_branches: "Succursales",
   nav_documents: "Documents",
   nav_re_settings: "Paramètres Immobilier",
