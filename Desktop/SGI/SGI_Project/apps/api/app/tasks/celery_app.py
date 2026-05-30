@@ -49,6 +49,10 @@ celery_app.conf.update(
             "task": "app.tasks.reminders.check_rental_renewals",
             "schedule": 86400.0,
         },
+        "pdc-due-alerts": {
+            "task": "app.tasks.reminders.check_pdc_due",
+            "schedule": 86400.0,
+        },
         # ── Maintenance (toutes les heures) ──────────────────────────────
         "maintenance-sla-check": {
             "task": "app.tasks.maintenance.check_maintenance_sla",

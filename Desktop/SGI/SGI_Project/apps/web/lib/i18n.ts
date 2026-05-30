@@ -27,6 +27,8 @@ export type Translations = {
   nav_owners: string;
   nav_owner_portal: string;
   nav_contracts_re: string;
+  nav_payments: string;
+  nav_cheques: string;
   nav_branches: string;
   nav_documents: string;
   nav_re_settings: string;
@@ -98,6 +100,8 @@ const ar: Translations = {
   nav_owners: "الملاك",
   nav_owner_portal: "بوابة المالك",
   nav_contracts_re: "العقود",
+  nav_payments: "المدفوعات",
+  nav_cheques: "الشيكات",
   nav_branches: "الفروع",
   nav_documents: "المستندات",
   nav_re_settings: "إعدادات العقارات",
@@ -172,6 +176,8 @@ const en: Translations = {
   nav_owners: "Owners",
   nav_owner_portal: "Owner Portal",
   nav_contracts_re: "Contracts",
+  nav_payments: "Payments",
+  nav_cheques: "Cheques",
   nav_branches: "Branches",
   nav_documents: "Documents",
   nav_re_settings: "Real Estate Settings",
@@ -246,6 +252,8 @@ const fr: Translations = {
   nav_owners: "Propriétaires",
   nav_owner_portal: "Portail Propriétaire",
   nav_contracts_re: "Contrats",
+  nav_payments: "Paiements",
+  nav_cheques: "Chèques",
   nav_branches: "Succursales",
   nav_documents: "Documents",
   nav_re_settings: "Paramètres Immobilier",
