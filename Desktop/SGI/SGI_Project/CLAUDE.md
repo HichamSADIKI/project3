@@ -99,6 +99,15 @@ CREATE POLICY tenant_isolation ON {t}
 CREATE INDEX idx_{t}_company ON {t}(company_id);
 ```
 
+**Runtime enforcement — split de rôles (migration 0022).** La RLS n'est réellement
+appliquée que si la connexion n'est ni superuser ni propriétaire des tables. L'API
+se connecte donc via le rôle restreint **`sgi_app`** (`NOSUPERUSER`, `NOBYPASSRLS`,
+non-propriétaire — `APP_DATABASE_URL`/`APP_DB_PASSWORD`). Le **worker Celery** et les
+**migrations** gardent `sgi_user` (privilégié) car les tâches cron scannent toutes les
+sociétés. `get_db` épingle une connexion par requête et `get_db_session` pose
+`app.current_company_id` au niveau session (survit aux commits). **En prod, définir
+`APP_DB_PASSWORD`** sinon l'API retombe sur le rôle privilégié et la RLS est inerte.
+
 ### Law 2 — PostGIS: geospatial data in the database
 
 - Column: `location GEOMETRY(Point, 4326)` on the `properties` table
