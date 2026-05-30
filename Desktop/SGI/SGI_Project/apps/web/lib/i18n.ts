@@ -25,6 +25,7 @@ export type Translations = {
   nav_units: string;
   nav_tenants: string;
   nav_owners: string;
+  nav_owner_portal: string;
   nav_contracts_re: string;
   nav_branches: string;
   nav_documents: string;
@@ -95,6 +96,7 @@ const ar: Translations = {
   nav_units: "الوحدات",
   nav_tenants: "المستأجرون",
   nav_owners: "الملاك",
+  nav_owner_portal: "بوابة المالك",
   nav_contracts_re: "العقود",
   nav_branches: "الفروع",
   nav_documents: "المستندات",
@@ -168,6 +170,7 @@ const en: Translations = {
   nav_units: "Units",
   nav_tenants: "Tenants",
   nav_owners: "Owners",
+  nav_owner_portal: "Owner Portal",
   nav_contracts_re: "Contracts",
   nav_branches: "Branches",
   nav_documents: "Documents",
@@ -241,6 +244,7 @@ const fr: Translations = {
   nav_units: "Unités",
   nav_tenants: "Locataires",
   nav_owners: "Propriétaires",
+  nav_owner_portal: "Portail Propriétaire",
   nav_contracts_re: "Contrats",
   nav_branches: "Succursales",
   nav_documents: "Documents",
