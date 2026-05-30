@@ -35,6 +35,8 @@ from app.models.company_settings import CompanySettings
 from app.models.document import Document
 from app.models.document_version import DocumentVersion
 from app.models.document_signature import DocumentSignature
+from app.models.owner_statement import OwnerStatement
+from app.models.notification import Notification
 
 __all__ = [
     "Base",
@@ -69,4 +71,6 @@ __all__ = [
     "Document",
     "DocumentVersion",
     "DocumentSignature",
+    "OwnerStatement",
+    "Notification",
 ]
