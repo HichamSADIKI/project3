@@ -73,8 +73,11 @@ def _auth(token: str) -> dict[str, str]:
 
 async def _create_owner(client: AsyncClient, token: str) -> str:
     """Crée un client (party) puis son profil propriétaire ; renvoie party_id."""
-    c = await client.post("/api/v1/clients/", headers=_auth(token),
-                          json={"type": "individual", "first_name": "Omar", "last_name": "Saïd"})
+    c = await client.post(
+        "/api/v1/clients/",
+        headers=_auth(token),
+        json={"type": "individual", "first_name": "Omar", "last_name": "Saïd"},
+    )
     assert c.status_code == 201, c.text
     party_id = c.json()["data"]["id"]
     o = await client.post("/api/v1/owners/", headers=_auth(token), json={"party_id": party_id})
@@ -84,6 +87,7 @@ async def _create_owner(client: AsyncClient, token: str) -> str:
 
 async def test_owner_statements_requires_auth(client: AsyncClient) -> None:
     import uuid
+
     resp = await client.get(f"/api/v1/owners/{uuid.uuid4()}/statements")
     assert resp.status_code == 401
 
@@ -94,7 +98,9 @@ async def test_generate_then_list_statement(
     _admin, token = seed_admin
     party_id = await _create_owner(client, token)
 
-    gen = await client.post(f"/api/v1/owners/{party_id}/statements?year=2026&month=1", headers=_auth(token))
+    gen = await client.post(
+        f"/api/v1/owners/{party_id}/statements?year=2026&month=1", headers=_auth(token)
+    )
     assert gen.status_code == 201, gen.text
     body = gen.json()["data"]
     assert body["period_year"] == 2026
@@ -112,7 +118,9 @@ async def test_owner_statement_isolation(
     _admin, token_a = seed_admin
     _company_b, token_b = second_admin
     party_id = await _create_owner(client, token_a)
-    await client.post(f"/api/v1/owners/{party_id}/statements?year=2026&month=2", headers=_auth(token_a))
+    await client.post(
+        f"/api/v1/owners/{party_id}/statements?year=2026&month=2", headers=_auth(token_a)
+    )
 
     # Sous le contexte tenant B, l'owner de A n'existe pas → aucun relevé.
     list_b = await client.get(f"/api/v1/owners/{party_id}/statements", headers=_auth(token_b))
