@@ -147,3 +147,55 @@ class TestValidators:
     @pytest.mark.parametrize("st", ["", "pending", "deleted"])
     def test_invalid_statuses(self, st: str) -> None:
         assert is_valid_document_status(st) is False
+
+
+# ─── Tests d'intégration endpoints (auth + multi-tenant) ────────────────────
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+from httpx import AsyncClient
+
+from app.models.company import Company
+from app.models.user import User
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_documents_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/documents/")
+    assert resp.status_code == 401
+
+
+async def test_create_then_list_document(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    create = await client.post("/api/v1/documents/", headers=_auth(token),
+                               json={"title": "Bail Marina 101", "doc_type": "contract"})
+    assert create.status_code == 201, create.text
+    body = create.json()["data"]
+    assert body["title"] == "Bail Marina 101"
+    assert body["status"] == "draft"
+
+    listed = await client.get("/api/v1/documents/", headers=_auth(token))
+    assert listed.status_code == 200
+    titles = [d["title"] for d in listed.json()["data"]]
+    assert "Bail Marina 101" in titles
+
+
+async def test_document_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Un document de la société A n'est pas visible par la société B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+
+    created = await client.post("/api/v1/documents/", headers=_auth(token_a),
+                                json={"title": "Secret A", "doc_type": "other"})
+    assert created.status_code == 201
+
+    list_b = await client.get("/api/v1/documents/", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    titles_b = [d["title"] for d in list_b.json()["data"]]
+    assert "Secret A" not in titles_b
