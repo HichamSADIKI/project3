@@ -201,7 +201,7 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`.
 
 ### RealEstate party-role pattern (migration 0002)
 
@@ -263,9 +263,26 @@ All follow the same router/schemas/service/test pattern, mount under `/api/v1`, 
 | `ai_services` | `/ai` | — | Gemini-backed endpoints (contract summary, lead scoring, maintenance prediction). Wired to the `gemini` MCP server tools. |
 | `partner` | `/fournisseur` | 0005–0006, 0010–0012 | Fournisseur (vendor) self-service: KYC docs, missions, categories. Role renamed `partner → fournisseur` (0006). |
 | `client_portal` | `/client` | — | Authenticated client self-service: profile, needs, listings. |
-| `owner_portal` | `/owner` | — | Owner self-service: payouts, statements (router-only, reuses `owners`/`payments` services). |
+| `owner_portal` | `/owner` | — | Owner self-service: payouts, **statements + notifications** (M6/M7), expense approval. Reuses `owner_statements`/`notifications` services; strict owner scoping (anti-BOLA). |
 
-Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers.
+Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
+
+### Rubrique Immobilier — chantier d'intégration (migrations 0020–0026)
+
+Catégorie principale **Immobilier** du backoffice (`apps/web`), 12 modules livrés. Tous suivent le pattern router/schemas/service/test, filtrent par `company_id`, helpers purs testés.
+
+| Module / Migration | Route prefix | Notes |
+|---|---|---|
+| `realestate_core` (0020) | `/branches`, `/company-settings` | Succursales (multi-branch, PostGIS) + paramètres UAE (TVA 5 %, Ejari, DLD). Singleton settings par tenant. |
+| `documents` (0021) | `/documents` | Documents génériques (lien polymorphe `entity_type`+`entity_id`) + versioning immuable (sha256) + **e-signature interne UAE** (hash + OTP + audit). Réutilise `app.core.storage` (MinIO). |
+| `tenant_kyc` (0022) | `/tenants/{id}/kyc` | Workflow KYC locataire (not_started→pending→verified\|rejected), checklist docs (Emirates ID + passeport via `documents`) + alertes expiration. |
+| `contract_renewal_signature` (0023) | `/contracts/{id}/{renew,request-signature,sync-signature}` | Renouvellement de contrats (+ bail lié, escalade loyer) + e-signature via `documents`. Tâche `check_rental_renewals` (J-120). |
+| `owner_statements` (0025) | `/owners/{id}/statements` | Relevés mensuels propriétaires (revenus − dépenses − commission = payout net), statut draft→sent. |
+| `notifications` (0025) | `/notifications` | Notifications in-app génériques réutilisables (statement_ready, pdc_due, maintenance_sla_breach, message_mention, workflow_escalation…). |
+
+Tâches Celery beat ajoutées (queue `reminders`) qui alimentent `notifications` : `check_rental_renewals` (J-120), `check_pdc_due` (échéance/retard chèques), et l'enrichissement de `check_maintenance_sla` / `check_workflow_sla` / `notify_mentions`.
+
+**Frontend** : la rubrique **Immobilier** (`apps/web`, `components/sgi-ui.tsx` + `app/screens/realestate-*.tsx`) regroupe 14 sous-catégories : Bâtiments · Unités · Locataires · Propriétaires · Portail Propriétaire · Contrats · Paiements · Chèques · Maintenance · Communication · Validations · Succursales · Documents · Paramètres. Migration de merge `0026_merge_0025` réconcilie le fork `owner_statements` / `reference_composite_unique`.
 
 ## API Wiring
 
