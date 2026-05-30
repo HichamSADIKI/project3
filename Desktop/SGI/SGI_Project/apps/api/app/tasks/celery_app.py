@@ -25,6 +25,14 @@ celery_app.conf.update(
         "app.tasks.notifications.*": {"queue": "notifications"},
         "app.tasks.exports.*": {"queue": "exports"},
         "app.tasks.reminders.*": {"queue": "reminders"},
+        # ── ERP (maintenance / comms / workflows) ────────────────────────
+        # Routées vers les 3 queues existantes consommées par le worker
+        # (-Q notifications,exports,reminders) — sinon tombent dans la queue
+        # par défaut « celery » que le worker n'écoute pas → jamais exécutées.
+        "app.tasks.maintenance.*": {"queue": "reminders"},
+        "app.tasks.workflows.*": {"queue": "reminders"},
+        "app.tasks.comms.notify_mentions": {"queue": "notifications"},
+        "app.tasks.comms.transcribe_voice_note": {"queue": "exports"},
     },
     beat_schedule={
         "crm-followup-check": {
