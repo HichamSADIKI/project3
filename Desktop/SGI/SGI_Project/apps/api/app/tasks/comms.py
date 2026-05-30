@@ -8,16 +8,16 @@ Tâches :
 import logging
 import uuid
 
-from celery import shared_task
 from sqlalchemy import select
 
 from app.core.database import sync_session_maker
+from app.tasks.celery_app import celery_app
 from app.models.conversation import ConversationMessage, MessageMention
 
 logger = logging.getLogger(__name__)
 
 
-@shared_task(name="app.tasks.comms.transcribe_voice_note", bind=True)
+@celery_app.task(name="app.tasks.comms.transcribe_voice_note", bind=True, queue="exports")
 def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
     """Transcrit la voice note d'un message via Whisper et met à jour transcript.
 
@@ -78,7 +78,7 @@ def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
         raise self.retry(exc=exc, countdown=60, max_retries=3)
 
 
-@shared_task(name="app.tasks.comms.notify_mentions", bind=True)
+@celery_app.task(name="app.tasks.comms.notify_mentions", bind=True, queue="notifications")
 def notify_mentions(self, message_id: str, company_id: str) -> dict:
     """Notifie les utilisateurs mentionnés dans un message.
 
