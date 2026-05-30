@@ -18,6 +18,7 @@ from app.routers import inspections
 from app.routers import payments
 from app.routers import owner_portal
 from app.routers import ai_services
+from app.routers import agenda
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -49,6 +50,7 @@ TAGS_METADATA = [
     {"name": "contracts", "description": "Contrats."},
     {"name": "golden_visa", "description": "Golden Visa UAE."},
     {"name": "rentals", "description": "Locations."},
+    {"name": "agenda", "description": "Agenda Real Estate (embed Google Calendar)."},
     {"name": "pdc", "description": "Chèques post-datés (UAE)."},
     {"name": "payments", "description": "Demandes de paiement & transactions."},
     {"name": "finance", "description": "Finance & comptabilité."},
@@ -96,6 +98,9 @@ app.include_router(crm, prefix="/api/v1")
 app.include_router(contracts, prefix="/api/v1")
 app.include_router(golden_visa, prefix="/api/v1")
 app.include_router(rentals, prefix="/api/v1")
+# Real Estate — sous-catégorie Agenda (embed Google Calendar, voir frontend
+# realestate-agenda). Config-only : pas de table.
+app.include_router(agenda.router, prefix="/api/v1")
 app.include_router(finance, prefix="/api/v1")
 app.include_router(reporting, prefix="/api/v1")
 app.include_router(scraping, prefix="/api/v1")
