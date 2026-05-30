@@ -11,20 +11,35 @@ Sécurité :
 from __future__ import annotations
 
 import base64
-import os
 
 import pyotp
 from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+
+from app.core.config import settings
+
+# Domaine de dérivation : isole la clé de chiffrement MFA des autres usages
+# éventuels de SECRET_KEY (signature JWT, etc.).
+_MFA_HKDF_INFO = b"sgi-mfa-totp-encryption-v1"
 
 
 # ── Chiffrement du secret TOTP ────────────────────────────────────────────
 
 def _fernet() -> Fernet:
-    """Instancie Fernet à partir de SECRET_KEY (dérivée en clé 32 bytes)."""
-    raw = os.getenv("SECRET_KEY", "change_me_in_production_min_32_chars")
-    # Fernet requiert une clé base64url de 32 bytes.
-    key = base64.urlsafe_b64encode(raw.encode()[:32].ljust(32, b"\0"))
-    return Fernet(key)
+    """Instancie Fernet avec une clé dérivée de SECRET_KEY via HKDF-SHA256.
+
+    `settings.SECRET_KEY` est un champ obligatoire (aucun défaut) : l'absence
+    de secret empêche le démarrage de l'application — pas de clé codée en dur.
+    La dérivation est déterministe → un secret TOTP chiffré reste déchiffrable.
+    """
+    derived = HKDF(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=None,
+        info=_MFA_HKDF_INFO,
+    ).derive(settings.SECRET_KEY.encode())
+    return Fernet(base64.urlsafe_b64encode(derived))
 
 
 def encrypt_secret(plain: str) -> str:
