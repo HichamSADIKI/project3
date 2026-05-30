@@ -31,6 +31,16 @@ const STATUS_STYLE: Record<string, { label: string; color: string; bg: string }>
   off_market: { label: "Hors marché", color: "var(--ink-4)", bg: "var(--line-soft)" },
 };
 
+// Machine d'états (miroir de units/service.is_valid_status_transition).
+const STATUS_TRANSITIONS: Record<string, string[]> = {
+  vacant: ["reserved", "occupied", "maintenance", "renovation", "off_market"],
+  reserved: ["occupied", "vacant"],
+  occupied: ["vacant", "maintenance"],
+  maintenance: ["vacant", "renovation"],
+  renovation: ["vacant", "maintenance"],
+  off_market: ["vacant"],
+};
+
 type Unit = {
   id: string; unit_number: string; unit_type: string; status: string;
   list_rent_aed: string | null;
@@ -60,6 +70,19 @@ export function ScreenRealEstateUnits() {
     } catch { setFormError("create_failed"); } finally { setSaving(false); }
   }
 
+  // Action machine d'états : changement de statut.
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function changeStatus(unitId: string, target: string) {
+    setUpdating(unitId); setActionError(null);
+    try {
+      const res = await postJson(`/api/admin/units/${unitId}/status`, { target_status: target });
+      if (!res.ok) { setActionError(await extractError(res, "status_change_failed")); return; }
+      reload();
+    } catch { setActionError("status_change_failed"); } finally { setUpdating(null); }
+  }
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={t.nav_units} />
@@ -77,6 +100,7 @@ export function ScreenRealEstateUnits() {
           </button>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {actionError && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Changement de statut refusé : {actionError}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -85,11 +109,12 @@ export function ScreenRealEstateUnits() {
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Type</th>
                 <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Loyer / an</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Statut</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={4} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucune unité.</td></tr>
+                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucune unité.</td></tr>
               )}
               {items.map(u => {
                 const st = STATUS_STYLE[u.status] ?? { label: u.status, color: "var(--ink-3)", bg: "var(--line-soft)" };
@@ -101,6 +126,21 @@ export function ScreenRealEstateUnits() {
                     <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink)" }}>{rent > 0 ? aed(rent) : "—"}</td>
                     <td style={{ padding: "13px 16px" }}>
                       <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: st.bg, color: st.color }}>{st.label}</span>
+                    </td>
+                    <td style={{ padding: "13px 16px", textAlign: "end" }}>
+                      {(STATUS_TRANSITIONS[u.status] ?? []).length > 0 ? (
+                        <select
+                          value=""
+                          disabled={updating === u.id}
+                          onChange={e => { if (e.target.value) changeStatus(u.id, e.target.value); }}
+                          style={{ padding: "5px 8px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--bg-cream)", color: "var(--ink-2)", fontSize: 12, cursor: "pointer" }}
+                        >
+                          <option value="">{updating === u.id ? "…" : "Changer →"}</option>
+                          {(STATUS_TRANSITIONS[u.status] ?? []).map(s => (
+                            <option key={s} value={s}>{STATUS_STYLE[s]?.label ?? s}</option>
+                          ))}
+                        </select>
+                      ) : <span style={{ color: "var(--ink-4)" }}>—</span>}
                     </td>
                   </tr>
                 );
