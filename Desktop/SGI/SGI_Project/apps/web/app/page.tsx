@@ -21,6 +21,8 @@ import { ScreenRealEstateTenants } from "./screens/realestate-tenants";
 import { ScreenRealEstateContracts } from "./screens/realestate-contracts";
 import { ScreenRealEstateOwners } from "./screens/realestate-owners";
 import { ScreenRealEstateOwnerPortal } from "./screens/realestate-owner-portal";
+import { ScreenRealEstatePayments } from "./screens/realestate-payments";
+import { ScreenRealEstateCheques } from "./screens/realestate-cheques";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
@@ -50,7 +52,7 @@ import { GlobalSearch } from "@/components/global-search";
 
 type ScreenKey =
   | "dash" | "crm" | "orders"
-  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
+  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
   | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "tourisme_news" | "sante_news" | "assurance_news"
@@ -80,6 +82,8 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_units": (_) => <ScreenRealEstateUnits />,
   "realestate_tenants": (_) => <ScreenRealEstateTenants />,
   "realestate_contracts": (_) => <ScreenRealEstateContracts />,
+  "realestate_payments": (_) => <ScreenRealEstatePayments />,
+  "realestate_cheques": (_) => <ScreenRealEstateCheques />,
   "realestate_owners": (_) => <ScreenRealEstateOwners />,
   "realestate_owner_portal": (_) => <ScreenRealEstateOwnerPortal />,
   "realestate_branches": (_) => <ScreenRealEstateBranches />,

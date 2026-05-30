@@ -45,6 +45,25 @@ def is_overdue(today: date, due: date, status: str) -> bool:
     return status == "pending" and due < today
 
 
+def pdc_reminder_level(
+    today: date, due: date, status: str, due_soon_days: int = 7
+) -> str | None:
+    """Niveau de rappel d'un PDC pour la tâche Celery (M8).
+
+    - 'overdue'  : pending et échéance dépassée (doit être déposé/relancé)
+    - 'due_soon' : pending/deposited et échéance dans 0..due_soon_days jours
+    - None       : aucun rappel (terminal, ou échéance lointaine)
+    """
+    if status not in ("pending", "deposited"):
+        return None
+    remaining = days_to_due(today, due)
+    if status == "pending" and remaining < 0:
+        return "overdue"
+    if 0 <= remaining <= due_soon_days:
+        return "due_soon"
+    return None
+
+
 def generate_reference(year: int, sequence: int) -> str:
     """Format interne : PDC-YYYY-NNNNNN (6 chiffres pour faciliter le tri)."""
     return f"PDC-{year}-{sequence:06d}"

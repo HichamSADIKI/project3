@@ -11,6 +11,7 @@ from app.routers.pdc.service import (
     generate_reference,
     is_overdue,
     is_valid_pdc_transition,
+    pdc_reminder_level,
 )
 
 
@@ -141,3 +142,31 @@ class TestAggregateOutstanding:
             self._make("deposited", "7500.50"),
         ]
         assert aggregate_outstanding(cheques) == Decimal("10500.50")
+
+
+class TestPdcReminderLevel:
+    today = date(2026, 5, 30)
+
+    def test_overdue_when_pending_past_due(self) -> None:
+        assert pdc_reminder_level(self.today, date(2026, 5, 1), "pending") == "overdue"
+
+    def test_due_soon_within_7_days(self) -> None:
+        assert pdc_reminder_level(self.today, date(2026, 6, 3), "pending") == "due_soon"
+
+    def test_due_soon_today(self) -> None:
+        assert pdc_reminder_level(self.today, self.today, "deposited") == "due_soon"
+
+    def test_none_when_far(self) -> None:
+        assert pdc_reminder_level(self.today, date(2026, 9, 1), "pending") is None
+
+    def test_deposited_not_overdue(self) -> None:
+        # un chèque déjà déposé mais échéance passée n'est pas "overdue" (dépôt fait)
+        assert pdc_reminder_level(self.today, date(2026, 5, 1), "deposited") is None
+
+    def test_terminal_states_no_reminder(self) -> None:
+        for st in ("cleared", "bounced", "replaced", "cancelled"):
+            assert pdc_reminder_level(self.today, date(2026, 5, 1), st) is None
+
+    def test_custom_window(self) -> None:
+        level = pdc_reminder_level(self.today, date(2026, 6, 15), "pending", due_soon_days=30)
+        assert level == "due_soon"
