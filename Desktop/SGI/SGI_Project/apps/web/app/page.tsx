@@ -17,6 +17,7 @@ import { ScreenSante } from "./screens/sante";
 import { ScreenAssurance } from "./screens/assurance";
 import { ScreenRealEstate } from "./screens/real-estate";
 import { ScreenRealEstateAgenda } from "./screens/realestate-agenda";
+import { ScreenRealEstateCalendar } from "./screens/realestate-calendar";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
@@ -49,7 +50,7 @@ type ScreenKey =
   | "realestate" | "admin" | "travail"
   | "realestate_crm" | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
-  | "realestate_agenda"
+  | "realestate_agenda" | "realestate_calendar"
   | "realestate_news" | "tourisme_news" | "sante_news" | "assurance_news"
   | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
@@ -77,6 +78,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "rental":      (_)  => <ScreenRentals />,
   "realestate":  (_)  => <ScreenRealEstate />,
   "realestate_agenda": (_) => <ScreenRealEstateAgenda />,
+  "realestate_calendar": (_) => <ScreenRealEstateCalendar />,
   "admin":       (_)  => <ScreenAdministrations />,
   "travail":     (_)  => <ScreenTravail />,
 

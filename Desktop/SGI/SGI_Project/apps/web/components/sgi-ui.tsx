@@ -132,7 +132,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news" | "realestate_agenda"
+  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news" | "realestate_agenda" | "realestate_calendar"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -171,6 +171,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_crm",  icon: <IcCRM /> },
       { key: "realestate_news", icon: <IcNews /> },
       { key: "realestate_agenda", icon: <IcCalendar /> },
+      { key: "realestate_calendar", icon: <IcCalendar /> },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
@@ -342,6 +343,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
       callcenter_crm: t.nav_crm,
       realestate_agenda: t.nav_agenda,
+      realestate_calendar: t.nav_calendar,
       realestate_news: t.nav_news, tourisme_news: t.nav_news, sante_news: t.nav_news,
       assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
       consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,

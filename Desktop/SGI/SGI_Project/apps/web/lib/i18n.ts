@@ -22,6 +22,7 @@ export type Translations = {
   nav_fournisseurs: string;
   nav_news: string;
   nav_agenda: string;
+  nav_calendar: string;
   nav_parametres: string;
   nav_report: string;
 
@@ -85,6 +86,7 @@ const ar: Translations = {
   nav_fournisseurs: "اعتماد المورّدين",
   nav_news: "الأخبار",
   nav_agenda: "الأجندة",
+  nav_calendar: "التقويم",
   nav_parametres: "الإعدادات",
   nav_report: "التقارير",
 
@@ -151,6 +153,7 @@ const en: Translations = {
   nav_fournisseurs: "Vendor approval",
   nav_news: "News",
   nav_agenda: "Agenda",
+  nav_calendar: "Calendar",
   nav_parametres: "Settings",
   nav_report: "Reports",
 
@@ -217,6 +220,7 @@ const fr: Translations = {
   nav_fournisseurs: "Validation fournisseurs",
   nav_news: "Actualités",
   nav_agenda: "Agenda",
+  nav_calendar: "Calendrier",
   nav_parametres: "Paramètres",
   nav_report: "Rapports",
 
