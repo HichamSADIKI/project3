@@ -18,6 +18,7 @@ from app.routers import inspections
 from app.routers import payments
 from app.routers import owner_portal
 from app.routers import ai_services
+from app.routers import realestate_core
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -127,6 +128,8 @@ app.include_router(payments.router, prefix="/api/v1")
 app.include_router(owner_portal.router, prefix="/api/v1")
 # ERP — IA avancée (contrats + prédiction maintenance, sans table)
 app.include_router(ai_services.router, prefix="/api/v1")
+# Immobilier Core — succursales (multi-branch) + paramètres UAE (migration 0020)
+app.include_router(realestate_core.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])

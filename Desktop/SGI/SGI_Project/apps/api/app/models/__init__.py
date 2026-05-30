@@ -30,6 +30,8 @@ from app.models.property_submission import PropertySubmission
 from app.models.partner_lead import PartnerLead
 from app.models.partner_commission import PartnerCommissionEntry
 from app.models.partner_service import PartnerService
+from app.models.branch import Branch
+from app.models.company_settings import CompanySettings
 
 __all__ = [
     "Base",
@@ -59,4 +61,6 @@ __all__ = [
     "PartnerLead",
     "PartnerCommissionEntry",
     "PartnerService",
+    "Branch",
+    "CompanySettings",
 ]

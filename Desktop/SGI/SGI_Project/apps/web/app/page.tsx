@@ -12,6 +12,8 @@ import { ScreenTourisme } from "./screens/tourisme";
 import { ScreenSante } from "./screens/sante";
 import { ScreenAssurance } from "./screens/assurance";
 import { ScreenRealEstate } from "./screens/real-estate";
+import { ScreenRealEstateBranches } from "./screens/realestate-branches";
+import { ScreenRealEstateSettings } from "./screens/realestate-settings";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
@@ -41,7 +43,7 @@ import { GlobalSearch } from "@/components/global-search";
 
 type ScreenKey =
   | "dash" | "crm" | "orders"
-  | "realestate" | "admin" | "travail"
+  | "realestate" | "realestate_branches" | "realestate_settings" | "admin" | "travail"
   | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "tourisme_news" | "sante_news" | "assurance_news"
@@ -67,6 +69,8 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} />,
   "orders":      (_)  => <ScreenOrders />,
   "realestate":  (_)  => <ScreenRealEstate />,
+  "realestate_branches": (_) => <ScreenRealEstateBranches />,
+  "realestate_settings": (_) => <ScreenRealEstateSettings />,
   "admin":       (_)  => <ScreenAdministrations />,
   "travail":     (_)  => <ScreenTravail />,
 
