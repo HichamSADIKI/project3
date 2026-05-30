@@ -21,27 +21,40 @@ app_session_maker = async_sessionmaker(app_engine, expire_on_commit=False)
 
 @contextmanager
 def sync_session_maker() -> Generator[AsyncSession, None, None]:
-    """Context manager synchrone pour les tâches Celery.
+    """Context manager synchrone pour les tâches Celery (rôle privilégié sgi_user).
 
-    Exécute une session async dans un event loop dédié (asyncio.run) pour
-    rester compatible avec asyncpg (seul driver disponible dans l'image).
+    Chaque appel ouvre son PROPRE event loop ET son PROPRE engine `NullPool` :
+    les connexions asyncpg sont créées et fermées dans ce loop, jamais reprises
+    d'un pool partagé lié à un autre loop. Cela élimine l'erreur asyncpg
+    « <Future> attached to a different loop » lorsqu'un worker Celery réutilise
+    le process pour des tâches successives.
+
+    On n'utilise donc PAS l'`async_session_maker` global (engine + pool partagés).
+
     Usage :
         with sync_session_maker() as db:
-            db.execute(...)   # ← wrappé via asyncio.run
+            db.execute(...)   # ← wrappé via run_until_complete
     """
     import asyncio
 
+    from sqlalchemy.pool import NullPool
+
     class _SyncProxy:
-        """Proxy qui exécute chaque méthode async via asyncio.run."""
+        """Proxy qui exécute chaque méthode async via le loop dédié."""
         def __init__(self):
             self._session = None
+            self._engine = None
             self._loop = asyncio.new_event_loop()
 
         def _run(self, coro):
             return self._loop.run_until_complete(coro)
 
         def __enter__(self):
-            self._session = async_session_maker()
+            # Engine éphémère NullPool — connexions liées à CE loop uniquement.
+            self._engine = create_async_engine(
+                settings.DATABASE_URL, poolclass=NullPool
+            )
+            self._session = AsyncSession(self._engine, expire_on_commit=False)
             self._run(self._session.__aenter__())
             return self
 
@@ -58,8 +71,12 @@ def sync_session_maker() -> Generator[AsyncSession, None, None]:
             self._run(self._session.rollback())
 
         def __exit__(self, *exc):
-            self._run(self._session.__aexit__(*exc))
-            self._loop.close()
+            try:
+                self._run(self._session.__aexit__(*exc))
+            finally:
+                # Libère les connexions de CE loop avant de le fermer.
+                self._run(self._engine.dispose())
+                self._loop.close()
 
     proxy = _SyncProxy()
     with proxy as p:
