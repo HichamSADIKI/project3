@@ -171,8 +171,32 @@ async def update_property(
     lat = update_data.pop("latitude", None)
     lng = update_data.pop("longitude", None)
     if lat is not None or lng is not None:
-        # Si un seul des deux est fourni, on conserve l'autre depuis l'existant
-        prop.location = _make_point(lat, lng)
+        # Si un seul des deux est fourni, on complète l'autre depuis la
+        # localisation existante en base (ST_Y = lat, ST_X = lng) pour ne pas
+        # effacer la géolocalisation déjà géocodée.
+        if lat is None or lng is None:
+            existing = (
+                await db.execute(
+                    select(
+                        func.ST_Y(Property.location),
+                        func.ST_X(Property.location),
+                    ).where(
+                        Property.id == property_id,
+                        Property.company_id == uuid.UUID(company_id),
+                    )
+                )
+            ).first()
+            if existing is not None:
+                ex_lat, ex_lng = existing
+                if lat is None:
+                    lat = ex_lat
+                if lng is None:
+                    lng = ex_lng
+        # _make_point renvoie None si une coordonnée manque encore (aucune
+        # localisation préexistante) → on ne touche pas à prop.location.
+        point = _make_point(lat, lng)
+        if point is not None:
+            prop.location = point
 
     for key, value in update_data.items():
         setattr(prop, key, value)
