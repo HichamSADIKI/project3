@@ -1,16 +1,26 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Topbar, IcChat } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson, extractError } from "@/lib/api-client";
 
-// Câblé sur /api/admin/comms/conversations (liste) + .../{id}/messages (fil REST).
-// Le temps réel (WebSocket) nécessite l'exposition du token (cookie httpOnly) →
-// tâche infra séparée ; ici le fil est rafraîchi à l'envoi / à la sélection.
+// Câblé sur /api/admin/comms/conversations (liste) + .../{id}/messages (fil REST)
+// + WebSocket temps réel. Le fil REST sert de socle ; la WS pousse les nouveaux
+// messages (message.created) en direct. Le token WS vient de /api/admin/comms/
+// ws-token (le cookie httpOnly est illisible par JS — cf. décision sécu).
 
 const TYPE_LABEL: Record<string, string> = { direct: "Direct", group: "Groupe", ticket: "Ticket", contract: "Contrat" };
+
+/** Base WS du backend : NEXT_PUBLIC_WS_URL (ex. ws://localhost:8000) sinon même
+ * origine (nginx proxifie /api/v1 vers l'API). */
+function wsConversationUrl(convId: string, token: string): string {
+  const base =
+    process.env.NEXT_PUBLIC_WS_URL ??
+    `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
+  return `${base.replace(/\/$/, "")}/api/v1/comms/ws/conversations/${convId}?token=${encodeURIComponent(token)}`;
+}
 
 type Conversation = { id: string; type: string; subject: string | null; last_message_at: string | null };
 type Message = { id: string; sender_user_id: string | null; kind: string; body: string | null; transcript: string | null; created_at: string };
@@ -24,6 +34,14 @@ export function ScreenRealEstateComms() {
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [live, setLive] = useState(false);
+  const wsRef = useRef<WebSocket | null>(null);
+
+  // Ajoute un message en dédupliquant par id (la WS peut renvoyer un message
+  // déjà présent dans le fil REST, y compris celui qu'on vient d'envoyer).
+  const upsertMessage = useCallback((m: Message) => {
+    setMessages(prev => (prev.some(x => x.id === m.id) ? prev : [...prev, m]));
+  }, []);
 
   const loadMessages = useCallback((convId: string) => {
     setMsgLoading(true);
@@ -35,13 +53,46 @@ export function ScreenRealEstateComms() {
 
   useEffect(() => { if (selId) loadMessages(selId); }, [selId, loadMessages]);
 
+  // Connexion WebSocket temps réel, ré-établie à chaque changement de conversation.
+  useEffect(() => {
+    if (!selId) return;
+    let cancelled = false;
+    let ws: WebSocket | null = null;
+    setLive(false);
+    (async () => {
+      try {
+        const { token } = await getJson<{ token: string }>("/api/admin/comms/ws-token");
+        if (cancelled || !token) return;
+        ws = new WebSocket(wsConversationUrl(selId, token));
+        wsRef.current = ws;
+        ws.onopen = () => { if (!cancelled) setLive(true); };
+        ws.onclose = () => { if (!cancelled) setLive(false); };
+        ws.onerror = () => { if (!cancelled) setLive(false); };
+        ws.onmessage = ev => {
+          try {
+            const evt = JSON.parse(ev.data);
+            if (evt.type === "message.created" && evt.data) upsertMessage(evt.data as Message);
+          } catch { /* ping/pong & frames non-JSON ignorés */ }
+        };
+      } catch { if (!cancelled) setLive(false); }
+    })();
+    return () => {
+      cancelled = true;
+      setLive(false);
+      if (ws) { ws.onmessage = null; ws.onclose = null; ws.close(); }
+      wsRef.current = null;
+    };
+  }, [selId, upsertMessage]);
+
   async function send() {
     if (!selId || !draft.trim()) return;
     setSending(true); setSendError(null);
     try {
       const res = await postJson(`/api/admin/comms/conversations/${selId}/messages`, { body: draft.trim(), kind: "text" });
       if (!res.ok) { setSendError(await extractError(res, "send_failed")); return; }
-      setDraft(""); loadMessages(selId);
+      setDraft("");
+      // Si la WS n'est pas connectée, on rafraîchit le fil en REST (fallback).
+      if (!live) loadMessages(selId);
     } catch { setSendError("send_failed"); } finally { setSending(false); }
   }
 
@@ -75,6 +126,10 @@ export function ScreenRealEstateComms() {
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 13 }}>Sélectionnez une conversation.</div>
           ) : (
             <>
+              <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 26px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)" }}>
+                <span style={{ width: 8, height: 8, borderRadius: 999, background: live ? "var(--emerald)" : "var(--ink-4)" }} />
+                <span style={{ fontSize: 11.5, color: live ? "var(--emerald)" : "var(--ink-4)", fontWeight: 600 }}>{live ? "Temps réel" : "Hors-ligne"}</span>
+              </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "20px 26px", display: "flex", flexDirection: "column", gap: 12 }}>
                 {msgLoading && <div style={{ color: "var(--ink-4)", fontSize: 12 }}>Chargement…</div>}
                 {!msgLoading && messages.length === 0 && <div style={{ color: "var(--ink-4)", fontSize: 12 }}>Aucun message.</div>}
