@@ -52,6 +52,8 @@ class ContractOut(BaseModel):
     notes_ar: str | None
     notes_fr: str | None
     documents: list[str]
+    renewed_from_contract_id: uuid.UUID | None
+    signing_document_id: uuid.UUID | None
     created_at: datetime
     updated_at: datetime
 
@@ -67,3 +69,15 @@ class ContractListOut(BaseModel):
 class ContractDetailOut(BaseModel):
     success: bool = True
     data: ContractOut
+
+
+# ─── Renouvellement & signature (M5) ────────────────────────────────────────
+
+
+class ContractRenew(BaseModel):
+    term_months: int | None = Field(None, ge=1, le=120)
+    rent_escalation_pct: Decimal = Field(Decimal("0"), ge=0, le=100)
+
+
+class SignatureLink(BaseModel):
+    document_id: uuid.UUID

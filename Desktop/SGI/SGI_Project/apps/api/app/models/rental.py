@@ -70,3 +70,11 @@ class Rental(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Calendrier de paiement JSONB
     payment_schedule = mapped_column(JSONB, nullable=False, default=list)
+
+    # Renouvellement (M5) — bail parent dont celui-ci est le renouvellement
+    renewed_from_rental_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("rentals.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
