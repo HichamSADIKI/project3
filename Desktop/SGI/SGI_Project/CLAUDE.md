@@ -64,9 +64,9 @@ MCP servers configured in `.mcp.json`:
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 16.2 (App Router · Turbopack) · React 19 · TypeScript 5 |
+| Frontend | Next.js 15.3 (App Router · Turbopack) · React 19 · TypeScript 5 |
 | UI | shadcn/ui (RTL) · Radix UI · Tailwind CSS v4 |
-| State | TanStack Query v5 · Zustand v5 · React Hook Form + Zod v4 |
+| State | TanStack Query v5 · Zustand v4 · Zod v3 |
 | i18n | i18next · AR/EN/FR · Noto Sans Arabic · Geist |
 | Mobile | Expo 51 · React Native 0.74 · Expo Router · NativeWind · react-native-maps · MMKV · expo-secure-store |
 | Backend | FastAPI 0.136 · Python 3.13 · Pydantic v2 · Uvicorn + uvloop |
