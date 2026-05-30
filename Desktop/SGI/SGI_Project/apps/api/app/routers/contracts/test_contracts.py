@@ -1,14 +1,40 @@
-"""Tests unitaires — helpers métier purs du module contracts (renouvellement M5)."""
+"""Tests Contracts — helpers purs (renouvellement M5) + CRUD/renew multi-tenant.
+
+⚠️ Tests d'intégration (parties DB) : requièrent PostgreSQL via `DATABASE_URL`.
+Lancer avec : `docker compose exec api uv run pytest app/routers/contracts/test_contracts.py`.
+"""
+from __future__ import annotations
+
+import uuid
 from datetime import date
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.client import Client
+from app.models.company import Company
+from app.models.property import Property
+from app.routers.contracts.schemas import (
+    ContractCreate,
+    ContractRenew,
+    ContractUpdate,
+)
 from app.routers.contracts.service import (
     apply_rent_escalation,
     compute_renewal_dates,
+    create_contract,
+    delete_contract,
+    get_contract,
     is_renewable,
+    list_contracts,
+    renew_contract,
+    update_contract,
 )
+
+
+# ── Helpers purs (déjà couverts — conservés) ─────────────────────────────────
 
 
 class TestIsRenewable:
@@ -59,3 +85,175 @@ class TestApplyRentEscalation:
     def test_result_quantized(self) -> None:
         result = apply_rent_escalation(Decimal("12345"), Decimal("3.3"))
         assert result.as_tuple().exponent == -2
+
+
+# ── Fixtures DB ──────────────────────────────────────────────────────────────
+
+
+async def _seed_client_property(
+    db: AsyncSession, company_id: uuid.UUID
+) -> tuple[uuid.UUID, uuid.UUID]:
+    client = Client(
+        id=uuid.uuid4(), company_id=company_id, type="individual",
+        first_name="Partie", last_name="Test",
+    )
+    prop = Property(
+        id=uuid.uuid4(), company_id=company_id,
+        reference=f"PROP-{uuid.uuid4().hex[:10]}", type="apartment",
+        price=Decimal("1500000"), status="available",
+    )
+    db.add_all([client, prop])
+    await db.commit()
+    return client.id, prop.id
+
+
+async def _make_contract(db, company_id, **overrides):
+    client_id, prop_id = await _seed_client_property(db, company_id)
+    data = ContractCreate(
+        type=overrides.pop("type", "sale"),
+        client_id=client_id,
+        property_id=prop_id,
+        amount=overrides.pop("amount", Decimal("1000000")),
+        commission_rate=overrides.pop("commission_rate", Decimal("2.0")),
+        start_date=overrides.pop("start_date", date(2026, 1, 1)),
+        end_date=overrides.pop("end_date", date(2026, 12, 31)),
+        **overrides,
+    )
+    return await create_contract(db, company_id, data)
+
+
+# ── CRUD ─────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_create_reference_and_commission(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(
+        db_session, seed_company.id, amount=Decimal("1000000"), commission_rate=Decimal("2.5")
+    )
+    assert c.reference.startswith("CNT-")
+    assert c.status == "draft"
+    assert c.commission_amount == Decimal("25000.00")  # 1M × 2.5 %
+
+
+@pytest.mark.asyncio
+async def test_get_cross_tenant_none(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id)
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro", is_active=True,
+    )
+    db_session.add(other)
+    await db_session.commit()
+    assert await get_contract(db_session, other.id, c.id) is None
+
+
+@pytest.mark.asyncio
+async def test_list_filter_by_type(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _make_contract(db_session, seed_company.id, type="sale")
+    await _make_contract(db_session, seed_company.id, type="rental")
+    rentals, n = await list_contracts(db_session, seed_company.id, type_="rental")
+    assert n == 1 and rentals[0].type == "rental"
+
+
+@pytest.mark.asyncio
+async def test_update_signed_sets_signed_at(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id)
+    updated = await update_contract(
+        db_session, seed_company.id, c.id, ContractUpdate(status="signed")
+    )
+    assert updated is not None and updated.signed_at is not None
+
+
+@pytest.mark.asyncio
+async def test_update_active_sale_marks_property_sold(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id, type="sale")
+    await update_contract(db_session, seed_company.id, c.id, ContractUpdate(status="active"))
+    prop = (
+        await db_session.execute(select(Property).where(Property.id == c.property_id))
+    ).scalar_one()
+    assert prop.status == "sold"
+
+
+@pytest.mark.asyncio
+async def test_update_recomputes_commission(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id, amount=Decimal("1000000"))
+    updated = await update_contract(
+        db_session, seed_company.id, c.id, ContractUpdate(amount=Decimal("2000000"))
+    )
+    assert updated is not None
+    assert updated.commission_amount == Decimal("40000.00")  # 2M × 2 %
+
+
+# ── Suppression (draft uniquement) ───────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_delete_draft_ok(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id)
+    assert await delete_contract(db_session, seed_company.id, c.id) is True
+    assert await get_contract(db_session, seed_company.id, c.id) is None
+
+
+@pytest.mark.asyncio
+async def test_delete_non_draft_raises(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id)
+    await update_contract(db_session, seed_company.id, c.id, ContractUpdate(status="active"))
+    with pytest.raises(ValueError):
+        await delete_contract(db_session, seed_company.id, c.id)
+
+
+# ── Renouvellement (M5) ──────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_renew_creates_linked_escalated_contract(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id, amount=Decimal("100000"))
+    await update_contract(db_session, seed_company.id, c.id, ContractUpdate(status="active"))
+
+    new = await renew_contract(
+        db_session, seed_company.id, c.id,
+        ContractRenew(term_months=12, rent_escalation_pct=Decimal("5")),
+    )
+    assert isinstance(new, type(c))
+    assert new.status == "draft"
+    assert new.renewed_from_contract_id == c.id
+    assert new.amount == Decimal("105000.00")  # +5 %
+
+
+@pytest.mark.asyncio
+async def test_renew_draft_is_not_renewable(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    c = await _make_contract(db_session, seed_company.id)  # reste draft
+    result = await renew_contract(
+        db_session, seed_company.id, c.id, ContractRenew()
+    )
+    assert result == "not_renewable"
+
+
+@pytest.mark.asyncio
+async def test_renew_unknown_returns_none(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    result = await renew_contract(
+        db_session, seed_company.id, uuid.uuid4(), ContractRenew()
+    )
+    assert result is None
