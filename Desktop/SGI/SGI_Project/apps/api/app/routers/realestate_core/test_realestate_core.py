@@ -91,3 +91,78 @@ class TestDefaultSettings:
         a["extra"]["x"] = 1
         b = default_settings()
         assert b["extra"] == {}
+
+
+# ─── Tests d'intégration endpoints (auth + multi-tenant) ────────────────────
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+import uuid as _uuid
+
+import pytest_asyncio
+from httpx import AsyncClient
+
+from app.core.auth import encode_jwt, hash_password
+from app.models.company import Company
+from app.models.user import User, UserRole, UserStatus
+
+# asyncio_mode = "auto" (pyproject) → les tests async sont détectés sans marqueur.
+
+
+@pytest_asyncio.fixture
+async def second_admin(db_session) -> tuple[Company, str]:  # type: ignore[no-untyped-def]
+    """Une 2ᵉ société + admin + token (pour tester l'isolation multi-tenant)."""
+    company = Company(id=_uuid.uuid4(), name="Other Co",
+                      slug=f"other-{_uuid.uuid4().hex[:8]}", plan="pro", is_active=True)
+    db_session.add(company)
+    admin = User(id=_uuid.uuid4(), company_id=company.id,
+                 email=f"admin2-{_uuid.uuid4().hex[:8]}@sgi.test",
+                 hashed_password=hash_password("Pass!234"), full_name="Admin 2",
+                 role=UserRole.ADMIN.value, status=UserStatus.ACTIVE.value, is_active=True)
+    db_session.add(admin)
+    await db_session.commit()
+    token = encode_jwt({"sub": str(admin.id), "company_id": str(company.id),
+                        "role": admin.role, "status": admin.status, "email": admin.email})
+    return company, token
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_branches_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/branches")
+    assert resp.status_code == 401
+
+
+async def test_create_then_list_branch(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    create = await client.post("/api/v1/branches", headers=_auth(token),
+                               json={"name": "Marina", "emirate": "DXB"})
+    assert create.status_code == 201, create.text
+    body = create.json()["data"]
+    assert body["name"] == "Marina"
+    assert body["code"].startswith("BR-")  # code auto-généré
+
+    listed = await client.get("/api/v1/branches", headers=_auth(token))
+    assert listed.status_code == 200
+    names = [b["name"] for b in listed.json()["data"]]
+    assert "Marina" in names
+
+
+async def test_branch_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Une succursale de la société A n'est pas visible par la société B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+
+    created = await client.post("/api/v1/branches", headers=_auth(token_a),
+                                json={"name": "Secret DXB", "emirate": "DXB"})
+    assert created.status_code == 201
+
+    list_b = await client.get("/api/v1/branches", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    names_b = [b["name"] for b in list_b.json()["data"]]
+    assert "Secret DXB" not in names_b

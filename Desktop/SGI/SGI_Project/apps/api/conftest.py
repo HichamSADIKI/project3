@@ -55,10 +55,14 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Client HTTP avec la session de test injectée dans la dépendance get_db."""
 
     async def _override_get_db():
-        # On crée une session fraîche pour chaque requête HTTP (comportement
-        # FastAPI normal). NullPool garantit la propreté du loop.
-        async with _test_session_maker() as session:
-            yield session
+        # On épingle UNE connexion physique pour toute la requête, comme le vrai
+        # get_db (database.py) : le GUC tenant `app.current_company_id` posé au
+        # niveau session par get_db_session survit ainsi au commit des services,
+        # au lieu d'être perdu si la session reprenait une autre connexion du
+        # pool. Sans cela, get_company_id relit un GUC vide → tenant_context_missing.
+        async with _test_engine.connect() as conn:
+            async with AsyncSession(bind=conn, expire_on_commit=False) as session:
+                yield session
 
     app.dependency_overrides[get_db] = _override_get_db
     transport = ASGITransport(app=app)
