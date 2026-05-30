@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Topbar, IcClients, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 
@@ -36,6 +37,12 @@ export function ScreenRealEstateOwners() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Owner>("/api/admin/owners?limit=100");
   const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { busy, error: actErr, run } = useRowAction(() => {});
+
+  function genStatement(id: string) {
+    const now = new Date();
+    run(id, `/api/admin/owners/${id}/statements?year=${now.getFullYear()}&month=${now.getMonth() + 1}`);
+  }
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -73,6 +80,7 @@ export function ScreenRealEstateOwners() {
           </button>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -82,11 +90,12 @@ export function ScreenRealEstateOwners() {
                 <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Commission</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Versement</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Échéance mandat</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Relevé</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun propriétaire.</td></tr>
+                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun propriétaire.</td></tr>
               )}
               {items.map(o => {
                 const ma = mandateAlert(o.mandate_end_date);
@@ -98,6 +107,11 @@ export function ScreenRealEstateOwners() {
                     <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{PAYOUT_LABEL[o.preferred_payout_method] ?? o.preferred_payout_method}</td>
                     <td style={{ padding: "13px 16px" }}>
                       {ma ? <span style={{ fontSize: 12, fontWeight: 600, color: ma.color }}>⚠ {ma.label}</span> : <span className="tnum" style={{ color: "var(--ink-3)" }}>{o.mandate_end_date ?? "—"}</span>}
+                    </td>
+                    <td style={{ padding: "13px 16px", textAlign: "end" }}>
+                      {busy === o.party_id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
+                        <button onClick={() => genStatement(o.party_id)} style={{ border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: "rgba(212,160,55,0.14)", color: "var(--gold-deep)" }}>Générer (mois courant)</button>
+                      )}
                     </td>
                   </tr>
                 );

@@ -4,8 +4,14 @@ import React, { useState } from "react";
 import { Topbar, IcPersonne, IcPlus, IcCheck, IcClock } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+
+const actBtn = (color: string, bg: string): React.CSSProperties => ({
+  border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer",
+  fontSize: 11.5, fontWeight: 600, background: bg, color,
+});
 
 // Câblé sur /api/admin/tenants → /api/v1/tenants.
 
@@ -48,7 +54,13 @@ export function ScreenRealEstateTenants() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Tenant>("/api/admin/tenants?limit=100");
   const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { busy, error: actErr, run } = useRowAction(reload);
   const verified = items.filter(x => x.kyc_status === "verified").length;
+
+  function kycReject(id: string) {
+    const reason = window.prompt("Motif du rejet KYC ?");
+    if (reason) run(id, `/api/admin/tenants/${id}/kyc/reject`, { reason });
+  }
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -82,6 +94,7 @@ export function ScreenRealEstateTenants() {
           </button>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -91,11 +104,12 @@ export function ScreenRealEstateTenants() {
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>KYC</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Loyauté</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Visa</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>KYC — Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun locataire.</td></tr>
+                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun locataire.</td></tr>
               )}
               {items.map(x => {
                 const lc = LIFECYCLE[x.lifecycle_status] ?? { label: x.lifecycle_status, color: "var(--ink-3)", bg: "var(--line-soft)" };
@@ -115,6 +129,20 @@ export function ScreenRealEstateTenants() {
                       <span style={{ color: "var(--ink-4)", fontSize: 11 }}> /100</span>
                     </td>
                     <td style={{ padding: "13px 16px" }}>{va ? <span style={{ fontSize: 12, fontWeight: 600, color: va.color }}>⚠ {va.label}</span> : <span style={{ color: "var(--ink-4)" }}>—</span>}</td>
+                    <td style={{ padding: "13px 16px", textAlign: "end" }}>
+                      {busy === x.party_id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
+                        <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                          {(x.kyc_status === "not_started" || x.kyc_status === "rejected") && (
+                            <button onClick={() => run(x.party_id, `/api/admin/tenants/${x.party_id}/kyc/submit`)} style={actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>Soumettre</button>
+                          )}
+                          {x.kyc_status === "pending" && (<>
+                            <button onClick={() => run(x.party_id, `/api/admin/tenants/${x.party_id}/kyc/verify`)} style={actBtn("var(--emerald)", "rgba(16,185,129,0.12)")}>Vérifier</button>
+                            <button onClick={() => kycReject(x.party_id)} style={actBtn("var(--rose)", "var(--rose-soft)")}>Rejeter</button>
+                          </>)}
+                          {x.kyc_status === "verified" && <span style={{ color: "var(--ink-4)" }}>—</span>}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}

@@ -4,8 +4,11 @@ import React, { useState } from "react";
 import { Topbar, IcContract, IcPlus, IcCheck, IcClock } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+
+const cBtn = (color: string, bg: string): React.CSSProperties => ({ border: "none", borderRadius: 8, padding: "5px 9px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: bg, color });
 
 type ClientOpt = { id: string; first_name: string | null; last_name: string | null; company_name: string | null };
 type PropertyOpt = { id: string; reference?: string | null; title_en?: string | null };
@@ -35,6 +38,7 @@ export function ScreenRealEstateContracts() {
   const { items, loading, error, reload } = useApiList<Contract>("/api/admin/contracts?limit=100");
   const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
   const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=200");
+  const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -71,6 +75,7 @@ export function ScreenRealEstateContracts() {
           </button>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -81,11 +86,12 @@ export function ScreenRealEstateContracts() {
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Signature</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Échéance</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Statut</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun contrat.</td></tr>
+                <tr><td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun contrat.</td></tr>
               )}
               {items.map(c => {
                 const st = STATUS[c.status] ?? { label: c.status, color: "var(--ink-3)", bg: "var(--line-soft)" };
@@ -103,6 +109,14 @@ export function ScreenRealEstateContracts() {
                     </td>
                     <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{c.end_date ?? "—"}</td>
                     <td style={{ padding: "13px 16px" }}><span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: st.bg, color: st.color }}>{st.label}</span></td>
+                    <td style={{ padding: "13px 16px", textAlign: "end" }}>
+                      {busy === c.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
+                        <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                          {(c.status === "active" || c.status === "expired") && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/renew`, { rent_escalation_pct: 0 })} style={cBtn("var(--azure)", "rgba(56,132,255,0.12)")}>Renouveler</button>}
+                          {c.status !== "draft" && c.status !== "cancelled" && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/sync-signature`)} style={cBtn("var(--ink-2)", "var(--line-soft)")}>Sync sign.</button>}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
