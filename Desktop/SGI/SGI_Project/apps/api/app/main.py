@@ -58,7 +58,10 @@ async def lifespan(app: FastAPI):
 TAGS_METADATA = [
     {"name": "System", "description": "Santé & supervision."},
     {"name": "auth", "description": "Authentification, MFA, sessions."},
-    {"name": "fournisseur", "description": "Espace fournisseur (self-service prestataires : KYC, missions)."},
+    {
+        "name": "fournisseur",
+        "description": "Espace fournisseur (self-service prestataires : KYC, missions).",
+    },
     {"name": "vendors", "description": "Fiches fournisseurs / prestataires (party-role)."},
     {"name": "clients", "description": "Parties (particuliers / sociétés) — table umbrella."},
     {"name": "owners", "description": "Propriétaires (mandats, IBAN, payouts)."},

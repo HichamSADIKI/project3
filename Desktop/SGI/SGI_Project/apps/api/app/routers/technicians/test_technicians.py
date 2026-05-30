@@ -3,6 +3,7 @@
 La logique de rating est partagée avec vendors (helper `merge_rating`).
 Ces tests valident que technicians.add_rating consomme bien ce helper.
 """
+
 from decimal import Decimal
 
 from app.routers.vendors.service import merge_rating

@@ -1,4 +1,5 @@
 """Tests unitaires — helpers purs des notifications (M6)."""
+
 import pytest
 
 from app.routers.notifications.service import (

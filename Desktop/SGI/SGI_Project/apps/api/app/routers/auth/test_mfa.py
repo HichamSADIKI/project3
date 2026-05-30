@@ -1,4 +1,5 @@
 """Tests MFA TOTP — helpers purs (sans DB ni réseau)."""
+
 from __future__ import annotations
 
 import pyotp
@@ -27,7 +28,7 @@ def test_generate_totp_secret_unique() -> None:
 def test_encrypt_decrypt_roundtrip() -> None:
     secret = generate_totp_secret()
     encrypted = encrypt_secret(secret)
-    assert encrypted != secret           # stocké chiffré
+    assert encrypted != secret  # stocké chiffré
     assert decrypt_secret(encrypted) == secret
 
 
@@ -82,7 +83,7 @@ def test_verify_totp_empty_inputs() -> None:
 
 def test_verify_totp_wrong_length() -> None:
     secret = generate_totp_secret()
-    assert verify_totp(secret, "12345") is False   # 5 digits
+    assert verify_totp(secret, "12345") is False  # 5 digits
     assert verify_totp(secret, "1234567") is False  # 7 digits
 
 

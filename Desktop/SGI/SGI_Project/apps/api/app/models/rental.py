@@ -19,9 +19,7 @@ class Rental(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "rentals"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Liaison contrat (1-to-1)
     contract_id: Mapped[uuid.UUID] = mapped_column(
@@ -52,9 +50,7 @@ class Rental(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     deposit: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False, default=0)
 
     # Fréquence de paiement
-    payment_frequency: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="monthly"
-    )
+    payment_frequency: Mapped[str] = mapped_column(String(20), nullable=False, default="monthly")
 
     # Statut du bail
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="active")
@@ -64,9 +60,7 @@ class Rental(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     end_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     # Alerte renouvellement J-120
-    renewal_alert_sent: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    renewal_alert_sent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Calendrier de paiement JSONB
     payment_schedule = mapped_column(JSONB, nullable=False, default=list)

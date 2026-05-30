@@ -1,4 +1,5 @@
 """Router Inspections — /api/v1/inspections."""
+
 import uuid
 
 from fastapi import (
@@ -59,6 +60,7 @@ def _uid(req: Request) -> uuid.UUID:
 
 # ── CRUD Inspections ──────────────────────────────────────────────────────
 
+
 @router.get("", response_model=InspectionListOut)
 async def list_insp(
     unit_id: uuid.UUID | None = Query(None),
@@ -78,8 +80,7 @@ async def list_insp(
     )
 
 
-@router.post("", response_model=InspectionDetailOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=InspectionDetailOut, status_code=status.HTTP_201_CREATED)
 async def create_insp(
     body: InspectionCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -130,6 +131,7 @@ async def delete_insp(
 
 # ── Transitions ───────────────────────────────────────────────────────────
 
+
 @router.post("/{insp_id}/start", response_model=InspectionDetailOut)
 async def start_insp(
     insp_id: uuid.UUID,
@@ -172,6 +174,7 @@ async def sign_insp(
 
 # ── Sections ──────────────────────────────────────────────────────────────
 
+
 @router.get("/{insp_id}/sections", response_model=list[SectionOut])
 async def list_sects(
     insp_id: uuid.UUID,
@@ -182,8 +185,7 @@ async def list_sects(
     return [SectionOut.model_validate(s) for s in await list_sections(db, cid, insp_id)]
 
 
-@router.post("/{insp_id}/sections", response_model=SectionOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/{insp_id}/sections", response_model=SectionOut, status_code=status.HTTP_201_CREATED)
 async def add_sect(
     insp_id: uuid.UUID,
     body: SectionCreate,
@@ -197,6 +199,7 @@ async def add_sect(
 
 # ── Items ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/{insp_id}/sections/{sect_id}/items", response_model=list[ItemOut])
 async def list_its(
     insp_id: uuid.UUID,
@@ -208,8 +211,11 @@ async def list_its(
     return [ItemOut.model_validate(i) for i in await list_items(db, cid, sect_id)]
 
 
-@router.post("/{insp_id}/sections/{sect_id}/items", response_model=ItemOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/{insp_id}/sections/{sect_id}/items",
+    response_model=ItemOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def add_item(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
@@ -222,8 +228,7 @@ async def add_item(
     return ItemOut.model_validate(item)
 
 
-@router.patch("/{insp_id}/sections/{sect_id}/items/{item_id}",
-              response_model=ItemOut)
+@router.patch("/{insp_id}/sections/{sect_id}/items/{item_id}", response_model=ItemOut)
 async def patch_item(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
@@ -241,8 +246,12 @@ async def patch_item(
 
 # ── Photos ────────────────────────────────────────────────────────────────
 
-@router.post("/{insp_id}/sections/{sect_id}/items/{item_id}/photo",
-             response_model=PhotoOut, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/{insp_id}/sections/{sect_id}/items/{item_id}/photo",
+    response_model=PhotoOut,
+    status_code=status.HTTP_201_CREATED,
+)
 async def upload_photo(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
@@ -280,8 +289,7 @@ async def upload_photo(
     return PhotoOut.model_validate(p)
 
 
-@router.get("/{insp_id}/sections/{sect_id}/items/{item_id}/photos",
-            response_model=list[PhotoOut])
+@router.get("/{insp_id}/sections/{sect_id}/items/{item_id}/photos", response_model=list[PhotoOut])
 async def get_photos(
     insp_id: uuid.UUID,
     sect_id: uuid.UUID,
@@ -294,6 +302,7 @@ async def get_photos(
 
 
 # ── Historique par unité ──────────────────────────────────────────────────
+
 
 @router.get("/unit/{unit_id}", response_model=InspectionListOut)
 async def unit_history(

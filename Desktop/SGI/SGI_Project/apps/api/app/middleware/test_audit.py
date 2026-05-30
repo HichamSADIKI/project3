@@ -1,4 +1,5 @@
 """Tests unitaires du parsing d'audit (helpers purs, sans DB)."""
+
 import uuid
 
 from app.middleware.audit import _is_uuid, _parse_target

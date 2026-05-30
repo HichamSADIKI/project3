@@ -6,6 +6,7 @@ Modèles d'extension du module Maintenance (Phase 2) :
 
 Loi 1 : company_id NOT NULL + RLS sur chaque table (migration 0014).
 """
+
 import uuid
 from datetime import date, datetime
 
@@ -31,9 +32,7 @@ class MaintenanceQuote(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "maintenance_quotes"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ticket_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("maintenance_tickets.id", ondelete="RESTRICT"),
@@ -70,9 +69,7 @@ class MaintenanceInvoice(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "maintenance_invoices"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     ticket_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("maintenance_tickets.id", ondelete="RESTRICT"),
@@ -113,9 +110,7 @@ class MaintenancePlan(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "maintenance_plans"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Localisation : unit OU building.
     unit_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -131,9 +126,7 @@ class MaintenancePlan(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(30), nullable=False)
-    priority: Mapped[str] = mapped_column(
-        String(10), nullable=False, default="medium"
-    )
+    priority: Mapped[str] = mapped_column(String(10), nullable=False, default="medium")
     # Expression cron (ex. "0 9 1 * *" = le 1er de chaque mois à 9h).
     cron_expression: Mapped[str] = mapped_column(String(100), nullable=False)
     next_due_at: Mapped[datetime | None] = mapped_column(
@@ -150,7 +143,7 @@ class MaintenancePlan(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
             name="ck_mnt_plans_location",
         ),
         CheckConstraint(
-            "category IN ('plumbing','electrical','hvac','appliance','structural','cleaning','other')",
+            "category IN ('plumbing','electrical','hvac','appliance','structural','cleaning','other')",  # noqa: E501
             name="ck_mnt_plans_category",
         ),
         CheckConstraint(

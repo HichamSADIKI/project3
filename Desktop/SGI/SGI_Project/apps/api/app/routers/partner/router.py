@@ -1,4 +1,5 @@
 """Espace Partenaire (role=partner) — submissions, leads, commissions, services."""
+
 import uuid
 from datetime import UTC, date, datetime
 
@@ -78,9 +79,7 @@ def _ctx(request: Request) -> tuple[uuid.UUID, uuid.UUID, str]:
     company_id = getattr(request.state, "company_id", None)
     email = getattr(request.state, "email", None)
     if not user_id or not company_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated")
     return uuid.UUID(user_id), uuid.UUID(company_id), email or ""
 
 
@@ -106,9 +105,7 @@ async def get_profile(
     user_id, company_id, email = _ctx(request)
     user = await get_account_user(db, user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
 
     vendor = await get_my_vendor_profile(db, user_id, company_id)
     profile: VendorProfileOut | None = None
@@ -187,18 +184,14 @@ async def list_leads(
     return [PartnerLeadOut.model_validate(le) for le in leads]
 
 
-@router.post(
-    "/leads", response_model=PartnerLeadOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/leads", response_model=PartnerLeadOut, status_code=status.HTTP_201_CREATED)
 async def post_lead(
     body: PartnerLeadCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerLeadOut:
     user_id, company_id, _ = _ctx(request)
     data = body.model_dump()
     # email arrive comme EmailStr-str ; FastAPI le sérialise déjà → on le passe brut
-    lead = await create_lead(
-        db, partner_user_id=user_id, company_id=company_id, data=data
-    )
+    lead = await create_lead(db, partner_user_id=user_id, company_id=company_id, data=data)
     await db.commit()
     return PartnerLeadOut.model_validate(lead)
 
@@ -254,16 +247,12 @@ async def patch_service(
         updates=body.model_dump(exclude_unset=True),
     )
     if not svc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="service_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="service_not_found")
     await db.commit()
     return PartnerServiceOut.model_validate(svc)
 
 
-async def _require_vendor(
-    db: AsyncSession, user_id: uuid.UUID, company_id: uuid.UUID
-) -> Vendor:
+async def _require_vendor(db: AsyncSession, user_id: uuid.UUID, company_id: uuid.UUID) -> Vendor:
     """Profil prestataire du fournisseur courant, ou 404 s'il n'en a pas."""
     vendor = await get_my_vendor_profile(db, user_id, company_id)
     if vendor is None:
@@ -301,9 +290,7 @@ async def list_documents(
     return out
 
 
-@router.post(
-    "/documents", response_model=VendorDocumentOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/documents", response_model=VendorDocumentOut, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     request: Request,
     doc_type: str = Form(...),
@@ -326,9 +313,7 @@ async def upload_document(
         )
     data = await file.read()
     if not data:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file"
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file")
     if len(data) > MAX_DOC_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="file_too_large"
@@ -412,9 +397,7 @@ async def update_mission_status(
     vendor = await _require_vendor(db, user_id, company_id)
     mission = await get_mission(db, mission_id, vendor.party_id, company_id)
     if mission is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="mission_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="mission_not_found")
     if not is_valid_mission_transition(mission.status, body.status):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="invalid_status_transition"
@@ -438,9 +421,7 @@ async def list_messages(
     return out
 
 
-@router.post(
-    "/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def post_message(
     body: MessageCreate,
     request: Request,
@@ -449,9 +430,7 @@ async def post_message(
     user_id, company_id, _ = _ctx(request)
     recipient = await resolve_agency_recipient(db, company_id)
     if recipient is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="no_agency_recipient"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="no_agency_recipient")
     msg = await send_message_to_agency(
         db,
         sender_user_id=user_id,

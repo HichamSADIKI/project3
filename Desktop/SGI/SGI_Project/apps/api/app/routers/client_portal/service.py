@@ -4,6 +4,7 @@ Note d'architecture : le compte User(role=client) est lié au CRM Client (party)
 via l'email (les deux tables ont un index sur email). Cette correspondance
 permet de retrouver contrats/paiements/locations/GV du client.
 """
+
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -78,9 +79,7 @@ async def ensure_linked_client_id(
     if existing:
         return existing
 
-    user_row = (
-        await db.execute(select(User.full_name).where(User.id == user_id))
-    ).first()
+    user_row = (await db.execute(select(User.full_name).where(User.id == user_id))).first()
     full_name = (user_row[0] if user_row else None) or user_email.split("@")[0]
     parts = full_name.strip().split(" ", 1)
     first_name = parts[0] or None
@@ -154,9 +153,7 @@ async def add_favorite(
     return fav
 
 
-async def remove_favorite(
-    db: AsyncSession, user_id: uuid.UUID, favorite_id: uuid.UUID
-) -> bool:
+async def remove_favorite(db: AsyncSession, user_id: uuid.UUID, favorite_id: uuid.UUID) -> bool:
     result = await db.execute(
         select(Favorite).where(Favorite.id == favorite_id, Favorite.user_id == user_id)
     )
@@ -216,8 +213,7 @@ async def list_my_messages(
         .where(
             Message.company_id == company_id,
             Message.deleted_at.is_(None),
-            (Message.sender_user_id == user_id)
-            | (Message.recipient_user_id == user_id),
+            (Message.sender_user_id == user_id) | (Message.recipient_user_id == user_id),
         )
         .order_by(Message.created_at.desc())
     )
@@ -250,9 +246,7 @@ async def send_message(
     return msg
 
 
-async def mark_message_read(
-    db: AsyncSession, user_id: uuid.UUID, message_id: uuid.UUID
-) -> bool:
+async def mark_message_read(db: AsyncSession, user_id: uuid.UUID, message_id: uuid.UUID) -> bool:
     """Marque un message comme lu (seul le destinataire peut le faire)."""
     result = await db.execute(
         select(Message).where(
@@ -404,9 +398,7 @@ async def _build_lead(
         except (TypeError, ValueError):
             budget_decimal = None
 
-    golden_visa_eligible = bool(
-        budget_decimal is not None and budget_decimal >= Decimal("2000000")
-    )
+    golden_visa_eligible = bool(budget_decimal is not None and budget_decimal >= Decimal("2000000"))
 
     score = 0
     if budget_decimal is not None:
@@ -520,9 +512,7 @@ async def submit_client_need(
     category_override: str | None = None,
 ) -> dict[str, Any]:
     """Variante mono-catégorie (compat) — délègue à `submit_client_needs`."""
-    parsed = await preview_client_need(
-        text, locale=locale, category_override=category_override
-    )
+    parsed = await preview_client_need(text, locale=locale, category_override=category_override)
     res = await submit_client_needs(
         db,
         user_id=user_id,
@@ -551,10 +541,8 @@ async def _attach_language(db: AsyncSession, client: Client, user_id: uuid.UUID)
     `preferred_language` n'est pas une colonne de Client — c'est un attribut
     dynamique lu par ClientMeProfileOut (from_attributes).
     """
-    row = (
-        await db.execute(select(User.preferred_language).where(User.id == user_id))
-    ).first()
-    client.preferred_language = (row[0] if row else "en")  # type: ignore[attr-defined]
+    row = (await db.execute(select(User.preferred_language).where(User.id == user_id))).first()
+    client.preferred_language = row[0] if row else "en"  # type: ignore[attr-defined]
 
 
 async def get_my_profile(
@@ -595,17 +583,13 @@ async def update_my_profile(
     """
     language = data.pop("preferred_language", None)
 
-    client = await get_my_profile(
-        db, user_id=user_id, user_email=user_email, company_id=company_id
-    )
+    client = await get_my_profile(db, user_id=user_id, user_email=user_email, company_id=company_id)
     for field, value in data.items():
         setattr(client, field, value)
     client.updated_at = datetime.now(UTC)
 
     if language:
-        user = (
-            await db.execute(select(User).where(User.id == user_id))
-        ).scalar_one_or_none()
+        user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
         if user:
             user.preferred_language = language
 

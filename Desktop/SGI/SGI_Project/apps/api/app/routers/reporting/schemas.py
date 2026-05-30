@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Reporting (KPIs en lecture seule, montants en AED)."""
+
 from decimal import Decimal
 
 from pydantic import BaseModel

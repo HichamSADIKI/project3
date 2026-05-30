@@ -11,6 +11,7 @@ Architecture :
 
 Loi 1 : company_id NOT NULL + RLS sur les 4 tables (migration 0018).
 """
+
 import uuid
 from datetime import date, datetime
 
@@ -40,9 +41,7 @@ class Inspection(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "inspections"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Référence lisible — INS-YYYY-NNNNNN
     reference: Mapped[str] = mapped_column(String(20), nullable=False)
 
@@ -69,9 +68,7 @@ class Inspection(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # check_in | check_out | periodic | pre_sale
     inspection_type: Mapped[str] = mapped_column(String(20), nullable=False)
     # draft | scheduled | in_progress | completed | signed | cancelled
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="draft"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
 
     scheduled_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     inspector_user_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -93,18 +90,12 @@ class Inspection(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Signature numérique simulée (nom + timestamp)
     signed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    signed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Score global calculé (moyenne des items notés, 0-5)
-    overall_score: Mapped[float | None] = mapped_column(
-        nullable=True
-    )
+    overall_score: Mapped[float | None] = mapped_column(nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -115,8 +106,8 @@ class Inspection(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
             "status IN ('draft','scheduled','in_progress','completed','signed','cancelled')",
             name="ck_inspection_status",
         ),
-        Index("idx_inspections_company_status",  "company_id", "status"),
-        Index("idx_inspections_company_type",    "company_id", "inspection_type"),
+        Index("idx_inspections_company_status", "company_id", "status"),
+        Index("idx_inspections_company_type", "company_id", "inspection_type"),
         Index("uq_inspections_company_ref", "company_id", "reference", unique=True),
     )
 
@@ -126,9 +117,7 @@ class InspectionSection(Base, TenantMixin):
 
     __tablename__ = "inspection_sections"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     inspection_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("inspections.id", ondelete="CASCADE"),
@@ -139,9 +128,7 @@ class InspectionSection(Base, TenantMixin):
     section_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    __table_args__ = (
-        Index("idx_insp_sections_inspection", "inspection_id"),
-    )
+    __table_args__ = (Index("idx_insp_sections_inspection", "inspection_id"),)
 
 
 class InspectionItem(Base, TenantMixin):
@@ -149,9 +136,7 @@ class InspectionItem(Base, TenantMixin):
 
     __tablename__ = "inspection_items"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     section_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("inspection_sections.id", ondelete="CASCADE"),
@@ -185,9 +170,7 @@ class InspectionPhoto(Base, TenantMixin):
 
     __tablename__ = "inspection_photos"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     item_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("inspection_items.id", ondelete="CASCADE"),
@@ -197,10 +180,6 @@ class InspectionPhoto(Base, TenantMixin):
     # Clé objet MinIO
     file_key: Mapped[str] = mapped_column(String(500), nullable=False)
     caption: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    uploaded_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (
-        Index("idx_insp_photos_item", "item_id"),
-    )
+    __table_args__ = (Index("idx_insp_photos_item", "item_id"),)

@@ -5,6 +5,7 @@ Chaque upload crée une nouvelle version (numérotée par document). Le fichier
 réel est stocké dans MinIO (`file_path`). `sha256` garantit l'intégrité du
 contenu et sert de base à la preuve de signature. Jamais modifiée ni supprimée.
 """
+
 import uuid
 
 from sqlalchemy import ForeignKey, Index, Integer, String, Text
@@ -19,9 +20,7 @@ class DocumentVersion(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "document_versions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     document_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

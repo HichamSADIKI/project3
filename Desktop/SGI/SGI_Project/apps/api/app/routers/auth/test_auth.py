@@ -10,6 +10,7 @@ Couvre :
 - POST /api/v1/auth/pending-users/.../decision → bascule pending → active
 - POST /api/v1/auth/pending-users/.../decision (approve=false) → pending → rejected
 """
+
 from __future__ import annotations
 
 import uuid
@@ -75,9 +76,7 @@ async def test_register_rejects_duplicate_email(
     assert r2.json()["detail"] == "email_already_registered"
 
 
-async def test_register_rejects_unknown_company(
-    client: AsyncClient, unique_email: str
-) -> None:
+async def test_register_rejects_unknown_company(client: AsyncClient, unique_email: str) -> None:
     payload = {
         "email": unique_email,
         "password": "VerySecret!23",
@@ -120,9 +119,7 @@ async def _activate(db_session, email: str) -> None:
 
     from app.models.user import User as _User
 
-    await db_session.execute(
-        update(_User).where(_User.email == email).values(status="active")
-    )
+    await db_session.execute(update(_User).where(_User.email == email).values(status="active"))
     await db_session.commit()
 
 

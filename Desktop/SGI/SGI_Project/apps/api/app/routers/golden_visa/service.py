@@ -8,15 +8,18 @@ from app.models.golden_visa import GoldenVisaApplication
 from app.routers.golden_visa.schemas import GoldenVisaCreate, GoldenVisaUpdate
 
 VALID_STATUSES = {
-    "pending", "documents_collection", "submitted",
-    "under_review", "approved", "rejected", "expired",
+    "pending",
+    "documents_collection",
+    "submitted",
+    "under_review",
+    "approved",
+    "rejected",
+    "expired",
 }
 
 
 async def _company_id(db: AsyncSession) -> uuid.UUID:
-    result = await db.execute(
-        text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(text("SELECT current_setting('app.current_company_id', true)"))
     return uuid.UUID(result.scalar())
 
 
@@ -29,12 +32,9 @@ async def list_applications(
     client_id: uuid.UUID | None = None,
 ) -> dict:
     cid = await _company_id(db)
-    q = (
-        select(GoldenVisaApplication)
-        .where(
-            GoldenVisaApplication.company_id == cid,
-            GoldenVisaApplication.deleted_at.is_(None),
-        )
+    q = select(GoldenVisaApplication).where(
+        GoldenVisaApplication.company_id == cid,
+        GoldenVisaApplication.deleted_at.is_(None),
     )
     if status:
         q = q.where(GoldenVisaApplication.status == status)
@@ -103,6 +103,7 @@ async def update_application(
 
 async def delete_application(db: AsyncSession, app_id: uuid.UUID) -> bool:
     from datetime import datetime
+
     app = await get_application(db, app_id)
     if not app:
         return False

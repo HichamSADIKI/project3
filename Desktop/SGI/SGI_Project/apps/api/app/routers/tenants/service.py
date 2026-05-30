@@ -1,4 +1,5 @@
 """Service — Tenants. Cycle de vie + loyalty score + KYC."""
+
 import uuid
 from datetime import UTC, date, datetime
 from typing import Any
@@ -162,20 +163,14 @@ async def list_tenants(
         TenantProfile.deleted_at.is_(None),
     )
     if lifecycle_status:
-        base_query = base_query.where(
-            TenantProfile.lifecycle_status == lifecycle_status
-        )
+        base_query = base_query.where(TenantProfile.lifecycle_status == lifecycle_status)
 
     total: int = (
         await db.execute(select(func.count()).select_from(base_query.subquery()))
     ).scalar_one()
 
     offset = (page - 1) * limit
-    paginated = (
-        base_query.order_by(TenantProfile.created_at.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    paginated = base_query.order_by(TenantProfile.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(paginated)
     return list(result.scalars().all()), total
 
@@ -292,9 +287,7 @@ async def change_lifecycle_status(
     return tenant
 
 
-async def delete_tenant(
-    db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID
-) -> bool:
+async def delete_tenant(db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID) -> bool:
     tenant = await get_tenant(db, company_id, party_id)
     if tenant is None:
         return False

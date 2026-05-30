@@ -1,4 +1,5 @@
 """Router IA — /api/v1/ai."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query

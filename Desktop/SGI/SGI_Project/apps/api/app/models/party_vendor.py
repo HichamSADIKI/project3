@@ -4,6 +4,7 @@ Vendor — prestataire externe (maintenance, nettoyage, sécurité, autres).
 Lié à Client (party). Notation moyenne mise à jour après chaque intervention.
 Specialités et zones de service stockées en JSONB pour requêtes flexibles.
 """
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -50,44 +51,28 @@ class Vendor(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     service_areas = mapped_column(JSONB, nullable=False, default=list)
 
     # Licence commerciale UAE
-    trade_licence_number: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )
+    trade_licence_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     trade_licence_expiry: Mapped[date | None] = mapped_column(Date, nullable=True)
-    trade_licence_authority: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    trade_licence_authority: Mapped[str | None] = mapped_column(String(100), nullable=True)
 
     # Assurance responsabilité civile prestataires
-    insurance_policy_number: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    insurance_policy_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     insurance_expiry: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Notation cumulée (5 étoiles)
-    rating_avg: Mapped[Decimal] = mapped_column(
-        DECIMAL(3, 2), nullable=False, default=0
-    )
+    rating_avg: Mapped[Decimal] = mapped_column(DECIMAL(3, 2), nullable=False, default=0)
     rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # KPI opérationnels (mis à jour par job batch)
-    response_time_hours_avg: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(5, 2), nullable=True
-    )
-    on_time_rate: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(5, 2), nullable=True
-    )
+    response_time_hours_avg: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
+    on_time_rate: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
     jobs_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     jobs_cancelled: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Conditions commerciales
     # net_15 | net_30 | net_60 | on_completion | advance_50
-    preferred_payment_terms: Mapped[str | None] = mapped_column(
-        String(30), nullable=True
-    )
-    emergency_24_7: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    preferred_payment_terms: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    emergency_24_7: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Statut d'éligibilité au marketplace (pause manuelle possible)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -108,17 +93,13 @@ class Vendor(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     # Licence commerciale UAE uploadée (clé objet MinIO) + extraction OCR/IA
-    commercial_license_path: Mapped[str | None] = mapped_column(
-        String(500), nullable=True
-    )
+    commercial_license_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     commercial_license_extracted = mapped_column(
         JSONB, nullable=False, default=dict, server_default=text("'{}'::jsonb")
     )
 
     # Traçabilité de la décision admin
-    verified_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     verified_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),

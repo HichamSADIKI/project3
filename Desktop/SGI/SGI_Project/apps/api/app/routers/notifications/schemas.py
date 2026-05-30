@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Notifications in-app (M6)."""
+
 import uuid
 from datetime import datetime
 from typing import Any

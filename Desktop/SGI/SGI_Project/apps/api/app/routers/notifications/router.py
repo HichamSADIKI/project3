@@ -1,4 +1,5 @@
 """Router FastAPI — Notifications in-app (M6)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -33,8 +34,12 @@ async def list_notifications_endpoint(
     company_id = await get_company_id(db)
     user_id = _current_user_id(request)
     notifs = await service.list_notifications(
-        db, company_id, recipient_user_id=user_id, status=status_filter,
-        page=page, limit=limit,
+        db,
+        company_id,
+        recipient_user_id=user_id,
+        status=status_filter,
+        page=page,
+        limit=limit,
     )
     return NotificationListOut(
         data=[NotificationOut.model_validate(n) for n in notifs],
@@ -50,8 +55,6 @@ async def mark_read_endpoint(
     company_id = await get_company_id(db)
     notif = await service.get_notification(db, company_id, notification_id)
     if notif is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="notification_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="notification_not_found")
     notif = await service.mark_read(db, notif)
     return NotificationResponse(data=NotificationOut.model_validate(notif))

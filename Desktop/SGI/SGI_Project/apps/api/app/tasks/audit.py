@@ -4,6 +4,7 @@ Queue : reminders (consommée par le worker `-Q notifications,exports,reminders`
 Déclenchée par `AuditMiddleware` sur chaque mutation réussie (POST/PUT/PATCH/DELETE).
 L'écriture est asynchrone pour ne pas ralentir la requête HTTP.
 """
+
 from __future__ import annotations
 
 import logging

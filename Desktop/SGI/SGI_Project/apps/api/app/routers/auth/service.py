@@ -79,9 +79,7 @@ async def get_company_by_slug(db: AsyncSession, slug: str) -> Company | None:
 
 
 async def email_exists(db: AsyncSession, email: str) -> bool:
-    result = await db.execute(
-        select(User.id).where(User.email == email, User.deleted_at.is_(None))
-    )
+    result = await db.execute(select(User.id).where(User.email == email, User.deleted_at.is_(None)))
     return result.scalar_one_or_none() is not None
 
 

@@ -66,9 +66,7 @@ MAX_LICENSE_BYTES = 8 * 1024 * 1024
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     try:
-        user = await authenticate(
-            db, body.email, body.password, company_slug=body.company_slug
-        )
+        user = await authenticate(db, body.email, body.password, company_slug=body.company_slug)
     except AuthError as exc:
         # 422 : validation tenant (le client peut corriger le company_slug).
         # 403 : compte connu mais non-actif (pending/rejected/suspended) —
@@ -90,6 +88,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
     # MFA activé → token temporaire (5 min, claim mfa_pending=true).
     if user.mfa_enabled:
         from datetime import timedelta
+
         tmp = encode_jwt(
             {
                 "sub": str(user.id),
@@ -149,13 +148,9 @@ async def _public_register(
     """Logique partagée register-client / register-partner."""
     company = await get_company_by_slug(db, body.company_slug)
     if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found")
     if await email_exists(db, body.email):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="email_already_registered"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email_already_registered")
 
     # Les clients sont actifs immédiatement (connexion directe après
     # inscription). Les fournisseurs restent `pending` : leur rattachement à
@@ -222,7 +217,7 @@ async def register_client(
 async def register_fournisseur(
     body: PublicRegisterRequest, db: AsyncSession = Depends(get_db)
 ) -> RegisterResponse:
-    """Inscription publique d'un fournisseur (propriétaire/apporteur/prestataire). Statut `pending`."""
+    """Inscription publique d'un fournisseur (propriétaire/apporteur/prestataire). Statut `pending`."""  # noqa: E501
     return await _public_register(db, body, UserRole.PARTNER)
 
 
@@ -276,13 +271,9 @@ async def register_fournisseur_profile(
 
     company = await get_company_by_slug(db, company_slug)
     if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found")
     if await email_exists(db, email):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="email_already_registered"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email_already_registered")
 
     # Upload licence (best-effort : un échec MinIO ne bloque pas l'inscription —
     # l'admin pourra redemander le document depuis le back-office).
@@ -441,12 +432,8 @@ async def decide_pending_user(
     )
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pending_user_not_found"
-        )
-    user.status = (
-        UserStatus.ACTIVE.value if body.approve else UserStatus.REJECTED.value
-    )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pending_user_not_found")
+    user.status = UserStatus.ACTIVE.value if body.approve else UserStatus.REJECTED.value
 
     # Cascade sur le profil prestataire lié, le cas échéant.
     vendor = (
@@ -502,6 +489,7 @@ async def health() -> dict[str, str]:
 
 
 # ── MFA TOTP ──────────────────────────────────────────────────────────────
+
 
 def _require_user(request: Request) -> uuid.UUID:
     uid = getattr(request.state, "user_id", None)
@@ -586,14 +574,16 @@ async def mfa_validate(
         raise HTTPException(status_code=422, detail="invalid_totp_code")
 
     # Émet le JWT final (durée normale).
-    token = encode_jwt({
-        "sub": str(user.id),
-        "company_id": str(user.company_id),
-        "role": user.role,
-        "status": user.status,
-        "email": user.email,
-        "language": user.preferred_language,
-    })
+    token = encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+            "language": user.preferred_language,
+        }
+    )
     return TokenResponse(
         access_token=token,
         expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,

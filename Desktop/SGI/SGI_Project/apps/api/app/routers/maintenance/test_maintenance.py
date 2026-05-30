@@ -7,6 +7,7 @@ Couvre :
 - Assignation technicien / vendor
 - Isolation multi-tenant (tenant A ne voit pas les tickets de tenant B)
 """
+
 from __future__ import annotations
 
 import uuid
@@ -49,6 +50,7 @@ from app.routers.maintenance.service import (
 )
 
 # ── Helpers purs ─────────────────────────────────────────────────────────
+
 
 def test_generate_reference_format() -> None:
     assert generate_reference(2026, 1) == "MNT-2026-000001"
@@ -146,9 +148,9 @@ def test_compute_sla_due_urgent() -> None:
 
 def test_compute_sla_due_all_priorities() -> None:
     now = datetime(2026, 5, 30, 0, 0, tzinfo=UTC)
-    assert compute_sla_due("low",    now) == now + timedelta(hours=168)
+    assert compute_sla_due("low", now) == now + timedelta(hours=168)
     assert compute_sla_due("medium", now) == now + timedelta(hours=72)
-    assert compute_sla_due("high",   now) == now + timedelta(hours=24)
+    assert compute_sla_due("high", now) == now + timedelta(hours=24)
     assert compute_sla_due("urgent", now) == now + timedelta(hours=4)
 
 
@@ -193,8 +195,10 @@ def test_is_sla_breached_no_due_date() -> None:
 
 async def _building(db: AsyncSession, company: Company) -> uuid.UUID:
     b = Building(
-        id=uuid.uuid4(), company_id=company.id,
-        reference=f"BLD-{uuid.uuid4().hex[:10]}", building_type="residential_tower",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        reference=f"BLD-{uuid.uuid4().hex[:10]}",
+        building_type="residential_tower",
     )
     db.add(b)
     await db.commit()
@@ -239,8 +243,10 @@ async def test_create_ticket_requires_location(
     admin, _ = seed_admin
     with pytest.raises(HTTPException) as exc:
         await create_ticket(
-            db_session, admin.company_id,
-            TicketCreate(title="Sans lieu", category="plumbing"), admin.id,
+            db_session,
+            admin.company_id,
+            TicketCreate(title="Sans lieu", category="plumbing"),
+            admin.id,
         )
     assert exc.value.status_code == 422
 
@@ -252,8 +258,11 @@ async def test_get_cross_tenant_none(
     admin, _ = seed_admin
     ticket = await _ticket(db_session, _company_of(admin), admin)
     other = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db_session.add(other)
     await db_session.commit()
@@ -336,9 +345,7 @@ async def test_assign_requires_exactly_one_target(
 
 
 @pytest.mark.asyncio
-async def test_assign_to_technician(
-    db_session: AsyncSession, seed_admin: tuple[User, str]
-) -> None:
+async def test_assign_to_technician(db_session: AsyncSession, seed_admin: tuple[User, str]) -> None:
     admin, _ = seed_admin
     company = _company_of(admin)
     ticket = await _ticket(db_session, company, admin)
@@ -351,9 +358,7 @@ async def test_assign_to_technician(
 
 
 @pytest.mark.asyncio
-async def test_soft_delete(
-    db_session: AsyncSession, seed_admin: tuple[User, str]
-) -> None:
+async def test_soft_delete(db_session: AsyncSession, seed_admin: tuple[User, str]) -> None:
     admin, _ = seed_admin
     company = _company_of(admin)
     ticket = await _ticket(db_session, company, admin)
@@ -366,7 +371,10 @@ async def test_soft_delete(
 
 async def _vendor_party(db: AsyncSession, company: Company) -> uuid.UUID:
     c = Client(
-        id=uuid.uuid4(), company_id=company.id, type="company", company_name="Vendor FZE",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        type="company",
+        company_name="Vendor FZE",
     )
     db.add(c)
     await db.commit()
@@ -383,7 +391,9 @@ async def test_create_and_approve_quote_updates_ticket_cost(
     vendor_id = await _vendor_party(db_session, company)
 
     quote = await create_quote(
-        db_session, company.id, ticket.id,
+        db_session,
+        company.id,
+        ticket.id,
         QuoteCreate(vendor_party_id=vendor_id, amount_aed=Decimal("1500.00")),
     )
     assert quote is not None and quote.status == "pending"
@@ -404,7 +414,9 @@ async def test_reject_quote_then_cannot_reapprove(
     ticket = await _ticket(db_session, company, admin)
     vendor_id = await _vendor_party(db_session, company)
     quote = await create_quote(
-        db_session, company.id, ticket.id,
+        db_session,
+        company.id,
+        ticket.id,
         QuoteCreate(vendor_party_id=vendor_id, amount_aed=Decimal("900.00")),
     )
     rejected = await reject_quote(db_session, company.id, quote.id)

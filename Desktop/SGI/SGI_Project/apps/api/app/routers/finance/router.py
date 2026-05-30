@@ -1,4 +1,5 @@
 """Router FastAPI — Finance."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -27,9 +28,7 @@ router = APIRouter(prefix="/finance", tags=["finance"])
 
 async def _get_company_id(db: AsyncSession) -> uuid.UUID:
     """Récupère le company_id depuis la session PostgreSQL (injecté par le middleware JWT)."""
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(sql_text("SELECT current_setting('app.current_company_id', true)"))
     raw = result.scalar()
     if not raw:
         raise HTTPException(
@@ -117,9 +116,7 @@ async def get_transaction_endpoint(
     company_id = await _get_company_id(db)
     txn = await get_transaction(db, company_id, txn_id)
     if not txn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found")
     return TransactionDetailOut(data=TransactionOut.model_validate(txn))
 
 
@@ -136,7 +133,5 @@ async def update_transaction_endpoint(
     company_id = await _get_company_id(db)
     txn = await update_transaction(db, company_id, txn_id, body)
     if not txn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found")
     return TransactionDetailOut(data=TransactionOut.model_validate(txn))

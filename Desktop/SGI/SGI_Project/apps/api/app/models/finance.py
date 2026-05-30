@@ -17,9 +17,7 @@ class FinanceTransaction(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "finance_transactions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence lisible — unique PAR société (multi-tenant), pas globalement.
     reference: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -64,9 +62,7 @@ class FinanceTransaction(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Échéances / paiement
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    paid_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Moyen de paiement
     payment_method: Mapped[str | None] = mapped_column(String(50), nullable=True)

@@ -45,4 +45,5 @@ def require_role(*roles: str):
         user_role = getattr(request.state, "role", None)
         if user_role not in roles:
             raise HTTPException(status_code=403, detail="forbidden")
+
     return checker

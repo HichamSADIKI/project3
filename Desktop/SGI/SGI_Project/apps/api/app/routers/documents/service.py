@@ -3,6 +3,7 @@
 Helpers métier purs (sans DB, testés isolément) en tête de fichier ; fonctions
 CRUD async filtrées par `company_id` (Loi 1) ensuite.
 """
+
 import hashlib
 import uuid
 from datetime import UTC, datetime
@@ -23,17 +24,21 @@ from app.routers.documents.schemas import (
 
 DOC_TYPES: frozenset[str] = frozenset(
     {
-        "contract", "mandate", "id", "passport", "ejari", "dld",
-        "insurance", "invoice", "statement", "other",
+        "contract",
+        "mandate",
+        "id",
+        "passport",
+        "ejari",
+        "dld",
+        "insurance",
+        "invoice",
+        "statement",
+        "other",
     }
 )
 DOCUMENT_STATUSES: frozenset[str] = frozenset({"draft", "active", "signed", "archived"})
-SIGNER_ROLES: frozenset[str] = frozenset(
-    {"owner", "tenant", "agent", "witness", "other"}
-)
-SIGNATURE_METHODS: frozenset[str] = frozenset(
-    {"otp", "typed", "drawn", "click_to_sign"}
-)
+SIGNER_ROLES: frozenset[str] = frozenset({"owner", "tenant", "agent", "witness", "other"})
+SIGNATURE_METHODS: frozenset[str] = frozenset({"otp", "typed", "drawn", "click_to_sign"})
 
 # Transitions valides d'une signature (toutes terminales depuis pending).
 _SIGNATURE_TRANSITIONS: dict[str, set[str]] = {
@@ -97,9 +102,7 @@ def is_valid_signature_transition(current: str, target: str) -> bool:
     return target in _SIGNATURE_TRANSITIONS.get(current, set())
 
 
-def compute_signature_hash(
-    version_sha256: str, signer_identity: str, signed_at_iso: str
-) -> str:
+def compute_signature_hash(version_sha256: str, signer_identity: str, signed_at_iso: str) -> str:
     """Preuve de signature = SHA256(empreinte_version | identité | horodatage).
 
     Lie de façon vérifiable QUI a signé QUOI (cette version précise) et QUAND.
@@ -139,9 +142,7 @@ async def list_documents(
     if status:
         base = base.where(Document.status == status)
 
-    total: int = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
     offset = (page - 1) * limit
     paginated = base.order_by(Document.created_at.desc()).offset(offset).limit(limit)
@@ -198,9 +199,7 @@ async def update_document(
     return doc
 
 
-async def delete_document(
-    db: AsyncSession, company_id: uuid.UUID, document_id: uuid.UUID
-) -> bool:
+async def delete_document(db: AsyncSession, company_id: uuid.UUID, document_id: uuid.UUID) -> bool:
     doc = await get_document(db, company_id, document_id)
     if doc is None:
         return False
@@ -372,9 +371,7 @@ async def sign_signature(
     return signature
 
 
-async def decline_signature(
-    db: AsyncSession, signature: DocumentSignature
-) -> DocumentSignature:
+async def decline_signature(db: AsyncSession, signature: DocumentSignature) -> DocumentSignature:
     signature.status = "declined"
     signature.declined_at = datetime.now(UTC)
     await db.commit()

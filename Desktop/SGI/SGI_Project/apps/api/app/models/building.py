@@ -8,6 +8,7 @@ résidentielle déclare un Floor par étage.
 Géolocalisation PostGIS : un Building porte sa propre `location` (POINT
 4326) + un polygone optionnel pour l'emprise au sol — futur usage carte.
 """
+
 import uuid
 
 from geoalchemy2 import Geometry
@@ -23,9 +24,7 @@ class Building(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "buildings"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence interne unique par tenant (ex : "BLD-DXB-MARINA-A")
     reference: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -64,18 +63,16 @@ class Building(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Statut commercial du bâtiment entier
     # operational | under_renovation | off_market | demolished
-    status: Mapped[str] = mapped_column(
-        String(30), nullable=False, default="operational"
-    )
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="operational")
 
     # Données DLD
     dld_property_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    dld_tenure: Mapped[str | None] = mapped_column(String(20), nullable=True)  # freehold | leasehold
+    dld_tenure: Mapped[str | None] = mapped_column(
+        String(20), nullable=True
+    )  # freehold | leasehold
 
     # Assurance bâtiment
-    insurance_policy_number: Mapped[str | None] = mapped_column(
-        String(100), nullable=True
-    )
+    insurance_policy_number: Mapped[str | None] = mapped_column(String(100), nullable=True)
     insurance_expiry: Mapped[Date | None] = mapped_column(Date, nullable=True)
 
     # Aménités communes (piscine, gym, parking visiteurs…)
@@ -84,9 +81,7 @@ class Building(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     documents = mapped_column(JSONB, nullable=False, default=list)
 
     # Valorisation estimée
-    estimated_value_aed: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
+    estimated_value_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

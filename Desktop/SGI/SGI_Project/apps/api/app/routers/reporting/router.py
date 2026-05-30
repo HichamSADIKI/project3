@@ -1,4 +1,5 @@
 """Router FastAPI — Reporting (lecture seule, agrégations par tenant)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status

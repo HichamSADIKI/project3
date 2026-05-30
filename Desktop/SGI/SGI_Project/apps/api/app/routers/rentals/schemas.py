@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Rentals."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -19,9 +20,7 @@ class RentalCreate(BaseModel):
 
 
 class RentalUpdate(BaseModel):
-    status: str | None = Field(
-        None, pattern="^(active|expiring|expired|terminated)$"
-    )
+    status: str | None = Field(None, pattern="^(active|expiring|expired|terminated)$")
     monthly_rent: Decimal | None = Field(None, gt=0)
     end_date: date | None = None
     renewal_alert_sent: bool | None = None

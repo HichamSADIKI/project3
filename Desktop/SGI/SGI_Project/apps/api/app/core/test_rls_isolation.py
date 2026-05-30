@@ -7,6 +7,7 @@ APP_DATABASE_URL retombe alors sur le rôle privilégié).
 
 Lancer : docker compose exec api uv run pytest app/core/test_rls_isolation.py
 """
+
 import uuid
 
 import pytest
@@ -24,6 +25,7 @@ def _app_engine():
     pytest-asyncio (même raison que conftest._test_engine)."""
     return create_async_engine(settings.APP_DATABASE_URL, poolclass=NullPool)
 
+
 pytestmark = pytest.mark.skipif(
     not settings.APP_DB_PASSWORD or settings.APP_DATABASE_URL == settings.DATABASE_URL,
     reason="Rôle applicatif restreint (APP_DB_PASSWORD) non configuré — RLS non testable.",
@@ -38,8 +40,22 @@ async def _seed_two_companies(db_session) -> tuple[uuid.UUID, uuid.UUID, uuid.UU
         [
             Company(id=a, name="Soc A", slug=f"a-{a.hex[:8]}", plan="pro", is_active=True),
             Company(id=b, name="Soc B", slug=f"b-{b.hex[:8]}", plan="pro", is_active=True),
-            Property(id=pa, company_id=a, reference=f"RLST-A-{pa.hex[:10]}", type="apartment", price=1, status="available"),
-            Property(id=pb, company_id=b, reference=f"RLST-B-{pb.hex[:10]}", type="villa", price=2, status="available"),
+            Property(
+                id=pa,
+                company_id=a,
+                reference=f"RLST-A-{pa.hex[:10]}",
+                type="apartment",
+                price=1,
+                status="available",
+            ),
+            Property(
+                id=pb,
+                company_id=b,
+                reference=f"RLST-B-{pb.hex[:10]}",
+                type="villa",
+                price=2,
+                status="available",
+            ),
         ]
     )
     await db_session.commit()
@@ -63,7 +79,9 @@ async def test_restricted_role_cannot_read_other_tenant(db_session):
             assert visible_b == 0
             # Seuls les biens de A sont visibles.
             other = await conn.scalar(
-                text("SELECT count(*) FROM properties WHERE company_id <> :a AND deleted_at IS NULL"),
+                text(
+                    "SELECT count(*) FROM properties WHERE company_id <> :a AND deleted_at IS NULL"
+                ),
                 {"a": str(a)},
             )
             assert other == 0

@@ -5,6 +5,7 @@ Destinataire interne (`recipient_user_id`) ou client/propriétaire
 (`recipient_party_id`). Canal in_app par défaut ; email/whatsapp/push possibles
 (l'envoi réel passe par les tâches Celery `app.tasks.notifications`).
 """
+
 import uuid
 from datetime import datetime
 
@@ -20,9 +21,7 @@ class Notification(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "notifications"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     recipient_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),

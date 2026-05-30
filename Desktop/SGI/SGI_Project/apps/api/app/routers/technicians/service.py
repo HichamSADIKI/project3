@@ -1,4 +1,5 @@
 """Service — Technicians. Profil rattaché à un User salarié."""
+
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -36,11 +37,7 @@ async def list_technicians(
     ).scalar_one()
 
     offset = (page - 1) * limit
-    paginated = (
-        base_query.order_by(Technician.rating_avg.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    paginated = base_query.order_by(Technician.rating_avg.desc()).offset(offset).limit(limit)
     result = await db.execute(paginated)
     return list(result.scalars().all()), total
 
@@ -127,9 +124,7 @@ async def add_rating(
     return tech
 
 
-async def delete_technician(
-    db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
-) -> bool:
+async def delete_technician(db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     tech = await get_technician(db, company_id, user_id)
     if tech is None:
         return False

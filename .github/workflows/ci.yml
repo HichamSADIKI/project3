@@ -53,6 +53,8 @@ jobs:
         run: uv sync --frozen
       - name: Lint (ruff)
         run: uv run ruff check app
+      - name: Format (ruff format --check)
+        run: uv run ruff format --check app
       - name: Migrate (alembic upgrade head)
         run: uv run alembic upgrade head
       - name: Tests (pytest)

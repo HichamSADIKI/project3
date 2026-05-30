@@ -5,6 +5,7 @@ Beat :
 - check_maintenance_sla        : toutes les heures — détecte les SLA dépassés
 - generate_preventive_tickets  : toutes les heures — génère les tickets préventifs
 """
+
 import logging
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -31,13 +32,17 @@ def check_maintenance_sla(self):
     """Parcourt les tickets actifs et alerte si le SLA est dépassé."""
     try:
         with sync_session_maker() as db:
-            rows = db.execute(
-                select(MaintenanceTicket).where(
-                    MaintenanceTicket.deleted_at.is_(None),
-                    MaintenanceTicket.sla_due_at.isnot(None),
-                    MaintenanceTicket.status.notin_(["closed", "cancelled", "resolved"]),
+            rows = (
+                db.execute(
+                    select(MaintenanceTicket).where(
+                        MaintenanceTicket.deleted_at.is_(None),
+                        MaintenanceTicket.sla_due_at.isnot(None),
+                        MaintenanceTicket.status.notin_(["closed", "cancelled", "resolved"]),
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             breached = [t for t in rows if is_sla_breached(t)]
             notified = 0
@@ -69,7 +74,8 @@ def check_maintenance_sla(self):
             if breached:
                 logger.warning(
                     "SLA breached: %d tickets (%d notifiés) — refs: %s",
-                    len(breached), notified,
+                    len(breached),
+                    notified,
                     [t.reference for t in breached[:10]],
                 )
                 if notified:
@@ -87,21 +93,24 @@ def generate_preventive_tickets(self):
     generated = 0
     try:
         with sync_session_maker() as db:
-            plans = db.execute(
-                select(MaintenancePlan).where(
-                    MaintenancePlan.deleted_at.is_(None),
-                    MaintenancePlan.active.is_(True),
-                    MaintenancePlan.next_due_at.isnot(None),
-                    MaintenancePlan.next_due_at <= now,
+            plans = (
+                db.execute(
+                    select(MaintenancePlan).where(
+                        MaintenancePlan.deleted_at.is_(None),
+                        MaintenancePlan.active.is_(True),
+                        MaintenancePlan.next_due_at.isnot(None),
+                        MaintenancePlan.next_due_at <= now,
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             for plan in plans:
                 # Référence unique par tenant + année.
                 year = now.year
                 count = db.execute(
-                    select(MaintenanceTicket.id)
-                    .where(
+                    select(MaintenanceTicket.id).where(
                         MaintenanceTicket.company_id == plan.company_id,
                         MaintenanceTicket.deleted_at.is_(None),
                     )
@@ -120,7 +129,10 @@ def generate_preventive_tickets(self):
                     priority=plan.priority,
                     status="new",
                     title=f"[Préventif] {plan.title}",
-                    description=f"Généré automatiquement par le plan préventif (cron: {plan.cron_expression})",
+                    description=(
+                        f"Généré automatiquement par le plan préventif "
+                        f"(cron: {plan.cron_expression})"
+                    ),
                     sla_due_at=compute_sla_due(plan.priority, now),
                 )
                 db.add(ticket)

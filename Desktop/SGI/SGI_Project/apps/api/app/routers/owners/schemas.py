@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Owners (profil propriétaire)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal

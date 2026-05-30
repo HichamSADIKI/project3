@@ -10,6 +10,7 @@ Browser lifecycle:
   Playwright browser is a shared singleton started at app startup.
   Each request gets an isolated BrowserContext + Page.
 """
+
 from __future__ import annotations
 
 import logging
@@ -30,6 +31,7 @@ logger = logging.getLogger(__name__)
 
 try:
     from curl_cffi import requests as _cffi_requests  # type: ignore[import]
+
     _CFFI_SESSION = _cffi_requests.Session(impersonate="chrome124")
     _CFFI_AVAILABLE = True
 except ImportError:
@@ -45,6 +47,7 @@ try:
         Playwright,
         async_playwright,
     )
+
     _PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     _PLAYWRIGHT_AVAILABLE = False
@@ -64,9 +67,11 @@ async def start_browser() -> None:
     _browser = await pw.chromium.launch(
         headless=True,
         args=[
-            "--no-sandbox", "--disable-setuid-sandbox",
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
             "--disable-blink-features=AutomationControlled",
-            "--disable-infobars", "--disable-dev-shm-usage",
+            "--disable-infobars",
+            "--disable-dev-shm-usage",
         ],
     )
     logger.info("Playwright Chromium started")
@@ -84,6 +89,7 @@ async def stop_browser() -> None:
 
 
 # ── Public entry point ────────────────────────────────────────────────────────
+
 
 async def scrape_property_page(url: str) -> ScrapedProperty:
     hostname = urlparse(url).netloc.lower()
@@ -112,6 +118,7 @@ async def scrape_property_page(url: str) -> ScrapedProperty:
 
 # ── HTTP layer — curl_cffi ────────────────────────────────────────────────────
 
+
 async def _fetch_cffi(url: str) -> str:
     import asyncio
 
@@ -137,6 +144,7 @@ async def _fetch_cffi(url: str) -> str:
 
 
 # ── HTTP layer — Playwright ───────────────────────────────────────────────────
+
 
 async def _fetch_playwright(url: str) -> str:
     ctx: BrowserContext = await _browser.new_context(  # type: ignore[union-attr]
@@ -164,6 +172,7 @@ async def _fetch_playwright(url: str) -> str:
 
 # ── Routing to site parsers ───────────────────────────────────────────────────
 
+
 def _parse_html(html: str, hostname: str) -> dict:  # type: ignore[type-arg]
     if "bayut" in hostname:
         return parse_bayut_html(html)
@@ -177,27 +186,34 @@ def _parse_html(html: str, hostname: str) -> dict:  # type: ignore[type-arg]
 
 # ── Build result ──────────────────────────────────────────────────────────────
 
-_COUNTED = ["title_en", "price", "bedrooms", "bathrooms", "sqft",
-            "emirate", "community", "description"]
+_COUNTED = [
+    "title_en",
+    "price",
+    "bedrooms",
+    "bathrooms",
+    "sqft",
+    "emirate",
+    "community",
+    "description",
+]
 
 
 def _build(raw: dict) -> ScrapedProperty:  # type: ignore[type-arg]
     result = ScrapedProperty(
-        title_en=    raw.get("title_en", "")[:200],
-        price=       raw.get("price", ""),
-        type=        raw.get("type", "Sale"),  # type: ignore[arg-type]
-        prop_type=   raw.get("prop_type", "apartment"),
-        bedrooms=    raw.get("bedrooms", ""),
-        bathrooms=   raw.get("bathrooms", ""),
-        sqft=        raw.get("sqft", ""),
-        emirate=     raw.get("emirate", ""),
-        community=   raw.get("community", ""),
-        description= raw.get("description", "")[:2000],
-        images=      [u for u in raw.get("images", []) if u][:8],
-        source=      raw.get("source", ""),
+        title_en=raw.get("title_en", "")[:200],
+        price=raw.get("price", ""),
+        type=raw.get("type", "Sale"),  # type: ignore[arg-type]
+        prop_type=raw.get("prop_type", "apartment"),
+        bedrooms=raw.get("bedrooms", ""),
+        bathrooms=raw.get("bathrooms", ""),
+        sqft=raw.get("sqft", ""),
+        emirate=raw.get("emirate", ""),
+        community=raw.get("community", ""),
+        description=raw.get("description", "")[:2000],
+        images=[u for u in raw.get("images", []) if u][:8],
+        source=raw.get("source", ""),
     )
-    result.fields_found = (
-        sum(1 for f in _COUNTED if getattr(result, f))
-        + (1 if result.images else 0)
+    result.fields_found = sum(1 for f in _COUNTED if getattr(result, f)) + (
+        1 if result.images else 0
     )
     return result

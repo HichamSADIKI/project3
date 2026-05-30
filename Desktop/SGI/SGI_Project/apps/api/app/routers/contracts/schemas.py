@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Contracts."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -24,9 +25,7 @@ class ContractCreate(BaseModel):
 class ContractUpdate(BaseModel):
     amount: Decimal | None = Field(None, gt=0)
     commission_rate: Decimal | None = None
-    status: str | None = Field(
-        None, pattern="^(draft|signed|active|expired|cancelled)$"
-    )
+    status: str | None = Field(None, pattern="^(draft|signed|active|expired|cancelled)$")
     start_date: date | None = None
     end_date: date | None = None
     notes_en: str | None = None

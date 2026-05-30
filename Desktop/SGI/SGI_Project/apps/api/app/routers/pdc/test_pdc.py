@@ -1,4 +1,5 @@
 """Tests unitaires — helpers métier purs du module PDC."""
+
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
@@ -18,35 +19,41 @@ from app.routers.pdc.service import (
 
 
 class TestPdcTransitions:
-    @pytest.mark.parametrize("current,target", [
-        ("pending", "deposited"),
-        ("pending", "cancelled"),
-        ("deposited", "cleared"),
-        ("deposited", "bounced"),
-        ("bounced", "replaced"),
-    ])
+    @pytest.mark.parametrize(
+        "current,target",
+        [
+            ("pending", "deposited"),
+            ("pending", "cancelled"),
+            ("deposited", "cleared"),
+            ("deposited", "bounced"),
+            ("bounced", "replaced"),
+        ],
+    )
     def test_valid_transitions(self, current: str, target: str) -> None:
         assert is_valid_pdc_transition(current, target) is True
 
-    @pytest.mark.parametrize("current,target", [
-        # Ne peut pas sauter l'étape deposited
-        ("pending", "cleared"),
-        ("pending", "bounced"),
-        # cleared est terminal
-        ("cleared", "deposited"),
-        ("cleared", "bounced"),
-        ("cleared", "cancelled"),
-        # replaced est terminal
-        ("replaced", "pending"),
-        ("replaced", "bounced"),
-        # cancelled est terminal
-        ("cancelled", "pending"),
-        # bounced ne peut aller QUE vers replaced
-        ("bounced", "cleared"),
-        ("bounced", "cancelled"),
-        # Pas de retour en arrière
-        ("deposited", "pending"),
-    ])
+    @pytest.mark.parametrize(
+        "current,target",
+        [
+            # Ne peut pas sauter l'étape deposited
+            ("pending", "cleared"),
+            ("pending", "bounced"),
+            # cleared est terminal
+            ("cleared", "deposited"),
+            ("cleared", "bounced"),
+            ("cleared", "cancelled"),
+            # replaced est terminal
+            ("replaced", "pending"),
+            ("replaced", "bounced"),
+            # cancelled est terminal
+            ("cancelled", "pending"),
+            # bounced ne peut aller QUE vers replaced
+            ("bounced", "cleared"),
+            ("bounced", "cancelled"),
+            # Pas de retour en arrière
+            ("deposited", "pending"),
+        ],
+    )
     def test_invalid_transitions(self, current: str, target: str) -> None:
         assert is_valid_pdc_transition(current, target) is False
 

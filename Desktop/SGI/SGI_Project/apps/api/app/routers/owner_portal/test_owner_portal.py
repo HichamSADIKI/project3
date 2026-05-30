@@ -9,6 +9,7 @@ intra-tenant (relevé / notification / devis d'un autre propriétaire → 404).
 ⚠️ Tests d'intégration : requièrent PostgreSQL via `DATABASE_URL` du conteneur.
 Lancer avec : `docker compose exec api uv run pytest app/routers/owner_portal/test_owner_portal.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -292,9 +293,7 @@ async def test_statements_list_and_detail(
     assert listed.status_code == 200
     assert len(listed.json()) == 1
 
-    detail = await client.get(
-        f"/api/v1/owner/statements/{st.id}", headers=_auth(token)
-    )
+    detail = await client.get(f"/api/v1/owner/statements/{st.id}", headers=_auth(token))
     assert detail.status_code == 200
     body = detail.json()
     assert body["net_payout_aed"] == "8500.00"
@@ -313,9 +312,7 @@ async def test_statement_detail_other_owner_is_404(
     other_st = await _make_statement(db_session, seed_company, victim_client.id, 7, "9999")
 
     _attacker, token = await _linked_owner(db_session, seed_company, with_profile=True)
-    resp = await client.get(
-        f"/api/v1/owner/statements/{other_st.id}", headers=_auth(token)
-    )
+    resp = await client.get(f"/api/v1/owner/statements/{other_st.id}", headers=_auth(token))
     assert resp.status_code == 404
 
 
@@ -341,9 +338,7 @@ async def test_notification_mark_read(
     owner, token = await _linked_owner(db_session, seed_company)
     notif = await _make_notification(db_session, seed_company, owner.id)
 
-    resp = await client.post(
-        f"/api/v1/owner/notifications/{notif.id}/read", headers=_auth(token)
-    )
+    resp = await client.post(f"/api/v1/owner/notifications/{notif.id}/read", headers=_auth(token))
     assert resp.status_code == 200
     assert resp.json()["status"] == "read"
 
@@ -351,9 +346,7 @@ async def test_notification_mark_read(
 async def test_notification_read_other_owner_is_404(
     client: AsyncClient, seed_company: Company, db_session: AsyncSession
 ) -> None:
-    victim = await _make_client(
-        db_session, seed_company, f"victim-{uuid.uuid4().hex[:8]}@sgi.test"
-    )
+    victim = await _make_client(db_session, seed_company, f"victim-{uuid.uuid4().hex[:8]}@sgi.test")
     other_notif = await _make_notification(db_session, seed_company, victim.id)
 
     _attacker, token = await _linked_owner(db_session, seed_company)

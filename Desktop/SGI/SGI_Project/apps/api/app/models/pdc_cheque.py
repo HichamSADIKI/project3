@@ -12,6 +12,7 @@ Législation UAE : chèque sans provision = délit (article 401 Federal Penal
 Code). Le statut `bounced` déclenche workflow de mise en demeure (hors scope
 de cette table).
 """
+
 import uuid
 from datetime import date, datetime
 
@@ -36,9 +37,7 @@ class PdcCheque(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "pdc_cheques"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence interne lisible (ex : "PDC-2026-001847")
     reference: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -75,24 +74,16 @@ class PdcCheque(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # Calendrier
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     deposit_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    cleared_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    bounced_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    cleared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    bounced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Cycle de vie
     # pending | deposited | cleared | bounced | replaced | cancelled
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
 
     # Motif si bounced (NSF, account closed, signature mismatch, stop payment…)
     bounce_reason: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    bounce_fee_aed: Mapped[float] = mapped_column(
-        DECIMAL(15, 2), nullable=False, default=0
-    )
+    bounce_fee_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False, default=0)
 
     # Chaîne de remplacement : PDC qui remplace celui-ci
     replaced_by_pdc_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -104,17 +95,13 @@ class PdcCheque(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # OCR / scan
     document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     ocr_data = mapped_column(JSONB, nullable=False, default=dict)
-    ocr_confidence: Mapped[float | None] = mapped_column(
-        DECIMAL(5, 2), nullable=True
-    )
+    ocr_confidence: Mapped[float | None] = mapped_column(DECIMAL(5, 2), nullable=True)
 
     # Notes / suivi interne
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Workflow de mise en demeure (compteur d'alertes envoyées au drawer)
-    legal_notices_sent: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=0
-    )
+    legal_notices_sent: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     __table_args__ = (
         Index("idx_pdc_company", "company_id"),

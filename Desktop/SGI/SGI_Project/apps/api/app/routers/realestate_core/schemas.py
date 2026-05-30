@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Immobilier Core (branches + company settings)."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal

@@ -6,6 +6,7 @@ fichier router. Les routers existants gardent leur version inline pour
 ne pas casser leur signature ; les nouveaux routers (party-roles, etc.)
 importent depuis ici.
 """
+
 import uuid
 
 from fastapi import HTTPException, Request, status
@@ -18,9 +19,7 @@ async def get_company_id(db: AsyncSession) -> uuid.UUID:
     Récupère le company_id depuis la session PostgreSQL.
     Injecté par TenantMiddleware via `SET LOCAL app.current_company_id` (Loi 1).
     """
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(sql_text("SELECT current_setting('app.current_company_id', true)"))
     raw = result.scalar()
     if not raw:
         raise HTTPException(

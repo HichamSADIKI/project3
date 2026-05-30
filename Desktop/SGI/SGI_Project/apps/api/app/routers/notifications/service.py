@@ -1,4 +1,5 @@
 """Service — Notifications in-app (M6). Filtrer par company_id (Loi 1)."""
+
 import uuid
 from datetime import UTC, datetime
 from typing import Any

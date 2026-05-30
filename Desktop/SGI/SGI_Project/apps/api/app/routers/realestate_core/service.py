@@ -3,6 +3,7 @@
 Les helpers métier en tête de fichier sont *purs* (sans DB) et testés
 isolément. Les fonctions CRUD async filtrent toujours par `company_id` (Loi 1).
 """
+
 import re
 import uuid
 from datetime import UTC, datetime
@@ -22,9 +23,7 @@ from app.routers.realestate_core.schemas import (
 
 # ─── Helpers métier purs ──────────────────────────────────────────────────
 
-UAE_EMIRATES: frozenset[str] = frozenset(
-    {"DXB", "AUH", "SHJ", "AJM", "RAK", "FUJ", "UAQ"}
-)
+UAE_EMIRATES: frozenset[str] = frozenset({"DXB", "AUH", "SHJ", "AJM", "RAK", "FUJ", "UAQ"})
 
 _CODE_RE = re.compile(r"^BR-(\d{3,})$")
 
@@ -104,9 +103,7 @@ async def list_branches(
     if is_active is not None:
         base = base.where(Branch.is_active.is_(is_active))
 
-    total: int = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
     offset = (page - 1) * limit
     paginated = base.order_by(Branch.code).offset(offset).limit(limit)
@@ -128,15 +125,11 @@ async def get_branch(
 
 
 async def _existing_codes(db: AsyncSession, company_id: uuid.UUID) -> list[str]:
-    rows = await db.execute(
-        select(Branch.code).where(Branch.company_id == company_id)
-    )
+    rows = await db.execute(select(Branch.code).where(Branch.company_id == company_id))
     return [r for r in rows.scalars().all()]
 
 
-async def create_branch(
-    db: AsyncSession, company_id: uuid.UUID, data: BranchCreate
-) -> Branch:
+async def create_branch(db: AsyncSession, company_id: uuid.UUID, data: BranchCreate) -> Branch:
     code = data.code or generate_branch_code(await _existing_codes(db, company_id))
     branch = Branch(
         company_id=company_id,
@@ -181,9 +174,7 @@ async def update_branch(
     return branch
 
 
-async def delete_branch(
-    db: AsyncSession, company_id: uuid.UUID, branch_id: uuid.UUID
-) -> bool:
+async def delete_branch(db: AsyncSession, company_id: uuid.UUID, branch_id: uuid.UUID) -> bool:
     branch = await get_branch(db, company_id, branch_id)
     if branch is None:
         return False
@@ -195,9 +186,7 @@ async def delete_branch(
 # ─── Company settings (singleton par tenant) ───────────────────────────────
 
 
-async def get_or_create_settings(
-    db: AsyncSession, company_id: uuid.UUID
-) -> CompanySettings:
+async def get_or_create_settings(db: AsyncSession, company_id: uuid.UUID) -> CompanySettings:
     result = await db.execute(
         select(CompanySettings).where(CompanySettings.company_id == company_id)
     )

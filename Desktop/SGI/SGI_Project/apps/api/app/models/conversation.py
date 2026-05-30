@@ -14,6 +14,7 @@ Ces tables sont indépendantes et coexistent — migration 0015 ne touche pas
 
 Loi 1 : company_id NOT NULL + RLS sur les 4 tables (migration 0015).
 """
+
 import uuid
 from datetime import datetime
 
@@ -38,9 +39,7 @@ class Conversation(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "conversations"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # direct | group | ticket | contract
     type: Mapped[str] = mapped_column(String(20), nullable=False, default="direct")
     subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -83,9 +82,7 @@ class ConversationParticipant(Base, TenantMixin):
 
     __tablename__ = "conversation_participants"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("conversations.id", ondelete="CASCADE"),
@@ -100,9 +97,7 @@ class ConversationParticipant(Base, TenantMixin):
     )
     # admin | member
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")
-    last_read_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     muted: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     __table_args__ = (
@@ -121,9 +116,7 @@ class ConversationMessage(Base, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "conversation_messages"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     conversation_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("conversations.id", ondelete="CASCADE"),
@@ -153,12 +146,8 @@ class ConversationMessage(Base, TenantMixin, SoftDeleteMixin):
         nullable=True,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
-    edited_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    edited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -178,9 +167,7 @@ class MessageMention(Base, TenantMixin):
 
     __tablename__ = "message_mentions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     message_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("conversation_messages.id", ondelete="CASCADE"),

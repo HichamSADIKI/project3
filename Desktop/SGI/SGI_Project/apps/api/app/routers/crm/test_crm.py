@@ -3,6 +3,7 @@
 ⚠️ Tests d'intégration (parties DB) : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/crm/test_crm.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -120,8 +121,11 @@ class TestPipelineConstant:
 
 async def _make_client(db: AsyncSession, company_id: uuid.UUID) -> Client:
     c = Client(
-        id=uuid.uuid4(), company_id=company_id, type="individual",
-        first_name="Prospect", last_name="Test",
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="individual",
+        first_name="Prospect",
+        last_name="Test",
     )
     db.add(c)
     await db.commit()
@@ -163,8 +167,11 @@ async def test_get_lead_cross_tenant_none(
     admin, _ = seed_admin
     lead = await _lead(db_session, admin)
     other = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db_session.add(other)
     await db_session.commit()
@@ -192,11 +199,14 @@ async def test_update_lead_recomputes_score(
     db_session: AsyncSession, seed_admin: tuple[User, str]
 ) -> None:
     admin, _ = seed_admin
-    lead = await _lead(db_session, admin, budget=Decimal("100000"),
-                       golden_visa_eligible=False, property_type=None)
+    lead = await _lead(
+        db_session, admin, budget=Decimal("100000"), golden_visa_eligible=False, property_type=None
+    )
     assert lead.score == 0
     updated = await update_lead(
-        db_session, str(admin.company_id), lead.id,
+        db_session,
+        str(admin.company_id),
+        lead.id,
         LeadUpdate(budget=Decimal("2000000"), golden_visa_eligible=True),
     )
     assert updated is not None
@@ -212,8 +222,11 @@ async def test_status_valid_transition(
     admin, _ = seed_admin
     lead = await _lead(db_session, admin)
     updated = await update_lead_status(
-        db_session, str(admin.company_id), lead.id,
-        LeadStatusUpdate(status="contacted"), admin.id,
+        db_session,
+        str(admin.company_id),
+        lead.id,
+        LeadStatusUpdate(status="contacted"),
+        admin.id,
     )
     assert updated is not None and updated.status == "contacted"
     # Une activité status_change est journalisée.
@@ -228,8 +241,11 @@ async def test_status_invalid_transition_raises_422(
     lead = await _lead(db_session, admin)
     with pytest.raises(HTTPException) as exc:
         await update_lead_status(
-            db_session, str(admin.company_id), lead.id,
-            LeadStatusUpdate(status="won"), admin.id,  # new → won interdit
+            db_session,
+            str(admin.company_id),
+            lead.id,
+            LeadStatusUpdate(status="won"),
+            admin.id,  # new → won interdit
         )
     assert exc.value.status_code == 422
 
@@ -241,8 +257,11 @@ async def test_status_lost_requires_reason(
     lead = await _lead(db_session, admin)
     with pytest.raises(HTTPException) as exc:
         await update_lead_status(
-            db_session, str(admin.company_id), lead.id,
-            LeadStatusUpdate(status="lost"), admin.id,  # sans reason
+            db_session,
+            str(admin.company_id),
+            lead.id,
+            LeadStatusUpdate(status="lost"),
+            admin.id,  # sans reason
         )
     assert exc.value.status_code == 422
 
@@ -255,10 +274,15 @@ async def test_status_won_logs_golden_visa_activity(
     lead = await _lead(db_session, admin)
     # Chemin valide jusqu'à negotiation puis won (montant ≥ 2M → note Golden Visa).
     for target in ("contacted", "qualified", "proposal_sent", "negotiation"):
-        await update_lead_status(db_session, cid, lead.id, LeadStatusUpdate(status=target), admin.id)
+        await update_lead_status(
+            db_session, cid, lead.id, LeadStatusUpdate(status=target), admin.id
+        )
     won = await update_lead_status(
-        db_session, cid, lead.id,
-        LeadStatusUpdate(status="won", won_amount=Decimal("2500000")), admin.id,
+        db_session,
+        cid,
+        lead.id,
+        LeadStatusUpdate(status="won", won_amount=Decimal("2500000")),
+        admin.id,
     )
     assert won is not None and won.status == "won"
     acts = await list_activities(db_session, cid, lead.id)
@@ -274,9 +298,7 @@ async def test_add_activity_call_increments_contacts(
     admin, _ = seed_admin
     cid = str(admin.company_id)
     lead = await _lead(db_session, admin)
-    await add_activity(
-        db_session, cid, ActivityCreate(lead_id=lead.id, type="call"), admin.id
-    )
+    await add_activity(db_session, cid, ActivityCreate(lead_id=lead.id, type="call"), admin.id)
     refreshed = await get_lead(db_session, cid, lead.id)
     assert refreshed is not None
     assert refreshed.contact_attempts == 1
@@ -302,8 +324,10 @@ async def test_add_activity_unknown_lead_404(
     admin, _ = seed_admin
     with pytest.raises(HTTPException) as exc:
         await add_activity(
-            db_session, str(admin.company_id),
-            ActivityCreate(lead_id=uuid.uuid4(), type="call"), admin.id,
+            db_session,
+            str(admin.company_id),
+            ActivityCreate(lead_id=uuid.uuid4(), type="call"),
+            admin.id,
         )
     assert exc.value.status_code == 404
 

@@ -1,4 +1,5 @@
 """Tests unitaires — helpers métier purs du module realestate_core."""
+
 from decimal import Decimal
 
 import pytest
@@ -111,17 +112,35 @@ from app.models.user import User, UserRole, UserStatus
 @pytest_asyncio.fixture
 async def second_admin(db_session) -> tuple[Company, str]:  # type: ignore[no-untyped-def]
     """Une 2ᵉ société + admin + token (pour tester l'isolation multi-tenant)."""
-    company = Company(id=_uuid.uuid4(), name="Other Co",
-                      slug=f"other-{_uuid.uuid4().hex[:8]}", plan="pro", is_active=True)
+    company = Company(
+        id=_uuid.uuid4(),
+        name="Other Co",
+        slug=f"other-{_uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
+    )
     db_session.add(company)
-    admin = User(id=_uuid.uuid4(), company_id=company.id,
-                 email=f"admin2-{_uuid.uuid4().hex[:8]}@sgi.test",
-                 hashed_password=hash_password("Pass!234"), full_name="Admin 2",
-                 role=UserRole.ADMIN.value, status=UserStatus.ACTIVE.value, is_active=True)
+    admin = User(
+        id=_uuid.uuid4(),
+        company_id=company.id,
+        email=f"admin2-{_uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("Pass!234"),
+        full_name="Admin 2",
+        role=UserRole.ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
     db_session.add(admin)
     await db_session.commit()
-    token = encode_jwt({"sub": str(admin.id), "company_id": str(company.id),
-                        "role": admin.role, "status": admin.status, "email": admin.email})
+    token = encode_jwt(
+        {
+            "sub": str(admin.id),
+            "company_id": str(company.id),
+            "role": admin.role,
+            "status": admin.status,
+            "email": admin.email,
+        }
+    )
     return company, token
 
 
@@ -134,12 +153,11 @@ async def test_branches_requires_auth(client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
-async def test_create_then_list_branch(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_create_then_list_branch(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
-    create = await client.post("/api/v1/branches", headers=_auth(token),
-                               json={"name": "Marina", "emirate": "DXB"})
+    create = await client.post(
+        "/api/v1/branches", headers=_auth(token), json={"name": "Marina", "emirate": "DXB"}
+    )
     assert create.status_code == 201, create.text
     body = create.json()["data"]
     assert body["name"] == "Marina"
@@ -158,8 +176,9 @@ async def test_branch_tenant_isolation(
     _admin, token_a = seed_admin
     _company_b, token_b = second_admin
 
-    created = await client.post("/api/v1/branches", headers=_auth(token_a),
-                                json={"name": "Secret DXB", "emirate": "DXB"})
+    created = await client.post(
+        "/api/v1/branches", headers=_auth(token_a), json={"name": "Secret DXB", "emirate": "DXB"}
+    )
     assert created.status_code == 201
 
     list_b = await client.get("/api/v1/branches", headers=_auth(token_b))

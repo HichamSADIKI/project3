@@ -7,6 +7,7 @@ propriétaire, un locataire… peut porter des documents. Le lien est polymorphe
 par entité. Le fichier réel vit dans `document_versions` (versioning immuable) ;
 `current_version_id` pointe vers la dernière version.
 """
+
 import uuid
 
 from sqlalchemy import Index, String, Text
@@ -21,9 +22,7 @@ class Document(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "documents"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     title: Mapped[str] = mapped_column(String(300), nullable=False)
 
@@ -40,9 +39,7 @@ class Document(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Pointe vers la dernière version (géré applicativement, pas de FK dure
     # pour éviter la dépendance circulaire avec document_versions).
-    current_version_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    current_version_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags = mapped_column(JSONB, nullable=False, default=list)

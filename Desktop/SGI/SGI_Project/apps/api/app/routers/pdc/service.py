@@ -5,6 +5,7 @@ Cycle de vie strict :
                       → bounced → replaced (terminal pour ce cheque)
   pending → cancelled (annulation avant dépôt)
 """
+
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -44,9 +45,7 @@ def is_overdue(today: date, due: date, status: str) -> bool:
     return status == "pending" and due < today
 
 
-def pdc_reminder_level(
-    today: date, due: date, status: str, due_soon_days: int = 7
-) -> str | None:
+def pdc_reminder_level(today: date, due: date, status: str, due_soon_days: int = 7) -> str | None:
     """Niveau de rappel d'un PDC pour la tâche Celery (M8).
 
     - 'overdue'  : pending et échéance dépassée (doit être déposé/relancé)
@@ -115,9 +114,7 @@ async def list_pdc(
     if drawer_party_id:
         base = base.where(PdcCheque.drawer_party_id == drawer_party_id)
 
-    total: int = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
     offset = (page - 1) * limit
     paginated = base.order_by(PdcCheque.due_date).offset(offset).limit(limit)
@@ -125,9 +122,7 @@ async def list_pdc(
     return list(result.scalars().all()), total
 
 
-async def get_pdc(
-    db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID
-) -> PdcCheque | None:
+async def get_pdc(db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID) -> PdcCheque | None:
     result = await db.execute(
         select(PdcCheque).where(
             PdcCheque.id == pdc_id,
@@ -138,9 +133,7 @@ async def get_pdc(
     return result.scalar_one_or_none()
 
 
-async def _validate_links(
-    db: AsyncSession, company_id: uuid.UUID, data: PdcCreate
-) -> bool:
+async def _validate_links(db: AsyncSession, company_id: uuid.UUID, data: PdcCreate) -> bool:
     """Vérifie l'existence des liens (rental/contract/drawer) dans le même tenant."""
     if data.rental_id:
         rental_check = await db.execute(
@@ -175,9 +168,7 @@ async def _validate_links(
     return True
 
 
-async def create_pdc(
-    db: AsyncSession, company_id: uuid.UUID, data: PdcCreate
-) -> PdcCheque | None:
+async def create_pdc(db: AsyncSession, company_id: uuid.UUID, data: PdcCreate) -> PdcCheque | None:
     if not await _validate_links(db, company_id, data):
         return None
 
@@ -344,9 +335,7 @@ async def increment_legal_notices(
     return pdc
 
 
-async def soft_delete_pdc(
-    db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID
-) -> bool:
+async def soft_delete_pdc(db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID) -> bool:
     pdc = await get_pdc(db, company_id, pdc_id)
     if pdc is None:
         return False

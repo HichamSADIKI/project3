@@ -1,4 +1,5 @@
 """Router Properties — CRUD complet + recherche géospatiale par rayon."""
+
 import uuid
 from decimal import Decimal
 
@@ -25,16 +26,16 @@ router = APIRouter(prefix="/properties", tags=["properties"])
 # (set_config injecté par get_db_session via TenantMiddleware)
 # ---------------------------------------------------------------------------
 
+
 async def _get_company_id(db: AsyncSession) -> str:
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(sql_text("SELECT current_setting('app.current_company_id', true)"))
     return result.scalar()
 
 
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @router.get("/health")
 async def health():

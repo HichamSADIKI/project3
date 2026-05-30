@@ -6,6 +6,7 @@ donc users (FK 1-1 via user_id PK), pas clients. Distinction importante :
 - techniciens internes  → users
 - prestataires externes → vendors
 """
+
 import uuid
 from decimal import Decimal
 
@@ -34,24 +35,18 @@ class Technician(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     assigned_zones = mapped_column(JSONB, nullable=False, default=list)
 
     # Notation interne (5 étoiles, basée sur ratings après intervention)
-    rating_avg: Mapped[Decimal] = mapped_column(
-        DECIMAL(3, 2), nullable=False, default=0
-    )
+    rating_avg: Mapped[Decimal] = mapped_column(DECIMAL(3, 2), nullable=False, default=0)
     rating_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # KPI opérationnels
     jobs_completed: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    avg_resolution_hours: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(6, 2), nullable=True
-    )
+    avg_resolution_hours: Mapped[Decimal | None] = mapped_column(DECIMAL(6, 2), nullable=True)
 
     # Disponibilité mobile
     mobile_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     on_call: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    emergency_contact_phone: Mapped[str | None] = mapped_column(
-        String(50), nullable=True
-    )
+    emergency_contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     __table_args__ = (
         Index("idx_technicians_company", "company_id"),

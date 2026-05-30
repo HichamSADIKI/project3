@@ -1,4 +1,5 @@
 """Service — Vendors. Marketplace + rating cumulé."""
+
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -99,9 +100,7 @@ async def list_vendors(
     return list(result.scalars().all()), total
 
 
-async def get_vendor(
-    db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID
-) -> Vendor | None:
+async def get_vendor(db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID) -> Vendor | None:
     result = await db.execute(
         select(Vendor).where(
             Vendor.party_id == party_id,
@@ -185,9 +184,7 @@ async def add_rating(
     return vendor
 
 
-async def delete_vendor(
-    db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID
-) -> bool:
+async def delete_vendor(db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID) -> bool:
     vendor = await get_vendor(db, company_id, party_id)
     if vendor is None:
         return False

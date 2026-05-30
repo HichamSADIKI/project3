@@ -1,4 +1,5 @@
 """Router Maintenance — /api/v1/maintenance."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -55,6 +56,7 @@ def _user_id(request: Request) -> uuid.UUID:
 
 # ── Liste ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/tickets", response_model=TicketListOut)
 async def list_tickets_endpoint(
     page: int = Query(1, ge=1),
@@ -70,10 +72,16 @@ async def list_tickets_endpoint(
 ) -> TicketListOut:
     company_id = await get_company_id(db)
     items, total = await list_tickets(
-        db, company_id,
-        page=page, limit=limit,
-        status=status, priority=priority, category=category,
-        unit_id=unit_id, assignee_id=assignee_id, q=q,
+        db,
+        company_id,
+        page=page,
+        limit=limit,
+        status=status,
+        priority=priority,
+        category=category,
+        unit_id=unit_id,
+        assignee_id=assignee_id,
+        q=q,
     )
     pages = (total + limit - 1) // limit
     return TicketListOut(
@@ -83,6 +91,7 @@ async def list_tickets_endpoint(
 
 
 # ── Création ──────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/tickets",
@@ -103,6 +112,7 @@ async def create_ticket_endpoint(
 
 # ── Détail ────────────────────────────────────────────────────────────────
 
+
 @router.get("/tickets/{ticket_id}", response_model=TicketDetailOut)
 async def get_ticket_endpoint(
     ticket_id: uuid.UUID,
@@ -117,6 +127,7 @@ async def get_ticket_endpoint(
 
 
 # ── Mise à jour partielle ─────────────────────────────────────────────────
+
 
 @router.patch("/tickets/{ticket_id}", response_model=TicketDetailOut)
 async def update_ticket_endpoint(
@@ -133,6 +144,7 @@ async def update_ticket_endpoint(
 
 
 # ── Assignation ───────────────────────────────────────────────────────────
+
 
 @router.post("/tickets/{ticket_id}/assign", response_model=TicketDetailOut)
 async def assign_ticket_endpoint(
@@ -152,6 +164,7 @@ async def assign_ticket_endpoint(
 
 # ── Transition de statut ──────────────────────────────────────────────────
 
+
 @router.post("/tickets/{ticket_id}/status", response_model=TicketDetailOut)
 async def update_status_endpoint(
     ticket_id: uuid.UUID,
@@ -167,6 +180,7 @@ async def update_status_endpoint(
 
 
 # ── Soft delete ───────────────────────────────────────────────────────────
+
 
 @router.delete(
     "/tickets/{ticket_id}",
@@ -185,6 +199,7 @@ async def delete_ticket_endpoint(
 
 # ── Phase 2 : Devis ───────────────────────────────────────────────────────
 
+
 @router.get("/tickets/{ticket_id}/quotes", response_model=list[QuoteOut])
 async def list_quotes_endpoint(
     ticket_id: uuid.UUID,
@@ -195,8 +210,9 @@ async def list_quotes_endpoint(
     return [QuoteOut.model_validate(q) for q in await list_quotes(db, company_id, ticket_id)]
 
 
-@router.post("/tickets/{ticket_id}/quotes", response_model=QuoteOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tickets/{ticket_id}/quotes", response_model=QuoteOut, status_code=status.HTTP_201_CREATED
+)
 async def create_quote_endpoint(
     ticket_id: uuid.UUID,
     body: QuoteCreate,
@@ -238,6 +254,7 @@ async def reject_quote_endpoint(
 
 # ── Phase 2 : Factures ────────────────────────────────────────────────────
 
+
 @router.get("/tickets/{ticket_id}/invoices", response_model=list[InvoiceOut])
 async def list_invoices_endpoint(
     ticket_id: uuid.UUID,
@@ -248,8 +265,9 @@ async def list_invoices_endpoint(
     return [InvoiceOut.model_validate(i) for i in await list_invoices(db, company_id, ticket_id)]
 
 
-@router.post("/tickets/{ticket_id}/invoices", response_model=InvoiceOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tickets/{ticket_id}/invoices", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED
+)
 async def create_invoice_endpoint(
     ticket_id: uuid.UUID,
     body: InvoiceCreate,
@@ -264,6 +282,7 @@ async def create_invoice_endpoint(
 
 
 # ── Phase 2 : Plans préventifs ────────────────────────────────────────────
+
 
 @router.get("/plans", response_model=list[PlanOut])
 async def list_plans_endpoint(
@@ -301,6 +320,7 @@ async def update_plan_endpoint(
 
 
 # ── Phase 2 : Calendrier ──────────────────────────────────────────────────
+
 
 @router.get("/calendar", response_model=CalendarOut)
 async def get_calendar_endpoint(

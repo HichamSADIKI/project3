@@ -3,6 +3,7 @@
 ⚠️ Tests d'intégration : requièrent PostgreSQL+PostGIS via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/properties/test_properties.py`.
 """
+
 import uuid
 from decimal import Decimal
 
@@ -56,17 +57,13 @@ async def _seed_property(
 
 
 @pytest.mark.asyncio
-async def test_update_partial_latitude_preserves_longitude(
-    db_session, seed_company: Company
-):
+async def test_update_partial_latitude_preserves_longitude(db_session, seed_company: Company):
     """PATCH avec seulement `latitude` ne doit PAS effacer la longitude (bug M1)."""
     cid = str(seed_company.id)
     prop = await _seed_property(db_session, seed_company.id, DUBAI_LAT, DUBAI_LNG)
 
     new_lat = 24.453884
-    await update_property(
-        db_session, cid, prop.id, PropertyUpdate(latitude=new_lat)
-    )
+    await update_property(db_session, cid, prop.id, PropertyUpdate(latitude=new_lat))
 
     lat, lng = await _coords(db_session, prop.id)
     assert lat == pytest.approx(new_lat, abs=1e-6)
@@ -75,17 +72,13 @@ async def test_update_partial_latitude_preserves_longitude(
 
 
 @pytest.mark.asyncio
-async def test_update_partial_longitude_preserves_latitude(
-    db_session, seed_company: Company
-):
+async def test_update_partial_longitude_preserves_latitude(db_session, seed_company: Company):
     """PATCH avec seulement `longitude` conserve la latitude existante."""
     cid = str(seed_company.id)
     prop = await _seed_property(db_session, seed_company.id, DUBAI_LAT, DUBAI_LNG)
 
     new_lng = 54.377344
-    await update_property(
-        db_session, cid, prop.id, PropertyUpdate(longitude=new_lng)
-    )
+    await update_property(db_session, cid, prop.id, PropertyUpdate(longitude=new_lng))
 
     lat, lng = await _coords(db_session, prop.id)
     assert lng == pytest.approx(new_lng, abs=1e-6)
@@ -93,16 +86,12 @@ async def test_update_partial_longitude_preserves_latitude(
 
 
 @pytest.mark.asyncio
-async def test_update_both_coordinates_replaces_point(
-    db_session, seed_company: Company
-):
+async def test_update_both_coordinates_replaces_point(db_session, seed_company: Company):
     """PATCH avec les deux coordonnées remplace intégralement le point."""
     cid = str(seed_company.id)
     prop = await _seed_property(db_session, seed_company.id, DUBAI_LAT, DUBAI_LNG)
 
-    await update_property(
-        db_session, cid, prop.id, PropertyUpdate(latitude=24.0, longitude=54.0)
-    )
+    await update_property(db_session, cid, prop.id, PropertyUpdate(latitude=24.0, longitude=54.0))
 
     lat, lng = await _coords(db_session, prop.id)
     assert lat == pytest.approx(24.0, abs=1e-6)
@@ -110,16 +99,12 @@ async def test_update_both_coordinates_replaces_point(
 
 
 @pytest.mark.asyncio
-async def test_update_without_coordinates_keeps_location(
-    db_session, seed_company: Company
-):
+async def test_update_without_coordinates_keeps_location(db_session, seed_company: Company):
     """PATCH d'un autre champ ne touche pas à la localisation."""
     cid = str(seed_company.id)
     prop = await _seed_property(db_session, seed_company.id, DUBAI_LAT, DUBAI_LNG)
 
-    await update_property(
-        db_session, cid, prop.id, PropertyUpdate(price=Decimal("1600000.00"))
-    )
+    await update_property(db_session, cid, prop.id, PropertyUpdate(price=Decimal("1600000.00")))
 
     lat, lng = await _coords(db_session, prop.id)
     assert lat == pytest.approx(DUBAI_LAT, abs=1e-6)
@@ -127,16 +112,12 @@ async def test_update_without_coordinates_keeps_location(
 
 
 @pytest.mark.asyncio
-async def test_update_partial_coord_on_property_without_location(
-    db_session, seed_company: Company
-):
+async def test_update_partial_coord_on_property_without_location(db_session, seed_company: Company):
     """Sans localisation préexistante, une seule coordonnée ne crée pas de point partiel."""
     cid = str(seed_company.id)
     prop = await _seed_property(db_session, seed_company.id, None, None)
 
-    await update_property(
-        db_session, cid, prop.id, PropertyUpdate(latitude=DUBAI_LAT)
-    )
+    await update_property(db_session, cid, prop.id, PropertyUpdate(latitude=DUBAI_LAT))
 
     lat, lng = await _coords(db_session, prop.id)
     assert lat is None and lng is None

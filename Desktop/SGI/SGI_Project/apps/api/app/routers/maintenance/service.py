@@ -4,6 +4,7 @@ Toutes les fonctions filtrent par company_id (Loi 1).
 Les helpers purs (generate_reference, is_valid_transition, compute_sla_due,
 is_sla_breached) sont testables sans DB.
 """
+
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -29,27 +30,28 @@ from .schemas import (
 # ── Machine à états ───────────────────────────────────────────────────────
 
 VALID_TRANSITIONS: dict[str, list[str]] = {
-    "new":         ["triaged", "assigned", "cancelled"],
-    "triaged":     ["assigned", "cancelled"],
-    "assigned":    ["in_progress", "cancelled"],
+    "new": ["triaged", "assigned", "cancelled"],
+    "triaged": ["assigned", "cancelled"],
+    "assigned": ["in_progress", "cancelled"],
     "in_progress": ["on_hold", "resolved", "cancelled"],
-    "on_hold":     ["in_progress", "cancelled"],
-    "resolved":    ["closed", "in_progress"],   # réouverture possible
-    "closed":      [],                           # terminal
-    "cancelled":   [],                           # terminal
+    "on_hold": ["in_progress", "cancelled"],
+    "resolved": ["closed", "in_progress"],  # réouverture possible
+    "closed": [],  # terminal
+    "cancelled": [],  # terminal
 }
 
 # ── SLA par priorité ─────────────────────────────────────────────────────
 
 SLA_HOURS: dict[str, int] = {
     "urgent": 4,
-    "high":   24,
+    "high": 24,
     "medium": 72,
-    "low":    168,  # 7 jours
+    "low": 168,  # 7 jours
 }
 
 
 # ── Helpers purs (testables sans DB) ─────────────────────────────────────
+
 
 def generate_reference(year: int, sequence: int) -> str:
     """Format : MNT-YYYY-NNNNNN (6 chiffres, triable)."""
@@ -140,9 +142,7 @@ def _cron_matches(expr_sets: list[set[int]], moment: datetime) -> bool:
     return dom_ok and dow_ok
 
 
-def next_cron_run(
-    cron_expression: str, after: datetime, max_days: int = 366
-) -> datetime | None:
+def next_cron_run(cron_expression: str, after: datetime, max_days: int = 366) -> datetime | None:
     """Renvoie la prochaine occurrence STRICTEMENT après `after`, ou None.
 
     Helper pur sans dépendance (cron 5 champs). Recherche minute par minute
@@ -155,8 +155,7 @@ def next_cron_run(
         return None
     try:
         expr_sets = [
-            _parse_cron_field(f, lo, hi)
-            for f, (lo, hi) in zip(fields, _CRON_BOUNDS, strict=True)
+            _parse_cron_field(f, lo, hi) for f, (lo, hi) in zip(fields, _CRON_BOUNDS, strict=True)
         ]
     except (ValueError, TypeError):
         return None
@@ -174,6 +173,7 @@ def next_cron_run(
 
 # ── Génération de référence (async, DB) ───────────────────────────────────
 
+
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     """Référence séquentielle unique par tenant + année."""
     year = datetime.now(UTC).year
@@ -188,6 +188,7 @@ async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────
+
 
 async def list_tickets(
     db: AsyncSession,
@@ -231,9 +232,7 @@ async def list_tickets(
         )
 
     total = (
-        await db.execute(
-            select(func.count()).select_from(MaintenanceTicket).where(and_(*filters))
-        )
+        await db.execute(select(func.count()).select_from(MaintenanceTicket).where(and_(*filters)))
     ).scalar_one()
 
     offset = (page - 1) * limit
@@ -393,9 +392,7 @@ async def update_ticket_status(
     return ticket
 
 
-async def soft_delete_ticket(
-    db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID
-) -> bool:
+async def soft_delete_ticket(db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID) -> bool:
     ticket = await get_ticket(db, company_id, ticket_id)
     if not ticket:
         return False
@@ -405,6 +402,7 @@ async def soft_delete_ticket(
 
 
 # ── Phase 2 : Devis (Quotes) ──────────────────────────────────────────────
+
 
 async def create_quote(
     db: AsyncSession,
@@ -479,16 +477,19 @@ async def list_quotes(
     db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID
 ) -> list[MaintenanceQuote]:
     result = await db.execute(
-        select(MaintenanceQuote).where(
+        select(MaintenanceQuote)
+        .where(
             MaintenanceQuote.ticket_id == ticket_id,
             MaintenanceQuote.company_id == company_id,
             MaintenanceQuote.deleted_at.is_(None),
-        ).order_by(MaintenanceQuote.created_at.desc())
+        )
+        .order_by(MaintenanceQuote.created_at.desc())
     )
     return list(result.scalars().all())
 
 
 # ── Phase 2 : Factures (Invoices) ─────────────────────────────────────────
+
 
 async def create_invoice(
     db: AsyncSession,
@@ -517,16 +518,19 @@ async def list_invoices(
     db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID
 ) -> list[MaintenanceInvoice]:
     result = await db.execute(
-        select(MaintenanceInvoice).where(
+        select(MaintenanceInvoice)
+        .where(
             MaintenanceInvoice.ticket_id == ticket_id,
             MaintenanceInvoice.company_id == company_id,
             MaintenanceInvoice.deleted_at.is_(None),
-        ).order_by(MaintenanceInvoice.created_at.desc())
+        )
+        .order_by(MaintenanceInvoice.created_at.desc())
     )
     return list(result.scalars().all())
 
 
 # ── Phase 2 : Plans préventifs ────────────────────────────────────────────
+
 
 async def list_plans(
     db: AsyncSession, company_id: uuid.UUID, active_only: bool = False
@@ -538,15 +542,14 @@ async def list_plans(
     if active_only:
         filters.append(MaintenancePlan.active.is_(True))
     result = await db.execute(
-        select(MaintenancePlan).where(and_(*filters))
+        select(MaintenancePlan)
+        .where(and_(*filters))
         .order_by(MaintenancePlan.next_due_at.asc().nulls_last())
     )
     return list(result.scalars().all())
 
 
-async def create_plan(
-    db: AsyncSession, company_id: uuid.UUID, data: PlanCreate
-) -> MaintenancePlan:
+async def create_plan(db: AsyncSession, company_id: uuid.UUID, data: PlanCreate) -> MaintenancePlan:
     if not data.unit_id and not data.building_id:
         raise HTTPException(status_code=422, detail="unit_id_or_building_id_required")
     plan = MaintenancePlan(
@@ -587,6 +590,7 @@ async def update_plan(
 
 # ── Phase 2 : Calendrier ──────────────────────────────────────────────────
 
+
 async def get_calendar(
     db: AsyncSession,
     company_id: uuid.UUID,
@@ -599,47 +603,55 @@ async def get_calendar(
 
     # Tickets avec SLA dans l'horizon (non terminaux).
     result = await db.execute(
-        select(MaintenanceTicket).where(
+        select(MaintenanceTicket)
+        .where(
             MaintenanceTicket.company_id == company_id,
             MaintenanceTicket.deleted_at.is_(None),
             MaintenanceTicket.sla_due_at.isnot(None),
             MaintenanceTicket.sla_due_at <= horizon,
             MaintenanceTicket.status.notin_(["closed", "cancelled"]),
-        ).order_by(MaintenanceTicket.sla_due_at)
+        )
+        .order_by(MaintenanceTicket.sla_due_at)
     )
     for t in result.scalars().all():
-        entries.append({
-            "kind": "sla",
-            "ticket_id": t.id,
-            "plan_id": None,
-            "reference": t.reference,
-            "title": t.title,
-            "priority": t.priority,
-            "due_at": t.sla_due_at,
-            "is_breached": is_sla_breached(t),
-        })
+        entries.append(
+            {
+                "kind": "sla",
+                "ticket_id": t.id,
+                "plan_id": None,
+                "reference": t.reference,
+                "title": t.title,
+                "priority": t.priority,
+                "due_at": t.sla_due_at,
+                "is_breached": is_sla_breached(t),
+            }
+        )
 
     # Plans préventifs actifs avec next_due_at dans l'horizon.
     result_p = await db.execute(
-        select(MaintenancePlan).where(
+        select(MaintenancePlan)
+        .where(
             MaintenancePlan.company_id == company_id,
             MaintenancePlan.deleted_at.is_(None),
             MaintenancePlan.active.is_(True),
             MaintenancePlan.next_due_at.isnot(None),
             MaintenancePlan.next_due_at <= horizon,
-        ).order_by(MaintenancePlan.next_due_at)
+        )
+        .order_by(MaintenancePlan.next_due_at)
     )
     for p in result_p.scalars().all():
-        entries.append({
-            "kind": "preventive",
-            "ticket_id": None,
-            "plan_id": p.id,
-            "reference": None,
-            "title": p.title,
-            "priority": p.priority,
-            "due_at": p.next_due_at,
-            "is_breached": False,
-        })
+        entries.append(
+            {
+                "kind": "preventive",
+                "ticket_id": None,
+                "plan_id": p.id,
+                "reference": None,
+                "title": p.title,
+                "priority": p.priority,
+                "due_at": p.next_due_at,
+                "is_breached": False,
+            }
+        )
 
     entries.sort(key=lambda e: e["due_at"])
     return entries

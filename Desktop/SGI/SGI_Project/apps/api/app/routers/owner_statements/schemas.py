@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Relevés propriétaires (M6)."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal

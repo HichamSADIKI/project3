@@ -9,6 +9,7 @@ transaction que sa lecture.
 ⚠️ Tests d'intégration : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/golden_visa/test_golden_visa.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -41,8 +42,11 @@ async def _set_tenant(db, company_id: uuid.UUID) -> None:
 
 async def _seed_client(db, company: Company) -> uuid.UUID:
     client = Client(
-        id=uuid.uuid4(), company_id=company.id, type="individual",
-        first_name="Investisseur", last_name="Test",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        type="individual",
+        first_name="Investisseur",
+        last_name="Test",
     )
     db.add(client)
     await db.commit()
@@ -51,8 +55,11 @@ async def _seed_client(db, company: Company) -> uuid.UUID:
 
 async def _other_company(db) -> Company:
     c = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db.add(c)
     await db.commit()
@@ -84,9 +91,7 @@ async def test_create_and_get(db_session, seed_company: Company) -> None:
     assert fetched is not None and fetched.id == app.id
 
 
-async def test_get_cross_tenant_returns_none(
-    db_session, seed_company: Company
-) -> None:
+async def test_get_cross_tenant_returns_none(db_session, seed_company: Company) -> None:
     client_id = await _seed_client(db_session, seed_company)
     other = await _other_company(db_session)
 
@@ -144,20 +149,14 @@ async def test_update_status(db_session, seed_company: Company) -> None:
     app = await create_application(db_session, GoldenVisaCreate(client_id=client_id))
 
     await _set_tenant(db_session, seed_company.id)
-    updated = await update_application(
-        db_session, app.id, GoldenVisaUpdate(status="submitted")
-    )
+    updated = await update_application(db_session, app.id, GoldenVisaUpdate(status="submitted"))
     assert updated is not None and updated.status == "submitted"
 
 
-async def test_update_unknown_returns_none(
-    db_session, seed_company: Company
-) -> None:
+async def test_update_unknown_returns_none(db_session, seed_company: Company) -> None:
     await _set_tenant(db_session, seed_company.id)
     assert (
-        await update_application(
-            db_session, uuid.uuid4(), GoldenVisaUpdate(status="approved")
-        )
+        await update_application(db_session, uuid.uuid4(), GoldenVisaUpdate(status="approved"))
         is None
     )
 
@@ -174,9 +173,7 @@ async def test_delete_is_soft(db_session, seed_company: Company) -> None:
     assert await get_application(db_session, app.id) is None  # exclu (deleted_at)
 
 
-async def test_delete_unknown_returns_false(
-    db_session, seed_company: Company
-) -> None:
+async def test_delete_unknown_returns_false(db_session, seed_company: Company) -> None:
     await _set_tenant(db_session, seed_company.id)
     assert await delete_application(db_session, uuid.uuid4()) is False
 

@@ -1,4 +1,5 @@
 """Router Communication — /api/v1/comms (REST + WebSocket)."""
+
 import uuid
 from datetime import UTC
 
@@ -54,6 +55,7 @@ def _user_id(request: Request) -> uuid.UUID:
 
 
 # ── Conversations ─────────────────────────────────────────────────────────
+
 
 @router.post(
     "/conversations",
@@ -122,6 +124,7 @@ async def get_conv(
 
 # ── Participants ──────────────────────────────────────────────────────────
 
+
 @router.post(
     "/conversations/{conv_id}/participants",
     response_model=ParticipantOut,
@@ -139,6 +142,7 @@ async def add_part(
 
 
 # ── Marquer comme lu ──────────────────────────────────────────────────────
+
 
 @router.post(
     "/conversations/{conv_id}/read",
@@ -158,6 +162,7 @@ async def read_conv(
 
 
 # ── Messages ──────────────────────────────────────────────────────────────
+
 
 @router.post(
     "/conversations/{conv_id}/messages",
@@ -197,6 +202,7 @@ async def list_msgs(
 
 # ── Phase 4 : Upload voice note ───────────────────────────────────────────
 
+
 @router.post(
     "/conversations/{conv_id}/voice",
     response_model=MessageOut,
@@ -231,6 +237,7 @@ async def upload_voice(
     if is_configured():
         try:
             from app.core.storage import extension_for_mime
+
             ext = extension_for_mime(content_type) or "webm"
             key = f"voice/{company_id}/{conv_id}/{uuid.uuid4()}.{ext}"
             attachment_key = upload_bytes(key, audio_bytes, content_type)
@@ -243,6 +250,7 @@ async def upload_voice(
     from app.models.conversation import ConversationMessage
 
     from .service import _check_participant
+
     if not await _check_participant(db, company_id, conv_id, user_id):
         raise HTTPException(status_code=403, detail="not_a_participant")
 
@@ -262,20 +270,27 @@ async def upload_voice(
     # Enqueue transcription Celery (best-effort, ne bloque pas la réponse).
     if attachment_key:
         from app.tasks.comms import transcribe_voice_note
+
         transcribe_voice_note.delay(str(msg.id), str(company_id))
 
     # Publie l'event WS.
     from .schemas import MessageOut as MOut
     from .ws import publish_event
-    await publish_event(company_id, conv_id, {
-        "type": "message.created",
-        "data": MOut.model_validate(msg).model_dump(mode="json"),
-    })
+
+    await publish_event(
+        company_id,
+        conv_id,
+        {
+            "type": "message.created",
+            "data": MOut.model_validate(msg).model_dump(mode="json"),
+        },
+    )
 
     return MessageOut.model_validate(msg)
 
 
 # ── Phase 4 : Résumé IA ───────────────────────────────────────────────────
+
 
 @router.post("/conversations/{conv_id}/summarize")
 async def summarize_conv(
@@ -293,11 +308,11 @@ async def summarize_conv(
         return {"summary": ""}
 
     text = "\n".join(
-        f"[{m.sender_user_id}] {m.body or '[voice]'}"
-        for m in msgs if m.body or m.transcript
+        f"[{m.sender_user_id}] {m.body or '[voice]'}" for m in msgs if m.body or m.transcript
     )
     try:
         from app.core.gemini import parse_client_need
+
         # Réutilise le moteur Gemini pour résumer (prompt libre via summary).
         result = await parse_client_need(
             f"Résume cette conversation en 2-3 phrases :\n{text[:3000]}",
@@ -309,6 +324,7 @@ async def summarize_conv(
 
 
 # ── Phase 4 : Traduction inline ───────────────────────────────────────────
+
 
 @router.get("/messages/{message_id}/translate")
 async def translate_message(
@@ -339,6 +355,7 @@ async def translate_message(
 
     try:
         from app.core.gemini import parse_client_need
+
         result_g = await parse_client_need(
             f"Traduis ce texte en {target_locale} :\n{text[:2000]}",
             locale=target_locale,
@@ -349,6 +366,7 @@ async def translate_message(
 
 
 # ── Phase 4 : WebSocket ───────────────────────────────────────────────────
+
 
 @router.websocket("/ws/conversations/{conv_id}")
 async def ws_endpoint(

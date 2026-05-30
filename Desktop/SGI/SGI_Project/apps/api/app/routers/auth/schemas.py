@@ -28,25 +28,30 @@ class TokenResponse(BaseModel):
 
 # ── MFA TOTP ──────────────────────────────────────────────────────────────
 
+
 class MfaSetupOut(BaseModel):
     """Réponse au setup MFA — QR code URI (une seule fois)."""
+
     provisioning_uri: str
     issuer: str = "SGI ERP"
 
 
 class MfaVerifySetupIn(BaseModel):
     """Confirmation du setup MFA avec le premier code TOTP."""
+
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class MfaValidateIn(BaseModel):
     """Validation TOTP après login (échange tmp_token → JWT final)."""
+
     tmp_token: str
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class MfaDisableIn(BaseModel):
     """Désactivation MFA — le code TOTP courant est requis."""
+
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 

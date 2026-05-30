@@ -6,6 +6,7 @@ tâche Celery (`app.tasks.audit.write_audit_log`) pour ne pas ralentir la
 réponse. Toute défaillance d'audit est silencieuse côté requête (l'audit ne
 doit jamais casser une opération métier).
 """
+
 import logging
 import uuid
 
@@ -78,9 +79,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
             and getattr(request.state, "company_id", None)
         ):
             try:
-                resource, resource_id, action = _parse_target(
-                    request.url.path, request.method
-                )
+                resource, resource_id, action = _parse_target(request.url.path, request.method)
                 forwarded = request.headers.get("x-forwarded-for", "")
                 ip = (
                     forwarded.split(",")[0].strip()

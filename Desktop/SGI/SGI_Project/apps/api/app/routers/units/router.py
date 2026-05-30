@@ -1,4 +1,5 @@
 """Router FastAPI — Units."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -79,9 +80,7 @@ async def get_unit_endpoint(
     company_id = await get_company_id(db)
     unit = await get_unit(db, company_id, unit_id)
     if unit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
     return UnitDetailOut(data=UnitOut.model_validate(unit))
 
 
@@ -98,9 +97,7 @@ async def update_unit_endpoint(
     company_id = await get_company_id(db)
     unit = await update_unit(db, company_id, unit_id, body)
     if unit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
     return UnitDetailOut(data=UnitOut.model_validate(unit))
 
 
@@ -117,9 +114,7 @@ async def change_unit_status(
     company_id = await get_company_id(db)
     result = await change_status(db, company_id, unit_id, body.target_status)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
     if result == "invalid_transition":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -140,6 +135,4 @@ async def delete_unit_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_unit(db, company_id, unit_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")

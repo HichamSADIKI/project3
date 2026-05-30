@@ -8,6 +8,7 @@ encore de `branch_id` — l'affectation ciblée viendra plus tard si besoin.
 
 Géolocalisation PostGIS : `location` (POINT 4326) + index GIST (Loi 2).
 """
+
 import uuid
 
 from geoalchemy2 import Geometry
@@ -23,9 +24,7 @@ class Branch(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "branches"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Code interne auto-généré, unique par tenant (ex : "BR-001")
     code: Mapped[str] = mapped_column(String(20), nullable=False)

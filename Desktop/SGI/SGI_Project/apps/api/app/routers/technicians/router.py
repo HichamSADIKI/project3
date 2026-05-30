@@ -1,4 +1,5 @@
 """Router FastAPI — Technicians (techniciens internes)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -40,9 +41,7 @@ async def list_technicians_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> TechnicianListOut:
     company_id = await get_company_id(db)
-    techs, total = await list_technicians(
-        db, company_id, page, limit, mobile_active, on_call
-    )
+    techs, total = await list_technicians(db, company_id, page, limit, mobile_active, on_call)
     return TechnicianListOut(
         data=[TechnicianOut.model_validate(t) for t in techs],
         meta={"total": total, "page": page, "limit": limit},
@@ -77,9 +76,7 @@ async def get_technician_endpoint(
     company_id = await get_company_id(db)
     tech = await get_technician(db, company_id, user_id)
     if tech is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
 
 
@@ -96,9 +93,7 @@ async def update_technician_endpoint(
     company_id = await get_company_id(db)
     tech = await update_technician(db, company_id, user_id, body)
     if tech is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
 
 
@@ -115,9 +110,7 @@ async def rate_technician_endpoint(
     company_id = await get_company_id(db)
     tech = await add_rating(db, company_id, user_id, body.score)
     if tech is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
 
 
@@ -133,6 +126,4 @@ async def delete_technician_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_technician(db, company_id, user_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")

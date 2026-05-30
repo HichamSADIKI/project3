@@ -24,9 +24,7 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "crm_leads"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Code métier lisible — format CRM-YYYY-NNNNNN, unique par tenant.
     # Généré à la création (cf. service.generate_reference). Affiché dans la
@@ -55,9 +53,7 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # Secteur métier — route le lead vers le pipeline sectoriel correspondant.
     # Valeurs autorisées : realestate, tourisme, sante, assurance, banques,
     # amazon, consultants, admin, travail (cf. migration 0007).
-    category: Mapped[str] = mapped_column(
-        String(30), nullable=False, default="realestate"
-    )
+    category: Mapped[str] = mapped_column(String(30), nullable=False, default="realestate")
 
     # Budget AED
     budget: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
@@ -73,24 +69,16 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     # Golden Visa UAE
-    golden_visa_eligible: Mapped[bool] = mapped_column(
-        nullable=False, default=False
-    )
+    golden_visa_eligible: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     # Scoring automatique (0-100)
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    response_rate: Mapped[float] = mapped_column(
-        DECIMAL(5, 2), nullable=False, default=0.0
-    )
+    response_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False, default=0.0)
 
     # Suivi des relances (séquence max 4 tentatives / 7 jours)
     contact_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_contact_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    next_action_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_contact_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_action_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     next_action_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Résultat final
@@ -110,9 +98,7 @@ class CRMActivity(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "crm_activities"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence au lead
     lead_id: Mapped[uuid.UUID] = mapped_column(
@@ -141,9 +127,5 @@ class CRMActivity(Base, TimestampMixin, TenantMixin):
     status_to: Mapped[str | None] = mapped_column(String(30), nullable=True)
 
     # Planification / complétion
-    scheduled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    scheduled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

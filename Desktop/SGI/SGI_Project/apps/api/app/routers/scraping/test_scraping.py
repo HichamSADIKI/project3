@@ -4,6 +4,7 @@ Aucun navigateur / réseau : on teste les fonctions d'extraction (parsers.py),
 la construction du résultat (_build) et le validateur d'URL (allowlist + rejet
 des IP privées). Le fetch Playwright/curl_cffi n'est pas couvert (I/O réseau).
 """
+
 from __future__ import annotations
 
 import pytest
@@ -25,11 +26,19 @@ from app.routers.scraping.service import _build
 
 
 class TestNormalisers:
-    @pytest.mark.parametrize("raw,expected", [
-        ("flat", "apartment"), ("Studio", "apartment"), ("villa", "villa"),
-        ("Townhouse", "townhouse"), ("penthouse", "penthouse"),
-        ("shop", "retail"), ("warehouse", "office"), ("inconnu", "apartment"),
-    ])
+    @pytest.mark.parametrize(
+        "raw,expected",
+        [
+            ("flat", "apartment"),
+            ("Studio", "apartment"),
+            ("villa", "villa"),
+            ("Townhouse", "townhouse"),
+            ("penthouse", "penthouse"),
+            ("shop", "retail"),
+            ("warehouse", "office"),
+            ("inconnu", "apartment"),
+        ],
+    )
     def test_normalise_prop_type(self, raw: str, expected: str) -> None:
         assert normalise_prop_type(raw) == expected
 
@@ -184,19 +193,26 @@ class TestGenericAndDubizzle:
 
 class TestBuild:
     def test_counts_fields_found(self) -> None:
-        res = _build({
-            "title_en": "T", "price": "100", "bedrooms": "2",
-            "images": ["https://x/1.jpg"], "source": "Bayut.com",
-        })
+        res = _build(
+            {
+                "title_en": "T",
+                "price": "100",
+                "bedrooms": "2",
+                "images": ["https://x/1.jpg"],
+                "source": "Bayut.com",
+            }
+        )
         assert isinstance(res, ScrapedProperty)
         # title_en + price + bedrooms (3 champs comptés) + images (1) = 4
         assert res.fields_found == 4
 
     def test_truncates_title_and_limits_images(self) -> None:
-        res = _build({
-            "title_en": "X" * 300,
-            "images": [f"https://x/{i}.jpg" for i in range(12)] + ["", None],
-        })
+        res = _build(
+            {
+                "title_en": "X" * 300,
+                "images": [f"https://x/{i}.jpg" for i in range(12)] + ["", None],
+            }
+        )
         assert len(res.title_en) == 200
         assert len(res.images) == 8  # plafonné à 8
         assert all(res.images)  # vides/None filtrés
@@ -212,20 +228,26 @@ class TestBuild:
 
 
 class TestScrapeRequestValidation:
-    @pytest.mark.parametrize("url", [
-        "https://www.bayut.com/property/details-123.html",
-        "https://propertyfinder.ae/en/plp/buy/abc",
-        "https://uae.dubizzle.com/property/xyz",
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://www.bayut.com/property/details-123.html",
+            "https://propertyfinder.ae/en/plp/buy/abc",
+            "https://uae.dubizzle.com/property/xyz",
+        ],
+    )
     def test_allowed_hosts(self, url: str) -> None:
         assert str(ScrapeRequest(url=url).url).startswith("http")
 
-    @pytest.mark.parametrize("url", [
-        "https://evil.example.com/x",       # hôte hors allowlist
-        "http://127.0.0.1/admin",            # loopback
-        "http://169.254.169.254/latest/meta",  # link-local (métadonnées cloud)
-        "http://192.168.1.10/internal",      # IP privée
-    ])
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://evil.example.com/x",  # hôte hors allowlist
+            "http://127.0.0.1/admin",  # loopback
+            "http://169.254.169.254/latest/meta",  # link-local (métadonnées cloud)
+            "http://192.168.1.10/internal",  # IP privée
+        ],
+    )
     def test_rejected_urls(self, url: str) -> None:
         with pytest.raises(ValidationError):
             ScrapeRequest(url=url)

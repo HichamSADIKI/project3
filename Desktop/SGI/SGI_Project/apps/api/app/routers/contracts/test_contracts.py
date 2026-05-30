@@ -3,6 +3,7 @@
 ⚠️ Tests d'intégration (parties DB) : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/contracts/test_contracts.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -93,13 +94,19 @@ async def _seed_client_property(
     db: AsyncSession, company_id: uuid.UUID
 ) -> tuple[uuid.UUID, uuid.UUID]:
     client = Client(
-        id=uuid.uuid4(), company_id=company_id, type="individual",
-        first_name="Partie", last_name="Test",
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="individual",
+        first_name="Partie",
+        last_name="Test",
     )
     prop = Property(
-        id=uuid.uuid4(), company_id=company_id,
-        reference=f"PROP-{uuid.uuid4().hex[:10]}", type="apartment",
-        price=Decimal("1500000"), status="available",
+        id=uuid.uuid4(),
+        company_id=company_id,
+        reference=f"PROP-{uuid.uuid4().hex[:10]}",
+        type="apartment",
+        price=Decimal("1500000"),
+        status="available",
     )
     db.add_all([client, prop])
     await db.commit()
@@ -137,13 +144,14 @@ async def test_create_reference_and_commission(
 
 
 @pytest.mark.asyncio
-async def test_get_cross_tenant_none(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_get_cross_tenant_none(db_session: AsyncSession, seed_company: Company) -> None:
     c = await _make_contract(db_session, seed_company.id)
     other = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db_session.add(other)
     await db_session.commit()
@@ -151,9 +159,7 @@ async def test_get_cross_tenant_none(
 
 
 @pytest.mark.asyncio
-async def test_list_filter_by_type(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_list_filter_by_type(db_session: AsyncSession, seed_company: Company) -> None:
     await _make_contract(db_session, seed_company.id, type="sale")
     await _make_contract(db_session, seed_company.id, type="rental")
     rentals, n = await list_contracts(db_session, seed_company.id, type_="rental")
@@ -199,18 +205,14 @@ async def test_update_recomputes_commission(
 
 
 @pytest.mark.asyncio
-async def test_delete_draft_ok(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_delete_draft_ok(db_session: AsyncSession, seed_company: Company) -> None:
     c = await _make_contract(db_session, seed_company.id)
     assert await delete_contract(db_session, seed_company.id, c.id) is True
     assert await get_contract(db_session, seed_company.id, c.id) is None
 
 
 @pytest.mark.asyncio
-async def test_delete_non_draft_raises(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_delete_non_draft_raises(db_session: AsyncSession, seed_company: Company) -> None:
     c = await _make_contract(db_session, seed_company.id)
     await update_contract(db_session, seed_company.id, c.id, ContractUpdate(status="active"))
     with pytest.raises(ValueError):
@@ -228,7 +230,9 @@ async def test_renew_creates_linked_escalated_contract(
     await update_contract(db_session, seed_company.id, c.id, ContractUpdate(status="active"))
 
     new = await renew_contract(
-        db_session, seed_company.id, c.id,
+        db_session,
+        seed_company.id,
+        c.id,
         ContractRenew(term_months=12, rent_escalation_pct=Decimal("5")),
     )
     assert isinstance(new, type(c))
@@ -242,17 +246,11 @@ async def test_renew_draft_is_not_renewable(
     db_session: AsyncSession, seed_company: Company
 ) -> None:
     c = await _make_contract(db_session, seed_company.id)  # reste draft
-    result = await renew_contract(
-        db_session, seed_company.id, c.id, ContractRenew()
-    )
+    result = await renew_contract(db_session, seed_company.id, c.id, ContractRenew())
     assert result == "not_renewable"
 
 
 @pytest.mark.asyncio
-async def test_renew_unknown_returns_none(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
-    result = await renew_contract(
-        db_session, seed_company.id, uuid.uuid4(), ContractRenew()
-    )
+async def test_renew_unknown_returns_none(db_session: AsyncSession, seed_company: Company) -> None:
+    result = await renew_contract(db_session, seed_company.id, uuid.uuid4(), ContractRenew())
     assert result is None

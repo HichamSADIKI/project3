@@ -1,4 +1,5 @@
 """Service CRM — toutes les fonctions filtrent par company_id."""
+
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -16,15 +17,15 @@ from .schemas import ActivityCreate, LeadCreate, LeadStatusUpdate, LeadUpdate
 # Transitions valides du pipeline (CLAUDE.md)
 # ---------------------------------------------------------------------------
 VALID_TRANSITIONS: dict[str, list[str]] = {
-    "new":           ["contacted", "lost"],
-    "contacted":     ["qualified", "lost"],
-    "qualified":     ["proposal_sent", "lost"],
+    "new": ["contacted", "lost"],
+    "contacted": ["qualified", "lost"],
+    "qualified": ["proposal_sent", "lost"],
     "proposal_sent": ["visit_planned", "negotiation", "lost"],
     "visit_planned": ["visit_done", "lost"],
-    "visit_done":    ["negotiation", "proposal_sent", "lost"],
-    "negotiation":   ["won", "lost"],
-    "won":           [],
-    "lost":          [],
+    "visit_done": ["negotiation", "proposal_sent", "lost"],
+    "negotiation": ["won", "lost"],
+    "won": [],
+    "lost": [],
 }
 
 GOLDEN_VISA_THRESHOLD = Decimal("2000000")
@@ -33,6 +34,7 @@ GOLDEN_VISA_THRESHOLD = Decimal("2000000")
 # ---------------------------------------------------------------------------
 # Score automatique (CLAUDE.md)
 # ---------------------------------------------------------------------------
+
 
 def calculate_score(
     budget: Decimal | None,
@@ -74,6 +76,7 @@ def calculate_score(
 # Référence métier — CRM-YYYY-NNNNNN (6 chiffres, triable, unique par tenant)
 # ---------------------------------------------------------------------------
 
+
 def generate_reference(year: int, sequence: int) -> str:
     """Format interne : CRM-YYYY-NNNNNN (6 chiffres pour faciliter le tri)."""
     return f"CRM-{year}-{sequence:06d}"
@@ -95,6 +98,7 @@ async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
 # ---------------------------------------------------------------------------
 # CRUD Leads
 # ---------------------------------------------------------------------------
+
 
 async def list_leads(
     db: AsyncSession,
@@ -126,9 +130,7 @@ async def list_leads(
             )
         )
 
-    total_q = await db.execute(
-        select(func.count()).select_from(CRMLead).where(and_(*filters))
-    )
+    total_q = await db.execute(select(func.count()).select_from(CRMLead).where(and_(*filters)))
     total = total_q.scalar_one()
 
     offset = (page - 1) * limit
@@ -268,8 +270,7 @@ async def update_lead_status(
         raise HTTPException(
             status_code=422,
             detail=(
-                f"invalid_transition: '{current_status}' → '{new_status}' "
-                f"(autorisées: {allowed})"
+                f"invalid_transition: '{current_status}' → '{new_status}' (autorisées: {allowed})"
             ),
         )
 
@@ -326,6 +327,7 @@ async def update_lead_status(
 # ---------------------------------------------------------------------------
 # Activités
 # ---------------------------------------------------------------------------
+
 
 async def add_activity(
     db: AsyncSession,
@@ -398,6 +400,7 @@ async def list_activities(
 # ---------------------------------------------------------------------------
 # KPIs Pipeline
 # ---------------------------------------------------------------------------
+
 
 async def get_pipeline_kpis(
     db: AsyncSession,
