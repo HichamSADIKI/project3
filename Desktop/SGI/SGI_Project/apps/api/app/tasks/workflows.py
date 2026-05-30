@@ -11,6 +11,7 @@ from celery import shared_task
 from sqlalchemy import select
 
 from app.core.database import sync_session_maker
+from app.models.notification import Notification
 from app.models.workflow import WorkflowEvent, WorkflowInstance, WorkflowStep
 from app.routers.workflows.service import is_step_sla_breached
 
@@ -46,8 +47,21 @@ def check_workflow_sla(self) -> dict:
                     step_id=step.id,
                     actor_user_id=None,  # action système
                     event_type="escalate",
-                    comment=f"SLA dépassé — escalade automatique Celery beat",
+                    comment="SLA dépassé — escalade automatique Celery beat",
                     created_at=now,
+                ))
+
+                # Notification in-app (M6) au responsable de l'étape.
+                db.add(Notification(
+                    company_id=step.company_id,
+                    recipient_user_id=step.actor_user_id,
+                    type="workflow_escalation",
+                    channel="in_app",
+                    title=f"Étape de validation escaladée — {step.name}",
+                    body="SLA dépassé : l'étape a été escaladée automatiquement.",
+                    payload={"instance_id": str(step.instance_id), "step_id": str(step.id)},
+                    status="sent",
+                    sent_at=now,
                 ))
 
                 # Passe le step suivant en in_progress.
