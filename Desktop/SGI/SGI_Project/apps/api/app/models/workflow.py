@@ -13,6 +13,7 @@ Celery beat déclenche une escalade automatique.
 
 Loi 1 : company_id NOT NULL + RLS sur les 4 tables (migration 0016).
 """
+
 import uuid
 from datetime import datetime
 
@@ -48,9 +49,7 @@ class WorkflowTemplate(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "workflow_templates"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     # quote_approval | sla_escalation | contract_approval | custom
     workflow_type: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -60,8 +59,7 @@ class WorkflowTemplate(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __table_args__ = (
         CheckConstraint(
-            "workflow_type IN ('quote_approval','sla_escalation',"
-            "'contract_approval','custom')",
+            "workflow_type IN ('quote_approval','sla_escalation','contract_approval','custom')",
             name="ck_wf_template_type",
         ),
         Index("idx_wf_templates_company_type", "company_id", "workflow_type"),
@@ -73,9 +71,7 @@ class WorkflowInstance(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "workflow_instances"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     template_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workflow_templates.id", ondelete="RESTRICT"),
@@ -86,30 +82,29 @@ class WorkflowInstance(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     maintenance_ticket_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("maintenance_tickets.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     maintenance_quote_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("maintenance_quotes.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     contract_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("contracts.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     # pending | in_progress | approved | rejected | cancelled
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="in_progress"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="in_progress")
     started_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
         nullable=False,
     )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(
@@ -126,9 +121,7 @@ class WorkflowStep(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "workflow_steps"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     instance_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workflow_instances.id", ondelete="CASCADE"),
@@ -140,21 +133,18 @@ class WorkflowStep(Base, TimestampMixin, TenantMixin):
     # approval | notification | auto | escalation
     step_type: Mapped[str] = mapped_column(String(20), nullable=False)
     # pending | in_progress | approved | rejected | skipped | escalated
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     actor_role: Mapped[str | None] = mapped_column(String(30), nullable=True)
     sla_due_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
@@ -176,9 +166,7 @@ class WorkflowEvent(Base, TenantMixin):
 
     __tablename__ = "workflow_events"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     instance_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("workflow_instances.id", ondelete="CASCADE"),
@@ -198,9 +186,7 @@ class WorkflowEvent(Base, TenantMixin):
     # approve | reject | note | escalate | start | complete | cancel
     event_type: Mapped[str] = mapped_column(String(20), nullable=False)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False
-    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
     __table_args__ = (
         CheckConstraint(

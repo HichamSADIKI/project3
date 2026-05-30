@@ -1,4 +1,5 @@
 """Service Properties — toutes les fonctions filtrent par company_id."""
+
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -14,6 +15,7 @@ from .schemas import PropertyCreate, PropertyUpdate
 # ---------------------------------------------------------------------------
 # Helpers internes
 # ---------------------------------------------------------------------------
+
 
 def _gen_reference(seq: int) -> str:
     """Génère une référence de type DXB-YYYY-NNNN."""
@@ -31,6 +33,7 @@ def _make_point(lat: float | None, lng: float | None) -> WKTElement | None:
 # ---------------------------------------------------------------------------
 # CRUD
 # ---------------------------------------------------------------------------
+
 
 async def list_properties(
     db: AsyncSession,
@@ -72,9 +75,7 @@ async def list_properties(
             )
         )
 
-    total_q = await db.execute(
-        select(func.count()).select_from(Property).where(and_(*filters))
-    )
+    total_q = await db.execute(select(func.count()).select_from(Property).where(and_(*filters)))
     total = total_q.scalar_one()
 
     offset = (page - 1) * limit
@@ -223,6 +224,7 @@ async def delete_property(
 # Recherche géospatiale
 # ---------------------------------------------------------------------------
 
+
 async def search_by_radius(
     db: AsyncSession,
     company_id: str,
@@ -247,9 +249,7 @@ async def search_by_radius(
         Property.company_id == uuid.UUID(company_id),
         Property.deleted_at.is_(None),
         Property.location.isnot(None),
-        text(
-            f"ST_DWithin(location::geography, {geo_point}::geography, {radius_m})"
-        ),
+        text(f"ST_DWithin(location::geography, {geo_point}::geography, {radius_m})"),
     ]
     if type_:
         filters.append(Property.type == type_)
@@ -263,9 +263,7 @@ async def search_by_radius(
     stmt = (
         select(
             Property,
-            text(
-                f"ST_Distance(location::geography, {geo_point}::geography) AS dist_m"
-            ),
+            text(f"ST_Distance(location::geography, {geo_point}::geography) AS dist_m"),
         )
         .where(and_(*filters))
         .order_by(text("dist_m"))
@@ -279,10 +277,7 @@ async def search_by_radius(
     for row in rows:
         prop: Property = row[0]
         dist: float = row[1]
-        record: dict = {
-            col.name: getattr(prop, col.name)
-            for col in prop.__table__.columns
-        }
+        record: dict = {col.name: getattr(prop, col.name) for col in prop.__table__.columns}
         # Exclure le WKB binaire brut (non-sérialisable JSON)
         record["location"] = None
         record["dist_m"] = round(dist, 1)

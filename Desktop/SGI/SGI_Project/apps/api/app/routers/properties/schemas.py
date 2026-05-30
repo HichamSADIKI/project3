@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 pour le module Properties."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal

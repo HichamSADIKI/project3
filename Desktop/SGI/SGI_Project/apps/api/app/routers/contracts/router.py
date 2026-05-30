@@ -1,4 +1,5 @@
 """Router FastAPI — Contracts."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -31,9 +32,7 @@ router = APIRouter(prefix="/contracts", tags=["contracts"])
 
 async def _get_company_id(db: AsyncSession) -> uuid.UUID:
     """Récupère le company_id depuis la session PostgreSQL (injecté par le middleware JWT)."""
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(sql_text("SELECT current_setting('app.current_company_id', true)"))
     raw = result.scalar()
     if not raw:
         raise HTTPException(
@@ -108,9 +107,7 @@ async def get_contract_endpoint(
     company_id = await _get_company_id(db)
     contract = await get_contract(db, company_id, contract_id)
     if not contract:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
     return ContractDetailOut(data=ContractOut.model_validate(contract))
 
 
@@ -132,9 +129,7 @@ async def update_contract_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
     if not contract:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
     return ContractDetailOut(data=ContractOut.model_validate(contract))
 
 
@@ -155,9 +150,7 @@ async def delete_contract_endpoint(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
         ) from exc
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
 
 
 # ─── Renouvellement & e-signature (M5) ──────────────────────────────────────
@@ -179,13 +172,9 @@ async def renew_contract_endpoint(
     company_id = await _get_company_id(db)
     result = await renew_contract(db, company_id, contract_id, body)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
     if result == "not_renewable":
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="contract_not_renewable"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="contract_not_renewable")
     return ContractDetailOut(data=ContractOut.model_validate(result))
 
 
@@ -204,9 +193,7 @@ async def request_signature_endpoint(
     company_id = await _get_company_id(db)
     contract = await link_signing_document(db, company_id, contract_id, body.document_id)
     if contract is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
     return ContractDetailOut(data=ContractOut.model_validate(contract))
 
 
@@ -224,9 +211,7 @@ async def sync_signature_endpoint(
     company_id = await _get_company_id(db)
     result = await sync_contract_signature(db, company_id, contract_id)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
     if result == "no_signing_document":
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="no_signing_document_linked"

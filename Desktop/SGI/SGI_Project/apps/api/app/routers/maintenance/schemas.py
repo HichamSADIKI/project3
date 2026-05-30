@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — module Maintenance (Phase 1 + Phase 2)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -9,22 +10,34 @@ from pydantic import BaseModel, ConfigDict, Field
 # ── Constantes de validation ─────────────────────────────────────────────
 
 VALID_CATEGORIES = (
-    "plumbing", "electrical", "hvac", "appliance",
-    "structural", "cleaning", "other",
+    "plumbing",
+    "electrical",
+    "hvac",
+    "appliance",
+    "structural",
+    "cleaning",
+    "other",
 )
 VALID_PRIORITIES = ("low", "medium", "high", "urgent")
 VALID_STATUSES = (
-    "new", "triaged", "assigned", "in_progress",
-    "on_hold", "resolved", "closed", "cancelled",
+    "new",
+    "triaged",
+    "assigned",
+    "in_progress",
+    "on_hold",
+    "resolved",
+    "closed",
+    "cancelled",
 )
 VALID_REPORTER_ROLES = ("tenant", "owner", "agent", "system")
 
-CATEGORY_PATTERN  = "^(plumbing|electrical|hvac|appliance|structural|cleaning|other)$"
-PRIORITY_PATTERN  = "^(low|medium|high|urgent)$"
-STATUS_PATTERN    = "^(new|triaged|assigned|in_progress|on_hold|resolved|closed|cancelled)$"
+CATEGORY_PATTERN = "^(plumbing|electrical|hvac|appliance|structural|cleaning|other)$"
+PRIORITY_PATTERN = "^(low|medium|high|urgent)$"
+STATUS_PATTERN = "^(new|triaged|assigned|in_progress|on_hold|resolved|closed|cancelled)$"
 
 
 # ── Création ─────────────────────────────────────────────────────────────
+
 
 class TicketCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
@@ -40,6 +53,7 @@ class TicketCreate(BaseModel):
 
 # ── Mise à jour partielle ────────────────────────────────────────────────
 
+
 class TicketUpdate(BaseModel):
     title: str | None = Field(None, min_length=3, max_length=255)
     description: str | None = None
@@ -51,13 +65,16 @@ class TicketUpdate(BaseModel):
 
 # ── Assignation ──────────────────────────────────────────────────────────
 
+
 class TicketAssign(BaseModel):
     """Assign un technicien interne OU un vendor externe — pas les deux."""
+
     technician_id: uuid.UUID | None = None
     vendor_party_id: uuid.UUID | None = None
 
 
 # ── Changement de statut ─────────────────────────────────────────────────
+
 
 class TicketStatusUpdate(BaseModel):
     status: str = Field(..., pattern=STATUS_PATTERN)
@@ -65,6 +82,7 @@ class TicketStatusUpdate(BaseModel):
 
 
 # ── Output ───────────────────────────────────────────────────────────────
+
 
 class TicketOut(BaseModel):
     id: uuid.UUID
@@ -105,6 +123,7 @@ class TicketDetailOut(BaseModel):
 
 # ── Phase 2 : Devis (Quote) ───────────────────────────────────────────────
 
+
 class QuoteCreate(BaseModel):
     vendor_party_id: uuid.UUID
     amount_aed: Decimal = Field(..., gt=0, decimal_places=2)
@@ -128,6 +147,7 @@ class QuoteOut(BaseModel):
 
 # ── Phase 2 : Facture (Invoice) ───────────────────────────────────────────
 
+
 class InvoiceCreate(BaseModel):
     vendor_party_id: uuid.UUID
     amount_aed: Decimal = Field(..., gt=0, decimal_places=2)
@@ -149,6 +169,7 @@ class InvoiceOut(BaseModel):
 
 
 # ── Phase 2 : Plan préventif (Plan) ──────────────────────────────────────
+
 
 class PlanCreate(BaseModel):
     title: str = Field(..., min_length=3, max_length=255)
@@ -186,9 +207,11 @@ class PlanOut(BaseModel):
 
 # ── Phase 2 : Calendrier ─────────────────────────────────────────────────
 
+
 class CalendarEntry(BaseModel):
     """Un élément du calendrier maintenance (SLA à venir ou préventif planifié)."""
-    kind: str            # "sla" | "preventive"
+
+    kind: str  # "sla" | "preventive"
     ticket_id: uuid.UUID | None = None
     plan_id: uuid.UUID | None = None
     reference: str | None = None

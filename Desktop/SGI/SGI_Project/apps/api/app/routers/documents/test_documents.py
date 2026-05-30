@@ -1,4 +1,5 @@
 """Tests unitaires — helpers métier purs du module documents."""
+
 import uuid
 
 import pytest
@@ -48,14 +49,17 @@ class TestNextVersionNumber:
 
 
 class TestExtensionAndMime:
-    @pytest.mark.parametrize("mime,ext", [
-        ("application/pdf", "pdf"),
-        ("image/jpeg", "jpg"),
-        ("image/png", "png"),
-        ("image/webp", "webp"),
-        ("application/msword", "doc"),
-        ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"),
-    ])
+    @pytest.mark.parametrize(
+        "mime,ext",
+        [
+            ("application/pdf", "pdf"),
+            ("image/jpeg", "jpg"),
+            ("image/png", "png"),
+            ("image/webp", "webp"),
+            ("application/msword", "doc"),
+            ("application/vnd.openxmlformats-officedocument.wordprocessingml.document", "docx"),
+        ],
+    )
     def test_supported_mimes(self, mime: str, ext: str) -> None:
         assert extension_for_doc_mime(mime) == ext
         assert is_supported_mime(mime) is True

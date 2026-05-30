@@ -1,16 +1,18 @@
 """Schémas Pydantic v2 — module Inspections (Phase 7)."""
+
 import uuid
 from datetime import date, datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-TYPE_PATTERN   = "^(check_in|check_out|periodic|pre_sale)$"
+TYPE_PATTERN = "^(check_in|check_out|periodic|pre_sale)$"
 STATUS_PATTERN = "^(draft|scheduled|in_progress|completed|signed|cancelled)$"
-COND_PATTERN   = "^(good|fair|poor|missing|na)$"
+COND_PATTERN = "^(good|fair|poor|missing|na)$"
 
 
 # ── Inspection ────────────────────────────────────────────────────────────
+
 
 class InspectionCreate(BaseModel):
     unit_id: uuid.UUID
@@ -69,6 +71,7 @@ class InspectionDetailOut(BaseModel):
 
 # ── Sections ──────────────────────────────────────────────────────────────
 
+
 class SectionCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     section_order: int = 0
@@ -86,6 +89,7 @@ class SectionOut(BaseModel):
 
 
 # ── Items ─────────────────────────────────────────────────────────────────
+
 
 class ItemCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=150)
@@ -114,6 +118,7 @@ class ItemOut(BaseModel):
 
 
 # ── Photos ────────────────────────────────────────────────────────────────
+
 
 class PhotoOut(BaseModel):
     id: uuid.UUID

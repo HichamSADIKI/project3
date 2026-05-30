@@ -8,6 +8,7 @@ Couvre :
 - Un user role=agent ne peut pas accéder à /me/profile (RBAC)
 - GET /me/profile crée la fiche à la volée si elle manque (filet de sécurité)
 """
+
 from __future__ import annotations
 
 import uuid

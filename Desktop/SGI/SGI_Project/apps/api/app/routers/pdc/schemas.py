@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — PDC (post-dated cheques)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -6,9 +7,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
-PdcStatus = Literal[
-    "pending", "deposited", "cleared", "bounced", "replaced", "cancelled"
-]
+PdcStatus = Literal["pending", "deposited", "cleared", "bounced", "replaced", "cancelled"]
 
 
 class PdcCreate(BaseModel):

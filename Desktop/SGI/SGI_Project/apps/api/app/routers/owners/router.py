@@ -1,4 +1,5 @@
 """Router FastAPI — Owners (profil propriétaire)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -73,9 +74,7 @@ async def get_owner_endpoint(
     company_id = await get_company_id(db)
     owner = await get_owner(db, company_id, party_id)
     if owner is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found")
     return OwnerDetailOut(data=OwnerOut.model_validate(owner))
 
 
@@ -92,9 +91,7 @@ async def update_owner_endpoint(
     company_id = await get_company_id(db)
     owner = await update_owner(db, company_id, party_id, body)
     if owner is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found")
     return OwnerDetailOut(data=OwnerOut.model_validate(owner))
 
 
@@ -110,6 +107,4 @@ async def delete_owner_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_owner(db, company_id, party_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found")

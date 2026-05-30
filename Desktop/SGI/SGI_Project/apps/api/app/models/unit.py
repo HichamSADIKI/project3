@@ -9,6 +9,7 @@ compteurs, parking) référencent Unit.
 Lien optionnel vers `properties` via `legacy_property_id` pour ponts de
 migration progressifs.
 """
+
 import uuid
 
 from sqlalchemy import (
@@ -32,9 +33,7 @@ class Unit(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "units"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     building_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -59,9 +58,7 @@ class Unit(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Statut commercial (synchronisé avec leases/contracts)
     # vacant | occupied | reserved | maintenance | renovation | off_market
-    status: Mapped[str] = mapped_column(
-        String(30), nullable=False, default="vacant"
-    )
+    status: Mapped[str] = mapped_column(String(30), nullable=False, default="vacant")
 
     # Caractéristiques physiques
     area_sqm: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
@@ -71,12 +68,8 @@ class Unit(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     furnished: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Prix / loyer de référence
-    list_rent_aed: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
-    list_sale_aed: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
+    list_rent_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    list_sale_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Lien optionnel vers la fiche `properties` historique
     legacy_property_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -98,9 +91,7 @@ class Unit(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint(
-            "building_id", "unit_number", name="uq_units_building_number"
-        ),
+        UniqueConstraint("building_id", "unit_number", name="uq_units_building_number"),
         Index("idx_units_company", "company_id"),
         Index("idx_units_status", "status"),
         Index("idx_units_type", "unit_type"),

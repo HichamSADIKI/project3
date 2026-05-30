@@ -43,10 +43,10 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "S", "B", "A"]
-# S101: asserts autorisés (tests). E501: longueur de ligne non bloquante tant
-# qu'aucun formateur (ruff format) n'est branché — à réactiver avec le format.
+# S101: asserts autorisés (tests).
 # A002: les filtres FastAPI nommés `type` (Query) shadowent le builtin — idiome assumé.
-ignore = ["S101", "E501", "A002"]
+# E501 est désormais géré par `ruff format` (longueur 100) → réactivé dans le gate.
+ignore = ["S101", "A002"]
 
 [tool.ruff.lint.per-file-ignores]
 # Les tests s'autorisent : lignes longues (données/HTML d'exemple), imports
@@ -55,6 +55,8 @@ ignore = ["S101", "E501", "A002"]
 "**/test_*.py" = ["E501", "E402", "B017", "S105", "S106", "S311", "S110", "A001", "A002"]
 # DATABASE_URL / APP_DATABASE_URL sont des @property "constantes" (UPPER_CASE assumé).
 "app/core/config.py" = ["N802"]
+# Prompts LLM en chaînes triple-quotées (lignes longues non cassables sans altérer le prompt).
+"app/core/gemini.py" = ["E501"]
 
 [tool.ruff.lint.flake8-bugbear]
 # Les injecteurs FastAPI s'utilisent volontairement comme valeurs par défaut

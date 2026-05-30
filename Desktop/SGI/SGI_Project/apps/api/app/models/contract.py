@@ -26,9 +26,7 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "contracts"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence lisible — unique PAR société (multi-tenant), pas globalement.
     reference: Mapped[str] = mapped_column(String(50), nullable=False)
@@ -58,18 +56,12 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Montants AED
     amount: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    commission_rate: Mapped[float] = mapped_column(
-        DECIMAL(5, 2), nullable=False, default=2.0
-    )
-    commission_amount: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
+    commission_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False, default=2.0)
+    commission_amount: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Cycle de vie
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
-    signed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
@@ -93,9 +85,7 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     # E-signature (M5) — document M2 servant de support de signature
-    signing_document_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), nullable=True
-    )
+    signing_document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     __table_args__ = (
         # Référence unique PAR société (multi-tenant) — pas globalement.

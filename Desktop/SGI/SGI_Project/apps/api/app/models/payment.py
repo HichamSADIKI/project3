@@ -10,6 +10,7 @@ Architecture :
 
 Loi 1 : company_id NOT NULL + RLS (migration 0019).
 """
+
 import uuid
 from datetime import date, datetime
 
@@ -38,9 +39,7 @@ class PaymentRequest(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "payment_requests"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     # Référence lisible — PAY-YYYY-NNNNNN
     reference: Mapped[str] = mapped_column(String(20), nullable=False)
 
@@ -48,19 +47,22 @@ class PaymentRequest(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     tenant_client_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("clients.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     # Créditeur (propriétaire qui reçoit)
     owner_client_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("clients.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     # Contexte
     unit_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("units.id", ondelete="RESTRICT"),
-        nullable=True, index=True,
+        nullable=True,
+        index=True,
     )
     rental_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
@@ -71,21 +73,16 @@ class PaymentRequest(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # rent | charges | deposit | deposit_return | owner_payout | other
     payment_type: Mapped[str] = mapped_column(String(30), nullable=False)
     # pending | paid | overdue | cancelled
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="pending"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
 
     amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
-    paid_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         CheckConstraint(
-            "payment_type IN ('rent','charges','deposit','deposit_return',"
-            "'owner_payout','other')",
+            "payment_type IN ('rent','charges','deposit','deposit_return','owner_payout','other')",
             name="ck_pay_req_type",
         ),
         CheckConstraint(
@@ -106,26 +103,21 @@ class PaymentTransaction(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "payment_transactions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     request_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("payment_requests.id", ondelete="RESTRICT"),
-        nullable=False, index=True,
+        nullable=False,
+        index=True,
     )
     # initiated | settled | failed
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="initiated"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="initiated")
     # bank_transfer | card | cash | cheque | online
     method: Mapped[str] = mapped_column(String(30), nullable=False)
     amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
     # Référence externe (numéro de virement, ID Stripe-like…)
     external_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    settled_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (

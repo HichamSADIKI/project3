@@ -1,4 +1,5 @@
 """Router FastAPI — Relevés propriétaires (M6). Endpoints imbriqués sous /owners."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status

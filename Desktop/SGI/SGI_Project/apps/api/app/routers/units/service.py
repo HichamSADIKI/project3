@@ -1,4 +1,5 @@
 """Service — Units. CRUD + transitions de statut."""
+
 import uuid
 from datetime import UTC, datetime
 
@@ -41,9 +42,7 @@ async def list_units(
     unit_type: str | None = None,
     status: str | None = None,
 ) -> tuple[list[Unit], int]:
-    base = select(Unit).where(
-        Unit.company_id == company_id, Unit.deleted_at.is_(None)
-    )
+    base = select(Unit).where(Unit.company_id == company_id, Unit.deleted_at.is_(None))
     if building_id:
         base = base.where(Unit.building_id == building_id)
     if floor_id:
@@ -53,9 +52,7 @@ async def list_units(
     if status:
         base = base.where(Unit.status == status)
 
-    total: int = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
     offset = (page - 1) * limit
     paginated = base.order_by(Unit.unit_number).offset(offset).limit(limit)
@@ -63,9 +60,7 @@ async def list_units(
     return list(result.scalars().all()), total
 
 
-async def get_unit(
-    db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID
-) -> Unit | None:
+async def get_unit(db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID) -> Unit | None:
     result = await db.execute(
         select(Unit).where(
             Unit.id == unit_id,
@@ -76,9 +71,7 @@ async def get_unit(
     return result.scalar_one_or_none()
 
 
-async def create_unit(
-    db: AsyncSession, company_id: uuid.UUID, data: UnitCreate
-) -> Unit | None:
+async def create_unit(db: AsyncSession, company_id: uuid.UUID, data: UnitCreate) -> Unit | None:
     # Building must exist in same tenant
     building_check = await db.execute(
         select(Building.id).where(
@@ -163,9 +156,7 @@ async def change_status(
     return unit
 
 
-async def delete_unit(
-    db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID
-) -> bool:
+async def delete_unit(db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID) -> bool:
     unit = await get_unit(db, company_id, unit_id)
     if unit is None:
         return False

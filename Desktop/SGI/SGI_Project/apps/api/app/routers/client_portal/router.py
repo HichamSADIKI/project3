@@ -1,4 +1,5 @@
 """Espace Client (role=client) — favoris, visites, messages, dashboard."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -57,9 +58,7 @@ def _ctx(request: Request) -> tuple[uuid.UUID, uuid.UUID, str]:
     company_id = getattr(request.state, "company_id", None)
     email = getattr(request.state, "email", None)
     if not user_id or not company_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated")
     return uuid.UUID(user_id), uuid.UUID(company_id), email or ""
 
 
@@ -69,9 +68,7 @@ async def get_dashboard(
     request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> ClientDashboardOut:
     user_id, company_id, email = _ctx(request)
-    data = await compute_dashboard(
-        db, user_id=user_id, user_email=email, company_id=company_id
-    )
+    data = await compute_dashboard(db, user_id=user_id, user_email=email, company_id=company_id)
     return ClientDashboardOut(**data)
 
 
@@ -82,9 +79,7 @@ async def get_me_profile(
 ) -> ClientMeProfileOut:
     """Profil CRM du client connecté. Crée la fiche à la volée si absente."""
     user_id, company_id, email = _ctx(request)
-    client = await get_my_profile(
-        db, user_id=user_id, user_email=email, company_id=company_id
-    )
+    client = await get_my_profile(db, user_id=user_id, user_email=email, company_id=company_id)
     await db.commit()
     return ClientMeProfileOut.model_validate(client)
 
@@ -120,9 +115,7 @@ async def list_favorites(
     return [FavoriteOut.model_validate(f) for f in favs]
 
 
-@router.post(
-    "/favorites", response_model=FavoriteOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/favorites", response_model=FavoriteOut, status_code=status.HTTP_201_CREATED)
 async def post_favorite(
     body: FavoriteCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> FavoriteOut:
@@ -145,9 +138,7 @@ async def delete_favorite(
     user_id, _, _ = _ctx(request)
     ok = await remove_favorite(db, user_id, favorite_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="favorite_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="favorite_not_found")
     await db.commit()
 
 
@@ -161,9 +152,7 @@ async def list_visits(
     return [VisitRequestOut.model_validate(v) for v in visits]
 
 
-@router.post(
-    "/visits", response_model=VisitRequestOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/visits", response_model=VisitRequestOut, status_code=status.HTTP_201_CREATED)
 async def post_visit(
     body: VisitRequestCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> VisitRequestOut:
@@ -203,9 +192,7 @@ async def list_messages(
     return [MessageOut.model_validate(m) for m in msgs]
 
 
-@router.post(
-    "/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def post_message(
     body: MessageCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> MessageOut:
@@ -231,17 +218,13 @@ async def post_mark_read(
     user_id, _, _ = _ctx(request)
     ok = await mark_message_read(db, user_id, message_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="message_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="message_not_found")
     await db.commit()
 
 
 # ── Maintenance (tickets du client connecté) ─────────────────────────────
 @router.get("/maintenance")
-async def list_my_maintenance(
-    request: Request, db: AsyncSession = Depends(get_db_session)
-):
+async def list_my_maintenance(request: Request, db: AsyncSession = Depends(get_db_session)):
     """Liste les tickets de maintenance rapportés par le client connecté."""
     from sqlalchemy import select
 
@@ -253,13 +236,16 @@ async def list_my_maintenance(
         return []
 
     result = await db.execute(
-        select(MaintenanceTicket).where(
+        select(MaintenanceTicket)
+        .where(
             MaintenanceTicket.company_id == company_id,
             MaintenanceTicket.reported_by_user_id == _user_id,
             MaintenanceTicket.deleted_at.is_(None),
-        ).order_by(MaintenanceTicket.created_at.desc())
+        )
+        .order_by(MaintenanceTicket.created_at.desc())
     )
     from app.routers.maintenance.schemas import TicketOut
+
     return [TicketOut.model_validate(t) for t in result.scalars().all()]
 
 

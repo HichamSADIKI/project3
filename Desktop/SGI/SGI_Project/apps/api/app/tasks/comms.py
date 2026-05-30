@@ -5,6 +5,7 @@ Tâches :
 - transcribe_voice_note : transcription Whisper d'une voice note après upload.
 - notify_mentions       : notifie les utilisateurs mentionnés dans un message.
 """
+
 import logging
 import uuid
 from datetime import UTC, datetime
@@ -51,6 +52,7 @@ def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
             # Télécharge depuis MinIO.
             try:
                 from app.core.storage import download_bytes
+
                 audio_bytes, content_type = download_bytes(msg.attachment_key)
             except (StorageError, Exception) as exc:
                 logger.error("transcribe: download failed: %s", exc)
@@ -59,10 +61,9 @@ def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
             # Transcription Whisper (async dans contexte sync via asyncio.run).
             try:
                 from app.core.whisper import transcribe_audio
+
                 filename = msg.attachment_key.split("/")[-1]
-                result = asyncio.run(
-                    transcribe_audio(audio_bytes, filename, content_type, "ar")
-                )
+                result = asyncio.run(transcribe_audio(audio_bytes, filename, content_type, "ar"))
                 transcript_text = result.get("text", "")
                 lang = result.get("locale", "ar")
             except Exception as exc:  # noqa: BLE001
@@ -90,12 +91,16 @@ def notify_mentions(self, message_id: str, company_id: str) -> dict:
     """
     try:
         with sync_session_maker() as db:
-            mentions = db.execute(
-                select(MessageMention).where(
-                    MessageMention.message_id == uuid.UUID(message_id),
-                    MessageMention.company_id == uuid.UUID(company_id),
+            mentions = (
+                db.execute(
+                    select(MessageMention).where(
+                        MessageMention.message_id == uuid.UUID(message_id),
+                        MessageMention.company_id == uuid.UUID(company_id),
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             if not mentions:
                 return {"status": "no_mentions"}
@@ -130,7 +135,8 @@ def notify_mentions(self, message_id: str, company_id: str) -> dict:
                 db.commit()
             logger.info(
                 "notify_mentions: message=%s, %d notification(s) créée(s)",
-                message_id, created,
+                message_id,
+                created,
             )
             return {"status": "ok", "notified": created}
 

@@ -3,6 +3,7 @@
 Inclut aussi un test d'intégration de l'endpoint imbriqué
 GET /buildings/{id}/units (requiert PostgreSQL — lancer dans le conteneur).
 """
+
 import uuid
 from decimal import Decimal
 
@@ -22,9 +23,7 @@ class TestComputeOccupancy:
 
     def test_all_units_off_market_excluded_from_denominator(self) -> None:
         # 10 unités hors marché → 0% occupé, 0% vacant
-        occ, vac = compute_occupancy(
-            {"maintenance": 5, "renovation": 3, "off_market": 2}
-        )
+        occ, vac = compute_occupancy({"maintenance": 5, "renovation": 3, "off_market": 2})
         assert occ == Decimal("0.00")
         assert vac == Decimal("0.00")
 
@@ -47,21 +46,20 @@ class TestComputeOccupancy:
 
     def test_maintenance_excluded(self) -> None:
         # 4 occupés + 2 vacants + 4 en maintenance → 4/6 = 66.67%
-        occ, vac = compute_occupancy(
-            {"occupied": 4, "vacant": 2, "maintenance": 4}
-        )
+        occ, vac = compute_occupancy({"occupied": 4, "vacant": 2, "maintenance": 4})
         assert occ == Decimal("66.67")
         assert vac == Decimal("33.33")
 
-    @pytest.mark.parametrize("occupied,vacant,expected_occ", [
-        (1, 1, Decimal("50.00")),
-        (3, 1, Decimal("75.00")),
-        (1, 3, Decimal("25.00")),
-        (2, 1, Decimal("66.67")),
-    ])
-    def test_parametrized_ratios(
-        self, occupied: int, vacant: int, expected_occ: Decimal
-    ) -> None:
+    @pytest.mark.parametrize(
+        "occupied,vacant,expected_occ",
+        [
+            (1, 1, Decimal("50.00")),
+            (3, 1, Decimal("75.00")),
+            (1, 3, Decimal("25.00")),
+            (2, 1, Decimal("66.67")),
+        ],
+    )
+    def test_parametrized_ratios(self, occupied: int, vacant: int, expected_occ: Decimal) -> None:
         occ, _ = compute_occupancy({"occupied": occupied, "vacant": vacant})
         assert occ == expected_occ
 
@@ -81,20 +79,32 @@ async def test_nested_units_lists_only_building_units(
     headers = _admin_headers(seed_admin)
 
     # Deux bâtiments dans le même tenant.
-    b1 = await client.post("/api/v1/buildings/", headers=headers,
-        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"})
+    b1 = await client.post(
+        "/api/v1/buildings/",
+        headers=headers,
+        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"},
+    )
     assert b1.status_code == 201, b1.text
     b1_id = b1.json()["data"]["id"]
-    b2 = await client.post("/api/v1/buildings/", headers=headers,
-        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"})
+    b2 = await client.post(
+        "/api/v1/buildings/",
+        headers=headers,
+        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"},
+    )
     b2_id = b2.json()["data"]["id"]
 
     # Une unité dans chaque bâtiment.
-    u1 = await client.post("/api/v1/units/", headers=headers,
-        json={"building_id": b1_id, "unit_number": "101", "unit_type": "apartment_1br"})
+    u1 = await client.post(
+        "/api/v1/units/",
+        headers=headers,
+        json={"building_id": b1_id, "unit_number": "101", "unit_type": "apartment_1br"},
+    )
     assert u1.status_code == 201, u1.text
-    await client.post("/api/v1/units/", headers=headers,
-        json={"building_id": b2_id, "unit_number": "201", "unit_type": "studio"})
+    await client.post(
+        "/api/v1/units/",
+        headers=headers,
+        json={"building_id": b2_id, "unit_number": "201", "unit_type": "studio"},
+    )
 
     # L'endpoint imbriqué ne renvoie que les unités du bâtiment 1.
     resp = await client.get(f"/api/v1/buildings/{b1_id}/units", headers=headers)

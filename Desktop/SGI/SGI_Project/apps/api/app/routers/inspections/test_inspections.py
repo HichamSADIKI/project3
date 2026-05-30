@@ -3,6 +3,7 @@
 ⚠️ Tests d'intégration (parties DB) : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/inspections/test_inspections.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -79,14 +80,20 @@ def test_compute_overall_score_empty() -> None:
 
 async def _unit(db: AsyncSession, company: Company) -> uuid.UUID:
     building = Building(
-        id=uuid.uuid4(), company_id=company.id,
-        reference=f"BLD-{uuid.uuid4().hex[:10]}", building_type="residential_tower",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        reference=f"BLD-{uuid.uuid4().hex[:10]}",
+        building_type="residential_tower",
     )
     db.add(building)
     await db.commit()
     unit = Unit(
-        id=uuid.uuid4(), company_id=company.id, building_id=building.id,
-        unit_number=f"U-{uuid.uuid4().hex[:6]}", unit_type="apartment", status="vacant",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        building_id=building.id,
+        unit_number=f"U-{uuid.uuid4().hex[:6]}",
+        unit_type="apartment",
+        status="vacant",
     )
     db.add(unit)
     await db.commit()
@@ -107,22 +114,21 @@ async def _inspection(db, company, **overrides):
 
 
 @pytest.mark.asyncio
-async def test_create_reference_and_draft(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_create_reference_and_draft(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     assert insp.reference.startswith("INS-")
     assert insp.status == "draft"
 
 
 @pytest.mark.asyncio
-async def test_get_cross_tenant_none(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_get_cross_tenant_none(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     other = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db_session.add(other)
     await db_session.commit()
@@ -130,9 +136,7 @@ async def test_get_cross_tenant_none(
 
 
 @pytest.mark.asyncio
-async def test_update_inspection(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_update_inspection(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     updated = await update_inspection(
         db_session, seed_company.id, insp.id, InspectionUpdate(notes="RAS")
@@ -141,9 +145,7 @@ async def test_update_inspection(
 
 
 @pytest.mark.asyncio
-async def test_soft_delete(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_soft_delete(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     assert await soft_delete_inspection(db_session, seed_company.id, insp.id) is True
     assert await get_inspection(db_session, seed_company.id, insp.id) is None
@@ -153,9 +155,7 @@ async def test_soft_delete(
 
 
 @pytest.mark.asyncio
-async def test_transition_invalid_422(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_transition_invalid_422(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     with pytest.raises(HTTPException) as exc:
         await transition_inspection(db_session, seed_company.id, insp.id, "signed")
@@ -199,20 +199,20 @@ async def test_transition_signed_sets_signer(
 
 
 @pytest.mark.asyncio
-async def test_sections_create_and_list(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_sections_create_and_list(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
-    await create_section(db_session, seed_company.id, insp.id, SectionCreate(name="Cuisine", section_order=1))
-    await create_section(db_session, seed_company.id, insp.id, SectionCreate(name="Salon", section_order=0))
+    await create_section(
+        db_session, seed_company.id, insp.id, SectionCreate(name="Cuisine", section_order=1)
+    )
+    await create_section(
+        db_session, seed_company.id, insp.id, SectionCreate(name="Salon", section_order=0)
+    )
     sections = await list_sections(db_session, seed_company.id, insp.id)
     assert [s.name for s in sections] == ["Salon", "Cuisine"]  # triées par section_order
 
 
 @pytest.mark.asyncio
-async def test_items_create_list_update(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_items_create_list_update(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     section = await create_section(db_session, seed_company.id, insp.id, SectionCreate(name="S"))
     item = await create_item(
@@ -226,15 +226,11 @@ async def test_items_create_list_update(
     )
     assert updated is not None and updated.score == 2 and updated.comment == "rayure"
 
-    assert await update_item(
-        db_session, seed_company.id, uuid.uuid4(), ItemUpdate(score=1)
-    ) is None
+    assert await update_item(db_session, seed_company.id, uuid.uuid4(), ItemUpdate(score=1)) is None
 
 
 @pytest.mark.asyncio
-async def test_photos_add_and_list(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_photos_add_and_list(db_session: AsyncSession, seed_company: Company) -> None:
     insp = await _inspection(db_session, seed_company)
     section = await create_section(db_session, seed_company.id, insp.id, SectionCreate(name="S"))
     item = await create_item(db_session, seed_company.id, section.id, ItemCreate(name="Porte"))

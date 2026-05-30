@@ -10,6 +10,7 @@ Conformité UAE :
 - Mandat de gestion = document obligatoire, archivé via MinIO
 - IBAN UAE pour reversement des loyers nets
 """
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -51,9 +52,7 @@ class Owner(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     mandate_end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # Commission de gestion (% sur loyers encaissés)
-    mandate_commission_rate: Mapped[Decimal | None] = mapped_column(
-        DECIMAL(5, 2), nullable=True
-    )
+    mandate_commission_rate: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
 
     # Chemin MinIO du PDF du mandat
     mandate_document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
@@ -67,9 +66,7 @@ class Owner(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     # Préférences de communication
-    monthly_statement_enabled: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True
-    )
+    monthly_statement_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     expense_approval_threshold_aed: Mapped[Decimal | None] = mapped_column(
         DECIMAL(15, 2), nullable=True
     )

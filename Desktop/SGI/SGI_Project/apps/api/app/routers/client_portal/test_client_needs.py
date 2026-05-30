@@ -11,6 +11,7 @@ Couvre :
 Pas d'appel réseau Gemini en CI : `GEMINI_API_KEY` est volontairement
 absente du fixture, donc le parser bascule sur le fallback local.
 """
+
 from __future__ import annotations
 
 import os
@@ -120,9 +121,7 @@ def test_detect_category_default_realestate() -> None:
 
 def test_parse_budget_ignores_room_count() -> None:
     """Le nombre de chambres ne doit jamais être pris pour un budget."""
-    assert _parse_budget_aed(
-        "villa 4 chambres à Palm Jumeirah, budget 3 millions AED"
-    ) == 3_000_000
+    assert _parse_budget_aed("villa 4 chambres à Palm Jumeirah, budget 3 millions AED") == 3_000_000
 
 
 def test_detect_property_type_villa() -> None:
@@ -218,7 +217,7 @@ async def test_submit_need_creates_lead_with_category(
         "/api/v1/client/needs",
         json={
             "text": "Je cherche une villa à Dubai Marina, budget 3 millions AED, "
-                    "Golden Visa souhaité.",
+            "Golden Visa souhaité.",
             "locale": "fr",
             "source": "portal_text",
         },
@@ -302,9 +301,7 @@ async def test_list_my_leads_isolated_per_client(
     )
 
     # Le second client ne voit aucun lead du premier.
-    resp2 = await client.get(
-        "/api/v1/client/leads", headers={"Authorization": f"Bearer {token2}"}
-    )
+    resp2 = await client.get("/api/v1/client/leads", headers={"Authorization": f"Bearer {token2}"})
     assert resp2.status_code == 200, resp2.text
     assert resp2.json() == []
 
@@ -383,14 +380,10 @@ async def test_submit_need_without_linked_client_autocreates_party(
     from conftest import _test_session_maker  # type: ignore
 
     async with _test_session_maker() as fresh:
-        await fresh.execute(
-            sa_text(f"SET LOCAL app.current_company_id = '{seed_company.id}'")
-        )
+        await fresh.execute(sa_text(f"SET LOCAL app.current_company_id = '{seed_company.id}'"))
         party = (
             await fresh.execute(
-                select(Client).where(
-                    Client.email == email, Client.company_id == seed_company.id
-                )
+                select(Client).where(Client.email == email, Client.company_id == seed_company.id)
             )
         ).scalar_one()
     assert party.type == "individual"

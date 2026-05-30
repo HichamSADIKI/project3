@@ -1,4 +1,5 @@
 """Router Paiements — /api/v1/payments."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 
 # ── Demandes de paiement ──────────────────────────────────────────────────
 
+
 @router.get("/requests", response_model=RequestListOut)
 async def list_reqs(
     status: str | None = Query(None),
@@ -41,8 +43,15 @@ async def list_reqs(
 ) -> RequestListOut:
     cid = await get_company_id(db)
     items, total = await list_requests(
-        db, cid, status, payment_type, unit_id,
-        tenant_client_id, owner_client_id, page, limit,
+        db,
+        cid,
+        status,
+        payment_type,
+        unit_id,
+        tenant_client_id,
+        owner_client_id,
+        page,
+        limit,
     )
     pages = (total + limit - 1) // limit
     return RequestListOut(
@@ -51,8 +60,7 @@ async def list_reqs(
     )
 
 
-@router.post("/requests", response_model=RequestOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/requests", response_model=RequestOut, status_code=status.HTTP_201_CREATED)
 async def create_req(
     body: RequestCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -92,6 +100,7 @@ async def pay_req(
     if role == "client":
         from app.routers.client_portal.service import find_linked_client_id
         from app.routers.payments.service import get_request
+
         email = getattr(request.state, "email", "") or ""
         my_client_id = await find_linked_client_id(db, email, cid)
         existing = await get_request(db, cid, request_id)
@@ -107,6 +116,7 @@ async def pay_req(
 
 
 # ── Résumé propriétaire ───────────────────────────────────────────────────
+
 
 @router.get("/owner/{owner_client_id}/summary", response_model=OwnerSummaryOut)
 async def owner_sum(

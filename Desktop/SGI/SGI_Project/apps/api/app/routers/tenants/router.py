@@ -1,4 +1,5 @@
 """Router FastAPI — Tenants (profil locataire / candidat + KYC)."""
+
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -45,9 +46,7 @@ async def health() -> dict[str, str]:
 
 @router.get("/", response_model=TenantListOut)
 async def list_tenants_endpoint(
-    lifecycle_status: str | None = Query(
-        None, pattern="^(candidate|active|former|blacklisted)$"
-    ),
+    lifecycle_status: str | None = Query(None, pattern="^(candidate|active|former|blacklisted)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db_session),
@@ -88,9 +87,7 @@ async def get_tenant_endpoint(
     company_id = await get_company_id(db)
     tenant = await get_tenant(db, company_id, party_id)
     if tenant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
     return TenantDetailOut(data=TenantOut.model_validate(tenant))
 
 
@@ -107,9 +104,7 @@ async def update_tenant_endpoint(
     company_id = await get_company_id(db)
     tenant = await update_tenant(db, company_id, party_id, body)
     if tenant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
     return TenantDetailOut(data=TenantOut.model_validate(tenant))
 
 
@@ -129,9 +124,7 @@ async def change_status_endpoint(
         db, company_id, party_id, body.target_status, body.reason
     )
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
     if result == "invalid_transition":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -152,17 +145,19 @@ async def delete_tenant_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_tenant(db, company_id, party_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
 
 
 # ─── KYC — vérification d'identité (M4) ────────────────────────────────────
 
 
 async def _kyc_audit(
-    db: AsyncSession, request: Request, company_id: uuid.UUID,
-    party_id: uuid.UUID, action: str, changes: dict[str, Any],
+    db: AsyncSession,
+    request: Request,
+    company_id: uuid.UUID,
+    party_id: uuid.UUID,
+    action: str,
+    changes: dict[str, Any],
 ) -> None:
     raw_user = getattr(request.state, "user_id", None)
     db.add(
@@ -186,9 +181,7 @@ async def _get_tenant_or_404(
 ) -> TenantProfile:
     tenant = await get_tenant(db, company_id, party_id)
     if tenant is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tenant_not_found")
     return tenant
 
 
@@ -218,9 +211,7 @@ async def kyc_submit_endpoint(
     company_id = await get_company_id(db)
     tenant = await _get_tenant_or_404(db, company_id, party_id)
     if not is_valid_kyc_transition(tenant.kyc_status, "pending"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition")
     today = datetime.now(UTC).date()
     present = await tenant_document_types(db, company_id, party_id)
     if not is_kyc_complete(
@@ -254,14 +245,10 @@ async def kyc_verify_endpoint(
     company_id = await get_company_id(db)
     tenant = await _get_tenant_or_404(db, company_id, party_id)
     if not is_valid_kyc_transition(tenant.kyc_status, "verified"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition")
     raw_user = getattr(request.state, "user_id", None)
     verifier = uuid.UUID(raw_user) if raw_user else None
-    tenant = await set_kyc_status(
-        db, company_id, tenant, "verified", verified_by_user_id=verifier
-    )
+    tenant = await set_kyc_status(db, company_id, tenant, "verified", verified_by_user_id=verifier)
     await _kyc_audit(
         db, request, company_id, party_id, "tenant.kyc_verified", {"kyc_status": "verified"}
     )
@@ -282,14 +269,14 @@ async def kyc_reject_endpoint(
     company_id = await get_company_id(db)
     tenant = await _get_tenant_or_404(db, company_id, party_id)
     if not is_valid_kyc_transition(tenant.kyc_status, "rejected"):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition"
-        )
-    tenant = await set_kyc_status(
-        db, company_id, tenant, "rejected", rejection_reason=body.reason
-    )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="invalid_kyc_transition")
+    tenant = await set_kyc_status(db, company_id, tenant, "rejected", rejection_reason=body.reason)
     await _kyc_audit(
-        db, request, company_id, party_id, "tenant.kyc_rejected",
+        db,
+        request,
+        company_id,
+        party_id,
+        "tenant.kyc_rejected",
         {"kyc_status": "rejected", "reason": body.reason},
     )
     return TenantDetailOut(data=TenantOut.model_validate(tenant))

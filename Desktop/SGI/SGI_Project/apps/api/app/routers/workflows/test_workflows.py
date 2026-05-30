@@ -3,6 +3,7 @@
 ⚠️ Tests d'intégration (parties DB) : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/workflows/test_workflows.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -50,7 +51,7 @@ def test_valid_step_transitions() -> None:
 def test_invalid_step_transitions() -> None:
     assert not is_valid_step_transition("approved", "rejected")
     assert not is_valid_step_transition("rejected", "approved")
-    assert not is_valid_step_transition("pending", "approved")   # doit passer par in_progress
+    assert not is_valid_step_transition("pending", "approved")  # doit passer par in_progress
 
 
 def test_valid_instance_transitions() -> None:
@@ -114,9 +115,7 @@ def _two_step_template() -> TemplateCreate:
 
 async def _start(db, company, admin):
     tpl = await create_template(db, company.id, _two_step_template())
-    inst = await start_workflow(
-        db, company.id, InstanceCreate(template_id=tpl.id), admin.id
-    )
+    inst = await start_workflow(db, company.id, InstanceCreate(template_id=tpl.id), admin.id)
     return tpl, inst
 
 
@@ -124,9 +123,7 @@ async def _start(db, company, admin):
 
 
 @pytest.mark.asyncio
-async def test_create_and_list_templates(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_create_and_list_templates(db_session: AsyncSession, seed_company: Company) -> None:
     tpl = await create_template(db_session, seed_company.id, _two_step_template())
     assert tpl.active is True
     assert len(tpl.steps_definition) == 2
@@ -163,8 +160,10 @@ async def test_start_workflow_unknown_template_404(
     admin, _ = seed_admin
     with pytest.raises(HTTPException) as exc:
         await start_workflow(
-            db_session, admin.company_id,
-            InstanceCreate(template_id=uuid.uuid4()), admin.id,
+            db_session,
+            admin.company_id,
+            InstanceCreate(template_id=uuid.uuid4()),
+            admin.id,
         )
     assert exc.value.status_code == 404
 
@@ -177,8 +176,11 @@ async def test_get_instance_cross_tenant_none(
     company = Company(id=admin.company_id, name="x", slug="x")
     _tpl, inst = await _start(db_session, company, admin)
     other = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db_session.add(other)
     await db_session.commit()

@@ -1,4 +1,5 @@
 """Tests unitaires — helpers purs des relevés propriétaires (M6)."""
+
 from decimal import Decimal
 
 import pytest

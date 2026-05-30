@@ -1,4 +1,5 @@
 """Router Workflow Engine — /api/v1/workflows."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -43,6 +44,7 @@ def _uid(request: Request) -> uuid.UUID:
 
 # ── Templates ─────────────────────────────────────────────────────────────
 
+
 @router.get("/templates", response_model=list[TemplateOut])
 async def list_tpls(
     active_only: bool = Query(True),
@@ -53,8 +55,7 @@ async def list_tpls(
     return [TemplateOut.model_validate(t) for t in await list_templates(db, cid, active_only)]
 
 
-@router.post("/templates", response_model=TemplateOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
 async def create_tpl(
     body: TemplateCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -65,6 +66,7 @@ async def create_tpl(
 
 
 # ── Instances ─────────────────────────────────────────────────────────────
+
 
 @router.get("/instances", response_model=InstanceListOut)
 async def list_inst(
@@ -88,8 +90,7 @@ async def list_inst(
     )
 
 
-@router.post("/instances", response_model=InstanceDetailOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/instances", response_model=InstanceDetailOut, status_code=status.HTTP_201_CREATED)
 async def create_inst(
     body: InstanceCreate,
     request: Request,
@@ -122,11 +123,13 @@ async def get_inst(
 
 # ── Actions sur step ──────────────────────────────────────────────────────
 
-@router.post("/instances/{instance_id}/steps/{step_id}/approve",
-             response_model=InstanceDetailOut)
+
+@router.post("/instances/{instance_id}/steps/{step_id}/approve", response_model=InstanceDetailOut)
 async def do_approve(
-    instance_id: uuid.UUID, step_id: uuid.UUID,
-    body: StepAction, request: Request,
+    instance_id: uuid.UUID,
+    step_id: uuid.UUID,
+    body: StepAction,
+    request: Request,
     db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> InstanceDetailOut:
@@ -138,11 +141,12 @@ async def do_approve(
     return InstanceDetailOut(data=out)
 
 
-@router.post("/instances/{instance_id}/steps/{step_id}/reject",
-             response_model=InstanceDetailOut)
+@router.post("/instances/{instance_id}/steps/{step_id}/reject", response_model=InstanceDetailOut)
 async def do_reject(
-    instance_id: uuid.UUID, step_id: uuid.UUID,
-    body: StepAction, request: Request,
+    instance_id: uuid.UUID,
+    step_id: uuid.UUID,
+    body: StepAction,
+    request: Request,
     db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> InstanceDetailOut:
@@ -154,11 +158,12 @@ async def do_reject(
     return InstanceDetailOut(data=out)
 
 
-@router.post("/instances/{instance_id}/steps/{step_id}/note",
-             response_model=InstanceDetailOut)
+@router.post("/instances/{instance_id}/steps/{step_id}/note", response_model=InstanceDetailOut)
 async def do_note(
-    instance_id: uuid.UUID, step_id: uuid.UUID,
-    body: StepAction, request: Request,
+    instance_id: uuid.UUID,
+    step_id: uuid.UUID,
+    body: StepAction,
+    request: Request,
     db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InstanceDetailOut:
@@ -171,6 +176,7 @@ async def do_note(
 
 
 # ── Events ────────────────────────────────────────────────────────────────
+
 
 @router.get("/instances/{instance_id}/events", response_model=list[EventOut])
 async def get_evts(

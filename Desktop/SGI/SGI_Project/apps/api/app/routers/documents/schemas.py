@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Documents & Signature."""
+
 import uuid
 from datetime import datetime
 from typing import Any, Literal
@@ -6,8 +7,16 @@ from typing import Any, Literal
 from pydantic import BaseModel, EmailStr, Field
 
 DocType = Literal[
-    "contract", "mandate", "id", "passport", "ejari", "dld",
-    "insurance", "invoice", "statement", "other",
+    "contract",
+    "mandate",
+    "id",
+    "passport",
+    "ejari",
+    "dld",
+    "insurance",
+    "invoice",
+    "statement",
+    "other",
 ]
 DocumentStatus = Literal["draft", "active", "signed", "archived"]
 SignerRole = Literal["owner", "tenant", "agent", "witness", "other"]

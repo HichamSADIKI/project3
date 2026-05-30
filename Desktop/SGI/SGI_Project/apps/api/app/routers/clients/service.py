@@ -1,4 +1,5 @@
 """Service — Clients. Toujours filtrer par company_id (Loi 1)."""
+
 import uuid
 from datetime import UTC, datetime
 

@@ -4,11 +4,16 @@ from typing import Literal
 from pydantic import BaseModel, HttpUrl, field_validator
 
 # Explicit allowlist — prevents SSRF probing of internal network
-_ALLOWED_HOSTS: frozenset[str] = frozenset({
-    "bayut.com", "www.bayut.com",
-    "propertyfinder.ae", "www.propertyfinder.ae",
-    "dubizzle.com", "uae.dubizzle.com",
-})
+_ALLOWED_HOSTS: frozenset[str] = frozenset(
+    {
+        "bayut.com",
+        "www.bayut.com",
+        "propertyfinder.ae",
+        "www.propertyfinder.ae",
+        "dubizzle.com",
+        "uae.dubizzle.com",
+    }
+)
 
 
 class ScrapeRequest(BaseModel):

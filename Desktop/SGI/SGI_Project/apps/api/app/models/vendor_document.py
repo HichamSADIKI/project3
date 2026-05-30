@@ -2,6 +2,7 @@
 
 Rattaché à `vendors.party_id`. Chemin MinIO + expiration + extraction OCR.
 """
+
 import uuid
 from datetime import date
 
@@ -15,9 +16,7 @@ from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin
 class VendorDocument(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     __tablename__ = "vendor_documents"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_party_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("vendors.party_id", ondelete="CASCADE"),

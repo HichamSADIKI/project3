@@ -2,6 +2,7 @@
 company_id (Loi 1). Aucune écriture : ce module ne fait que lire les tables
 métier (finance, locatif, maintenance, catalogue) pour produire des KPIs.
 """
+
 import uuid
 from decimal import Decimal
 
@@ -63,11 +64,15 @@ async def overview(db: AsyncSession, company_id: uuid.UUID) -> OverviewReport:
     clients_total = await _count(db, Client, company_id)
     active_rentals = await _count(db, Rental, company_id, Rental.status == "active")
     open_maintenance = await _count(
-        db, MaintenanceTicket, company_id,
+        db,
+        MaintenanceTicket,
+        company_id,
         MaintenanceTicket.status.notin_(_MAINTENANCE_CLOSED),
     )
     golden_visa_pending = await _count(
-        db, GoldenVisaApplication, company_id,
+        db,
+        GoldenVisaApplication,
+        company_id,
         GoldenVisaApplication.status.notin_(_GV_TERMINAL),
     )
 
@@ -149,7 +154,9 @@ async def rental_report(
     today = date.today()
     cutoff = today + timedelta(days=expiring_days)
     expiring_soon = await _count(
-        db, Rental, company_id,
+        db,
+        Rental,
+        company_id,
         Rental.status == "active",
         Rental.end_date >= today,
         Rental.end_date <= cutoff,

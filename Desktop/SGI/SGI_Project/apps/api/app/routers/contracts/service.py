@@ -4,6 +4,7 @@ Inclut le renouvellement (M5) et le câblage e-signature via le module
 documents (M2) : le contrat référence un `signing_document_id` ; quand toutes
 les signatures de ce document sont posées, le contrat passe `signed`.
 """
+
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -59,9 +60,7 @@ async def _next_contract_sequence(db: AsyncSession, year: int) -> int:
     """Calcule le prochain numéro de séquence pour les références de contrat."""
     prefix = f"CNT-{year}-"
     result = await db.execute(
-        select(func.count(Contract.id)).where(
-            Contract.reference.like(f"{prefix}%")
-        )
+        select(func.count(Contract.id)).where(Contract.reference.like(f"{prefix}%"))
     )
     count: int = result.scalar_one()
     return count + 1
@@ -94,9 +93,7 @@ async def list_contracts(
     total: int = total_result.scalar_one()
 
     offset = (page - 1) * limit
-    paginated_query = (
-        base_query.order_by(Contract.created_at.desc()).offset(offset).limit(limit)
-    )
+    paginated_query = base_query.order_by(Contract.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(paginated_query)
     contracts = list(result.scalars().all())
 
@@ -130,7 +127,9 @@ async def create_contract(
     seq = await _next_contract_sequence(db, year)
     reference = f"CNT-{year}-{seq:04d}"
 
-    commission_amount = Decimal(str(data.amount)) * Decimal(str(data.commission_rate)) / Decimal("100")
+    commission_amount = (
+        Decimal(str(data.amount)) * Decimal(str(data.commission_rate)) / Decimal("100")
+    )
 
     contract = Contract(
         company_id=company_id,
@@ -259,9 +258,7 @@ async def renew_contract(
     if not is_renewable(old.status):
         return "not_renewable"
 
-    new_start, new_end = compute_renewal_dates(
-        old.start_date, old.end_date, data.term_months
-    )
+    new_start, new_end = compute_renewal_dates(old.start_date, old.end_date, data.term_months)
     new_amount = apply_rent_escalation(
         Decimal(str(old.amount)), Decimal(str(data.rent_escalation_pct))
     )
@@ -269,9 +266,7 @@ async def renew_contract(
     now = datetime.now(UTC)
     seq = await _next_contract_sequence(db, now.year)
     reference = f"CNT-{now.year}-{seq:04d}"
-    commission_amount = (
-        new_amount * Decimal(str(old.commission_rate)) / Decimal("100")
-    )
+    commission_amount = new_amount * Decimal(str(old.commission_rate)) / Decimal("100")
 
     new_contract = Contract(
         company_id=company_id,

@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Clients (individus + sociétés)."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -20,9 +21,7 @@ class ClientCreate(BaseModel):
     phone2: str | None = Field(None, max_length=50)
     nationality: str | None = Field(None, max_length=100)
     country_of_residence: str | None = Field(None, max_length=100)
-    source: str | None = Field(
-        None, pattern="^(crm|portal|referral|walk_in|website|other)$"
-    )
+    source: str | None = Field(None, pattern="^(crm|portal|referral|walk_in|website|other)$")
     budget_min: Decimal | None = Field(None, ge=0)
     budget_max: Decimal | None = Field(None, ge=0)
     preferred_property_type: str | None = None

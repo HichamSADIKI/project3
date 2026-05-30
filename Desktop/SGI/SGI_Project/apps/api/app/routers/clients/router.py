@@ -1,4 +1,5 @@
 """Router FastAPI — Clients."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status

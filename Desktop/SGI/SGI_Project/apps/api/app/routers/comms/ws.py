@@ -17,6 +17,7 @@ Clés Valkey utilisées :
 
 Jamais de clé Valkey sans TTL pour les états éphémères (règle SGI).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -46,6 +47,7 @@ def _valkey_url() -> str:
 
 # ── Publication (appelée depuis service.send_message) ─────────────────────
 
+
 async def publish_event(
     company_id: uuid.UUID,
     conv_id: uuid.UUID,
@@ -61,6 +63,7 @@ async def publish_event(
 
 
 # ── Gestion des connexions locales ─────────────────────────────────────────
+
 
 def _register(channel: str, ws: WebSocket) -> None:
     _connections.setdefault(channel, set()).add(ws)
@@ -122,6 +125,7 @@ def _ensure_subscriber(channel: str) -> None:
 
 # ── Présence & typing ─────────────────────────────────────────────────────
 
+
 async def _set_presence(user_id: str, r: aioredis.Redis) -> None:
     await r.setex(f"presence:{user_id}", 30, "1")
 
@@ -131,6 +135,7 @@ async def _set_typing(conv_id: str, user_id: str, r: aioredis.Redis) -> None:
 
 
 # ── Handler principal WebSocket ───────────────────────────────────────────
+
 
 async def ws_handler(
     websocket: WebSocket,

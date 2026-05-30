@@ -3,6 +3,7 @@
 ⚠️ Tests d'intégration : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/reporting/test_reporting.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -42,9 +43,13 @@ async def _make_finance(
 ) -> None:
     db.add(
         FinanceTransaction(
-            id=uuid.uuid4(), company_id=company.id,
-            reference=f"TXN-{uuid.uuid4().hex[:10]}", type=type_,
-            direction=direction, amount=Decimal(amount), status=status,
+            id=uuid.uuid4(),
+            company_id=company.id,
+            reference=f"TXN-{uuid.uuid4().hex[:10]}",
+            type=type_,
+            direction=direction,
+            amount=Decimal(amount),
+            status=status,
         )
     )
     await db.commit()
@@ -53,8 +58,10 @@ async def _make_finance(
 async def _make_property(db, company: Company) -> None:
     db.add(
         Property(
-            id=uuid.uuid4(), company_id=company.id,
-            reference=f"PROP-{uuid.uuid4().hex[:10]}", type="apartment",
+            id=uuid.uuid4(),
+            company_id=company.id,
+            reference=f"PROP-{uuid.uuid4().hex[:10]}",
+            type="apartment",
             price=Decimal("1000000"),
         )
     )
@@ -63,8 +70,11 @@ async def _make_property(db, company: Company) -> None:
 
 async def _make_client(db, company: Company) -> Client:
     c = Client(
-        id=uuid.uuid4(), company_id=company.id, type="individual",
-        first_name="A", last_name="B",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        type="individual",
+        first_name="A",
+        last_name="B",
     )
     db.add(c)
     await db.commit()
@@ -80,29 +90,40 @@ async def _make_gv(db, company: Company, client_id: uuid.UUID, status: str) -> N
     await db.commit()
 
 
-async def _make_rental(
-    db, company: Company, status: str, monthly: str, end_date: date
-) -> None:
+async def _make_rental(db, company: Company, status: str, monthly: str, end_date: date) -> None:
     client = await _make_client(db, company)
     prop = Property(
-        id=uuid.uuid4(), company_id=company.id,
-        reference=f"P-{uuid.uuid4().hex[:10]}", type="apartment", price=Decimal("900000"),
+        id=uuid.uuid4(),
+        company_id=company.id,
+        reference=f"P-{uuid.uuid4().hex[:10]}",
+        type="apartment",
+        price=Decimal("900000"),
     )
     db.add(prop)
     await db.commit()
     contract = Contract(
-        id=uuid.uuid4(), company_id=company.id,
-        reference=f"CTR-{uuid.uuid4().hex[:10]}", type="rental",
-        client_id=client.id, property_id=prop.id, amount=Decimal("60000"),
+        id=uuid.uuid4(),
+        company_id=company.id,
+        reference=f"CTR-{uuid.uuid4().hex[:10]}",
+        type="rental",
+        client_id=client.id,
+        property_id=prop.id,
+        amount=Decimal("60000"),
     )
     db.add(contract)
     await db.commit()
     db.add(
         Rental(
-            id=uuid.uuid4(), company_id=company.id, contract_id=contract.id,
-            client_id=client.id, property_id=prop.id,
-            monthly_rent=Decimal(monthly), annual_rent=Decimal(monthly) * 12,
-            status=status, start_date=date(2026, 1, 1), end_date=end_date,
+            id=uuid.uuid4(),
+            company_id=company.id,
+            contract_id=contract.id,
+            client_id=client.id,
+            property_id=prop.id,
+            monthly_rent=Decimal(monthly),
+            annual_rent=Decimal(monthly) * 12,
+            status=status,
+            start_date=date(2026, 1, 1),
+            end_date=end_date,
         )
     )
     await db.commit()
@@ -113,17 +134,24 @@ async def _make_ticket(
 ) -> None:
     # ck_maintenance_tickets_location : unit_id OU building_id requis.
     building = Building(
-        id=uuid.uuid4(), company_id=company.id,
-        reference=f"BLD-{uuid.uuid4().hex[:10]}", building_type="residential_tower",
+        id=uuid.uuid4(),
+        company_id=company.id,
+        reference=f"BLD-{uuid.uuid4().hex[:10]}",
+        building_type="residential_tower",
     )
     db.add(building)
     await db.commit()
     db.add(
         MaintenanceTicket(
-            id=uuid.uuid4(), company_id=company.id,
+            id=uuid.uuid4(),
+            company_id=company.id,
             reference=f"MNT-{uuid.uuid4().hex[:8]}",
-            reported_by_user_id=user_id, building_id=building.id, category="plumbing",
-            status=status, priority=priority, title="Fuite",
+            reported_by_user_id=user_id,
+            building_id=building.id,
+            category="plumbing",
+            status=status,
+            priority=priority,
+            title="Fuite",
         )
     )
     await db.commit()
@@ -163,9 +191,7 @@ async def test_overview_counts_and_net(
 # ── financial ────────────────────────────────────────────────────────────────
 
 
-async def test_financial_report(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_financial_report(db_session: AsyncSession, seed_company: Company) -> None:
     await _make_finance(db_session, seed_company, "credit", "paid", "10000", "payment")
     await _make_finance(db_session, seed_company, "debit", "paid", "2500", "expense")
     await _make_finance(db_session, seed_company, "credit", "pending", "4000", "invoice")
@@ -183,9 +209,7 @@ async def test_financial_report(
 # ── rentals ──────────────────────────────────────────────────────────────────
 
 
-async def test_rental_report(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_rental_report(db_session: AsyncSession, seed_company: Company) -> None:
     soon = date.today() + timedelta(days=30)
     far = date.today() + timedelta(days=400)
     await _make_rental(db_session, seed_company, "active", "5000", soon)
@@ -203,9 +227,7 @@ async def test_rental_report(
 # ── maintenance ──────────────────────────────────────────────────────────────
 
 
-async def test_maintenance_report(
-    db_session: AsyncSession, seed_admin: tuple[User, str]
-) -> None:
+async def test_maintenance_report(db_session: AsyncSession, seed_admin: tuple[User, str]) -> None:
     admin, _ = seed_admin
     company = Company(id=admin.company_id, name="x", slug="x")
     company.id = admin.company_id
@@ -229,8 +251,11 @@ async def test_overview_isolated_per_tenant(
     db_session: AsyncSession, seed_company: Company
 ) -> None:
     other = Company(
-        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}",
-        plan="pro", is_active=True,
+        id=uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
     )
     db_session.add(other)
     await db_session.commit()
@@ -252,17 +277,26 @@ async def test_overview_endpoint_forbidden_for_client_role(
     client: AsyncClient, seed_company: Company, db_session: AsyncSession
 ) -> None:
     user = User(
-        id=uuid.uuid4(), company_id=seed_company.id,
+        id=uuid.uuid4(),
+        company_id=seed_company.id,
         email=f"cli-{uuid.uuid4().hex[:8]}@sgi.test",
-        hashed_password=hash_password("Passw0rd!23"), full_name="Cli",
-        role=UserRole.CLIENT.value, status=UserStatus.ACTIVE.value, is_active=True,
+        hashed_password=hash_password("Passw0rd!23"),
+        full_name="Cli",
+        role=UserRole.CLIENT.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
     )
     db_session.add(user)
     await db_session.commit()
-    token = encode_jwt({
-        "sub": str(user.id), "company_id": str(user.company_id),
-        "role": user.role, "status": user.status, "email": user.email,
-    })
+    token = encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+        }
+    )
     resp = await client.get(
         "/api/v1/reporting/overview", headers={"Authorization": f"Bearer {token}"}
     )

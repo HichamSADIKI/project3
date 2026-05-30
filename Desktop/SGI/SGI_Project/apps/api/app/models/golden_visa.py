@@ -19,9 +19,7 @@ class GoldenVisaApplication(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "golden_visa_applications"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Parties
     client_id: Mapped[uuid.UUID] = mapped_column(

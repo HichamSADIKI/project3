@@ -1,4 +1,5 @@
 """Service Inspections — CRUD + machine à états + helpers purs."""
+
 import uuid
 from datetime import UTC, datetime
 
@@ -24,12 +25,12 @@ from .schemas import (
 # ── Machine à états ───────────────────────────────────────────────────────
 
 VALID_TRANSITIONS: dict[str, list[str]] = {
-    "draft":       ["scheduled", "in_progress", "cancelled"],
-    "scheduled":   ["in_progress", "cancelled"],
+    "draft": ["scheduled", "in_progress", "cancelled"],
+    "scheduled": ["in_progress", "cancelled"],
     "in_progress": ["completed", "cancelled"],
-    "completed":   ["signed", "in_progress"],  # réouverture possible
-    "signed":      [],                          # terminal
-    "cancelled":   [],                          # terminal
+    "completed": ["signed", "in_progress"],  # réouverture possible
+    "signed": [],  # terminal
+    "cancelled": [],  # terminal
 }
 
 
@@ -39,22 +40,26 @@ def is_valid_transition(current: str, target: str) -> bool:
 
 # ── Référence lisible ─────────────────────────────────────────────────────
 
+
 def generate_reference(year: int, sequence: int) -> str:
     return f"INS-{year}-{sequence:06d}"
 
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     year = datetime.now(UTC).year
-    count = (await db.execute(
-        select(func.count(Inspection.id)).where(
-            Inspection.company_id == company_id,
-            func.extract("year", Inspection.created_at) == year,
+    count = (
+        await db.execute(
+            select(func.count(Inspection.id)).where(
+                Inspection.company_id == company_id,
+                func.extract("year", Inspection.created_at) == year,
+            )
         )
-    )).scalar_one() or 0
+    ).scalar_one() or 0
     return generate_reference(year, count + 1)
 
 
 # ── Score global ─────────────────────────────────────────────────────────
+
 
 def compute_overall_score(scores: list[int]) -> float | None:
     valid = [s for s in scores if s is not None]
@@ -64,6 +69,7 @@ def compute_overall_score(scores: list[int]) -> float | None:
 
 
 # ── CRUD Inspections ──────────────────────────────────────────────────────
+
 
 async def list_inspections(
     db: AsyncSession,
@@ -85,14 +91,16 @@ async def list_inspections(
     if status:
         filters.append(Inspection.status == status)
 
-    total = (await db.execute(
-        select(func.count()).select_from(Inspection).where(and_(*filters))
-    )).scalar_one()
+    total = (
+        await db.execute(select(func.count()).select_from(Inspection).where(and_(*filters)))
+    ).scalar_one()
 
     result = await db.execute(
-        select(Inspection).where(and_(*filters))
+        select(Inspection)
+        .where(and_(*filters))
         .order_by(Inspection.created_at.desc())
-        .offset((page - 1) * limit).limit(limit)
+        .offset((page - 1) * limit)
+        .limit(limit)
     )
     return list(result.scalars().all()), total
 
@@ -164,7 +172,7 @@ async def transition_inspection(
         raise HTTPException(
             status_code=422,
             detail=f"invalid_transition: '{insp.status}'→'{target}' "
-                   f"(autorisées: {VALID_TRANSITIONS.get(insp.status, [])})",
+            f"(autorisées: {VALID_TRANSITIONS.get(insp.status, [])})",
         )
     now = datetime.now(UTC)
     insp.status = target
@@ -209,14 +217,17 @@ async def soft_delete_inspection(
 
 # ── Sections ──────────────────────────────────────────────────────────────
 
+
 async def list_sections(
     db: AsyncSession, company_id: uuid.UUID, inspection_id: uuid.UUID
 ) -> list[InspectionSection]:
     result = await db.execute(
-        select(InspectionSection).where(
+        select(InspectionSection)
+        .where(
             InspectionSection.inspection_id == inspection_id,
             InspectionSection.company_id == company_id,
-        ).order_by(InspectionSection.section_order)
+        )
+        .order_by(InspectionSection.section_order)
     )
     return list(result.scalars().all())
 
@@ -242,14 +253,17 @@ async def create_section(
 
 # ── Items ─────────────────────────────────────────────────────────────────
 
+
 async def list_items(
     db: AsyncSession, company_id: uuid.UUID, section_id: uuid.UUID
 ) -> list[InspectionItem]:
     result = await db.execute(
-        select(InspectionItem).where(
+        select(InspectionItem)
+        .where(
             InspectionItem.section_id == section_id,
             InspectionItem.company_id == company_id,
-        ).order_by(InspectionItem.item_order)
+        )
+        .order_by(InspectionItem.item_order)
     )
     return list(result.scalars().all())
 
@@ -299,6 +313,7 @@ async def update_item(
 
 # ── Photos ────────────────────────────────────────────────────────────────
 
+
 async def add_photo(
     db: AsyncSession,
     company_id: uuid.UUID,
@@ -323,9 +338,11 @@ async def list_photos(
     db: AsyncSession, company_id: uuid.UUID, item_id: uuid.UUID
 ) -> list[InspectionPhoto]:
     result = await db.execute(
-        select(InspectionPhoto).where(
+        select(InspectionPhoto)
+        .where(
             InspectionPhoto.item_id == item_id,
             InspectionPhoto.company_id == company_id,
-        ).order_by(InspectionPhoto.uploaded_at)
+        )
+        .order_by(InspectionPhoto.uploaded_at)
     )
     return list(result.scalars().all())

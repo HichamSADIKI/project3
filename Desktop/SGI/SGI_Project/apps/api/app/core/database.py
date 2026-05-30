@@ -13,9 +13,7 @@ async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
 # Engine APPLICATIF RESTREINT (sgi_app) — requêtes API. La RLS s'applique
 # réellement (rôle non-superuser, non-propriétaire). Retombe sur l'engine
 # privilégié si APP_DB_PASSWORD n'est pas configuré (comportement historique).
-app_engine = create_async_engine(
-    settings.APP_DATABASE_URL, echo=settings.DEBUG, pool_pre_ping=True
-)
+app_engine = create_async_engine(settings.APP_DATABASE_URL, echo=settings.DEBUG, pool_pre_ping=True)
 app_session_maker = async_sessionmaker(app_engine, expire_on_commit=False)
 
 
@@ -41,6 +39,7 @@ def sync_session_maker() -> Generator[AsyncSession]:
 
     class _SyncProxy:
         """Proxy qui exécute chaque méthode async via le loop dédié."""
+
         def __init__(self):
             self._session = None
             self._engine = None
@@ -51,9 +50,7 @@ def sync_session_maker() -> Generator[AsyncSession]:
 
         def __enter__(self):
             # Engine éphémère NullPool — connexions liées à CE loop uniquement.
-            self._engine = create_async_engine(
-                settings.DATABASE_URL, poolclass=NullPool
-            )
+            self._engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
             self._session = AsyncSession(self._engine, expire_on_commit=False)
             self._run(self._session.__aenter__())
             return self

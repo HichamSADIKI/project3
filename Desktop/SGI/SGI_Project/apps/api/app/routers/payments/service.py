@@ -1,4 +1,5 @@
 """Service Paiements — CRUD demandes + transactions + résumés. Filtre company_id."""
+
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -13,6 +14,7 @@ from .schemas import PayIn, RequestCreate
 
 # ── Helpers purs ──────────────────────────────────────────────────────────
 
+
 def generate_reference(year: int, sequence: int) -> str:
     return f"PAY-{year}-{sequence:06d}"
 
@@ -24,16 +26,19 @@ def is_overdue(due: date, status: str, today: date) -> bool:
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     year = datetime.now(UTC).year
-    count = (await db.execute(
-        select(func.count(PaymentRequest.id)).where(
-            PaymentRequest.company_id == company_id,
-            func.extract("year", PaymentRequest.created_at) == year,
+    count = (
+        await db.execute(
+            select(func.count(PaymentRequest.id)).where(
+                PaymentRequest.company_id == company_id,
+                func.extract("year", PaymentRequest.created_at) == year,
+            )
         )
-    )).scalar_one() or 0
+    ).scalar_one() or 0
     return generate_reference(year, count + 1)
 
 
 # ── Demandes ──────────────────────────────────────────────────────────────
+
 
 async def create_request(
     db: AsyncSession, company_id: uuid.UUID, data: RequestCreate
@@ -97,14 +102,16 @@ async def list_requests(
     if owner_client_id:
         filters.append(PaymentRequest.owner_client_id == owner_client_id)
 
-    total = (await db.execute(
-        select(func.count()).select_from(PaymentRequest).where(and_(*filters))
-    )).scalar_one()
+    total = (
+        await db.execute(select(func.count()).select_from(PaymentRequest).where(and_(*filters)))
+    ).scalar_one()
 
     result = await db.execute(
-        select(PaymentRequest).where(and_(*filters))
+        select(PaymentRequest)
+        .where(and_(*filters))
         .order_by(PaymentRequest.due_date.desc())
-        .offset((page - 1) * limit).limit(limit)
+        .offset((page - 1) * limit)
+        .limit(limit)
     )
     return list(result.scalars().all()), total
 
@@ -140,17 +147,20 @@ async def pay_request(
 
 # ── Résumés ───────────────────────────────────────────────────────────────
 
+
 async def owner_summary(
     db: AsyncSession, company_id: uuid.UUID, owner_client_id: uuid.UUID
 ) -> dict:
     """Agrégats financiers d'un propriétaire (montants reçus / en attente / retard)."""
-    rows = (await db.execute(
-        select(PaymentRequest.status, PaymentRequest.amount_aed).where(
-            PaymentRequest.company_id == company_id,
-            PaymentRequest.owner_client_id == owner_client_id,
-            PaymentRequest.deleted_at.is_(None),
+    rows = (
+        await db.execute(
+            select(PaymentRequest.status, PaymentRequest.amount_aed).where(
+                PaymentRequest.company_id == company_id,
+                PaymentRequest.owner_client_id == owner_client_id,
+                PaymentRequest.deleted_at.is_(None),
+            )
         )
-    )).all()
+    ).all()
 
     received = Decimal("0")
     pending = Decimal("0")

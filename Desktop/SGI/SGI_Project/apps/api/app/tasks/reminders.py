@@ -8,6 +8,7 @@ Trois tâches référencées par celery_app.beat_schedule :
 Stubs minimaux : aucune logique métier ici. À implémenter en branchant
 les services CRM / Golden Visa / Rentals existants.
 """
+
 from __future__ import annotations
 
 import logging
@@ -59,15 +60,19 @@ def check_rental_renewals() -> dict:
     alerted = 0
     try:
         with sync_session_maker() as db:
-            rentals = db.execute(
-                select(Rental).where(
-                    Rental.deleted_at.is_(None),
-                    Rental.status == "active",
-                    Rental.renewal_alert_sent.is_(False),
-                    Rental.end_date <= horizon,
-                    Rental.end_date >= today,
+            rentals = (
+                db.execute(
+                    select(Rental).where(
+                        Rental.deleted_at.is_(None),
+                        Rental.status == "active",
+                        Rental.renewal_alert_sent.is_(False),
+                        Rental.end_date <= horizon,
+                        Rental.end_date >= today,
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             for rental in rentals:
                 rental.renewal_alert_sent = True
@@ -95,12 +100,16 @@ def check_pdc_due() -> dict:
     created = 0
     try:
         with sync_session_maker() as db:
-            cheques = db.execute(
-                select(PdcCheque).where(
-                    PdcCheque.deleted_at.is_(None),
-                    PdcCheque.status.in_(["pending", "deposited"]),
+            cheques = (
+                db.execute(
+                    select(PdcCheque).where(
+                        PdcCheque.deleted_at.is_(None),
+                        PdcCheque.status.in_(["pending", "deposited"]),
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
 
             for pdc in cheques:
                 level = pdc_reminder_level(today, pdc.due_date, pdc.status, PDC_DUE_SOON_DAYS)

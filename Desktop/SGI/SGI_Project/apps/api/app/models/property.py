@@ -26,9 +26,7 @@ class Property(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "properties"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence interne — unique PAR société (multi-tenant), pas globalement.
     reference: Mapped[str] = mapped_column(String(50), nullable=False)

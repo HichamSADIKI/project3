@@ -1,4 +1,5 @@
 """Tests unitaires — helpers métier purs du module tenants."""
+
 from datetime import date
 
 import pytest
@@ -18,29 +19,35 @@ from app.routers.tenants.service import (
 
 
 class TestLifecycleTransitions:
-    @pytest.mark.parametrize("current,target", [
-        ("candidate", "active"),
-        ("candidate", "former"),
-        ("candidate", "blacklisted"),
-        ("active", "former"),
-        ("active", "blacklisted"),
-        ("former", "active"),
-        ("former", "blacklisted"),
-    ])
+    @pytest.mark.parametrize(
+        "current,target",
+        [
+            ("candidate", "active"),
+            ("candidate", "former"),
+            ("candidate", "blacklisted"),
+            ("active", "former"),
+            ("active", "blacklisted"),
+            ("former", "active"),
+            ("former", "blacklisted"),
+        ],
+    )
     def test_valid_transitions(self, current: str, target: str) -> None:
         assert is_valid_transition(current, target) is True
 
-    @pytest.mark.parametrize("current,target", [
-        ("candidate", "candidate"),
-        ("active", "candidate"),
-        ("active", "active"),
-        ("former", "candidate"),
-        ("former", "former"),
-        ("blacklisted", "active"),
-        ("blacklisted", "former"),
-        ("blacklisted", "candidate"),
-        ("blacklisted", "blacklisted"),
-    ])
+    @pytest.mark.parametrize(
+        "current,target",
+        [
+            ("candidate", "candidate"),
+            ("active", "candidate"),
+            ("active", "active"),
+            ("former", "candidate"),
+            ("former", "former"),
+            ("blacklisted", "active"),
+            ("blacklisted", "former"),
+            ("blacklisted", "candidate"),
+            ("blacklisted", "blacklisted"),
+        ],
+    )
     def test_invalid_transitions(self, current: str, target: str) -> None:
         assert is_valid_transition(current, target) is False
 

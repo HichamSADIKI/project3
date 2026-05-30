@@ -1,4 +1,5 @@
 """Service — Rentals. Toujours filtrer par company_id (Loi 1)."""
+
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -17,6 +18,7 @@ def _add_months(d: date, months: int) -> date:
     month = month % 12 + 1
     # Clamp le jour si nécessaire (ex: 31 janvier + 1 mois → 28/29 février)
     import calendar
+
     last_day = calendar.monthrange(year, month)[1]
     day = min(d.day, last_day)
     return date(year, month, day)
@@ -87,9 +89,7 @@ async def list_rentals(
     total: int = total_result.scalar_one()
 
     offset = (page - 1) * limit
-    paginated_query = (
-        base_query.order_by(Rental.end_date.asc()).offset(offset).limit(limit)
-    )
+    paginated_query = base_query.order_by(Rental.end_date.asc()).offset(offset).limit(limit)
     result = await db.execute(paginated_query)
     rentals = list(result.scalars().all())
 
@@ -186,12 +186,14 @@ async def get_expiring_rentals(
     today = date.today()
     cutoff = today + timedelta(days=days)
     result = await db.execute(
-        select(Rental).where(
+        select(Rental)
+        .where(
             Rental.company_id == company_id,
             Rental.deleted_at.is_(None),
             Rental.status == "active",
             Rental.end_date >= today,
             Rental.end_date <= cutoff,
-        ).order_by(Rental.end_date.asc())
+        )
+        .order_by(Rental.end_date.asc())
     )
     return list(result.scalars().all())

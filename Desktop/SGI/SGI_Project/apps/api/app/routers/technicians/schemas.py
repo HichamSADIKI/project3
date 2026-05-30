@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Technicians (techniciens internes salariés)."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal

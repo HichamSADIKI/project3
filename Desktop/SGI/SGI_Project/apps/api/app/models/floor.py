@@ -4,6 +4,7 @@ Floor — niveau intermédiaire optionnel entre Building et Unit.
 Présent pour les tours résidentielles (1 ligne par étage). Absent pour les
 compounds de villas (les Units sont directement enfants du Building).
 """
+
 import uuid
 
 from sqlalchemy import ForeignKey, Index, Integer, String, UniqueConstraint
@@ -18,9 +19,7 @@ class Floor(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "floors"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     building_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

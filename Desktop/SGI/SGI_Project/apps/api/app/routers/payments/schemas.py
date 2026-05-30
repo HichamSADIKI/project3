@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — module Paiements (Phase 8)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -6,11 +7,12 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-TYPE_PATTERN   = "^(rent|charges|deposit|deposit_return|owner_payout|other)$"
+TYPE_PATTERN = "^(rent|charges|deposit|deposit_return|owner_payout|other)$"
 METHOD_PATTERN = "^(bank_transfer|card|cash|cheque|online)$"
 
 
 # ── Demandes de paiement ──────────────────────────────────────────────────
+
 
 class RequestCreate(BaseModel):
     payment_type: str = Field(..., pattern=TYPE_PATTERN)
@@ -67,6 +69,7 @@ class TransactionOut(BaseModel):
 
 class OwnerSummaryOut(BaseModel):
     """Résumé financier du propriétaire connecté."""
+
     total_received_aed: Decimal
     pending_aed: Decimal
     overdue_aed: Decimal

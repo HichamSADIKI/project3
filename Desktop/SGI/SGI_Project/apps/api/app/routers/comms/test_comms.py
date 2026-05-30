@@ -7,6 +7,7 @@ marquage lu, isolation multi-tenant.
 ⚠️ Tests d'intégration (parties DB) : requièrent PostgreSQL via `DATABASE_URL`.
 Lancer avec : `docker compose exec api uv run pytest app/routers/comms/test_comms.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -66,10 +67,14 @@ def test_invalid_message_kind() -> None:
 
 async def _make_user(db: AsyncSession, company: Company) -> User:
     u = User(
-        id=uuid.uuid4(), company_id=company.id,
+        id=uuid.uuid4(),
+        company_id=company.id,
         email=f"u-{uuid.uuid4().hex[:8]}@sgi.test",
-        hashed_password=hash_password("Passw0rd!23"), full_name="U",
-        role=UserRole.AGENT.value, status=UserStatus.ACTIVE.value, is_active=True,
+        hashed_password=hash_password("Passw0rd!23"),
+        full_name="U",
+        role=UserRole.AGENT.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
     )
     db.add(u)
     await db.commit()
@@ -82,7 +87,8 @@ async def _conv(db, company, creator, members):
     if not members:
         members = [await _make_user(db, company)]
     return await create_conversation(
-        db, company.id,
+        db,
+        company.id,
         ConversationCreate(type="group", subject="Test", participant_ids=[m.id for m in members]),
         creator.id,
     )
@@ -191,7 +197,10 @@ async def test_send_message_updates_last_message_at(
     conv = await _conv(db_session, seed_company, creator, [member])
 
     msg = await send_message(
-        db_session, seed_company.id, conv.id, creator.id,
+        db_session,
+        seed_company.id,
+        conv.id,
+        creator.id,
         MessageCreate(body="Bonjour", mentioned_user_ids=[member.id]),
     )
     assert msg.body == "Bonjour"
@@ -211,7 +220,10 @@ async def test_send_message_text_requires_body(
     conv = await _conv(db_session, seed_company, creator, [])
     with pytest.raises(HTTPException) as exc:
         await send_message(
-            db_session, seed_company.id, conv.id, creator.id,
+            db_session,
+            seed_company.id,
+            conv.id,
+            creator.id,
             MessageCreate(body=None, kind="text"),
         )
     assert exc.value.status_code == 422
@@ -226,7 +238,10 @@ async def test_send_message_non_participant_403(
     outsider = await _make_user(db_session, seed_company)
     with pytest.raises(HTTPException) as exc:
         await send_message(
-            db_session, seed_company.id, conv.id, outsider.id,
+            db_session,
+            seed_company.id,
+            conv.id,
+            outsider.id,
             MessageCreate(body="intrusion"),
         )
     assert exc.value.status_code == 403

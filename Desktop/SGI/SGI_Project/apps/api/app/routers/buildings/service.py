@@ -1,4 +1,5 @@
 """Service — Buildings + Floors + occupancy."""
+
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -66,9 +67,7 @@ async def list_buildings(
     if status:
         base = base.where(Building.status == status)
 
-    total: int = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
     offset = (page - 1) * limit
     paginated = base.order_by(Building.created_at.desc()).offset(offset).limit(limit)
@@ -145,9 +144,7 @@ async def update_building(
     return building
 
 
-async def delete_building(
-    db: AsyncSession, company_id: uuid.UUID, building_id: uuid.UUID
-) -> bool:
+async def delete_building(db: AsyncSession, company_id: uuid.UUID, building_id: uuid.UUID) -> bool:
     building = await get_building(db, company_id, building_id)
     if building is None:
         return False
@@ -173,9 +170,7 @@ async def list_floors(
     return list(result.scalars().all())
 
 
-async def create_floor(
-    db: AsyncSession, company_id: uuid.UUID, data: FloorCreate
-) -> Floor | None:
+async def create_floor(db: AsyncSession, company_id: uuid.UUID, data: FloorCreate) -> Floor | None:
     # Building must exist in same tenant
     building = await get_building(db, company_id, data.building_id)
     if building is None:

@@ -3,6 +3,7 @@
 Helpers métier purs (sans DB) en tête ; génération/persistance ensuite.
 Toujours filtrer par company_id (Loi 1).
 """
+
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
@@ -33,16 +34,12 @@ def statement_period_label(year: int, month: int) -> str:
 
 def compute_commission(gross: Decimal, rate_pct: Decimal) -> Decimal:
     """Commission de gestion = revenu brut × taux%, arrondie à 2 décimales."""
-    return (gross * rate_pct / Decimal("100")).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP
-    )
+    return (gross * rate_pct / Decimal("100")).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def net_payout(gross: Decimal, expenses: Decimal, commission: Decimal) -> Decimal:
     """Payout net dû au propriétaire = brut − dépenses − commission."""
-    return (gross - expenses - commission).quantize(
-        Decimal("0.01"), rounding=ROUND_HALF_UP
-    )
+    return (gross - expenses - commission).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _period_bounds(year: int, month: int) -> tuple[date, date]:
@@ -199,9 +196,7 @@ async def get_statement(
     return result.scalar_one_or_none()
 
 
-async def mark_sent(
-    db: AsyncSession, statement: OwnerStatement
-) -> OwnerStatement:
+async def mark_sent(db: AsyncSession, statement: OwnerStatement) -> OwnerStatement:
     statement.status = "sent"
     statement.sent_at = datetime.now(UTC)
     await db.commit()
@@ -212,8 +207,6 @@ async def mark_sent(
 async def count_statements(db: AsyncSession, company_id: uuid.UUID) -> int:
     return (
         await db.execute(
-            select(func.count(OwnerStatement.id)).where(
-                OwnerStatement.company_id == company_id
-            )
+            select(func.count(OwnerStatement.id)).where(OwnerStatement.company_id == company_id)
         )
     ).scalar_one()

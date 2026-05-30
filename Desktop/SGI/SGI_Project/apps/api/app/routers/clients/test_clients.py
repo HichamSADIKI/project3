@@ -8,6 +8,7 @@ Deux niveaux :
 ⚠️ Tests d'intégration : requièrent PostgreSQL via `DATABASE_URL` du conteneur.
 Lancer avec : `docker compose exec api uv run pytest app/routers/clients/test_clients.py`.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -51,9 +52,7 @@ async def _make_company(db: AsyncSession) -> Company:
     return company
 
 
-async def _make_user(
-    db: AsyncSession, company: Company, role: str
-) -> tuple[User, str]:
+async def _make_user(db: AsyncSession, company: Company, role: str) -> tuple[User, str]:
     """Crée un utilisateur actif d'un rôle donné + son JWT."""
     user = User(
         id=uuid.uuid4(),
@@ -112,9 +111,7 @@ async def test_create_individual_persists_fields(
     assert client.created_at is not None
 
 
-async def test_create_company_client(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_create_company_client(db_session: AsyncSession, seed_company: Company) -> None:
     client = await create_client(db_session, seed_company.id, _company_client())
     assert client.type == "company"
     assert client.company_name == "Falcon FZE"
@@ -132,9 +129,7 @@ async def test_get_returns_client_of_tenant(
     assert fetched.id == created.id
 
 
-async def test_get_unknown_id_returns_none(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_get_unknown_id_returns_none(db_session: AsyncSession, seed_company: Company) -> None:
     assert await get_client(db_session, seed_company.id, uuid.uuid4()) is None
 
 
@@ -163,15 +158,11 @@ async def test_list_returns_only_tenant_clients(
     assert {c.first_name for c in clients} == {"A", "B"}
 
 
-async def test_list_filter_by_type(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_list_filter_by_type(db_session: AsyncSession, seed_company: Company) -> None:
     await create_client(db_session, seed_company.id, _individual())
     await create_client(db_session, seed_company.id, _company_client())
 
-    only_companies, total = await list_clients(
-        db_session, seed_company.id, type_="company"
-    )
+    only_companies, total = await list_clients(db_session, seed_company.id, type_="company")
     assert total == 1
     assert only_companies[0].type == "company"
 
@@ -179,9 +170,7 @@ async def test_list_filter_by_type(
 async def test_list_search_matches_name_and_email(
     db_session: AsyncSession, seed_company: Company
 ) -> None:
-    await create_client(
-        db_session, seed_company.id, _individual(first_name="Mohammed")
-    )
+    await create_client(db_session, seed_company.id, _individual(first_name="Mohammed"))
     await create_client(
         db_session, seed_company.id, _individual(first_name="Yusuf", email="yusuf@x.io")
     )
@@ -193,9 +182,7 @@ async def test_list_search_matches_name_and_email(
     assert n2 == 1 and by_email[0].email == "yusuf@x.io"
 
 
-async def test_list_pagination(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_list_pagination(db_session: AsyncSession, seed_company: Company) -> None:
     for i in range(5):
         await create_client(db_session, seed_company.id, _individual(first_name=f"N{i}"))
 
@@ -206,9 +193,7 @@ async def test_list_pagination(
     assert len(page3) == 1  # 5 = 2 + 2 + 1
 
 
-async def test_list_excludes_soft_deleted(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_list_excludes_soft_deleted(db_session: AsyncSession, seed_company: Company) -> None:
     keep = await create_client(db_session, seed_company.id, _individual(first_name="Keep"))
     gone = await create_client(db_session, seed_company.id, _individual(first_name="Gone"))
     await delete_client(db_session, seed_company.id, gone.id)
@@ -235,13 +220,9 @@ async def test_update_partial_only_sets_provided_fields(
     assert updated.first_name == "Old"  # non fourni → inchangé
 
 
-async def test_update_unknown_returns_none(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_update_unknown_returns_none(db_session: AsyncSession, seed_company: Company) -> None:
     assert (
-        await update_client(
-            db_session, seed_company.id, uuid.uuid4(), ClientUpdate(phone="x")
-        )
+        await update_client(db_session, seed_company.id, uuid.uuid4(), ClientUpdate(phone="x"))
         is None
     )
 
@@ -252,12 +233,7 @@ async def test_update_cross_tenant_returns_none(
     other = await _make_company(db_session)
     created = await create_client(db_session, seed_company.id, _individual())
     # La société B ne peut pas modifier le client de A.
-    assert (
-        await update_client(
-            db_session, other.id, created.id, ClientUpdate(phone="999")
-        )
-        is None
-    )
+    assert await update_client(db_session, other.id, created.id, ClientUpdate(phone="999")) is None
     # Et le client de A est intact.
     refetched = await get_client(db_session, seed_company.id, created.id)
     assert refetched is not None and refetched.phone != "999"
@@ -266,9 +242,7 @@ async def test_update_cross_tenant_returns_none(
 # ── Service : delete (soft-delete, jamais physique) ──────────────────────────
 
 
-async def test_delete_is_soft(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_delete_is_soft(db_session: AsyncSession, seed_company: Company) -> None:
     created = await create_client(db_session, seed_company.id, _individual())
     ok = await delete_client(db_session, seed_company.id, created.id)
     assert ok is True
@@ -276,9 +250,7 @@ async def test_delete_is_soft(
     # Invisible via l'accès tenant…
     assert await get_client(db_session, seed_company.id, created.id) is None
     # …mais toujours physiquement présent avec deleted_at posé.
-    row = (
-        await db_session.execute(select(Client).where(Client.id == created.id))
-    ).scalar_one()
+    row = (await db_session.execute(select(Client).where(Client.id == created.id))).scalar_one()
     assert row.deleted_at is not None
 
 
@@ -313,9 +285,7 @@ async def test_list_requires_tenant_context(client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
-async def test_create_then_get_via_http(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_create_then_get_via_http(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _, token = seed_admin
     headers = {"Authorization": f"Bearer {token}"}
 
@@ -332,9 +302,7 @@ async def test_create_then_get_via_http(
     assert got.json()["data"]["first_name"] == "Lina"
 
 
-async def test_get_unknown_returns_404(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_get_unknown_returns_404(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _, token = seed_admin
     resp = await client.get(
         f"/api/v1/clients/{uuid.uuid4()}",

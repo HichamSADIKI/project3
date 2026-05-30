@@ -17,9 +17,7 @@ class PartnerCommissionEntry(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "partner_commission_entries"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     partner_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -29,9 +27,7 @@ class PartnerCommissionEntry(Base, TimestampMixin, TenantMixin):
     commission_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
     commission_amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    paid_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finance_transaction_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("finance_transactions.id", ondelete="SET NULL"),

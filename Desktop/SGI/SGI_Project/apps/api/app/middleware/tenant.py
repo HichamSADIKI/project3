@@ -8,6 +8,7 @@ class TenantMiddleware(BaseHTTPMiddleware):
         if token:
             try:
                 from app.core.auth import decode_jwt
+
                 payload = decode_jwt(token)
                 # Sécurité MFA : un tmp_token (claim mfa_pending) n'authentifie
                 # PAS — il ne sert qu'à /auth/mfa/validate (qui lit le token

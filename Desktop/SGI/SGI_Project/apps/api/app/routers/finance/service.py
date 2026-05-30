@@ -1,4 +1,5 @@
 """Service — Finance. Toujours filtrer par company_id (Loi 1)."""
+
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -54,9 +55,7 @@ async def list_transactions(
 
     offset = (page - 1) * limit
     paginated_query = (
-        base_query.order_by(FinanceTransaction.created_at.desc())
-        .offset(offset)
-        .limit(limit)
+        base_query.order_by(FinanceTransaction.created_at.desc()).offset(offset).limit(limit)
     )
     result = await db.execute(paginated_query)
     transactions = list(result.scalars().all())

@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — module IA (Phase 9)."""
+
 import uuid
 
 from pydantic import BaseModel
@@ -16,8 +17,8 @@ class RiskOut(BaseModel):
     ticket_count: int
     recurring_category: str | None
     sla_breaches: int
-    risk_score: int          # 0-100
-    risk_level: str          # low | medium | high | critical
+    risk_score: int  # 0-100
+    risk_level: str  # low | medium | high | critical
 
 
 class PredictionOut(BaseModel):

@@ -1,4 +1,5 @@
 """Tests unitaires — helpers métier purs du module vendors."""
+
 from datetime import date
 from decimal import Decimal
 
@@ -62,53 +63,37 @@ class TestMarketplaceEligibility:
 
     def test_inactive_vendor_not_eligible(self) -> None:
         assert (
-            is_eligible_for_marketplace(
-                False, Decimal("4.5"), 10, date(2027, 1, 1), self.today
-            )
+            is_eligible_for_marketplace(False, Decimal("4.5"), 10, date(2027, 1, 1), self.today)
             is False
         )
 
     def test_expired_licence_not_eligible(self) -> None:
         assert (
-            is_eligible_for_marketplace(
-                True, Decimal("4.5"), 10, date(2026, 5, 27), self.today
-            )
+            is_eligible_for_marketplace(True, Decimal("4.5"), 10, date(2026, 5, 27), self.today)
             is False
         )
 
     def test_no_ratings_yet_is_eligible(self) -> None:
         # Nouveau prestataire (rating_count=0) doit pouvoir entrer
         assert (
-            is_eligible_for_marketplace(
-                True, Decimal("0"), 0, date(2027, 1, 1), self.today
-            )
-            is True
+            is_eligible_for_marketplace(True, Decimal("0"), 0, date(2027, 1, 1), self.today) is True
         )
 
     def test_rating_above_threshold_eligible(self) -> None:
         assert (
-            is_eligible_for_marketplace(
-                True, Decimal("3.5"), 10, date(2027, 1, 1), self.today
-            )
+            is_eligible_for_marketplace(True, Decimal("3.5"), 10, date(2027, 1, 1), self.today)
             is True
         )
 
     def test_rating_below_threshold_not_eligible(self) -> None:
         assert (
-            is_eligible_for_marketplace(
-                True, Decimal("3.49"), 10, date(2027, 1, 1), self.today
-            )
+            is_eligible_for_marketplace(True, Decimal("3.49"), 10, date(2027, 1, 1), self.today)
             is False
         )
 
     def test_licence_none_is_allowed(self) -> None:
         # Licence non renseignée → on ne bloque pas (validation faite ailleurs)
-        assert (
-            is_eligible_for_marketplace(
-                True, Decimal("4.0"), 5, None, self.today
-            )
-            is True
-        )
+        assert is_eligible_for_marketplace(True, Decimal("4.0"), 5, None, self.today) is True
 
     def test_pending_verification_not_eligible(self) -> None:
         # Profil non validé par un admin → jamais éligible, même bien noté.
@@ -130,9 +115,7 @@ class TestMarketplaceEligibility:
     def test_verified_default_is_eligible(self) -> None:
         # Le défaut 'verified' garde la rétro-compatibilité des fiches anciennes.
         assert (
-            is_eligible_for_marketplace(
-                True, Decimal("4.8"), 10, date(2027, 1, 1), self.today
-            )
+            is_eligible_for_marketplace(True, Decimal("4.8"), 10, date(2027, 1, 1), self.today)
             is True
         )
 

@@ -14,6 +14,7 @@ Un ticket :
 
 Loi 1 : company_id NOT NULL sur toutes les tables. RLS en migration.
 """
+
 import uuid
 from datetime import datetime
 
@@ -37,9 +38,7 @@ class MaintenanceTicket(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "maintenance_tickets"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Référence lisible — MNT-YYYY-NNNNNN (6 chiffres, triable).
     reference: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -74,14 +73,10 @@ class MaintenanceTicket(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     category: Mapped[str] = mapped_column(String(30), nullable=False)
     # plumbing | electrical | hvac | appliance | structural | cleaning | other
 
-    priority: Mapped[str] = mapped_column(
-        String(10), nullable=False, default="medium"
-    )
+    priority: Mapped[str] = mapped_column(String(10), nullable=False, default="medium")
     # low | medium | high | urgent
 
-    status: Mapped[str] = mapped_column(
-        String(20), nullable=False, default="new"
-    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="new")
     # new | triaged | assigned | in_progress | on_hold | resolved | closed | cancelled
 
     # ── Contenu ───────────────────────────────────────────────────────
@@ -114,17 +109,11 @@ class MaintenanceTicket(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     sla_due_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, index=True
     )
-    resolved_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Coûts ─────────────────────────────────────────────────────────
-    cost_estimate_aed: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
-    cost_final_aed: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
+    cost_estimate_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    cost_final_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     __table_args__ = (
         # Au moins une localisation doit être définie.

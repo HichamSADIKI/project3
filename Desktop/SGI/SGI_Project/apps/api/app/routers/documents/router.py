@@ -1,4 +1,5 @@
 """Router FastAPI — Documents & Signature."""
+
 import uuid
 from typing import Any
 
@@ -218,9 +219,7 @@ async def upload_version_endpoint(
         )
     data = await file.read()
     if not data:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file"
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file")
     if len(data) > MAX_DOC_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="file_too_large"
@@ -307,9 +306,7 @@ async def request_signature_endpoint(
     if doc is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="document_not_found")
     if doc.current_version_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="document_has_no_version"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="document_has_no_version")
     sig = await service.request_signature(db, company_id, doc, doc.current_version_id, body)
     return SignatureResponse(data=DocumentSignatureOut.model_validate(sig))
 

@@ -1,4 +1,5 @@
 """Router FastAPI — Buildings (+ floors imbriqués)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -80,9 +81,7 @@ async def get_building_endpoint(
     company_id = await get_company_id(db)
     building = await get_building(db, company_id, building_id)
     if building is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found")
     return BuildingDetailOut(data=BuildingOut.model_validate(building))
 
 
@@ -99,9 +98,7 @@ async def update_building_endpoint(
     company_id = await get_company_id(db)
     building = await update_building(db, company_id, building_id, body)
     if building is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found")
     return BuildingDetailOut(data=BuildingOut.model_validate(building))
 
 
@@ -117,9 +114,7 @@ async def delete_building_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_building(db, company_id, building_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found")
 
 
 @router.get("/{building_id}/occupancy", response_model=OccupancySummaryOut)
@@ -130,9 +125,7 @@ async def occupancy_endpoint(
     company_id = await get_company_id(db)
     summary = await occupancy_summary(db, company_id, building_id)
     if summary is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found")
     return OccupancySummaryOut(data=summary)
 
 
@@ -166,9 +159,7 @@ async def list_building_units_endpoint(
     company_id = await get_company_id(db)
     building = await get_building(db, company_id, building_id)
     if building is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found")
     units, total = await list_units(
         db, company_id, page, limit, building_id, floor_id, unit_type, status_filter
     )
@@ -197,7 +188,5 @@ async def create_floor_endpoint(
     company_id = await get_company_id(db)
     floor = await create_floor(db, company_id, body)
     if floor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="building_not_found")
     return FloorOut.model_validate(floor)

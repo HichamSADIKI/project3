@@ -8,6 +8,7 @@ Sécurité :
 - `tmp_token` : JWT court-vécu (5 min), claim `mfa_pending=true` — ne donne
   accès à aucune ressource protégée jusqu'à la validation du code TOTP.
 """
+
 from __future__ import annotations
 
 import base64
@@ -25,6 +26,7 @@ _MFA_HKDF_INFO = b"sgi-mfa-totp-encryption-v1"
 
 
 # ── Chiffrement du secret TOTP ────────────────────────────────────────────
+
 
 def _fernet() -> Fernet:
     """Instancie Fernet avec une clé dérivée de SECRET_KEY via HKDF-SHA256.
@@ -53,6 +55,7 @@ def decrypt_secret(encrypted: str) -> str:
 
 
 # ── Génération & vérification TOTP ───────────────────────────────────────
+
 
 def generate_totp_secret() -> str:
     """Génère un secret TOTP aléatoire (base32, 32 chars)."""

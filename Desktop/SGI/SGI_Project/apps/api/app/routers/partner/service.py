@@ -1,4 +1,5 @@
 """Logique métier de l'espace Partenaire."""
+
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -49,12 +50,8 @@ def days_until_expiry(expiry_date: date | None, today: date) -> int | None:
 
 
 # ── Profil fournisseur ─────────────────────────────────────────────────────
-async def get_account_user(
-    db: AsyncSession, user_id: uuid.UUID
-) -> User | None:
-    return (
-        await db.execute(select(User).where(User.id == user_id))
-    ).scalar_one_or_none()
+async def get_account_user(db: AsyncSession, user_id: uuid.UUID) -> User | None:
+    return (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
 
 
 async def get_my_vendor_profile(
@@ -264,9 +261,7 @@ async def compute_dashboard(
 
     commissions_pending = (
         await db.execute(
-            select(
-                func.coalesce(func.sum(PartnerCommissionEntry.commission_amount_aed), 0)
-            ).where(
+            select(func.coalesce(func.sum(PartnerCommissionEntry.commission_amount_aed), 0)).where(
                 PartnerCommissionEntry.partner_user_id == partner_user_id,
                 PartnerCommissionEntry.company_id == company_id,
                 PartnerCommissionEntry.status.in_(("pending", "payable")),
@@ -276,9 +271,7 @@ async def compute_dashboard(
 
     commissions_paid = (
         await db.execute(
-            select(
-                func.coalesce(func.sum(PartnerCommissionEntry.commission_amount_aed), 0)
-            ).where(
+            select(func.coalesce(func.sum(PartnerCommissionEntry.commission_amount_aed), 0)).where(
                 PartnerCommissionEntry.partner_user_id == partner_user_id,
                 PartnerCommissionEntry.company_id == company_id,
                 PartnerCommissionEntry.status == "paid",
@@ -416,9 +409,7 @@ async def set_mission_status(
 
 
 # ── Messagerie agence ───────────────────────────────────────────────────────
-async def resolve_agency_recipient(
-    db: AsyncSession, company_id: uuid.UUID
-) -> uuid.UUID | None:
+async def resolve_agency_recipient(db: AsyncSession, company_id: uuid.UUID) -> uuid.UUID | None:
     """Boîte de réception « agence » : premier admin/manager actif du tenant."""
     return (
         await db.execute(

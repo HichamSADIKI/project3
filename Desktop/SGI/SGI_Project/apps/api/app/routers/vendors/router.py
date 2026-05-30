@@ -1,4 +1,5 @@
 """Router FastAPI — Vendors (prestataires externes)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -40,9 +41,7 @@ async def list_vendors_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> VendorListOut:
     company_id = await get_company_id(db)
-    vendors, total = await list_vendors(
-        db, company_id, page, limit, vendor_type, is_active
-    )
+    vendors, total = await list_vendors(db, company_id, page, limit, vendor_type, is_active)
     return VendorListOut(
         data=[VendorOut.model_validate(v) for v in vendors],
         meta={"total": total, "page": page, "limit": limit},
@@ -77,9 +76,7 @@ async def get_vendor_endpoint(
     company_id = await get_company_id(db)
     vendor = await get_vendor(db, company_id, party_id)
     if vendor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")
     return VendorDetailOut(data=VendorOut.model_validate(vendor))
 
 
@@ -96,9 +93,7 @@ async def update_vendor_endpoint(
     company_id = await get_company_id(db)
     vendor = await update_vendor(db, company_id, party_id, body)
     if vendor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")
     return VendorDetailOut(data=VendorOut.model_validate(vendor))
 
 
@@ -116,9 +111,7 @@ async def rate_vendor_endpoint(
     company_id = await get_company_id(db)
     vendor = await add_rating(db, company_id, party_id, body.score)
     if vendor is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")
     return VendorDetailOut(data=VendorOut.model_validate(vendor))
 
 
@@ -134,6 +127,4 @@ async def delete_vendor_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_vendor(db, company_id, party_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")

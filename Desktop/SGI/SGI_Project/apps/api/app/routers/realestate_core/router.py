@@ -1,4 +1,5 @@
 """Router FastAPI — Immobilier Core (branches + company settings)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -46,9 +47,7 @@ async def list_branches_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> BranchListOut:
     company_id = await get_company_id(db)
-    branches, total = await list_branches(
-        db, company_id, page, limit, emirate, is_active
-    )
+    branches, total = await list_branches(db, company_id, page, limit, emirate, is_active)
     return BranchListOut(
         data=[BranchOut.model_validate(b) for b in branches],
         meta={"total": total, "page": page, "limit": limit},
@@ -78,9 +77,7 @@ async def get_branch_endpoint(
     company_id = await get_company_id(db)
     branch = await get_branch(db, company_id, branch_id)
     if branch is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="branch_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="branch_not_found")
     return BranchDetailOut(data=BranchOut.model_validate(branch))
 
 
@@ -97,9 +94,7 @@ async def update_branch_endpoint(
     company_id = await get_company_id(db)
     branch = await update_branch(db, company_id, branch_id, body)
     if branch is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="branch_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="branch_not_found")
     return BranchDetailOut(data=BranchOut.model_validate(branch))
 
 
@@ -115,9 +110,7 @@ async def delete_branch_endpoint(
     company_id = await get_company_id(db)
     deleted = await delete_branch(db, company_id, branch_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="branch_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="branch_not_found")
 
 
 # ─── Company settings (singleton par tenant) ───────────────────────────────

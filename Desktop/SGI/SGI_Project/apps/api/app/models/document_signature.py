@@ -7,6 +7,7 @@ exacte de la version signée (`signature_hash`), et une piste d'audit
 (IP / user-agent / horodatage). Le champ `provider` reste "internal" mais
 permet de brancher un prestataire externe (DocuSign…) ultérieurement.
 """
+
 import uuid
 from datetime import datetime
 
@@ -22,9 +23,7 @@ class DocumentSignature(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "document_signatures"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     document_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -74,12 +73,8 @@ class DocumentSignature(Base, TimestampMixin, TenantMixin):
     # Ordre de signature (multi-parties séquentiel)
     order_index: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
-    signed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    declined_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    declined_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         Index("idx_doc_sign_company", "company_id"),

@@ -1,4 +1,5 @@
 """Router FastAPI — PDC (post-dated cheques)."""
+
 import uuid
 from datetime import UTC, date
 
@@ -39,9 +40,7 @@ router = APIRouter(prefix="/pdc", tags=["pdc"])
 
 def _handle_transition_result(result):
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     if result == "invalid_transition":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -128,9 +127,7 @@ async def get_pdc_endpoint(
     company_id = await get_company_id(db)
     pdc = await get_pdc(db, company_id, pdc_id)
     if pdc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -147,9 +144,7 @@ async def update_pdc_endpoint(
     company_id = await get_company_id(db)
     pdc = await update_pdc(db, company_id, pdc_id, body)
     if pdc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -164,9 +159,7 @@ async def deposit_pdc_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
-    pdc = _handle_transition_result(
-        await mark_deposited(db, company_id, pdc_id, body.deposit_date)
-    )
+    pdc = _handle_transition_result(await mark_deposited(db, company_id, pdc_id, body.deposit_date))
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -196,9 +189,7 @@ async def bounce_pdc_endpoint(
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = _handle_transition_result(
-        await mark_bounced(
-            db, company_id, pdc_id, body.bounce_reason, body.bounce_fee_aed
-        )
+        await mark_bounced(db, company_id, pdc_id, body.bounce_reason, body.bounce_fee_aed)
     )
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
@@ -257,9 +248,7 @@ async def legal_notice_endpoint(
     company_id = await get_company_id(db)
     pdc = await increment_legal_notices(db, company_id, pdc_id)
     if pdc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -275,6 +264,4 @@ async def delete_pdc_endpoint(
     company_id = await get_company_id(db)
     deleted = await soft_delete_pdc(db, company_id, pdc_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")

@@ -2,7 +2,8 @@
 
 Bayut.com structure (validated 2026-05):
   - JSON-LD `application/ld+json` with @type=RealEstateListing → title, description
-  - Meta description sentence: "N-bed, N-bath, N sqft <type> for <sale|rent> at <community>, <area> for AED <price>"
+  - Meta description sentence, ex.:
+    "N-bed, N-bath, N sqft <type> for <sale|rent> at <community>, <area> for AED <price>"
   - window.state JSON → rooms, baths, area (sqm)
   - Images: https://images.bayut.com/thumbnails/<id>-800x600.webp
 
@@ -12,6 +13,7 @@ Generic fallback (PropertyFinder / Dubizzle / other):
   - og:image → cover image
   - Price regex on page text
 """
+
 from __future__ import annotations
 
 import json
@@ -20,20 +22,30 @@ import re
 # ── Normalisation maps ────────────────────────────────────────────────────────
 
 PROP_TYPE_MAP: dict[str, str] = {
-    "apartment": "apartment", "flat": "apartment", "studio": "apartment",
-    "duplex": "apartment", "penthouse": "penthouse",
-    "villa": "villa", "townhouse": "townhouse",
-    "office": "office", "retail": "retail",
-    "warehouse": "office", "shop": "retail",
+    "apartment": "apartment",
+    "flat": "apartment",
+    "studio": "apartment",
+    "duplex": "apartment",
+    "penthouse": "penthouse",
+    "villa": "villa",
+    "townhouse": "townhouse",
+    "office": "office",
+    "retail": "retail",
+    "warehouse": "office",
+    "shop": "retail",
     "residential": "apartment",
 }
 
 EMIRATE_SLUGS: dict[str, str] = {
     "dubai": "Dubai",
-    "abu-dhabi": "Abu Dhabi", "abu_dhabi": "Abu Dhabi", "abudhabi": "Abu Dhabi",
+    "abu-dhabi": "Abu Dhabi",
+    "abu_dhabi": "Abu Dhabi",
+    "abudhabi": "Abu Dhabi",
     "sharjah": "Sharjah",
-    "ajman": "Other", "ras-al-khaimah": "Other",
-    "fujairah": "Other", "umm-al-quwain": "Other",
+    "ajman": "Other",
+    "ras-al-khaimah": "Other",
+    "fujairah": "Other",
+    "umm-al-quwain": "Other",
 }
 
 
@@ -59,6 +71,7 @@ def _safe_int(val: object) -> str:
 
 # ── Bayut parser (HTML regex, no JS needed) ───────────────────────────────────
 
+
 def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
     """Extract property fields from Bayut listing HTML."""
 
@@ -73,7 +86,9 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
             graph = data.get("@graph", [data])
             for item in graph:
                 if item.get("@type") == "RealEstateListing" and item.get("name"):
-                    title = item["name"].replace(" | Bayut.com", "").replace(" | bayut.com", "").strip()
+                    title = (
+                        item["name"].replace(" | Bayut.com", "").replace(" | bayut.com", "").strip()
+                    )
                     break
         except (json.JSONDecodeError, KeyError):
             continue
@@ -83,27 +98,31 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
     # 2. Meta description sentence (most reliable for price + specs)
     #    "2-bed, 2-bath, 1,127 sqft apartment for sale at Community, Area for AED 2,340,000"
     meta_desc = ""
-    meta_m = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{20,500})["\']', html)
+    meta_m = re.search(
+        r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{20,500})["\']', html
+    )
     if not meta_m:
-        meta_m = re.search(r'<meta\s+content=["\']([^"\']{20,500})["\']\s+name=["\']description["\']', html)
+        meta_m = re.search(
+            r'<meta\s+content=["\']([^"\']{20,500})["\']\s+name=["\']description["\']', html
+        )
     if meta_m:
         meta_desc = meta_m.group(1).replace("&amp;", "&")
 
     price = ""
-    sqft  = ""
+    sqft = ""
     community = ""
-    beds_meta  = ""
+    beds_meta = ""
     baths_meta = ""
     prop_type = "apartment"
     listing_type: str = "Sale"
 
     if meta_desc:
         price_m = re.search(r"AED\s*([\d,]+)", meta_desc)
-        sqft_m  = re.search(r"([\d,]+)\s*sqft", meta_desc)
-        loc_m   = re.search(r"(?:at|in)\s+([^,]+(?:,\s*[^,]+)?)\s+for\s+AED", meta_desc)
-        beds_m  = re.search(r"(\d+)-bed", meta_desc)
+        sqft_m = re.search(r"([\d,]+)\s*sqft", meta_desc)
+        loc_m = re.search(r"(?:at|in)\s+([^,]+(?:,\s*[^,]+)?)\s+for\s+AED", meta_desc)
+        beds_m = re.search(r"(\d+)-bed", meta_desc)
         baths_m = re.search(r"(\d+)-bath", meta_desc)
-        type_m  = re.search(r"sqft\s+([\w]+)\s+for\s+(sale|rent)", meta_desc, re.I)
+        type_m = re.search(r"sqft\s+([\w]+)\s+for\s+(sale|rent)", meta_desc, re.I)
 
         if price_m:
             price = price_m.group(1).replace(",", "")
@@ -114,7 +133,7 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
         if baths_m:
             baths_meta = baths_m.group(1)
         if type_m:
-            prop_type    = normalise_prop_type(type_m.group(1))
+            prop_type = normalise_prop_type(type_m.group(1))
             listing_type = "Rent" if "rent" in type_m.group(2).lower() else "Sale"
         if loc_m:
             community = loc_m.group(1).strip().split(",")[0].strip()
@@ -122,9 +141,9 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
     # 3. window.state — rooms, baths, area (sqm → sqft)
     ws_rooms = re.search(r'"rooms"\s*:\s*(\d+)', html)
     ws_baths = re.search(r'"baths"\s*:\s*(\d+)', html)
-    ws_area  = re.search(r'"area"\s*:\s*([\d.]+)', html)
+    ws_area = re.search(r'"area"\s*:\s*([\d.]+)', html)
 
-    bedrooms  = beds_meta or (ws_rooms.group(1) if ws_rooms else "")
+    bedrooms = beds_meta or (ws_rooms.group(1) if ws_rooms else "")
     bathrooms = baths_meta or (ws_baths.group(1) if ws_baths else "")
     if not sqft and ws_area:
         sqft = str(int(float(ws_area.group(1)) * 10.764))  # sqm → sqft
@@ -143,8 +162,11 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
             emirate = normalise_emirate(names)
             if not community:
                 # Use the deepest location that isn't a country/emirate name
-                filtered = [n for n in names if n.lower() not in
-                            ("uae", "dubai", "abu dhabi", "sharjah", "ae")]
+                filtered = [
+                    n
+                    for n in names
+                    if n.lower() not in ("uae", "dubai", "abu dhabi", "sharjah", "ae")
+                ]
                 community = filtered[0] if filtered else ""
         except (json.JSONDecodeError, TypeError):
             pass
@@ -155,13 +177,13 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
     seen_ids: set[str] = set()
     images: list[str] = []
     for img in all_imgs:
-        img_id = re.search(r'/(\d+)-', img)
+        img_id = re.search(r"/(\d+)-", img)
         if img_id and img_id.group(1) not in seen_ids and "800x600" in img:
             seen_ids.add(img_id.group(1))
             images.append(img)
     if not images:
         for img in all_imgs:
-            img_id = re.search(r'/(\d+)-', img)
+            img_id = re.search(r"/(\d+)-", img)
             if img_id and img_id.group(1) not in seen_ids:
                 seen_ids.add(img_id.group(1))
                 images.append(img)
@@ -188,26 +210,32 @@ def parse_bayut_html(html: str) -> dict:  # type: ignore[type-arg]
         description = meta_desc
 
     return {
-        "title_en":    title,
-        "price":       price,
-        "type":        listing_type,
-        "prop_type":   prop_type,
-        "bedrooms":    bedrooms,
-        "bathrooms":   bathrooms,
-        "sqft":        sqft,
-        "emirate":     emirate,
-        "community":   community,
+        "title_en": title,
+        "price": price,
+        "type": listing_type,
+        "prop_type": prop_type,
+        "bedrooms": bedrooms,
+        "bathrooms": bathrooms,
+        "sqft": sqft,
+        "emirate": emirate,
+        "community": community,
         "description": description[:2000],
-        "images":      images[:8],
-        "source":      "Bayut.com",
+        "images": images[:8],
+        "source": "Bayut.com",
     }
 
 
 # ── PropertyFinder parser ─────────────────────────────────────────────────────
 
+
 def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
     """Extract from PropertyFinder listing HTML via __NEXT_DATA__ + meta fallback."""
-    result: dict = {"source": "PropertyFinder.ae", "images": [], "type": "Sale", "prop_type": "apartment"}  # type: ignore[type-arg]
+    result: dict = {
+        "source": "PropertyFinder.ae",
+        "images": [],
+        "type": "Sale",
+        "prop_type": "apartment",
+    }  # type: ignore[type-arg]
 
     # Primary: __NEXT_DATA__ contains the full structured property object
     nd_m = re.search(r'id=["\']__NEXT_DATA__["\'][^>]*>(.*?)</script>', html, re.S)
@@ -223,7 +251,7 @@ def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
             if price_obj.get("value"):
                 result["price"] = str(int(price_obj["value"]))
 
-            result["bedrooms"]  = _safe_int(prop.get("bedrooms"))
+            result["bedrooms"] = _safe_int(prop.get("bedrooms"))
             result["bathrooms"] = _safe_int(prop.get("bathrooms"))
 
             size_obj = prop.get("size") or {}
@@ -243,7 +271,9 @@ def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
             loc_tree = prop.get("location_tree") or []
             emirate_candidates = [n.get("name", "") for n in loc_tree]
             result["emirate"] = normalise_emirate(emirate_candidates)
-            community_nodes = [n for n in loc_tree if n.get("type") in ("COMMUNITY", "SUBCOMMUNITY")]
+            community_nodes = [
+                n for n in loc_tree if n.get("type") in ("COMMUNITY", "SUBCOMMUNITY")
+            ]
             if community_nodes:
                 result["community"] = community_nodes[0]["name"]
 
@@ -257,9 +287,13 @@ def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
             pass
 
     # Fallback: meta description for any missing fields
-    meta_m = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{10,500})["\']', html)
+    meta_m = re.search(
+        r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{10,500})["\']', html
+    )
     if not meta_m:
-        meta_m = re.search(r'<meta\s+content=["\']([^"\']{10,500})["\']\s+name=["\']description["\']', html)
+        meta_m = re.search(
+            r'<meta\s+content=["\']([^"\']{10,500})["\']\s+name=["\']description["\']', html
+        )
     if meta_m:
         meta_desc = meta_m.group(1).replace("&amp;", "&")
         if not result.get("description"):
@@ -274,13 +308,17 @@ def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
 
     # OG title fallback
     if not result.get("title_en"):
-        og_title = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', html)
+        og_title = re.search(
+            r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', html
+        )
         if og_title:
             result["title_en"] = og_title.group(1).strip()
 
     # OG image fallback
     if not result.get("images"):
-        og_img = re.search(r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html)
+        og_img = re.search(
+            r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html
+        )
         if og_img:
             result["images"] = [og_img.group(1)]
 
@@ -289,15 +327,18 @@ def parse_propertyfinder_html(html: str) -> dict:  # type: ignore[type-arg]
 
 # ── Dubizzle parser ───────────────────────────────────────────────────────────
 
+
 def parse_dubizzle_html(html: str) -> dict:  # type: ignore[type-arg]
     return _parse_generic_html(html, "Dubizzle.com")
 
 
 # ── Generic HTML extractor ────────────────────────────────────────────────────
 
+
 def _parse_generic_html(
-    html: str, source: str,
-    extra_meta_parser=None  # type: ignore[assignment]
+    html: str,
+    source: str,
+    extra_meta_parser=None,  # type: ignore[assignment]
 ) -> dict:  # type: ignore[type-arg]
     """JSON-LD + meta description + OG tags — works on any well-structured page."""
     result: dict = {"source": source, "images": [], "type": "Sale", "prop_type": "apartment"}  # type: ignore[type-arg]
@@ -314,8 +355,13 @@ def _parse_generic_html(
                 raw_t = item.get("@type", "")
                 types = raw_t if isinstance(raw_t, list) else [raw_t]
                 known_types = {
-                    "Product", "Apartment", "House", "Accommodation",
-                    "RealEstateListing", "LodgingBusiness", "SingleFamilyResidence",
+                    "Product",
+                    "Apartment",
+                    "House",
+                    "Accommodation",
+                    "RealEstateListing",
+                    "LodgingBusiness",
+                    "SingleFamilyResidence",
                 }
                 if not any(str(t) in known_types for t in types):
                     continue
@@ -335,9 +381,13 @@ def _parse_generic_html(
             continue
 
     # Meta description
-    meta_m = re.search(r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{10,500})["\']', html)
+    meta_m = re.search(
+        r'<meta\s+name=["\']description["\']\s+content=["\']([^"\']{10,500})["\']', html
+    )
     if not meta_m:
-        meta_m = re.search(r'<meta\s+content=["\']([^"\']{10,500})["\']\s+name=["\']description["\']', html)
+        meta_m = re.search(
+            r'<meta\s+content=["\']([^"\']{10,500})["\']\s+name=["\']description["\']', html
+        )
     if meta_m:
         meta_desc = meta_m.group(1).replace("&amp;", "&")
         if not result.get("description"):
@@ -351,13 +401,17 @@ def _parse_generic_html(
 
     # OG title fallback
     if not result.get("title_en"):
-        og_title = re.search(r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', html)
+        og_title = re.search(
+            r'<meta\s+property=["\']og:title["\']\s+content=["\']([^"\']+)["\']', html
+        )
         if og_title:
             result["title_en"] = og_title.group(1).strip()
 
     # OG image fallback
     if not result.get("images"):
-        og_img = re.search(r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html)
+        og_img = re.search(
+            r'<meta\s+property=["\']og:image["\']\s+content=["\']([^"\']+)["\']', html
+        )
         if og_img:
             result["images"] = [og_img.group(1)]
 
