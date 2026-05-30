@@ -28,11 +28,6 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
-    # Agenda Real Estate — source Google Calendar (ID/email du calendrier) +
-    # fuseau d'affichage. Miroir serveur de NEXT_PUBLIC_GOOGLE_CALENDAR_SRC.
-    GOOGLE_CALENDAR_SRC: str = ""
-    AGENDA_TIMEZONE: str = "Asia/Dubai"
-
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
 
