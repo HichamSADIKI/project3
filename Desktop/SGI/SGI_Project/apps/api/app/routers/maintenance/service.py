@@ -83,6 +83,96 @@ def is_sla_breached(ticket: MaintenanceTicket) -> bool:
     return datetime.now(timezone.utc) > due
 
 
+# ── Parsing cron (sans dépendance externe) ─────────────────────────────────
+
+# Champs cron standard : minute heure jour-du-mois mois jour-de-semaine.
+# Bornes (min, max) par position.
+_CRON_BOUNDS = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 6)]
+
+
+def _parse_cron_field(field: str, lo: int, hi: int) -> set[int]:
+    """Parse un champ cron en l'ensemble des valeurs autorisées.
+
+    Gère `*`, listes `a,b`, plages `a-b`, pas `*/n` et `a-b/n`. Pour le champ
+    jour-de-semaine, 7 est ramené à 0 (dimanche). Lève ValueError si invalide.
+    """
+    values: set[int] = set()
+    for part in field.split(","):
+        step = 1
+        if "/" in part:
+            part, step_str = part.split("/", 1)
+            step = int(step_str)
+            if step <= 0:
+                raise ValueError("step must be > 0")
+        if part == "*":
+            start, end = lo, hi
+        elif "-" in part:
+            a, b = part.split("-", 1)
+            start, end = int(a), int(b)
+        else:
+            start = end = int(part)
+        if start > end or start < lo or end > hi:
+            raise ValueError(f"field out of range [{lo},{hi}]: {part}")
+        values.update(range(start, end + 1, step))
+    # Dimanche accepté comme 7 → normalisé en 0.
+    if hi == 6 and 7 in values:  # défense (non atteignable via bornes ci-dessus)
+        values.discard(7)
+        values.add(0)
+    return values
+
+
+def _cron_matches(expr_sets: list[set[int]], moment: datetime) -> bool:
+    """True si `moment` (à la minute) satisfait l'expression cron parsée.
+
+    Sémantique standard : si jour-du-mois ET jour-de-semaine sont tous deux
+    restreints (≠ *), la correspondance est un OU entre les deux.
+    """
+    minute, hour, dom, month, dow = expr_sets
+    if moment.minute not in minute or moment.hour not in hour or moment.month not in month:
+        return False
+    # cron : dimanche = 0 ; Python weekday() : lundi = 0, dimanche = 6.
+    py_dow = (moment.weekday() + 1) % 7
+    dom_restricted = dom != set(range(1, 32))
+    dow_restricted = dow != set(range(0, 7))
+    dom_ok = moment.day in dom
+    dow_ok = py_dow in dow
+    if dom_restricted and dow_restricted:
+        return dom_ok or dow_ok
+    return dom_ok and dow_ok
+
+
+def next_cron_run(
+    cron_expression: str, after: datetime, max_days: int = 366
+) -> datetime | None:
+    """Renvoie la prochaine occurrence STRICTEMENT après `after`, ou None.
+
+    Helper pur sans dépendance (cron 5 champs). Recherche minute par minute
+    dans une fenêtre bornée (`max_days`) ; None si l'expression est invalide
+    ou si aucune occurrence n'est trouvée dans la fenêtre — l'appelant peut
+    alors retomber sur un intervalle par défaut.
+    """
+    fields = cron_expression.split()
+    if len(fields) != 5:
+        return None
+    try:
+        expr_sets = [
+            _parse_cron_field(f, lo, hi)
+            for f, (lo, hi) in zip(fields, _CRON_BOUNDS, strict=True)
+        ]
+    except (ValueError, TypeError):
+        return None
+
+    base = after if after.tzinfo else after.replace(tzinfo=timezone.utc)
+    # On part de la minute suivante (occurrence strictement postérieure).
+    candidate = (base + timedelta(minutes=1)).replace(second=0, microsecond=0)
+    limit = base + timedelta(days=max_days)
+    while candidate <= limit:
+        if _cron_matches(expr_sets, candidate):
+            return candidate
+        candidate += timedelta(minutes=1)
+    return None
+
+
 # ── Génération de référence (async, DB) ───────────────────────────────────
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:

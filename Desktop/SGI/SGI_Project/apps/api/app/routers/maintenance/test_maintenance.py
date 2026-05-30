@@ -21,6 +21,7 @@ from app.routers.maintenance.service import (
     generate_reference,
     is_sla_breached,
     is_valid_transition,
+    next_cron_run,
 )
 
 
@@ -39,6 +40,55 @@ def test_generate_reference_lexicographic_order() -> None:
         generate_reference(2026, 3),
         generate_reference(2026, 100),
     ]
+
+
+# ── next_cron_run (helper pur, sans dépendance) ──────────────────────────────
+
+
+class TestNextCronRun:
+    def test_monthly_first_at_9h(self) -> None:
+        # "0 9 1 * *" = le 1er de chaque mois à 9h00.
+        after = datetime(2026, 5, 15, 10, 0, tzinfo=timezone.utc)
+        nxt = next_cron_run("0 9 1 * *", after)
+        assert nxt == datetime(2026, 6, 1, 9, 0, tzinfo=timezone.utc)
+
+    def test_same_day_later_today(self) -> None:
+        # "30 14 * * *" = tous les jours à 14h30 → aujourd'hui si encore à venir.
+        after = datetime(2026, 5, 15, 8, 0, tzinfo=timezone.utc)
+        nxt = next_cron_run("30 14 * * *", after)
+        assert nxt == datetime(2026, 5, 15, 14, 30, tzinfo=timezone.utc)
+
+    def test_strictly_after(self) -> None:
+        # Pile à l'heure → renvoie la PROCHAINE occurrence, pas la courante.
+        after = datetime(2026, 5, 15, 14, 30, tzinfo=timezone.utc)
+        nxt = next_cron_run("30 14 * * *", after)
+        assert nxt == datetime(2026, 5, 16, 14, 30, tzinfo=timezone.utc)
+
+    def test_day_of_week_monday(self) -> None:
+        # "0 0 * * 1" = chaque lundi à minuit. 2026-05-15 = vendredi → 2026-05-18.
+        after = datetime(2026, 5, 15, 12, 0, tzinfo=timezone.utc)
+        nxt = next_cron_run("0 0 * * 1", after)
+        assert nxt == datetime(2026, 5, 18, 0, 0, tzinfo=timezone.utc)
+
+    def test_step_every_15_minutes(self) -> None:
+        after = datetime(2026, 5, 15, 10, 7, tzinfo=timezone.utc)
+        nxt = next_cron_run("*/15 * * * *", after)
+        assert nxt == datetime(2026, 5, 15, 10, 15, tzinfo=timezone.utc)
+
+    def test_quarterly_via_month_list(self) -> None:
+        # "0 9 1 1,4,7,10 *" = 1er jan/avr/juil/oct à 9h.
+        after = datetime(2026, 5, 1, 0, 0, tzinfo=timezone.utc)
+        nxt = next_cron_run("0 9 1 1,4,7,10 *", after)
+        assert nxt == datetime(2026, 7, 1, 9, 0, tzinfo=timezone.utc)
+
+    def test_naive_datetime_assumed_utc(self) -> None:
+        nxt = next_cron_run("0 9 1 * *", datetime(2026, 5, 15, 10, 0))
+        assert nxt == datetime(2026, 6, 1, 9, 0, tzinfo=timezone.utc)
+
+    def test_invalid_expression_returns_none(self) -> None:
+        assert next_cron_run("not a cron", datetime(2026, 5, 15, tzinfo=timezone.utc)) is None
+        assert next_cron_run("0 9 1 *", datetime(2026, 5, 15, tzinfo=timezone.utc)) is None  # 4 champs
+        assert next_cron_run("99 9 1 * *", datetime(2026, 5, 15, tzinfo=timezone.utc)) is None  # hors borne
 
 
 def test_is_valid_transition_allowed() -> None:

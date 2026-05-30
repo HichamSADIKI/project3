@@ -20,6 +20,7 @@ from app.routers.maintenance.service import (
     compute_sla_due,
     generate_reference,
     is_sla_breached,
+    next_cron_run,
 )
 
 logger = logging.getLogger(__name__)
@@ -124,10 +125,13 @@ def generate_preventive_tickets(self):
                 )
                 db.add(ticket)
 
-                # Mise à jour du plan : last_generated_at + next_due_at (+ 30j par défaut).
-                # TODO : parser le cron_expression pour le calcul précis.
+                # Mise à jour du plan : last_generated_at + prochaine échéance
+                # calculée à partir du cron. Repli sur +30j si l'expression est
+                # invalide ou sans occurrence dans la fenêtre de recherche.
                 plan.last_generated_at = now
-                plan.next_due_at = now + timedelta(days=30)
+                plan.next_due_at = next_cron_run(plan.cron_expression, now) or (
+                    now + timedelta(days=30)
+                )
 
                 db.commit()
                 generated += 1
