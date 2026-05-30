@@ -1,26 +1,48 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Topbar, IcPin, IcPlus, IcPhone, IcMail } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
+import { getJson } from "@/lib/api-client";
 
-// Maquette statique (comme les autres écrans). Le câblage à l'API
-// /api/v1/branches (module realestate_core) viendra dans une étape ultérieure.
+// Écran câblé sur l'API réelle : GET /api/admin/branches → proxy → /api/v1/branches
+// (module realestate_core, M1). Slice verticale de référence pour le wiring.
 
 const EMIRATE_LABEL: Record<string, string> = {
   DXB: "Dubai", AUH: "Abu Dhabi", SHJ: "Sharjah", AJM: "Ajman",
   RAK: "Ras Al Khaimah", FUJ: "Fujairah", UAQ: "Umm Al Quwain",
 };
 
-const BRANCHES = [
-  { code: "BR-001", name: "Dubai Marina", emirate: "DXB", manager: "Ahmed Al Mansoori", phone: "+971 4 555 0101", email: "marina@infinity.ae", active: true },
-  { code: "BR-002", name: "Business Bay",  emirate: "DXB", manager: "Sara Khalil",       phone: "+971 4 555 0102", email: "bay@infinity.ae",    active: true },
-  { code: "BR-003", name: "Abu Dhabi Corniche", emirate: "AUH", manager: "Yousef Rahman", phone: "+971 2 555 0103", email: "auh@infinity.ae", active: true },
-  { code: "BR-004", name: "Sharjah Al Majaz", emirate: "SHJ", manager: "—",              phone: "+971 6 555 0104", email: "shj@infinity.ae",   active: false },
-];
+type Branch = {
+  id: string;
+  code: string;
+  name: string;
+  emirate: string;
+  phone: string | null;
+  email: string | null;
+  manager_user_id: string | null;
+  is_active: boolean;
+};
+
+type BranchListResponse = { success: boolean; data: Branch[]; meta: { total: number } };
 
 export function ScreenRealEstateBranches() {
   const t = useT();
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    getJson<BranchListResponse>("/api/admin/branches?limit=100")
+      .then(res => { if (!cancelled) { setBranches(res.data ?? []); setError(null); } })
+      .catch(err => { if (!cancelled) setError(err.message ?? "load_failed"); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const activeCount = branches.filter(b => b.is_active).length;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -34,7 +56,9 @@ export function ScreenRealEstateBranches() {
             <span style={{ color: "var(--gold)" }}><IcPin /></span>
             <div>
               <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_branches}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{BRANCHES.length} · {BRANCHES.filter(b => b.active).length} active</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                {loading ? "Chargement…" : `${branches.length} · ${activeCount} active(s)`}
+              </div>
             </div>
           </div>
           <button style={{
@@ -46,6 +70,12 @@ export function ScreenRealEstateBranches() {
           </button>
         </div>
 
+        {error && (
+          <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>
+            Erreur de chargement : {error}
+          </div>
+        )}
+
         {/* Table */}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
@@ -54,29 +84,31 @@ export function ScreenRealEstateBranches() {
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Code</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.nav_branches}</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Emirate</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Manager</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Contact</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Status</th>
               </tr>
             </thead>
             <tbody>
-              {BRANCHES.map(b => (
-                <tr key={b.code} style={{ borderTop: "1px solid var(--line-soft)" }}>
+              {!loading && branches.length === 0 && !error && (
+                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucune succursale.</td></tr>
+              )}
+              {branches.map(b => (
+                <tr key={b.id} style={{ borderTop: "1px solid var(--line-soft)" }}>
                   <td className="tnum" style={{ padding: "13px 16px", fontWeight: 600, color: "var(--gold-deep)" }}>{b.code}</td>
                   <td style={{ padding: "13px 16px", fontWeight: 500, color: "var(--ink)" }}>{b.name}</td>
-                  <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{EMIRATE_LABEL[b.emirate]}</td>
-                  <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{b.manager}</td>
+                  <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{EMIRATE_LABEL[b.emirate] ?? b.emirate}</td>
                   <td style={{ padding: "13px 16px", color: "var(--ink-3)" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}><IcPhone /> {b.phone}</div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}><IcMail /> {b.email}</div>
+                    {b.phone && <div style={{ display: "flex", alignItems: "center", gap: 6 }}><IcPhone /> {b.phone}</div>}
+                    {b.email && <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 3 }}><IcMail /> {b.email}</div>}
+                    {!b.phone && !b.email && <span style={{ color: "var(--ink-4)" }}>—</span>}
                   </td>
                   <td style={{ padding: "13px 16px" }}>
                     <span style={{
                       fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999,
-                      background: b.active ? "rgba(16,185,129,0.12)" : "var(--line-soft)",
-                      color: b.active ? "var(--emerald)" : "var(--ink-4)",
+                      background: b.is_active ? "rgba(16,185,129,0.12)" : "var(--line-soft)",
+                      color: b.is_active ? "var(--emerald)" : "var(--ink-4)",
                     }}>
-                      {b.active ? "Active" : "Inactive"}
+                      {b.is_active ? "Active" : "Inactive"}
                     </span>
                   </td>
                 </tr>
