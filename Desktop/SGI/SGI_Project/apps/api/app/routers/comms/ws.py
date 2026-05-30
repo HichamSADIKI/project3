@@ -163,7 +163,7 @@ async def ws_handler(
             while True:
                 try:
                     raw = await asyncio.wait_for(websocket.receive_text(), timeout=25)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     # Keepalive : envoie un ping si le client est silencieux.
                     await websocket.send_text(json.dumps({"type": "ping"}))
                     continue

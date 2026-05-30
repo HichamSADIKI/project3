@@ -1,6 +1,6 @@
 """Service — Buildings + Floors + occupancy."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -15,7 +15,6 @@ from app.routers.buildings.schemas import (
     FloorCreate,
     OccupancySummary,
 )
-
 
 # ─── Helpers métier purs ──────────────────────────────────────────────────
 
@@ -140,7 +139,7 @@ async def update_building(
 
     for field, value in update_data.items():
         setattr(building, field, value)
-    building.updated_at = datetime.now(timezone.utc)
+    building.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(building)
     return building
@@ -152,7 +151,7 @@ async def delete_building(
     building = await get_building(db, company_id, building_id)
     if building is None:
         return False
-    building.deleted_at = datetime.now(timezone.utc)
+    building.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 

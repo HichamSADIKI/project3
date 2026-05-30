@@ -5,8 +5,7 @@ Les helpers purs (generate_reference, is_valid_transition, compute_sla_due,
 is_sla_breached) sont testables sans DB.
 """
 import uuid
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
@@ -67,7 +66,7 @@ def compute_sla_due(priority: str, created_at: datetime) -> datetime:
     hours = SLA_HOURS.get(priority, SLA_HOURS["medium"])
     base = created_at
     if base.tzinfo is None:
-        base = base.replace(tzinfo=timezone.utc)
+        base = base.replace(tzinfo=UTC)
     return base + timedelta(hours=hours)
 
 
@@ -79,8 +78,8 @@ def is_sla_breached(ticket: MaintenanceTicket) -> bool:
         return False
     due = ticket.sla_due_at
     if due.tzinfo is None:
-        due = due.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) > due
+        due = due.replace(tzinfo=UTC)
+    return datetime.now(UTC) > due
 
 
 # ── Parsing cron (sans dépendance externe) ─────────────────────────────────
@@ -162,7 +161,7 @@ def next_cron_run(
     except (ValueError, TypeError):
         return None
 
-    base = after if after.tzinfo else after.replace(tzinfo=timezone.utc)
+    base = after if after.tzinfo else after.replace(tzinfo=UTC)
     # On part de la minute suivante (occurrence strictement postérieure).
     candidate = (base + timedelta(minutes=1)).replace(second=0, microsecond=0)
     limit = base + timedelta(days=max_days)
@@ -177,7 +176,7 @@ def next_cron_run(
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     """Référence séquentielle unique par tenant + année."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count_result = await db.execute(
         select(func.count(MaintenanceTicket.id)).where(
             MaintenanceTicket.company_id == company_id,
@@ -274,7 +273,7 @@ async def create_ticket(
         raise HTTPException(status_code=422, detail="unit_id_or_building_id_required")
 
     reference = await _next_reference(db, company_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sla_due = compute_sla_due(data.priority, now)
 
     ticket = MaintenanceTicket(
@@ -387,7 +386,7 @@ async def update_ticket_status(
 
     ticket.status = data.status
     if data.status in ("resolved", "closed"):
-        ticket.resolved_at = datetime.now(timezone.utc)
+        ticket.resolved_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(ticket)
@@ -400,7 +399,7 @@ async def soft_delete_ticket(
     ticket = await get_ticket(db, company_id, ticket_id)
     if not ticket:
         return False
-    ticket.deleted_at = datetime.now(timezone.utc)
+    ticket.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 
@@ -594,9 +593,8 @@ async def get_calendar(
     horizon_days: int = 30,
 ) -> list[dict]:
     """Retourne les tickets avec SLA à venir + plans préventifs dans l'horizon."""
-    from .schemas import CalendarEntry
 
-    horizon = datetime.now(timezone.utc) + timedelta(days=horizon_days)
+    horizon = datetime.now(UTC) + timedelta(days=horizon_days)
     entries: list[dict] = []
 
     # Tickets avec SLA dans l'horizon (non terminaux).

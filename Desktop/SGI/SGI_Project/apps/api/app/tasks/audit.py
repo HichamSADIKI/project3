@@ -70,4 +70,4 @@ def write_audit_log(
         return {"status": "ok", "resource": resource, "action": action}
     except Exception as exc:  # noqa: BLE001 — l'audit ne doit jamais casser la requête
         logger.error("write_audit_log failed: %s", exc)
-        raise self.retry(exc=exc, countdown=60, max_retries=3)
+        raise self.retry(exc=exc, countdown=60, max_retries=3) from exc

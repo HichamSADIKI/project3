@@ -1,6 +1,6 @@
 """Espace Partenaire (role=partner) — submissions, leads, commissions, services."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from fastapi import (
     APIRouter,
@@ -281,7 +281,7 @@ async def list_documents(
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
     docs = await list_my_documents(db, vendor.party_id, company_id)
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     out: list[VendorDocumentOut] = []
     for d in docs:
         url = await storage.presigned_url(d.file_path) if d.file_path else None
@@ -376,7 +376,7 @@ async def upload_document(
         extracted=extracted,
     )
     url = await storage.presigned_url(doc.file_path)
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     return VendorDocumentOut(
         id=doc.id,
         doc_type=doc.doc_type,

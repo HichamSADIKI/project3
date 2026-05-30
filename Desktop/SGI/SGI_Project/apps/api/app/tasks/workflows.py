@@ -4,8 +4,7 @@ Queue : reminders
 Beat  : check_workflow_sla — toutes les heures.
 """
 import logging
-import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from celery import shared_task
 from sqlalchemy import select
@@ -33,7 +32,7 @@ def check_workflow_sla(self) -> dict:
             ).scalars().all()
 
             breached = [s for s in steps if is_step_sla_breached(s)]
-            now = datetime.now(timezone.utc)
+            now = datetime.now(UTC)
 
             for step in breached:
                 # Escalade : passage au statut escalated.
@@ -95,4 +94,4 @@ def check_workflow_sla(self) -> dict:
         return {"checked": len(steps), "escalated": escalated}
     except Exception as exc:
         logger.error("check_workflow_sla failed: %s", exc)
-        raise self.retry(exc=exc, countdown=300, max_retries=3)
+        raise self.retry(exc=exc, countdown=300, max_retries=3) from exc

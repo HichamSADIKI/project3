@@ -17,10 +17,10 @@ import random
 from urllib.parse import urlparse
 
 from app.routers.scraping.parsers import (
+    _parse_generic_html,
     parse_bayut_html,
     parse_dubizzle_html,
     parse_propertyfinder_html,
-    _parse_generic_html,
 )
 from app.routers.scraping.schemas import ScrapedProperty
 
@@ -39,13 +39,18 @@ except ImportError:
 # ── Playwright browser singleton ──────────────────────────────────────────────
 
 try:
-    from playwright.async_api import Browser, BrowserContext, Playwright, async_playwright  # type: ignore[import]
+    from playwright.async_api import (  # type: ignore[import]
+        Browser,
+        BrowserContext,
+        Playwright,
+        async_playwright,
+    )
     _PLAYWRIGHT_AVAILABLE = True
 except ImportError:
     _PLAYWRIGHT_AVAILABLE = False
 
-_playwright_instance: "Playwright | None" = None
-_browser: "Browser | None" = None
+_playwright_instance: Playwright | None = None
+_browser: Browser | None = None
 
 
 async def start_browser() -> None:
@@ -126,15 +131,15 @@ async def _fetch_cffi(url: str) -> str:
             raise ValueError("Captcha page returned")
         return resp.text
 
-    # Polite delay
-    await asyncio.sleep(random.uniform(0.3, 1.0))
+    # Polite delay (jitter anti-bot, non cryptographique)
+    await asyncio.sleep(random.uniform(0.3, 1.0))  # noqa: S311
     return await asyncio.get_event_loop().run_in_executor(None, _sync_get)
 
 
 # ── HTTP layer — Playwright ───────────────────────────────────────────────────
 
 async def _fetch_playwright(url: str) -> str:
-    ctx: "BrowserContext" = await _browser.new_context(  # type: ignore[union-attr]
+    ctx: BrowserContext = await _browser.new_context(  # type: ignore[union-attr]
         user_agent=(
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -149,7 +154,7 @@ async def _fetch_playwright(url: str) -> str:
         await page.add_init_script(
             "Object.defineProperty(navigator, 'webdriver', {get: () => undefined})"
         )
-        await page.wait_for_timeout(int(random.uniform(300, 800)))
+        await page.wait_for_timeout(int(random.uniform(300, 800)))  # noqa: S311
         await page.goto(url, wait_until="domcontentloaded", timeout=30_000)
         await page.wait_for_timeout(2_000)
         return await page.content()

@@ -1,6 +1,6 @@
 """Service — Rentals. Toujours filtrer par company_id (Loi 1)."""
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -171,7 +171,7 @@ async def update_rental(
     for field, value in update_data.items():
         setattr(rental, field, value)
 
-    rental.updated_at = datetime.now(timezone.utc)
+    rental.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(rental)
     return rental

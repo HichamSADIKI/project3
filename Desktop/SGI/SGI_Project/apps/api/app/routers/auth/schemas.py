@@ -19,7 +19,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105  type de jeton OAuth, pas un secret
     expires_in: int  # seconds
     # MFA : si True, le token est temporaire — doit être validé via /auth/mfa/validate
     mfa_required: bool = False

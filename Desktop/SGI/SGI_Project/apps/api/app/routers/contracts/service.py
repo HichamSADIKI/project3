@@ -5,7 +5,7 @@ documents (M2) : le contrat référence un `signing_document_id` ; quand toutes
 les signatures de ce document sont posées, le contrat passe `signed`.
 """
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from sqlalchemy import func, select
@@ -21,7 +21,6 @@ from app.routers.contracts.schemas import (
 )
 from app.routers.documents.service import all_signatures_complete, list_signatures
 from app.routers.rentals.service import _add_months, _build_payment_schedule
-
 
 # ─── Helpers métier purs (renouvellement) ──────────────────────────────────
 
@@ -126,7 +125,7 @@ async def create_contract(
     data: ContractCreate,
 ) -> Contract:
     """Crée un contrat avec référence auto-générée et commission calculée."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     year = now.year
     seq = await _next_contract_sequence(db, year)
     reference = f"CNT-{year}-{seq:04d}"
@@ -186,7 +185,7 @@ async def update_contract(
     for field, value in update_data.items():
         setattr(contract, field, value)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
 
     if new_status == "signed" and not contract.signed_at:
         contract.signed_at = now
@@ -224,7 +223,7 @@ async def delete_contract(
     if contract.status != "draft":
         raise ValueError("only_draft_contracts_can_be_deleted")
 
-    contract.deleted_at = datetime.now(timezone.utc)
+    contract.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 
@@ -267,7 +266,7 @@ async def renew_contract(
         Decimal(str(old.amount)), Decimal(str(data.rent_escalation_pct))
     )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     seq = await _next_contract_sequence(db, now.year)
     reference = f"CNT-{now.year}-{seq:04d}"
     commission_amount = (
@@ -342,7 +341,7 @@ async def link_signing_document(
     if contract is None:
         return None
     contract.signing_document_id = document_id
-    contract.updated_at = datetime.now(timezone.utc)
+    contract.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(contract)
     return contract
@@ -360,7 +359,7 @@ async def sync_contract_signature(
         return "no_signing_document"
     sigs = await list_signatures(db, company_id, contract.signing_document_id)
     if all_signatures_complete([s.status for s in sigs]):
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if contract.status not in {"active", "expired", "cancelled"}:
             contract.status = "signed"
         if contract.signed_at is None:

@@ -1,6 +1,6 @@
 """Service — Units. CRUD + transitions de statut."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,6 @@ from app.models.building import Building
 from app.models.floor import Floor
 from app.models.unit import Unit
 from app.routers.units.schemas import UnitCreate, UnitUpdate
-
 
 # ─── Logique métier pure ──────────────────────────────────────────────────
 
@@ -140,7 +139,7 @@ async def update_unit(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(unit, field, value)
-    unit.updated_at = datetime.now(timezone.utc)
+    unit.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(unit)
     return unit
@@ -158,7 +157,7 @@ async def change_status(
     if not is_valid_status_transition(unit.status, target):
         return "invalid_transition"
     unit.status = target
-    unit.updated_at = datetime.now(timezone.utc)
+    unit.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(unit)
     return unit
@@ -170,6 +169,6 @@ async def delete_unit(
     unit = await get_unit(db, company_id, unit_id)
     if unit is None:
         return False
-    unit.deleted_at = datetime.now(timezone.utc)
+    unit.deleted_at = datetime.now(UTC)
     await db.commit()
     return True

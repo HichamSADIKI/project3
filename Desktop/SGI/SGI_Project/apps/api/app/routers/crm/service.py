@@ -1,6 +1,6 @@
 """Service CRM — toutes les fonctions filtrent par company_id."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -62,8 +62,8 @@ def calculate_score(
         # Normalise en UTC pour la comparaison
         lca = last_contact_at
         if lca.tzinfo is None:
-            lca = lca.replace(tzinfo=timezone.utc)
-        delta = datetime.now(timezone.utc) - lca
+            lca = lca.replace(tzinfo=UTC)
+        delta = datetime.now(UTC) - lca
         if delta.days < 7:
             score += 10
 
@@ -81,7 +81,7 @@ def generate_reference(year: int, sequence: int) -> str:
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     """Génère une référence unique par tenant + année courante."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count_result = await db.execute(
         select(func.count(CRMLead.id)).where(
             CRMLead.company_id == company_id,
@@ -314,7 +314,7 @@ async def update_lead_status(
         status_from=status_from,
         status_to=new_status,
         content=data.reason if new_status == "lost" else None,
-        completed_at=datetime.now(timezone.utc),
+        completed_at=datetime.now(UTC),
     )
     db.add(activity)
 
@@ -355,7 +355,7 @@ async def add_activity(
     # Mise à jour du compteur de contacts et de la date de dernier contact
     if data.type in ("call", "email", "whatsapp", "visit"):
         lead.contact_attempts = (lead.contact_attempts or 0) + 1
-        lead.last_contact_at = datetime.now(timezone.utc)
+        lead.last_contact_at = datetime.now(UTC)
         # Recalcul du score avec la date de contact mise à jour
         lead.score = calculate_score(
             budget=lead.budget,

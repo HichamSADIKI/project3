@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 
-class UserRole(str, enum.Enum):
+class UserRole(str, enum.Enum):  # noqa: UP042  (str, Enum) volontaire : str(role) ≠ valeur en StrEnum
     """Rôles utilisateur SGI. Stockés comme VARCHAR + CHECK constraint."""
 
     ADMIN = "admin"
@@ -18,7 +18,7 @@ class UserRole(str, enum.Enum):
     PARTNER = "fournisseur"
 
 
-class UserStatus(str, enum.Enum):
+class UserStatus(str, enum.Enum):  # noqa: UP042  idem UserRole
     """Statut du compte. `pending` pour inscriptions publiques en attente."""
 
     ACTIVE = "active"

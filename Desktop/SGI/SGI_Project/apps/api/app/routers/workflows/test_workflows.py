@@ -6,7 +6,7 @@ Lancer avec : `docker compose exec api uv run pytest app/routers/workflows/test_
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -65,13 +65,13 @@ def test_invalid_instance_transitions() -> None:
 
 
 def test_compute_step_sla_with_hours() -> None:
-    now = datetime(2026, 5, 30, 10, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 30, 10, 0, tzinfo=UTC)
     due = compute_step_sla(24, now)
     assert due == now + timedelta(hours=24)
 
 
 def test_compute_step_sla_none() -> None:
-    now = datetime(2026, 5, 30, tzinfo=timezone.utc)
+    now = datetime(2026, 5, 30, tzinfo=UTC)
     assert compute_step_sla(None, now) is None
     assert compute_step_sla(0, now) is None
 
@@ -79,14 +79,14 @@ def test_compute_step_sla_none() -> None:
 def test_step_sla_breached() -> None:
     step = MagicMock()
     step.status = "in_progress"
-    step.sla_due_at = datetime.now(timezone.utc) - timedelta(hours=1)
+    step.sla_due_at = datetime.now(UTC) - timedelta(hours=1)
     assert is_step_sla_breached(step) is True
 
 
 def test_step_sla_not_breached() -> None:
     step = MagicMock()
     step.status = "in_progress"
-    step.sla_due_at = datetime.now(timezone.utc) + timedelta(hours=5)
+    step.sla_due_at = datetime.now(UTC) + timedelta(hours=5)
     assert is_step_sla_breached(step) is False
 
 
@@ -94,7 +94,7 @@ def test_step_sla_terminal_status() -> None:
     for terminal in ("approved", "rejected", "skipped", "escalated"):
         step = MagicMock()
         step.status = terminal
-        step.sla_due_at = datetime.now(timezone.utc) - timedelta(hours=1)
+        step.sla_due_at = datetime.now(UTC) - timedelta(hours=1)
         assert is_step_sla_breached(step) is False, terminal
 
 

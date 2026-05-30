@@ -1,6 +1,6 @@
 """Service — Finance. Toujours filtrer par company_id (Loi 1)."""
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -86,7 +86,7 @@ async def create_transaction(
     data: TransactionCreate,
 ) -> FinanceTransaction:
     """Crée une transaction financière avec référence auto-générée."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     year = now.year
     seq = await _next_transaction_sequence(db, year)
     reference = f"TXN-{year}-{seq:05d}"
@@ -131,7 +131,7 @@ async def update_transaction(
 
     update_data = data.model_dump(exclude_unset=True)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if update_data.get("status") == "paid" and not update_data.get("paid_at"):
         update_data["paid_at"] = now
 
@@ -155,7 +155,7 @@ async def get_summary(
     - Factures en attente
     - Montant payé ce mois
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     # Revenus totaux (credit, paid)

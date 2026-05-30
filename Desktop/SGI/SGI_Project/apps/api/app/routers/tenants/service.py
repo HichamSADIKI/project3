@@ -1,6 +1,6 @@
 """Service — Tenants. Cycle de vie + loyalty score + KYC."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -10,7 +10,6 @@ from app.models.client import Client
 from app.models.document import Document
 from app.models.party_tenant import TenantProfile
 from app.routers.tenants.schemas import TenantCreate, TenantUpdate
-
 
 # ─── Logique métier pure ──────────────────────────────────────────────────
 
@@ -210,7 +209,7 @@ async def create_tenant(
     if await get_tenant(db, company_id, data.party_id) is not None:
         return None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tenant = TenantProfile(
         party_id=data.party_id,
         company_id=company_id,
@@ -250,7 +249,7 @@ async def update_tenant(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(tenant, field, value)
-    tenant.updated_at = datetime.now(timezone.utc)
+    tenant.updated_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(tenant)
@@ -278,7 +277,7 @@ async def change_lifecycle_status(
     if not is_valid_transition(tenant.lifecycle_status, target):
         return "invalid_transition"
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if target == "active":
         tenant.activated_at = now
         tenant.candidacy_approved_at = tenant.candidacy_approved_at or now
@@ -299,7 +298,7 @@ async def delete_tenant(
     tenant = await get_tenant(db, company_id, party_id)
     if tenant is None:
         return False
-    tenant.deleted_at = datetime.now(timezone.utc)
+    tenant.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 
@@ -368,7 +367,7 @@ async def set_kyc_status(
     rejection_reason: str | None = None,
 ) -> TenantProfile:
     """Applique une transition KYC déjà validée par l'appelant."""
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     tenant.kyc_status = target
     if target == "verified":
         tenant.kyc_verified_at = now

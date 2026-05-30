@@ -2,8 +2,15 @@
 import uuid
 
 from fastapi import (
-    APIRouter, Depends, File, Form, HTTPException, Query,
-    Request, UploadFile, status,
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    status,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -245,7 +252,7 @@ async def upload_photo(
     db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> PhotoOut:
-    from app.core.storage import StorageError, is_configured, upload_bytes, extension_for_mime
+    from app.core.storage import StorageError, extension_for_mime, is_configured, upload_bytes
 
     cid = await get_company_id(db)
     content_type = photo.content_type or "image/jpeg"

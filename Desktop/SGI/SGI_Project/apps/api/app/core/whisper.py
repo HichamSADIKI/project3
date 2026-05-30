@@ -51,7 +51,7 @@ _GEMINI_PROMPT = {
 }
 
 
-class WhisperUnavailable(RuntimeError):
+class WhisperUnavailable(RuntimeError):  # noqa: N818  nom métier conservé (référencé ailleurs)
     """Levée quand aucun provider n'est configuré ou que l'API échoue."""
 
 

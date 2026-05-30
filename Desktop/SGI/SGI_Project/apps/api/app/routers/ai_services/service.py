@@ -5,14 +5,13 @@ Les helpers de scoring sont purs et testables.
 """
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contract import Contract
 from app.models.maintenance import MaintenanceTicket
-
 
 # ── Helpers purs (scoring risque maintenance) ─────────────────────────────
 
@@ -88,16 +87,16 @@ async def _analyze_unit(
     cats = Counter(t.category for t in rows)
     top_category, top_count = (cats.most_common(1)[0] if cats else (None, 0))
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sla_breaches = sum(
         1 for t in rows
         if t.sla_due_at and t.status not in ("closed", "cancelled", "resolved")
-        and (t.sla_due_at.replace(tzinfo=timezone.utc) if t.sla_due_at.tzinfo is None
+        and (t.sla_due_at.replace(tzinfo=UTC) if t.sla_due_at.tzinfo is None
              else t.sla_due_at) < now
     )
     oldest = min((t.created_at for t in rows), default=now)
     if oldest.tzinfo is None:
-        oldest = oldest.replace(tzinfo=timezone.utc)
+        oldest = oldest.replace(tzinfo=UTC)
     age_days = (now - oldest).days
 
     score = compute_risk_score(ticket_count, top_count, sla_breaches, age_days)
@@ -190,7 +189,7 @@ async def contract_summary(
         if result_g.get("engine", "").startswith("gemini"):
             summary = result_g.get("summary", facts)
             engine = result_g["engine"]
-    except Exception:  # noqa: BLE001 — fail-safe : on garde le résumé factuel
+    except Exception:  # noqa: BLE001, S110 — fail-safe : on garde le résumé factuel
         pass
 
     return {

@@ -1,18 +1,25 @@
 """Router Communication — /api/v1/comms (REST + WebSocket)."""
 import uuid
+from datetime import UTC
 
 from fastapi import (
-    APIRouter, Depends, File, Form, HTTPException,
-    Query, Request, UploadFile, WebSocket, WebSocketDisconnect, status,
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    WebSocket,
+    status,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import text as sql_text
-
+from app.core.auth import decode_jwt
 from app.core.database import get_db
 from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
-from app.core.auth import decode_jwt
 
 from .schemas import (
     ConversationCreate,
@@ -230,13 +237,12 @@ async def upload_voice(
         except StorageError as exc:
             raise HTTPException(status_code=503, detail=f"storage_error: {exc}") from exc
 
-    # Crée le message kind=voice.
-    from .schemas import MessageCreate
-    body_data = MessageCreate(body=None, kind="voice")
-    # Patch direct pour attachment_key (non exposé dans le schéma).
+    # Crée le message kind=voice (attachment_key patché ci-dessous, non exposé au schéma).
+    from datetime import datetime
+
     from app.models.conversation import ConversationMessage
+
     from .service import _check_participant
-    from datetime import datetime, timezone
     if not await _check_participant(db, company_id, conv_id, user_id):
         raise HTTPException(status_code=403, detail="not_a_participant")
 
@@ -247,7 +253,7 @@ async def upload_voice(
         kind="voice",
         body=None,
         attachment_key=attachment_key,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     db.add(msg)
     await db.commit()
@@ -259,8 +265,8 @@ async def upload_voice(
         transcribe_voice_note.delay(str(msg.id), str(company_id))
 
     # Publie l'event WS.
-    from .ws import publish_event
     from .schemas import MessageOut as MOut
+    from .ws import publish_event
     await publish_event(company_id, conv_id, {
         "type": "message.created",
         "data": MOut.model_validate(msg).model_dump(mode="json"),
@@ -313,6 +319,7 @@ async def translate_message(
 ) -> dict:
     """Traduit le corps d'un message via Gemini translate."""
     from sqlalchemy import select
+
     from app.models.conversation import ConversationMessage
 
     company_id = await get_company_id(db)

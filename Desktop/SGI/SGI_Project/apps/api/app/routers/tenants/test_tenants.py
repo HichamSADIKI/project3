@@ -14,7 +14,6 @@ from app.routers.tenants.service import (
     visa_alert_level,
 )
 
-
 # ─── is_valid_transition ───────────────────────────────────────────────────
 
 

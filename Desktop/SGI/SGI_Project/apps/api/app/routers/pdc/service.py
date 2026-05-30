@@ -6,7 +6,7 @@ Cycle de vie strict :
   pending → cancelled (annulation avant dépôt)
 """
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -17,7 +17,6 @@ from app.models.contract import Contract
 from app.models.pdc_cheque import PdcCheque
 from app.models.rental import Rental
 from app.routers.pdc.schemas import PdcCreate, PdcUpdate
-
 
 # ─── Logique métier pure ──────────────────────────────────────────────────
 
@@ -82,7 +81,7 @@ def aggregate_outstanding(cheques: list[PdcCheque]) -> Decimal:
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     """Génère une référence unique par tenant + année courante."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count_result = await db.execute(
         select(func.count(PdcCheque.id)).where(
             PdcCheque.company_id == company_id,
@@ -219,7 +218,7 @@ async def update_pdc(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(pdc, field, value)
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -241,7 +240,7 @@ async def mark_deposited(
         return "invalid_transition"
     pdc.status = "deposited"
     pdc.deposit_date = deposit_date
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -255,7 +254,7 @@ async def mark_cleared(
         return None
     if not is_valid_pdc_transition(pdc.status, "cleared"):
         return "invalid_transition"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pdc.status = "cleared"
     pdc.cleared_at = now
     pdc.updated_at = now
@@ -276,7 +275,7 @@ async def mark_bounced(
         return None
     if not is_valid_pdc_transition(pdc.status, "bounced"):
         return "invalid_transition"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pdc.status = "bounced"
     pdc.bounced_at = now
     pdc.bounce_reason = bounce_reason
@@ -296,7 +295,7 @@ async def mark_cancelled(
     if not is_valid_pdc_transition(pdc.status, "cancelled"):
         return "invalid_transition"
     pdc.status = "cancelled"
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -323,7 +322,7 @@ async def replace_bounced(
     if new is None:
         return None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old.status = "replaced"
     old.replaced_by_pdc_id = new.id
     old.updated_at = now
@@ -339,7 +338,7 @@ async def increment_legal_notices(
     if pdc is None:
         return None
     pdc.legal_notices_sent += 1
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -351,7 +350,7 @@ async def soft_delete_pdc(
     pdc = await get_pdc(db, company_id, pdc_id)
     if pdc is None:
         return False
-    pdc.deleted_at = datetime.now(timezone.utc)
+    pdc.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 

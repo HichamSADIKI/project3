@@ -33,7 +33,6 @@ from app.routers.contracts.service import (
     update_contract,
 )
 
-
 # ── Helpers purs (déjà couverts — conservés) ─────────────────────────────────
 
 

@@ -7,7 +7,7 @@ Tâches :
 """
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 
@@ -26,6 +26,7 @@ def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
     Déclenché après upload MinIO (attachment_key renseigné, transcript = None).
     """
     import asyncio
+
     from app.core.storage import StorageError
 
     try:
@@ -57,7 +58,7 @@ def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
 
             # Transcription Whisper (async dans contexte sync via asyncio.run).
             try:
-                from app.core.whisper import transcribe_audio, WhisperUnavailable
+                from app.core.whisper import transcribe_audio
                 filename = msg.attachment_key.split("/")[-1]
                 result = asyncio.run(
                     transcribe_audio(audio_bytes, filename, content_type, "ar")
@@ -77,7 +78,7 @@ def transcribe_voice_note(self, message_id: str, company_id: str) -> dict:
 
     except Exception as exc:
         logger.error("transcribe_voice_note failed: %s", exc)
-        raise self.retry(exc=exc, countdown=60, max_retries=3)
+        raise self.retry(exc=exc, countdown=60, max_retries=3) from exc
 
 
 @celery_app.task(name="app.tasks.comms.notify_mentions", bind=True, queue="notifications")
@@ -121,7 +122,7 @@ def notify_mentions(self, message_id: str, company_id: str) -> dict:
                         title="Vous avez été mentionné dans une conversation",
                         payload={"message_id": message_id},
                         status="sent",
-                        sent_at=datetime.now(timezone.utc),
+                        sent_at=datetime.now(UTC),
                     )
                 )
                 created += 1
@@ -135,4 +136,4 @@ def notify_mentions(self, message_id: str, company_id: str) -> dict:
 
     except Exception as exc:
         logger.error("notify_mentions failed: %s", exc)
-        raise self.retry(exc=exc, countdown=30, max_retries=3)
+        raise self.retry(exc=exc, countdown=30, max_retries=3) from exc

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -461,7 +461,7 @@ async def decide_pending_user(
         admin_id = getattr(request.state, "user_id", None)
         if body.approve:
             vendor.verification_status = "verified"
-            vendor.verified_at = datetime.now(timezone.utc)
+            vendor.verified_at = datetime.now(UTC)
             vendor.verified_by_user_id = uuid.UUID(admin_id) if admin_id else None
             vendor.rejection_reason = None
         else:
@@ -570,7 +570,7 @@ async def mfa_validate(
     try:
         payload = decode_jwt(body.tmp_token)
     except Exception:
-        raise HTTPException(status_code=401, detail="invalid_tmp_token")
+        raise HTTPException(status_code=401, detail="invalid_tmp_token") from None
 
     if not payload.get("mfa_pending"):
         raise HTTPException(status_code=400, detail="not_a_mfa_pending_token")

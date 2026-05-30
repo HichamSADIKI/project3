@@ -43,7 +43,33 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "S", "B", "A"]
-ignore = ["S101"]
+# S101: asserts autorisés (tests). E501: longueur de ligne non bloquante tant
+# qu'aucun formateur (ruff format) n'est branché — à réactiver avec le format.
+# A002: les filtres FastAPI nommés `type` (Query) shadowent le builtin — idiome assumé.
+ignore = ["S101", "E501", "A002"]
+
+[tool.ruff.lint.per-file-ignores]
+# Les tests s'autorisent : lignes longues (données/HTML d'exemple), imports
+# après set-up (E402), pytest.raises(Exception) (B017), faux secrets (S105/S106),
+# random non-crypto (S311), try/except/pass (S110), noms shadowant des builtins.
+"**/test_*.py" = ["E501", "E402", "B017", "S105", "S106", "S311", "S110", "A001", "A002"]
+# DATABASE_URL / APP_DATABASE_URL sont des @property "constantes" (UPPER_CASE assumé).
+"app/core/config.py" = ["N802"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Les injecteurs FastAPI s'utilisent volontairement comme valeurs par défaut
+# d'arguments (Depends/Query/…) — ce n'est pas le piège B008 visé.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+]
 
 [tool.mypy]
 strict = true

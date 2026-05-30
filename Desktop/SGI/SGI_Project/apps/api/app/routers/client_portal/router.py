@@ -29,12 +29,12 @@ from app.routers.client_portal.service import (
     add_favorite,
     compute_dashboard,
     create_visit_request,
+    find_linked_client_id,
     get_my_profile,
     list_my_favorites,
     list_my_leads,
     list_my_messages,
     list_my_visits,
-    find_linked_client_id,
     mark_message_read,
     preview_client_need,
     remove_favorite,
@@ -135,7 +135,7 @@ async def post_favorite(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="already_in_favorites"
-        )
+        ) from None
 
 
 @router.delete("/favorites/{favorite_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -244,6 +244,7 @@ async def list_my_maintenance(
 ):
     """Liste les tickets de maintenance rapportés par le client connecté."""
     from sqlalchemy import select
+
     from app.models.maintenance import MaintenanceTicket
 
     _user_id, company_id, email = _ctx(request)

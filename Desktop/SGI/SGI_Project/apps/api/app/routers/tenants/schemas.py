@@ -6,7 +6,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 LifecycleStatus = Literal["candidate", "active", "former", "blacklisted"]
 VisaType = Literal["employment", "family", "golden", "visit", "other"]
 

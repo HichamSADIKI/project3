@@ -1,6 +1,6 @@
 """Service Workflow Engine — CRUD + machine à états + helpers purs."""
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -14,7 +14,6 @@ from app.models.workflow import (
 )
 
 from .schemas import InstanceCreate, StepAction, TemplateCreate
-
 
 # ── Helpers purs ──────────────────────────────────────────────────────────
 
@@ -50,14 +49,14 @@ def is_step_sla_breached(step: WorkflowStep) -> bool:
         return False
     due = step.sla_due_at
     if due.tzinfo is None:
-        due = due.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) > due
+        due = due.replace(tzinfo=UTC)
+    return datetime.now(UTC) > due
 
 
 def compute_step_sla(sla_hours: int | None, from_dt: datetime) -> datetime | None:
     if not sla_hours:
         return None
-    base = from_dt if from_dt.tzinfo else from_dt.replace(tzinfo=timezone.utc)
+    base = from_dt if from_dt.tzinfo else from_dt.replace(tzinfo=UTC)
     return base + timedelta(hours=sla_hours)
 
 
@@ -130,7 +129,7 @@ async def start_workflow(
     await db.flush()
 
     # Crée les steps à partir de la définition.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     steps_def: list[dict] = tpl.steps_definition or []
     for step_def in sorted(steps_def, key=lambda s: s.get("order", 0)):
         step = WorkflowStep(
@@ -249,7 +248,7 @@ async def _act_on_step(
     if not step:
         raise HTTPException(status_code=404, detail="step_not_found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     target_status = {
         "approve":   "approved",
         "reject":    "rejected",

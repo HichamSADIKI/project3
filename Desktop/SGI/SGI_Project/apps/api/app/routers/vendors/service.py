@@ -1,6 +1,6 @@
 """Service — Vendors. Marketplace + rating cumulé."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -161,7 +161,7 @@ async def update_vendor(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(vendor, field, value)
-    vendor.updated_at = datetime.now(timezone.utc)
+    vendor.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(vendor)
     return vendor
@@ -179,7 +179,7 @@ async def add_rating(
     new_avg, new_count = merge_rating(vendor.rating_avg, vendor.rating_count, score)
     vendor.rating_avg = new_avg
     vendor.rating_count = new_count
-    vendor.updated_at = datetime.now(timezone.utc)
+    vendor.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(vendor)
     return vendor
@@ -191,6 +191,6 @@ async def delete_vendor(
     vendor = await get_vendor(db, company_id, party_id)
     if vendor is None:
         return False
-    vendor.deleted_at = datetime.now(timezone.utc)
+    vendor.deleted_at = datetime.now(UTC)
     await db.commit()
     return True

@@ -1,6 +1,6 @@
 """Logique métier de l'espace Partenaire."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, or_, select
@@ -409,7 +409,7 @@ async def set_mission_status(
 ) -> VendorMission:
     mission.status = target
     if target == "done":
-        mission.completed_at = datetime.now(timezone.utc)
+        mission.completed_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(mission)
     return mission

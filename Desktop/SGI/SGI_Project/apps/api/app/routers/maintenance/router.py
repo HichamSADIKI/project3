@@ -20,7 +20,6 @@ from .schemas import (
     TicketCreate,
     TicketDetailOut,
     TicketListOut,
-    TicketOut,
     TicketStatusUpdate,
     TicketUpdate,
 )
@@ -32,7 +31,6 @@ from .service import (
     create_quote,
     create_ticket,
     get_calendar,
-    get_quote,
     get_ticket,
     list_invoices,
     list_plans,

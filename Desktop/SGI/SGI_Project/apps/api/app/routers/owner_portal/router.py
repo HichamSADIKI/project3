@@ -5,10 +5,9 @@ Le propriétaire se connecte avec role=client ; il est lié à une fiche
 Ces endpoints exposent ses biens, ses revenus et l'approbation de dépenses.
 """
 import uuid
-from decimal import Decimal
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

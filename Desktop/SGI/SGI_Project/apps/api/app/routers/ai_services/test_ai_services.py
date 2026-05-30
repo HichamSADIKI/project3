@@ -9,7 +9,6 @@ from app.routers.ai_services.service import (
     suggest_preventive_frequency,
 )
 
-
 # ── compute_risk_score ─────────────────────────────────────────────────────
 
 def test_risk_score_zero_tickets() -> None:

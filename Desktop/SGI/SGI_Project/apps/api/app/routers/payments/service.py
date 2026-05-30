@@ -1,6 +1,6 @@
 """Service Paiements — CRUD demandes + transactions + résumés. Filtre company_id."""
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -10,7 +10,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.payment import PaymentRequest, PaymentTransaction
 
 from .schemas import PayIn, RequestCreate
-
 
 # ── Helpers purs ──────────────────────────────────────────────────────────
 
@@ -24,7 +23,7 @@ def is_overdue(due: date, status: str, today: date) -> bool:
 
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count = (await db.execute(
         select(func.count(PaymentRequest.id)).where(
             PaymentRequest.company_id == company_id,
@@ -120,7 +119,7 @@ async def pay_request(
     if req.status not in ("pending", "overdue"):
         raise HTTPException(status_code=422, detail="request_not_payable")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     req.status = "paid"
     req.paid_at = now
 

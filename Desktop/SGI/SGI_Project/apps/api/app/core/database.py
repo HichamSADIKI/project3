@@ -1,5 +1,5 @@
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Generator
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -20,7 +20,7 @@ app_session_maker = async_sessionmaker(app_engine, expire_on_commit=False)
 
 
 @contextmanager
-def sync_session_maker() -> Generator[AsyncSession, None, None]:
+def sync_session_maker() -> Generator[AsyncSession]:
     """Context manager synchrone pour les tâches Celery (rôle privilégié sgi_user).
 
     Chaque appel ouvre son PROPRE event loop ET son PROPRE engine `NullPool` :

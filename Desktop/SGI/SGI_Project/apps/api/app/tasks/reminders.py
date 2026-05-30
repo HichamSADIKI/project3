@@ -11,7 +11,7 @@ les services CRM / Golden Visa / Rentals existants.
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -54,7 +54,7 @@ def check_rental_renewals() -> dict:
     actifs arrivant à échéance dans <= 120 jours et pas encore alertés. Le worker
     tourne avec le rôle privilégié (scan multi-tenant volontaire — voir C1).
     """
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     horizon = today + timedelta(days=RENEWAL_HORIZON_DAYS)
     alerted = 0
     try:
@@ -91,7 +91,7 @@ def check_pdc_due() -> dict:
     pour ne pas spammer à chaque exécution. Worker = rôle privilégié (scan
     multi-société volontaire, voir C1).
     """
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     created = 0
     try:
         with sync_session_maker() as db:
@@ -132,7 +132,7 @@ def check_pdc_due() -> dict:
                         body=f"Montant {pdc.amount_aed} AED, échéance {pdc.due_date.isoformat()}",
                         payload={"pdc_id": str(pdc.id), "level": level},
                         status="sent",
-                        sent_at=datetime.now(timezone.utc),
+                        sent_at=datetime.now(UTC),
                     )
                 )
                 created += 1

@@ -1,27 +1,45 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.config import settings
 from app.core.database import create_db_pool
-from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import AuditMiddleware
-from app.routers import auth, clients, properties, crm, contracts, golden_visa, rentals, finance, reporting, scraping
-from app.routers import owners, tenants, vendors, technicians
-from app.routers import buildings, units, pdc
-from app.routers import client_portal, partner
-from app.routers import maintenance
-from app.routers import comms
-from app.routers import workflows
-from app.routers import inspections
-from app.routers import payments
-from app.routers import owner_portal
-from app.routers import ai_services
-from app.routers import realestate_core
-from app.routers import documents
-from app.routers import owner_statements
-from app.routers import notifications
+from app.middleware.tenant import TenantMiddleware
+from app.routers import (
+    ai_services,
+    auth,
+    buildings,
+    client_portal,
+    clients,
+    comms,
+    contracts,
+    crm,
+    documents,
+    finance,
+    golden_visa,
+    inspections,
+    maintenance,
+    notifications,
+    owner_portal,
+    owner_statements,
+    owners,
+    partner,
+    payments,
+    pdc,
+    properties,
+    realestate_core,
+    rentals,
+    reporting,
+    scraping,
+    technicians,
+    tenants,
+    units,
+    vendors,
+    workflows,
+)
 from app.routers.scraping.service import start_browser, stop_browser
 
 

@@ -51,8 +51,8 @@ jobs:
           python-version: "3.13"
       - name: Install deps (uv)
         run: uv sync --frozen
-      # NB : `ruff check app` n'est pas encore bloquant (~586 findings
-      # préexistants à nettoyer dans un chantier dédié). À réactiver ensuite.
+      - name: Lint (ruff)
+        run: uv run ruff check app
       - name: Migrate (alembic upgrade head)
         run: uv run alembic upgrade head
       - name: Tests (pytest)

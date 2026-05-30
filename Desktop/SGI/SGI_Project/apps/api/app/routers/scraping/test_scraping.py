@@ -18,9 +18,8 @@ from app.routers.scraping.parsers import (
     parse_dubizzle_html,
     parse_propertyfinder_html,
 )
-from app.routers.scraping.schemas import ScrapeRequest, ScrapedProperty
+from app.routers.scraping.schemas import ScrapedProperty, ScrapeRequest
 from app.routers.scraping.service import _build
-
 
 # ── Helpers de normalisation ─────────────────────────────────────────────────
 

@@ -13,7 +13,6 @@ from app.routers.owners.service import (
     needs_renewal_alert,
 )
 
-
 # ─── mandate_is_active ─────────────────────────────────────────────────────
 
 
