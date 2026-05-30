@@ -1,9 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Topbar, IcClients, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { postJson, extractError } from "@/lib/api-client";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+
+type ClientOpt = { id: string; first_name: string | null; last_name: string | null; company_name: string | null };
+const clientLabel = (c: ClientOpt) => c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8);
 
 // Câblé sur /api/admin/owners → /api/v1/owners.
 // Les relevés (payout net) sont par propriétaire (GET /owners/{id}/statements) →
@@ -29,7 +34,27 @@ function mandateAlert(end: string | null): { label: string; color: string } | nu
 
 export function ScreenRealEstateOwners() {
   const t = useT();
-  const { items, loading, error } = useApiList<Owner>("/api/admin/owners?limit=100");
+  const { items, loading, error, reload } = useApiList<Owner>("/api/admin/owners?limit=100");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({ party_id: "", mandate_reference: "", mandate_commission_rate: "" });
+
+  async function submit() {
+    if (!form.party_id) { setFormError("Sélectionnez un client."); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/owners", {
+        party_id: form.party_id,
+        mandate_reference: form.mandate_reference.trim() || null,
+        mandate_commission_rate: form.mandate_commission_rate ? Number(form.mandate_commission_rate) : null,
+      });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false); setForm({ party_id: "", mandate_reference: "", mandate_commission_rate: "" }); reload();
+    } catch { setFormError("create_failed"); } finally { setSaving(false); }
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -43,7 +68,7 @@ export function ScreenRealEstateOwners() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} propriétaire(s)`}</div>
             </div>
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
@@ -81,6 +106,17 @@ export function ScreenRealEstateOwners() {
           </table>
         </div>
       </div>
+
+      <CreateModal title="Nouveau propriétaire" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label="Client *">
+          <select value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })} style={fieldInput}>
+            <option value="">— Sélectionner —</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{clientLabel(c)}</option>)}
+          </select>
+        </Field>
+        <Field label="Référence mandat"><input value={form.mandate_reference} onChange={e => setForm({ ...form, mandate_reference: e.target.value })} style={fieldInput} placeholder="MND-2026-001" /></Field>
+        <Field label="Commission mandat (%)"><input type="number" value={form.mandate_commission_rate} onChange={e => setForm({ ...form, mandate_commission_rate: e.target.value })} style={fieldInput} placeholder="5" /></Field>
+      </CreateModal>
     </div>
   );
 }

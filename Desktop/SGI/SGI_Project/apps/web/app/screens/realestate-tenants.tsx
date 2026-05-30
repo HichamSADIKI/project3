@@ -1,11 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Topbar, IcPersonne, IcPlus, IcCheck, IcClock } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { postJson, extractError } from "@/lib/api-client";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 
 // Câblé sur /api/admin/tenants → /api/v1/tenants.
+
+type ClientOpt = { id: string; first_name: string | null; last_name: string | null; company_name: string | null };
+const clientLabel = (c: ClientOpt) => c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8);
 
 const LIFECYCLE: Record<string, { label: string; color: string; bg: string }> = {
   candidate: { label: "Candidat", color: "var(--gold-deep)", bg: "rgba(212,160,55,0.14)" },
@@ -41,8 +46,24 @@ function loyaltyColor(n: number): string {
 
 export function ScreenRealEstateTenants() {
   const t = useT();
-  const { items, loading, error } = useApiList<Tenant>("/api/admin/tenants?limit=100");
+  const { items, loading, error, reload } = useApiList<Tenant>("/api/admin/tenants?limit=100");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
   const verified = items.filter(x => x.kyc_status === "verified").length;
+
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({ party_id: "", lifecycle_status: "candidate" });
+
+  async function submit() {
+    if (!form.party_id) { setFormError("Sélectionnez un client."); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/tenants", { party_id: form.party_id, lifecycle_status: form.lifecycle_status });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false); setForm({ party_id: "", lifecycle_status: "candidate" }); reload();
+    } catch { setFormError("create_failed"); } finally { setSaving(false); }
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -56,7 +77,7 @@ export function ScreenRealEstateTenants() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} · ${verified} KYC vérifié(s)`}</div>
             </div>
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
@@ -101,6 +122,21 @@ export function ScreenRealEstateTenants() {
           </table>
         </div>
       </div>
+
+      <CreateModal title="Nouveau locataire" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label="Client *">
+          <select value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })} style={fieldInput}>
+            <option value="">— Sélectionner —</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{clientLabel(c)}</option>)}
+          </select>
+        </Field>
+        <Field label="Cycle de vie">
+          <select value={form.lifecycle_status} onChange={e => setForm({ ...form, lifecycle_status: e.target.value })} style={fieldInput}>
+            <option value="candidate">Candidat</option>
+            <option value="active">Actif</option>
+          </select>
+        </Field>
+      </CreateModal>
     </div>
   );
 }

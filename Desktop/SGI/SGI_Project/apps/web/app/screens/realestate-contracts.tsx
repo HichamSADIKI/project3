@@ -1,9 +1,16 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Topbar, IcContract, IcPlus, IcCheck, IcClock } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { postJson, extractError } from "@/lib/api-client";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+
+type ClientOpt = { id: string; first_name: string | null; last_name: string | null; company_name: string | null };
+type PropertyOpt = { id: string; reference?: string | null; title_en?: string | null };
+const clientLabel = (c: ClientOpt) => c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8);
+const propLabel = (p: PropertyOpt) => p.reference || p.title_en || p.id.slice(0, 8);
 
 // Câblé sur /api/admin/contracts → /api/v1/contracts.
 
@@ -25,7 +32,27 @@ type Contract = {
 
 export function ScreenRealEstateContracts() {
   const t = useT();
-  const { items, loading, error } = useApiList<Contract>("/api/admin/contracts?limit=100");
+  const { items, loading, error, reload } = useApiList<Contract>("/api/admin/contracts?limit=100");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=200");
+
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({ type: "rental", client_id: "", property_id: "", amount: "" });
+
+  async function submit() {
+    if (!form.client_id || !form.property_id) { setFormError("Client et bien obligatoires."); return; }
+    if (!form.amount || Number(form.amount) <= 0) { setFormError("Montant invalide."); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/contracts", {
+        type: form.type, client_id: form.client_id, property_id: form.property_id, amount: Number(form.amount),
+      });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false); setForm({ type: "rental", client_id: "", property_id: "", amount: "" }); reload();
+    } catch { setFormError("create_failed"); } finally { setSaving(false); }
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -39,7 +66,7 @@ export function ScreenRealEstateContracts() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} contrat(s)`}</div>
             </div>
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
@@ -83,6 +110,28 @@ export function ScreenRealEstateContracts() {
           </table>
         </div>
       </div>
+
+      <CreateModal title="Nouveau contrat" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label="Type">
+          <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={fieldInput}>
+            <option value="rental">Location</option>
+            <option value="sale">Vente</option>
+          </select>
+        </Field>
+        <Field label="Client *">
+          <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} style={fieldInput}>
+            <option value="">— Sélectionner —</option>
+            {clients.map(c => <option key={c.id} value={c.id}>{clientLabel(c)}</option>)}
+          </select>
+        </Field>
+        <Field label="Bien *">
+          <select value={form.property_id} onChange={e => setForm({ ...form, property_id: e.target.value })} style={fieldInput}>
+            <option value="">— Sélectionner —</option>
+            {properties.map(p => <option key={p.id} value={p.id}>{propLabel(p)}</option>)}
+          </select>
+        </Field>
+        <Field label="Montant (AED) *"><input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={fieldInput} placeholder="145000" /></Field>
+      </CreateModal>
     </div>
   );
 }

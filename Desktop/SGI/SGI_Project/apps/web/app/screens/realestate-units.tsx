@@ -1,11 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Topbar, IcGrid, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { postJson, extractError } from "@/lib/api-client";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 
 // Câblé sur /api/admin/units → /api/v1/units.
+
+const UNIT_TYPES = ["studio", "apartment_1br", "apartment_2br", "apartment_3br", "apartment_4br_plus", "penthouse", "duplex", "villa", "townhouse", "office", "shop", "warehouse", "other"];
+
+type BuildingOpt = { id: string; reference: string; name_en: string | null };
 
 const aed = (n: number) =>
   new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
@@ -32,8 +38,27 @@ type Unit = {
 
 export function ScreenRealEstateUnits() {
   const t = useT();
-  const { items, loading, error } = useApiList<Unit>("/api/admin/units?limit=100");
+  const { items, loading, error, reload } = useApiList<Unit>("/api/admin/units?limit=100");
+  const { items: buildings } = useApiList<BuildingOpt>("/api/admin/buildings?limit=200");
   const vacant = items.filter(u => u.status === "vacant").length;
+
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({ building_id: "", unit_number: "", unit_type: "apartment_1br" });
+
+  async function submit() {
+    if (!form.building_id) { setFormError("Sélectionnez un bâtiment."); return; }
+    if (!form.unit_number.trim()) { setFormError("Le numéro d'unité est obligatoire."); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/units", {
+        building_id: form.building_id, unit_number: form.unit_number.trim(), unit_type: form.unit_type,
+      });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false); setForm({ building_id: "", unit_number: "", unit_type: "apartment_1br" }); reload();
+    } catch { setFormError("create_failed"); } finally { setSaving(false); }
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -47,7 +72,7 @@ export function ScreenRealEstateUnits() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} · ${vacant} vacant(s)`}</div>
             </div>
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
@@ -84,6 +109,17 @@ export function ScreenRealEstateUnits() {
           </table>
         </div>
       </div>
+
+      <CreateModal title="Nouvelle unité" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label="Bâtiment *">
+          <select value={form.building_id} onChange={e => setForm({ ...form, building_id: e.target.value })} style={fieldInput}>
+            <option value="">— Sélectionner —</option>
+            {buildings.map(b => <option key={b.id} value={b.id}>{b.reference}{b.name_en ? ` · ${b.name_en}` : ""}</option>)}
+          </select>
+        </Field>
+        <Field label="N° d'unité *"><input autoFocus value={form.unit_number} onChange={e => setForm({ ...form, unit_number: e.target.value })} style={fieldInput} placeholder="A-1204" /></Field>
+        <Field label="Type"><select value={form.unit_type} onChange={e => setForm({ ...form, unit_type: e.target.value })} style={fieldInput}>{UNIT_TYPES.map(x => <option key={x} value={x}>{TYPE_LABEL[x] ?? x}</option>)}</select></Field>
+      </CreateModal>
     </div>
   );
 }
