@@ -6,6 +6,7 @@ Ces endpoints exposent ses biens, ses revenus et l'approbation de dépenses.
 """
 import uuid
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import select
@@ -16,6 +17,8 @@ from app.core.route_deps import require_roles
 from app.models.building import Building
 from app.models.payment import PaymentRequest
 from app.routers.client_portal.service import find_linked_client_id
+from app.routers.notifications import service as notifications_service
+from app.routers.owner_statements import service as statements_service
 from app.routers.payments.service import owner_summary
 
 router = APIRouter(
@@ -108,12 +111,20 @@ async def owner_dashboard(request: Request, db: AsyncSession = Depends(get_db_se
     )).all()
 
     summary = await owner_summary(db, cid, owner_id)
+    statements = await statements_service.list_statements(db, cid, owner_id)
+    latest_net = str(statements[0].net_payout_aed) if statements else "0"
+    unread = await notifications_service.list_notifications(
+        db, cid, recipient_party_id=owner_id, status="sent", limit=100
+    )
     return {
         "properties_count": len(props),
         "total_received_aed": str(summary["total_received_aed"]),
         "pending_aed": str(summary["pending_aed"]),
         "overdue_aed": str(summary["overdue_aed"]),
         "requests_count": summary["requests_count"],
+        "statements_count": len(statements),
+        "latest_net_payout_aed": latest_net,
+        "unread_notifications": len(unread),
     }
 
 
@@ -208,3 +219,87 @@ async def reject_expense(
     if not quote:
         raise HTTPException(status_code=404, detail="quote_not_found")
     return {"id": str(quote.id), "status": quote.status}
+
+
+# ── Relevés mensuels (M7 — réutilise M6) ─────────────────────────────────
+
+def _statement_dict(s: Any) -> dict[str, Any]:
+    return {
+        "id": str(s.id),
+        "period_year": s.period_year,
+        "period_month": s.period_month,
+        "gross_revenue_aed": str(s.gross_revenue_aed),
+        "expenses_aed": str(s.expenses_aed),
+        "commission_aed": str(s.commission_aed),
+        "net_payout_aed": str(s.net_payout_aed),
+        "currency": s.currency,
+        "status": s.status,
+        "generated_at": s.generated_at.isoformat() if s.generated_at else None,
+        "sent_at": s.sent_at.isoformat() if s.sent_at else None,
+    }
+
+
+@router.get("/statements")
+async def owner_statements_list(
+    request: Request, db: AsyncSession = Depends(get_db_session)
+) -> list[dict[str, Any]]:
+    _uid, cid, email = _ctx(request)
+    owner_id = await _owner_client_id(db, email, cid)
+    if not owner_id:
+        return []
+    statements = await statements_service.list_statements(db, cid, owner_id)
+    return [_statement_dict(s) for s in statements]
+
+
+@router.get("/statements/{statement_id}")
+async def owner_statement_detail(
+    statement_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
+) -> dict[str, Any]:
+    _uid, cid, email = _ctx(request)
+    owner_id = await _owner_client_id(db, email, cid)
+    statement = await statements_service.get_statement(db, cid, statement_id)
+    # Scope strict : le propriétaire ne voit que ses propres relevés (anti-BOLA).
+    if statement is None or not owner_id or statement.owner_party_id != owner_id:
+        raise HTTPException(status_code=404, detail="statement_not_found")
+    data = _statement_dict(statement)
+    data["line_items"] = statement.line_items
+    return data
+
+
+# ── Notifications du propriétaire (M7 — réutilise M6) ─────────────────────
+
+@router.get("/notifications")
+async def owner_notifications(
+    request: Request,
+    status: str | None = Query(None),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[dict[str, Any]]:
+    _uid, cid, email = _ctx(request)
+    owner_id = await _owner_client_id(db, email, cid)
+    if not owner_id:
+        return []
+    notifs = await notifications_service.list_notifications(
+        db, cid, recipient_party_id=owner_id, status=status, limit=100
+    )
+    return [
+        {
+            "id": str(n.id), "type": n.type, "title": n.title, "body": n.body,
+            "status": n.status, "payload": n.payload,
+            "created_at": n.created_at.isoformat() if n.created_at else None,
+        }
+        for n in notifs
+    ]
+
+
+@router.post("/notifications/{notification_id}/read")
+async def owner_notification_read(
+    notification_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
+) -> dict[str, str]:
+    _uid, cid, email = _ctx(request)
+    owner_id = await _owner_client_id(db, email, cid)
+    notif = await notifications_service.get_notification(db, cid, notification_id)
+    # Le propriétaire ne peut marquer lues que ses propres notifications.
+    if notif is None or not owner_id or notif.recipient_party_id != owner_id:
+        raise HTTPException(status_code=404, detail="notification_not_found")
+    notif = await notifications_service.mark_read(db, notif)
+    return {"id": str(notif.id), "status": notif.status}
