@@ -4,6 +4,7 @@ import React from "react";
 import { Topbar, IcFinance, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { useRowAction } from "@/lib/use-row-action";
 
 // Câblé sur /api/admin/payments/requests → /api/v1/payments/requests.
 
@@ -28,8 +29,10 @@ type Request = {
 
 export function ScreenRealEstatePayments() {
   const t = useT();
-  const { items, loading, error } = useApiList<Request>("/api/admin/payments/requests?limit=100");
+  const { items, loading, error, reload } = useApiList<Request>("/api/admin/payments/requests?limit=100");
+  const { busy, error: actErr, run } = useRowAction(reload);
   const overdue = items.filter(p => p.status === "overdue").length;
+  const payBtn: React.CSSProperties = { border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: "rgba(16,185,129,0.12)", color: "var(--emerald)" };
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -48,6 +51,7 @@ export function ScreenRealEstatePayments() {
           </button>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -57,11 +61,12 @@ export function ScreenRealEstatePayments() {
                 <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Montant</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Échéance</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Statut</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucune demande de paiement.</td></tr>
+                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucune demande de paiement.</td></tr>
               )}
               {items.map(p => {
                 const st = STATUS[p.status] ?? { label: p.status, color: "var(--ink-3)", bg: "var(--line-soft)" };
@@ -72,6 +77,11 @@ export function ScreenRealEstatePayments() {
                     <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink)" }}>{aed(Number(p.amount_aed))}</td>
                     <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{p.due_date}</td>
                     <td style={{ padding: "13px 16px" }}><span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: st.bg, color: st.color }}>{st.label}</span></td>
+                    <td style={{ padding: "13px 16px", textAlign: "end" }}>
+                      {(p.status === "pending" || p.status === "overdue")
+                        ? (busy === p.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : <button onClick={() => run(p.id, `/api/admin/payments/requests/${p.id}/pay`, { method: "online" })} style={payBtn}>Encaisser</button>)
+                        : <span style={{ color: "var(--ink-4)" }}>—</span>}
+                    </td>
                   </tr>
                 );
               })}

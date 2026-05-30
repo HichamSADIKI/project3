@@ -4,8 +4,11 @@ import React from "react";
 import { Topbar, IcReport, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { useRowAction } from "@/lib/use-row-action";
 
 // Câblé sur /api/admin/pdc → /api/v1/pdc.
+
+const aBtn = (color: string, bg: string): React.CSSProperties => ({ border: "none", borderRadius: 8, padding: "5px 9px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: bg, color });
 
 const aed = (n: number) =>
   new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
@@ -26,8 +29,14 @@ type Pdc = {
 
 export function ScreenRealEstateCheques() {
   const t = useT();
-  const { items, loading, error } = useApiList<Pdc>("/api/admin/pdc?limit=100");
+  const { items, loading, error, reload } = useApiList<Pdc>("/api/admin/pdc?limit=100");
+  const { busy, error: actErr, run } = useRowAction(reload);
   const outstanding = items.filter(c => ["pending", "deposited"].includes(c.status)).reduce((s, c) => s + Number(c.amount_aed), 0);
+
+  function bounce(id: string) {
+    const reason = window.prompt("Motif du rejet du chèque ?");
+    if (reason) run(id, `/api/admin/pdc/${id}/bounce`, { bounce_reason: reason });
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -46,6 +55,7 @@ export function ScreenRealEstateCheques() {
           </button>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -56,11 +66,12 @@ export function ScreenRealEstateCheques() {
                 <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Montant</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Échéance</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Statut</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun chèque.</td></tr>
+                <tr><td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun chèque.</td></tr>
               )}
               {items.map(c => {
                 const st = STATUS[c.status] ?? { label: c.status, color: "var(--ink-3)", bg: "var(--line-soft)" };
@@ -74,6 +85,18 @@ export function ScreenRealEstateCheques() {
                     <td style={{ padding: "13px 16px" }}>
                       <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: st.bg, color: st.color }}>{st.label}</span>
                       {c.legal_notices_sent > 0 && <span style={{ marginInlineStart: 6, fontSize: 10, color: "var(--rose)" }}>⚖ {c.legal_notices_sent}</span>}
+                    </td>
+                    <td style={{ padding: "13px 16px", textAlign: "end" }}>
+                      {busy === c.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
+                        <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                          {c.status === "pending" && <button onClick={() => run(c.id, `/api/admin/pdc/${c.id}/deposit`)} style={aBtn("var(--azure)", "rgba(56,132,255,0.12)")}>Déposer</button>}
+                          {c.status === "deposited" && (<>
+                            <button onClick={() => run(c.id, `/api/admin/pdc/${c.id}/clear`)} style={aBtn("var(--emerald)", "rgba(16,185,129,0.12)")}>Encaissé</button>
+                            <button onClick={() => bounce(c.id)} style={aBtn("var(--rose)", "var(--rose-soft)")}>Rejeté</button>
+                          </>)}
+                          {!["pending", "deposited"].includes(c.status) && <span style={{ color: "var(--ink-4)" }}>—</span>}
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
