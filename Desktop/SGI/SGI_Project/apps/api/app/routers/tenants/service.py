@@ -1,11 +1,13 @@
-"""Service — Tenants. Cycle de vie + loyalty score."""
+"""Service — Tenants. Cycle de vie + loyalty score + KYC."""
 import uuid
 from datetime import date, datetime, timezone
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
+from app.models.document import Document
 from app.models.party_tenant import TenantProfile
 from app.routers.tenants.schemas import TenantCreate, TenantUpdate
 
@@ -75,6 +77,75 @@ def visa_alert_level(today: date, expiry: date | None) -> str | None:
     if remaining <= 90:
         return "warning"
     return None
+
+
+# ─── KYC — vérification d'identité (M4) ────────────────────────────────────
+
+
+# Documents requis pour valider le KYC (types du module documents M2).
+KYC_REQUIRED_DOC_TYPES: frozenset[str] = frozenset({"id", "passport"})
+
+# Machine à états KYC.
+_KYC_TRANSITIONS: dict[str, set[str]] = {
+    "not_started": {"pending"},
+    "pending": {"verified", "rejected"},
+    "verified": set(),  # terminal
+    "rejected": {"pending"},  # nouvelle soumission après correction
+}
+
+
+def is_valid_kyc_transition(current: str, target: str) -> bool:
+    """Vérifie une transition du workflow KYC."""
+    return target in _KYC_TRANSITIONS.get(current, set())
+
+
+def kyc_required_doc_types() -> frozenset[str]:
+    return KYC_REQUIRED_DOC_TYPES
+
+
+def kyc_missing_documents(present_doc_types: set[str]) -> list[str]:
+    """Types de documents requis encore manquants (triés, déterministe)."""
+    return sorted(KYC_REQUIRED_DOC_TYPES - present_doc_types)
+
+
+def kyc_missing_identity_fields(
+    *, emirates_id: str | None, passport_number: str | None, visa_number: str | None
+) -> list[str]:
+    """Champs d'identité obligatoires non renseignés."""
+    missing = []
+    if not emirates_id:
+        missing.append("emirates_id")
+    if not passport_number:
+        missing.append("passport_number")
+    if not visa_number:
+        missing.append("visa_number")
+    return missing
+
+
+def is_kyc_complete(
+    *,
+    present_doc_types: set[str],
+    emirates_id: str | None,
+    passport_number: str | None,
+    visa_number: str | None,
+    today: date,
+    emirates_id_expiry: date | None,
+    passport_expiry: date | None,
+    visa_expiry: date | None,
+) -> bool:
+    """KYC complet : docs requis présents + champs d'identité remplis + rien d'expiré."""
+    if kyc_missing_documents(present_doc_types):
+        return False
+    if kyc_missing_identity_fields(
+        emirates_id=emirates_id,
+        passport_number=passport_number,
+        visa_number=visa_number,
+    ):
+        return False
+    for expiry in (emirates_id_expiry, passport_expiry, visa_expiry):
+        if visa_alert_level(today, expiry) == "expired":
+            return False
+    return True
 
 
 # ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -231,3 +302,83 @@ async def delete_tenant(
     tenant.deleted_at = datetime.now(timezone.utc)
     await db.commit()
     return True
+
+
+# ─── KYC — fonctions async ─────────────────────────────────────────────────
+
+
+async def tenant_document_types(
+    db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID
+) -> set[str]:
+    """Types de documents (module M2) attachés à ce locataire (non supprimés)."""
+    rows = await db.execute(
+        select(Document.doc_type).where(
+            Document.company_id == company_id,
+            Document.entity_type == "tenant",
+            Document.entity_id == party_id,
+            Document.deleted_at.is_(None),
+        )
+    )
+    return {dt for dt in rows.scalars().all()}
+
+
+async def kyc_status_report(
+    db: AsyncSession, company_id: uuid.UUID, tenant: TenantProfile, today: date
+) -> dict[str, Any]:
+    """Construit la checklist KYC d'un locataire (statut + manquants + alertes)."""
+    present = await tenant_document_types(db, company_id, tenant.party_id)
+    missing_docs = kyc_missing_documents(present)
+    missing_fields = kyc_missing_identity_fields(
+        emirates_id=tenant.emirates_id,
+        passport_number=tenant.passport_number,
+        visa_number=tenant.visa_number,
+    )
+    complete = is_kyc_complete(
+        present_doc_types=present,
+        emirates_id=tenant.emirates_id,
+        passport_number=tenant.passport_number,
+        visa_number=tenant.visa_number,
+        today=today,
+        emirates_id_expiry=tenant.emirates_id_expiry,
+        passport_expiry=tenant.passport_expiry,
+        visa_expiry=tenant.visa_expiry,
+    )
+    return {
+        "kyc_status": tenant.kyc_status,
+        "kyc_verified_at": tenant.kyc_verified_at,
+        "kyc_rejection_reason": tenant.kyc_rejection_reason,
+        "required_doc_types": sorted(kyc_required_doc_types()),
+        "present_doc_types": sorted(present),
+        "missing_doc_types": missing_docs,
+        "missing_identity_fields": missing_fields,
+        "visa_alert": visa_alert_level(today, tenant.visa_expiry),
+        "emirates_id_alert": visa_alert_level(today, tenant.emirates_id_expiry),
+        "passport_alert": visa_alert_level(today, tenant.passport_expiry),
+        "ready_to_verify": complete,
+    }
+
+
+async def set_kyc_status(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    tenant: TenantProfile,
+    target: str,
+    *,
+    verified_by_user_id: uuid.UUID | None = None,
+    rejection_reason: str | None = None,
+) -> TenantProfile:
+    """Applique une transition KYC déjà validée par l'appelant."""
+    now = datetime.now(timezone.utc)
+    tenant.kyc_status = target
+    if target == "verified":
+        tenant.kyc_verified_at = now
+        tenant.kyc_verified_by_user_id = verified_by_user_id
+        tenant.kyc_rejection_reason = None
+    elif target == "rejected":
+        tenant.kyc_rejection_reason = rejection_reason
+    elif target == "pending":
+        tenant.kyc_rejection_reason = None
+    tenant.updated_at = now
+    await db.commit()
+    await db.refresh(tenant)
+    return tenant

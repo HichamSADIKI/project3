@@ -5,7 +5,11 @@ import pytest
 
 from app.routers.tenants.service import (
     compute_loyalty_score,
+    is_kyc_complete,
+    is_valid_kyc_transition,
     is_valid_transition,
+    kyc_missing_documents,
+    kyc_missing_identity_fields,
     valid_next_statuses,
     visa_alert_level,
 )
@@ -110,3 +114,79 @@ class TestVisaAlertLevel:
 
     def test_boundary_91_days_is_none(self) -> None:
         assert visa_alert_level(self.today, date(2026, 8, 27)) is None
+
+
+class TestKycTransitions:
+    @pytest.mark.parametrize("target", ["verified", "rejected"])
+    def test_pending_can_resolve(self, target: str) -> None:
+        assert is_valid_kyc_transition("pending", target) is True
+
+    def test_not_started_to_pending(self) -> None:
+        assert is_valid_kyc_transition("not_started", "pending") is True
+
+    def test_rejected_can_resubmit(self) -> None:
+        assert is_valid_kyc_transition("rejected", "pending") is True
+
+    def test_verified_is_terminal(self) -> None:
+        assert is_valid_kyc_transition("verified", "pending") is False
+        assert is_valid_kyc_transition("verified", "rejected") is False
+
+    def test_cannot_verify_without_pending(self) -> None:
+        assert is_valid_kyc_transition("not_started", "verified") is False
+
+    def test_unknown_state(self) -> None:
+        assert is_valid_kyc_transition("bogus", "pending") is False
+
+
+class TestKycMissing:
+    def test_no_docs_missing_both(self) -> None:
+        assert kyc_missing_documents(set()) == ["id", "passport"]
+
+    def test_only_id_present(self) -> None:
+        assert kyc_missing_documents({"id"}) == ["passport"]
+
+    def test_all_present(self) -> None:
+        assert kyc_missing_documents({"id", "passport", "other"}) == []
+
+    def test_missing_identity_fields(self) -> None:
+        missing = kyc_missing_identity_fields(
+            emirates_id="784-...", passport_number=None, visa_number=None
+        )
+        assert missing == ["passport_number", "visa_number"]
+
+    def test_no_missing_identity_fields(self) -> None:
+        missing = kyc_missing_identity_fields(
+            emirates_id="784", passport_number="P1", visa_number="V1"
+        )
+        assert missing == []
+
+
+class TestIsKycComplete:
+    today = date(2026, 5, 30)
+
+    def _full_kwargs(self, **overrides):  # type: ignore[no-untyped-def]
+        base = dict(
+            present_doc_types={"id", "passport"},
+            emirates_id="784",
+            passport_number="P1",
+            visa_number="V1",
+            today=self.today,
+            emirates_id_expiry=date(2027, 1, 1),
+            passport_expiry=date(2028, 1, 1),
+            visa_expiry=date(2027, 6, 1),
+        )
+        base.update(overrides)
+        return base
+
+    def test_complete_when_all_ok(self) -> None:
+        assert is_kyc_complete(**self._full_kwargs()) is True
+
+    def test_incomplete_missing_doc(self) -> None:
+        assert is_kyc_complete(**self._full_kwargs(present_doc_types={"id"})) is False
+
+    def test_incomplete_missing_field(self) -> None:
+        assert is_kyc_complete(**self._full_kwargs(visa_number=None)) is False
+
+    def test_incomplete_expired_document(self) -> None:
+        # Passeport expiré → KYC incomplet.
+        assert is_kyc_complete(**self._full_kwargs(passport_expiry=date(2025, 1, 1))) is False
