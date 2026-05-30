@@ -44,3 +44,13 @@ export async function apiClient<T>(
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
+
+/**
+ * POST FormData (multipart) vers un route handler dédié. Ne fixe PAS le
+ * Content-Type : le navigateur ajoute le boundary multipart automatiquement.
+ * Renvoie la `Response` brute — chaque écran gère `!ok` à sa façon (les codes
+ * d'erreur diffèrent : 413 audio, 503 Whisper, etc.).
+ */
+export function postFormData(path: string, data: FormData): Promise<Response> {
+  return fetch(path, { method: "POST", body: data });
+}

@@ -4,6 +4,7 @@ import { Topbar, Ic, IcPhone, IcMail, IcArrowUp, ConfirmModal } from "@/componen
 import { DealWizard, type ConfirmedDeal } from "@/components/deal-wizard";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
+import { postJson } from "@/lib/api-client";
 
 const IcSearch2  = () => <Ic s={15}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></Ic>;
 const IcPlus2    = () => <Ic s={15}><path d="M12 5v14M5 12h14"/></Ic>;
@@ -906,11 +907,7 @@ function NewClientModal({ lang, onClose, onCreated }: { lang: string; onClose: (
         budget_max: budgetMax.trim() ? Number(budgetMax.replace(/[^0-9.]/g, "")) : null,
         source: "crm",
       };
-      const res = await fetch("/api/admin/clients", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const res = await postJson("/api/admin/clients", body);
       if (!res.ok) {
         const j = await res.json().catch(() => null);
         setError(typeof j?.detail === "string" ? j.detail : `error_${res.status}`);

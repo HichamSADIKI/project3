@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Topbar } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
+import { getJson, postJson } from "@/lib/api-client";
 
 /** Fournisseur en attente, enrichi du profil prestataire (cf. backend
  *  PendingFournisseurItem). */
@@ -95,12 +96,7 @@ export function ScreenFournisseurValidation() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/fournisseurs", { cache: "no-store" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail ?? data.error ?? "load_failed");
-      }
-      const data = (await res.json()) as PendingFournisseur[];
+      const data = await getJson<PendingFournisseur[]>("/api/admin/fournisseurs");
       setItems(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "load_failed");
@@ -117,10 +113,9 @@ export function ScreenFournisseurValidation() {
     const reason = approve ? null : (window.prompt(tl("rejectReason")) ?? "");
     setBusy((b) => ({ ...b, [id]: true }));
     try {
-      const res = await fetch(`/api/admin/fournisseurs/${id}/decision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approve, reason: reason || undefined }),
+      const res = await postJson(`/api/admin/fournisseurs/${id}/decision`, {
+        approve,
+        reason: reason || undefined,
       });
       if (!res.ok) throw new Error("decision_failed");
       setItems((u) => u.filter((x) => x.user_id !== id));
