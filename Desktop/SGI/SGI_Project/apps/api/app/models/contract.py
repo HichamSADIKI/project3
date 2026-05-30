@@ -75,3 +75,16 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Métadonnées additionnelles
     metadata_ = mapped_column("metadata", JSONB, nullable=False, default=dict)
+
+    # Renouvellement (M5) — contrat parent dont celui-ci est le renouvellement
+    renewed_from_contract_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # E-signature (M5) — document M2 servant de support de signature
+    signing_document_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True
+    )

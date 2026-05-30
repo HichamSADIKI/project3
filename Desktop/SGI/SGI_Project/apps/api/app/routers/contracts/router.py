@@ -11,13 +11,18 @@ from app.routers.contracts.schemas import (
     ContractDetailOut,
     ContractListOut,
     ContractOut,
+    ContractRenew,
     ContractUpdate,
+    SignatureLink,
 )
 from app.routers.contracts.service import (
     create_contract,
     delete_contract,
     get_contract,
+    link_signing_document,
     list_contracts,
+    renew_contract,
+    sync_contract_signature,
     update_contract,
 )
 
@@ -153,3 +158,77 @@ async def delete_contract_endpoint(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
         )
+
+
+# ─── Renouvellement & e-signature (M5) ──────────────────────────────────────
+
+
+@router.post(
+    "/{contract_id}/renew",
+    response_model=ContractDetailOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_require_roles("admin", "manager", "agent"))],
+)
+async def renew_contract_endpoint(
+    contract_id: uuid.UUID,
+    body: ContractRenew,
+    db: AsyncSession = Depends(get_db_session),
+) -> ContractDetailOut:
+    """Crée un contrat renouvelé (draft) lié au parent ; renouvelle aussi le bail
+    si le contrat est de type rental."""
+    company_id = await _get_company_id(db)
+    result = await renew_contract(db, company_id, contract_id, body)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
+        )
+    if result == "not_renewable":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="contract_not_renewable"
+        )
+    return ContractDetailOut(data=ContractOut.model_validate(result))
+
+
+@router.post(
+    "/{contract_id}/request-signature",
+    response_model=ContractDetailOut,
+    dependencies=[Depends(_require_roles("admin", "manager", "agent"))],
+)
+async def request_signature_endpoint(
+    contract_id: uuid.UUID,
+    body: SignatureLink,
+    db: AsyncSession = Depends(get_db_session),
+) -> ContractDetailOut:
+    """Lie un document M2 (PDF du contrat) au contrat pour la signature. Les
+    demandes de signature elles-mêmes sont créées via le module documents."""
+    company_id = await _get_company_id(db)
+    contract = await link_signing_document(db, company_id, contract_id, body.document_id)
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
+        )
+    return ContractDetailOut(data=ContractOut.model_validate(contract))
+
+
+@router.post(
+    "/{contract_id}/sync-signature",
+    response_model=ContractDetailOut,
+    dependencies=[Depends(_require_roles("admin", "manager", "agent"))],
+)
+async def sync_signature_endpoint(
+    contract_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> ContractDetailOut:
+    """Synchronise le statut du contrat avec les signatures de son document M2
+    (passe `signed` quand toutes les signatures sont posées)."""
+    company_id = await _get_company_id(db)
+    result = await sync_contract_signature(db, company_id, contract_id)
+    if result is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
+        )
+    if result == "no_signing_document":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="no_signing_document_linked"
+        )
+    return ContractDetailOut(data=ContractOut.model_validate(result))
