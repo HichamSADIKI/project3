@@ -10,29 +10,19 @@
  */
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_API_URL ?? "http://api:8000";
+import { forwardMultipart, guardSize } from "@/lib/api-multipart";
+
 const MAX_BYTES = 8 * 1024 * 1024;
 
 export async function POST(req: Request): Promise<NextResponse> {
-  const contentLength = Number(req.headers.get("content-length") ?? "0");
   // Marge de 1 MB pour les champs texte + overhead multipart.
-  if (contentLength > 0 && contentLength > MAX_BYTES + 1024 * 1024) {
-    return NextResponse.json({ error: "license_too_large" }, { status: 413 });
-  }
+  const tooBig = guardSize(req, MAX_BYTES, "license_too_large", 1024 * 1024);
+  if (tooBig) return tooBig;
 
-  // Relai tel quel : Content-Type multipart (boundary inclus), body en stream.
-  // `duplex: "half"` est exigé par undici pour un body ReadableStream.
-  const upstream = await fetch(
-    `${BACKEND_URL}/api/v1/auth/register/fournisseur-profile`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": req.headers.get("content-type") ?? "multipart/form-data",
-      },
-      body: req.body,
-      cache: "no-store",
-      duplex: "half",
-    } as RequestInit & { duplex: "half" },
+  // Endpoint public : pas de Bearer.
+  const upstream = await forwardMultipart(
+    req,
+    "/api/v1/auth/register/fournisseur-profile",
   );
 
   const data = (await upstream.json().catch(() => ({}))) as {

@@ -3,6 +3,8 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { postFormData } from "@/lib/api";
+
 export interface DocumentFormLabels {
   add: string;
   docType: string;
@@ -42,10 +44,7 @@ export function DocumentUploadForm({ labels }: { labels: DocumentFormLabels }) {
       fd.append("doc_type", docType);
       if (expiry) fd.append("expiry_date", expiry);
       fd.append("file", file);
-      const res = await fetch("/api/fournisseur/documents", {
-        method: "POST",
-        body: fd,
-      });
+      const res = await postFormData("/api/fournisseur/documents", fd);
       if (!res.ok) throw new Error("upload_failed");
       setSuccess(true);
       setFile(null);

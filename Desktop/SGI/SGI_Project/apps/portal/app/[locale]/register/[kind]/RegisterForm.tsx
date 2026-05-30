@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { postFormData } from "@/lib/api";
 import { register } from "@/lib/auth";
 
 type ClientType = "person" | "company";
@@ -117,10 +118,7 @@ export function RegisterForm({
         fd.append("vendor_type", vendorType);
         fd.append("preferred_language", locale);
         fd.append("commercial_license", licenseFile);
-        const res = await fetch("/api/auth/register/fournisseur-profile", {
-          method: "POST",
-          body: fd,
-        });
+        const res = await postFormData("/api/auth/register/fournisseur-profile", fd);
         if (!res.ok) {
           const data = (await res.json().catch(() => ({}))) as { error?: string };
           throw new Error(data.error ?? "generic");

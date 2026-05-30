@@ -14,7 +14,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiClient, ApiError } from "@/lib/api";
+import { apiClient, ApiError, postFormData } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
 import { buildVoiceText, VoiceSession } from "@/lib/voice-transcript";
 
@@ -279,10 +279,7 @@ export function BesoinForm({ locale, texts }: { locale: Locale; texts: Texts }) 
           form.append("audio", blob, `voice.${ext}`);
           form.append("locale", locale);
 
-          const res = await fetch("/api/client/transcribe", {
-            method: "POST",
-            body: form,
-          });
+          const res = await postFormData("/api/client/transcribe", form);
           if (!res.ok) {
             const detail = await res.text().catch(() => "");
             if (res.status === 503) {
