@@ -12,6 +12,7 @@ celery_app = Celery(
         "app.tasks.maintenance",
         "app.tasks.comms",
         "app.tasks.workflows",
+        "app.tasks.audit",
     ],
 )
 
@@ -33,6 +34,7 @@ celery_app.conf.update(
         "app.tasks.workflows.*": {"queue": "reminders"},
         "app.tasks.comms.notify_mentions": {"queue": "notifications"},
         "app.tasks.comms.transcribe_voice_note": {"queue": "exports"},
+        "app.tasks.audit.*": {"queue": "reminders"},
     },
     beat_schedule={
         "crm-followup-check": {
