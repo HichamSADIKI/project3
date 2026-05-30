@@ -17,6 +17,22 @@ interface Ticket {
   created_at: string;
 }
 
+interface Quote {
+  id: string;
+  ticket_id: string;
+  vendor_party_id: string;
+  amount_aed: string;
+  valid_until: string | null;
+  status: string;
+  notes: string | null;
+}
+
+const QUOTE_STATUS: Record<string, { color: string; bg: string }> = {
+  pending:  { color: "#D97706", bg: "#FEF3C7" },
+  approved: { color: "#059669", bg: "#D1FAE5" },
+  rejected: { color: "#DC2626", bg: "#FEE2E2" },
+};
+
 /* ─── Config ─────────────────────────────────────────────────────────── */
 type KanbanStatus = "new" | "assigned" | "in_progress" | "on_hold" | "resolved";
 const COLUMNS: KanbanStatus[] = ["new", "assigned", "in_progress", "on_hold", "resolved"];
@@ -52,13 +68,53 @@ export function MaintenanceScreen() {
   const [search, setSearch] = useState("");
   const [priority, setPriority] = useState<string>("all");
 
-  useEffect(() => {
+  // Panneau « devis » d'un ticket (S2 wiring).
+  const [selected, setSelected] = useState<Ticket | null>(null);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [quotesLoading, setQuotesLoading] = useState(false);
+  const [actBusy, setActBusy] = useState<string | null>(null);
+  const [actErr, setActErr] = useState<string | null>(null);
+
+  const loadTickets = () =>
     fetch("/api/admin/maintenance/tickets?limit=100")
       .then(r => r.json())
       .then(d => setTickets(d.data ?? []))
       .catch(() => setTickets([]))
       .finally(() => setLoading(false));
-  }, []);
+
+  useEffect(() => { loadTickets(); }, []);
+
+  const loadQuotes = (ticketId: string) => {
+    setQuotesLoading(true);
+    setActErr(null);
+    // L'endpoint renvoie un tableau brut (list[QuoteOut]), pas d'enveloppe {data}.
+    fetch(`/api/admin/maintenance/tickets/${ticketId}/quotes`)
+      .then(r => r.json())
+      .then(d => setQuotes(Array.isArray(d) ? d : (d.data ?? [])))
+      .catch(() => setQuotes([]))
+      .finally(() => setQuotesLoading(false));
+  };
+
+  const openTicket = (t: Ticket) => { setSelected(t); setQuotes([]); loadQuotes(t.id); };
+
+  const quoteAction = async (quoteId: string, action: "approve" | "reject") => {
+    setActBusy(quoteId);
+    setActErr(null);
+    try {
+      const res = await fetch(`/api/admin/maintenance/quotes/${quoteId}/${action}`, { method: "POST" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setActErr(body?.detail ?? body?.error?.code ?? `${action}_failed`);
+        return;
+      }
+      if (selected) loadQuotes(selected.id);
+      loadTickets(); // l'approbation met à jour le coût estimé du ticket
+    } catch {
+      setActErr(`${action}_failed`);
+    } finally {
+      setActBusy(null);
+    }
+  };
 
   const filtered = tickets.filter(t => {
     const q = search.toLowerCase();
@@ -130,10 +186,10 @@ export function MaintenanceScreen() {
               {/* Cartes */}
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {items.map(t => (
-                  <div key={t.id} style={{
+                  <div key={t.id} onClick={() => openTicket(t)} style={{
                     background: "var(--bg-paper)", borderRadius: 8,
                     border: `1px solid ${isSlaBreached(t) ? "#DC2626" : "var(--line-soft)"}`,
-                    padding: "10px 12px",
+                    padding: "10px 12px", cursor: "pointer",
                     boxShadow: isSlaBreached(t) ? "0 0 0 2px #FEE2E2" : "none",
                   }}>
                     {/* Référence + icône */}
@@ -174,6 +230,51 @@ export function MaintenanceScreen() {
           );
         })}
       </div>
+
+      {/* Panneau latéral : devis du ticket sélectionné */}
+      {selected && (
+        <div onClick={() => setSelected(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 50, display: "flex", justifyContent: "flex-end" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 420, maxWidth: "92vw", height: "100%", background: "var(--bg-paper)", borderInlineStart: "1px solid var(--line-soft)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--line-soft)" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontFamily: "monospace", fontSize: 11, fontWeight: 700, color: "var(--gold, #C9A84C)" }}>{selected.reference}</span>
+                <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "var(--ink-4)" }}>×</button>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)", marginTop: 4 }}>{selected.title}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 6 }}>{cl("Quotes", "عروض الأسعار", "Devis")}</div>
+            </div>
+            <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+              {actErr && <div style={{ padding: "10px 12px", borderRadius: 6, background: "#FEE2E2", color: "#DC2626", fontSize: 12.5 }}>{cl("Refused", "مرفوض", "Refusé")} : {actErr}</div>}
+              {quotesLoading && <div style={{ color: "var(--ink-4)", fontSize: 13 }}>{cl("Loading…", "جارٍ التحميل…", "Chargement…")}</div>}
+              {!quotesLoading && quotes.length === 0 && <div style={{ color: "var(--ink-4)", fontSize: 13 }}>{cl("No quote.", "لا يوجد عرض.", "Aucun devis.")}</div>}
+              {quotes.map(q => {
+                const qs = QUOTE_STATUS[q.status] ?? { color: "#6B7280", bg: "#F3F4F6" };
+                return (
+                  <div key={q.id} style={{ border: "1px solid var(--line-soft)", borderRadius: 8, padding: "12px 14px" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span className="tnum" style={{ fontSize: 15, fontWeight: 700, color: "var(--ink)" }}>{fmtAed(Number(q.amount_aed))}</span>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 999, background: qs.bg, color: qs.color }}>{q.status}</span>
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 5 }}>
+                      {cl("Vendor", "المورّد", "Fournisseur")} {q.vendor_party_id.slice(0, 8)}…
+                      {q.valid_until && <> · {cl("valid until", "صالح حتى", "valide jusqu'au")} {q.valid_until}</>}
+                    </div>
+                    {q.notes && <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 6 }}>{q.notes}</div>}
+                    {q.status === "pending" && (
+                      <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                        {actBusy === q.id ? <span style={{ color: "var(--ink-4)", fontSize: 12 }}>…</span> : (<>
+                          <button onClick={() => quoteAction(q.id, "approve")} style={{ flex: 1, padding: "6px 10px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, background: "#D1FAE5", color: "#059669" }}>{cl("Approve", "اعتماد", "Approuver")}</button>
+                          <button onClick={() => quoteAction(q.id, "reject")} style={{ flex: 1, padding: "6px 10px", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 12, fontWeight: 600, background: "#FEE2E2", color: "#DC2626" }}>{cl("Reject", "رفض", "Rejeter")}</button>
+                        </>)}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Topbar, IcReport, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { postJson, extractError } from "@/lib/api-client";
 
 // Câblé sur /api/admin/pdc → /api/v1/pdc.
 
@@ -25,6 +27,16 @@ const STATUS: Record<string, { label: string; color: string; bg: string }> = {
 type Pdc = {
   id: string; reference: string; cheque_number: string; bank_name: string;
   amount_aed: string; due_date: string; status: string; legal_notices_sent: number;
+  // Champs reportés sur le chèque de remplacement (le backend exige un PdcCreate complet).
+  rental_id: string | null; contract_id: string | null; drawer_party_id: string;
+  account_holder_name: string; bank_branch: string | null;
+};
+
+// Brouillon du chèque de remplacement (PdcReplaceAction.new_cheque).
+type ReplaceDraft = {
+  source: Pdc;
+  cheque_number: string; bank_name: string; bank_branch: string;
+  amount_aed: string; due_date: string;
 };
 
 export function ScreenRealEstateCheques() {
@@ -33,9 +45,58 @@ export function ScreenRealEstateCheques() {
   const { busy, error: actErr, run } = useRowAction(reload);
   const outstanding = items.filter(c => ["pending", "deposited"].includes(c.status)).reduce((s, c) => s + Number(c.amount_aed), 0);
 
+  // Modal de remplacement d'un chèque rejeté.
+  const [draft, setDraft] = useState<ReplaceDraft | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [modalErr, setModalErr] = useState<string | null>(null);
+
   function bounce(id: string) {
     const reason = window.prompt("Motif du rejet du chèque ?");
     if (reason) run(id, `/api/admin/pdc/${id}/bounce`, { bounce_reason: reason });
+  }
+
+  function openReplace(c: Pdc) {
+    setModalErr(null);
+    setDraft({
+      source: c,
+      cheque_number: "",
+      bank_name: c.bank_name,
+      bank_branch: c.bank_branch ?? "",
+      amount_aed: c.amount_aed,
+      due_date: "",
+    });
+  }
+
+  async function submitReplace() {
+    if (!draft) return;
+    setSaving(true);
+    setModalErr(null);
+    try {
+      const s = draft.source;
+      const new_cheque = {
+        // Lien transactionnel + tireur reportés du chèque rejeté (un seul lien).
+        rental_id: s.rental_id ?? undefined,
+        contract_id: s.contract_id ?? undefined,
+        drawer_party_id: s.drawer_party_id,
+        account_holder_name: s.account_holder_name,
+        cheque_number: draft.cheque_number.trim(),
+        bank_name: draft.bank_name.trim(),
+        bank_branch: draft.bank_branch.trim() || undefined,
+        amount_aed: draft.amount_aed,
+        due_date: draft.due_date,
+      };
+      const res = await postJson(`/api/admin/pdc/${s.id}/replace`, { new_cheque });
+      if (!res.ok) {
+        setModalErr(await extractError(res, "replace_failed"));
+        return;
+      }
+      setDraft(null);
+      reload();
+    } catch {
+      setModalErr("replace_failed");
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -94,7 +155,8 @@ export function ScreenRealEstateCheques() {
                             <button onClick={() => run(c.id, `/api/admin/pdc/${c.id}/clear`)} style={aBtn("var(--emerald)", "rgba(16,185,129,0.12)")}>Encaissé</button>
                             <button onClick={() => bounce(c.id)} style={aBtn("var(--rose)", "var(--rose-soft)")}>Rejeté</button>
                           </>)}
-                          {!["pending", "deposited"].includes(c.status) && <span style={{ color: "var(--ink-4)" }}>—</span>}
+                          {c.status === "bounced" && <button onClick={() => openReplace(c)} style={aBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>Remplacer</button>}
+                          {!["pending", "deposited", "bounced"].includes(c.status) && <span style={{ color: "var(--ink-4)" }}>—</span>}
                         </span>
                       )}
                     </td>
@@ -105,6 +167,31 @@ export function ScreenRealEstateCheques() {
           </table>
         </div>
       </div>
+
+      <CreateModal
+        title={draft ? `Remplacer ${draft.source.reference}` : ""}
+        open={draft !== null}
+        saving={saving}
+        error={modalErr}
+        onClose={() => setDraft(null)}
+        onSubmit={submitReplace}
+      >
+        <Field label="N° du nouveau chèque">
+          <input style={fieldInput} value={draft?.cheque_number ?? ""} onChange={e => setDraft(d => d && { ...d, cheque_number: e.target.value })} />
+        </Field>
+        <Field label="Banque">
+          <input style={fieldInput} value={draft?.bank_name ?? ""} onChange={e => setDraft(d => d && { ...d, bank_name: e.target.value })} />
+        </Field>
+        <Field label="Agence (optionnel)">
+          <input style={fieldInput} value={draft?.bank_branch ?? ""} onChange={e => setDraft(d => d && { ...d, bank_branch: e.target.value })} />
+        </Field>
+        <Field label="Montant (AED)">
+          <input type="number" min="0" step="0.01" style={fieldInput} value={draft?.amount_aed ?? ""} onChange={e => setDraft(d => d && { ...d, amount_aed: e.target.value })} />
+        </Field>
+        <Field label="Nouvelle échéance">
+          <input type="date" style={fieldInput} value={draft?.due_date ?? ""} onChange={e => setDraft(d => d && { ...d, due_date: e.target.value })} />
+        </Field>
+      </CreateModal>
     </div>
   );
 }

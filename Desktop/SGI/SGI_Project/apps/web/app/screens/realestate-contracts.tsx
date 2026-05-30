@@ -5,13 +5,14 @@ import { Topbar, IcContract, IcPlus, IcCheck, IcClock } from "@/components/sgi-u
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
-import { postJson, extractError } from "@/lib/api-client";
+import { getJson, postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 
 const cBtn = (color: string, bg: string): React.CSSProperties => ({ border: "none", borderRadius: 8, padding: "5px 9px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: bg, color });
 
 type ClientOpt = { id: string; first_name: string | null; last_name: string | null; company_name: string | null };
 type PropertyOpt = { id: string; reference?: string | null; title_en?: string | null };
+type DocOpt = { id: string; title: string; doc_type: string; status: string };
 const clientLabel = (c: ClientOpt) => c.company_name || [c.first_name, c.last_name].filter(Boolean).join(" ") || c.id.slice(0, 8);
 const propLabel = (p: PropertyOpt) => p.reference || p.title_en || p.id.slice(0, 8);
 
@@ -44,6 +45,33 @@ export function ScreenRealEstateContracts() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "rental", client_id: "", property_id: "", amount: "" });
+
+  // Demande de signature : picker de document lié au contrat (S3 wiring).
+  const [sigContract, setSigContract] = useState<Contract | null>(null);
+  const [docs, setDocs] = useState<DocOpt[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState("");
+  const [sigSaving, setSigSaving] = useState(false);
+  const [sigErr, setSigErr] = useState<string | null>(null);
+
+  function openSignature(c: Contract) {
+    setSigContract(c); setSelectedDoc(""); setSigErr(null); setDocs([]); setDocsLoading(true);
+    // Filtre par entity_id = le contrat (sans présumer la valeur d'entity_type).
+    getJson<{ data: DocOpt[] }>(`/api/admin/documents?entity_id=${c.id}&limit=100`)
+      .then(r => setDocs(r.data ?? []))
+      .catch(() => setDocs([]))
+      .finally(() => setDocsLoading(false));
+  }
+
+  async function submitSignature() {
+    if (!sigContract || !selectedDoc) { setSigErr("Sélectionnez un document."); return; }
+    setSigSaving(true); setSigErr(null);
+    try {
+      const res = await postJson(`/api/admin/contracts/${sigContract.id}/request-signature`, { document_id: selectedDoc });
+      if (!res.ok) { setSigErr(await extractError(res, "signature_request_failed")); return; }
+      setSigContract(null); reload();
+    } catch { setSigErr("signature_request_failed"); } finally { setSigSaving(false); }
+  }
 
   async function submit() {
     if (!form.client_id || !form.property_id) { setFormError("Client et bien obligatoires."); return; }
@@ -113,6 +141,7 @@ export function ScreenRealEstateContracts() {
                       {busy === c.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                         <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
                           {(c.status === "active" || c.status === "expired") && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/renew`, { rent_escalation_pct: 0 })} style={cBtn("var(--azure)", "rgba(56,132,255,0.12)")}>Renouveler</button>}
+                          {!c.signed_at && c.status !== "cancelled" && <button onClick={() => openSignature(c)} style={cBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>Demander signature</button>}
                           {c.status !== "draft" && c.status !== "cancelled" && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/sync-signature`)} style={cBtn("var(--ink-2)", "var(--line-soft)")}>Sync sign.</button>}
                         </span>
                       )}
@@ -145,6 +174,28 @@ export function ScreenRealEstateContracts() {
           </select>
         </Field>
         <Field label="Montant (AED) *"><input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={fieldInput} placeholder="145000" /></Field>
+      </CreateModal>
+
+      <CreateModal
+        title={sigContract ? `Demander signature — ${sigContract.reference}` : ""}
+        open={sigContract !== null}
+        saving={sigSaving}
+        error={sigErr}
+        onClose={() => setSigContract(null)}
+        onSubmit={submitSignature}
+      >
+        <Field label="Document à signer">
+          {docsLoading ? (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>Chargement des documents…</div>
+          ) : docs.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>Aucun document lié à ce contrat. Ajoutez-en un dans la sous-catégorie Documents.</div>
+          ) : (
+            <select value={selectedDoc} onChange={e => setSelectedDoc(e.target.value)} style={fieldInput}>
+              <option value="">— Sélectionner —</option>
+              {docs.map(d => <option key={d.id} value={d.id}>{d.title} ({d.doc_type})</option>)}
+            </select>
+          )}
+        </Field>
       </CreateModal>
     </div>
   );
