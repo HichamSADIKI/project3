@@ -1,21 +1,18 @@
 """Locataires / KYC — workflow de vérification d'identité (extension tenant_profiles).
 
-Revision ID: 0023_tenant_kyc
-Revises: 0022_app_role_rls
+Revision ID: 0022_tenant_kyc
+Revises: 0021_documents_signature
 Create Date: 2026-05-30
 
 Ajoute les colonnes KYC à `tenant_profiles` :
 - kyc_status (not_started → pending → verified | rejected)
 - kyc_verified_at / kyc_verified_by_user_id / kyc_rejection_reason
-
-NB : chaîne sur 0022_app_role_rls (branche audit). Cette migration suppose donc
-que 0022 est présent dans l'historique cible avant application.
 """
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0023_tenant_kyc"
-down_revision = "0022_app_role_rls"
+revision = "0022_tenant_kyc"
+down_revision = "0021_documents_signature"
 branch_labels = None
 depends_on = None
 
