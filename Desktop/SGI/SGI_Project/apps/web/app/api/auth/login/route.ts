@@ -14,7 +14,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_API_URL ?? "http://api:8000";
+import { BACKEND_URL } from "@/lib/api-proxy";
 
 // ─── Rate limiter (in-memory) — max 5 tentatives par IP / 15 min ───────────────
 
