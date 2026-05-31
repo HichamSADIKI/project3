@@ -27,6 +27,7 @@ from app.models.company import Company
 from app.models.crm import CRMLead
 from app.models.user import User, UserRole, UserStatus
 from app.routers.crm.service import _next_reference, calculate_score
+from scripts.seed_realestate import seed_realestate
 
 DEMO_COMPANY_SLUG = "infinity-uae"
 DEMO_COMPANY_NAME = "Infinity International Facilities Management UAE"
@@ -43,9 +44,7 @@ DEMO_PORTAL_CLIENT_PASSWORD = "Client123!"
 
 async def upsert_company(session) -> Company:
     existing = (
-        await session.execute(
-            select(Company).where(Company.slug == DEMO_COMPANY_SLUG)
-        )
+        await session.execute(select(Company).where(Company.slug == DEMO_COMPANY_SLUG))
     ).scalar_one_or_none()
     if existing:
         print(f"  company '{DEMO_COMPANY_SLUG}' déjà présente (id={existing.id})")
@@ -97,23 +96,50 @@ async def upsert_demo_client(session, company_id: uuid.UUID) -> Client:
 # (CRM-2026-NNNNNN). UUID figés pour l'idempotence. Tous rattachés à la fiche
 # Ahmed Al Demo. (seq, status, category, source, budget, property_type,
 # preferred_location, golden_visa_eligible, response_rate)
-DEMO_LEADS: list[tuple[int, str, str, str | None, int | None, str | None, str | None, bool, float]] = [
-    (1, "qualified",     "realestate", "crm",          12_000_000, "villa",      "Palm Jumeirah, Dubai",      True,  0.80),
-    (2, "proposal_sent", "realestate", "portal_text",   2_500_000, "apartment",  "Downtown Dubai",            True,  0.60),
-    (3, "won",           "realestate", "crm",           5_000_000, "villa",      "Emirates Hills, Dubai",     True,  0.90),
-    (4, "contacted",     "tourisme",   "portal_voice",     45_000, "tour",       "Abu Dhabi",                 False, 0.40),
-    (5, "new",           "assurance",  "crm",              18_000, None,         "Dubai Marina",              False, 0.00),
-    (6, "negotiation",   "banques",    "portal_text",   1_200_000, None,         "Business Bay, Dubai",       False, 0.70),
+DEMO_LEADS: list[
+    tuple[int, str, str, str | None, int | None, str | None, str | None, bool, float]
+] = [
+    (1, "qualified", "realestate", "crm", 12_000_000, "villa", "Palm Jumeirah, Dubai", True, 0.80),
+    (
+        2,
+        "proposal_sent",
+        "realestate",
+        "portal_text",
+        2_500_000,
+        "apartment",
+        "Downtown Dubai",
+        True,
+        0.60,
+    ),
+    (3, "won", "realestate", "crm", 5_000_000, "villa", "Emirates Hills, Dubai", True, 0.90),
+    (4, "contacted", "tourisme", "portal_voice", 45_000, "tour", "Abu Dhabi", False, 0.40),
+    (5, "new", "assurance", "crm", 18_000, None, "Dubai Marina", False, 0.00),
+    (
+        6,
+        "negotiation",
+        "banques",
+        "portal_text",
+        1_200_000,
+        None,
+        "Business Bay, Dubai",
+        False,
+        0.70,
+    ),
 ]
 
 
-async def upsert_demo_leads(
-    session, company_id: uuid.UUID, client_id: uuid.UUID
-) -> None:
+async def upsert_demo_leads(session, company_id: uuid.UUID, client_id: uuid.UUID) -> None:
     """Crée les leads CRM de démo (idempotent par UUID figé)."""
     for (
-        seq, status, category, source, budget,
-        property_type, location, gv_eligible, response_rate,
+        seq,
+        status,
+        category,
+        source,
+        budget,
+        property_type,
+        location,
+        gv_eligible,
+        response_rate,
     ) in DEMO_LEADS:
         lead_id = uuid.UUID(f"22222222-2222-2222-2222-{seq:012d}")
         existing = (
@@ -165,9 +191,7 @@ async def upsert_user(
     language: str = "en",
 ) -> User:
     """Upsert idempotent d'un compte connectable (clé = email)."""
-    existing = (
-        await session.execute(select(User).where(User.email == email))
-    ).scalar_one_or_none()
+    existing = (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
     if existing:
         print(f"  user '{email}' déjà présent (id={existing.id}, role={existing.role})")
         return existing
@@ -196,7 +220,7 @@ async def main() -> None:
         # Leads CRM de démo (multi-secteurs, avec référence métier).
         await upsert_demo_leads(session, company.id, DEMO_CLIENT_ID)
         # Compte admin back-office (apps/web)
-        await upsert_user(
+        admin = await upsert_user(
             session,
             email=DEMO_ADMIN_EMAIL,
             password=DEMO_ADMIN_PASSWORD,
@@ -216,6 +240,8 @@ async def main() -> None:
             company_id=company.id,
             language="en",
         )
+        # Données démo de la rubrique Immobilier (Real Estate).
+        await seed_realestate(session, company.id, admin.id)
         await session.commit()
     print("✓ Seed terminé.")
     print(

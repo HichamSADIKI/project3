@@ -28,8 +28,8 @@ make backup           # pg_dump compressed → ./backups/
 
 # Dev (web/portal use pnpm via Turborepo)
 pnpm dev                        # All frontend apps (Turborepo)
-pnpm dev --filter=web           # Backoffice only (port 5001 local · 3000 in Docker)
-pnpm dev --filter=portal        # Public portal only (port 3001)
+pnpm dev --filter=sgi-web       # Backoffice only (port 5001 local · 3000 in Docker)
+pnpm dev --filter=@sgi/portal   # Public portal only (port 3001)
 
 # Mobile (apps/mobile uses npm — separate lockfile, Expo 51 + Expo Router)
 cd apps/mobile && npm install
@@ -173,6 +173,12 @@ Example: `feat(m2-crm): ajouter calcul lead scoring automatique`
 Red test → minimum code → green → refactor → commit.
 Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 
+**Two test layers (both live in `test_{module}.py`, co-located in the router):**
+- *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
+- *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
+
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0026_merge_0025`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+
 ## Monorepo Layout
 
 ```
@@ -265,7 +271,7 @@ All follow the same router/schemas/service/test pattern, mount under `/api/v1`, 
 | `client_portal` | `/client` | — | Authenticated client self-service: profile, needs, listings. |
 | `owner_portal` | `/owner` | — | Owner self-service: payouts, **statements + notifications** (M6/M7), expense approval. Reuses `owner_statements`/`notifications` services; strict owner scoping (anti-BOLA). |
 
-Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
+Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **Refresh tokens (migration `0027_refresh_tokens`): access JWT court (`JWT_ACCESS_EXPIRE_HOURS=1`) + refresh opaque 30 j stocké haché SHA-256 dans `refresh_tokens` (rotation one-time-use, détection de réutilisation → révocation de famille via `family_id`). Endpoints `/auth/{refresh,logout}`; helpers purs dans `auth/refresh_service.py`. Côté web : cookie `sgi-refresh` httpOnly scopé `/api/auth`, route proxy `/api/auth/refresh` (publique dans `middleware.ts`), et `getJson` rejoue après un refresh transparent sur 401 (`apps/web/lib/api-client.ts`).** **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
 
 ### Rubrique Immobilier — chantier d'intégration (migrations 0020–0026)
 
