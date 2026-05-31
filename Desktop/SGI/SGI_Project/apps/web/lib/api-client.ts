@@ -72,11 +72,23 @@ export async function getJson<T>(url: string, fallback = "load_failed"): Promise
 /**
  * POST JSON ; renvoie la `Response` brute — au caller de gérer `!ok` (les
  * écrans diffèrent : throw vs message d'erreur inline).
+ *
+ * Comme `getJson`, sur 401 (access JWT expiré) tente un refresh transparent
+ * (single-flight) puis rejoue **une fois** — pour qu'une création tombant pile
+ * sur l'expiration de l'access ne soit pas perdue. Si le 401 persiste (session
+ * réellement morte), bascule vers le login et renvoie quand même la réponse 401.
  */
-export function postJson(url: string, body: unknown): Promise<Response> {
-  return fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+export async function postJson(url: string, body: unknown): Promise<Response> {
+  const doPost = () =>
+    fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  let res = await doPost();
+  if (res.status === 401) {
+    if (await tryRefresh()) res = await doPost();
+    if (res.status === 401) handleUnauthenticated();
+  }
+  return res;
 }

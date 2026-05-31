@@ -106,4 +106,33 @@ describe("postJson", () => {
       body: JSON.stringify({ type: "individual" }),
     });
   });
+
+  it("on 401, refreshes then replays the POST once and returns the retry response", async () => {
+    fakeBrowser();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("x", { status: 401 })) // POST initial → access expiré
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 })) // refresh OK
+      .mockResolvedValueOnce(new Response(null, { status: 201 })); // rejeu du POST → créé
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const res = await postJson("/api/admin/clients", { type: "individual" });
+    expect(res.status).toBe(201);
+    expect(fetchMock).toHaveBeenCalledTimes(3); // POST → refresh → rejeu
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/auth/refresh");
+  });
+
+  it("on 401, redirects to login when the refresh fails and returns the 401", async () => {
+    const location = fakeBrowser("/x");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("x", { status: 401 })) // POST initial
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "no_refresh_token" }), { status: 401 })); // refresh KO
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    const res = await postJson("/api/admin/clients", { type: "individual" });
+    expect(res.status).toBe(401);
+    expect(location.href).toBe("/"); // bascule login
+    expect(fetchMock).toHaveBeenCalledTimes(2); // pas de rejeu après échec du refresh
+  });
 });

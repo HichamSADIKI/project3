@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import (
     APIRouter,
@@ -33,7 +34,9 @@ from app.routers.auth.mfa import (
 from app.routers.auth.refresh_service import (
     RefreshError,
     issue_refresh,
+    list_active_sessions,
     refresh_lifetime,
+    revoke_all_user_tokens,
     revoke_family,
     revoke_refresh,
     rotate_refresh,
@@ -52,6 +55,8 @@ from app.routers.auth.schemas import (
     PublicRegisterRequest,
     RefreshRequest,
     RegisterResponse,
+    SessionListOut,
+    SessionOut,
     SocialLoginRequest,
     TokenResponse,
     UserMe,
@@ -187,6 +192,28 @@ async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> di
     même si le token est inconnu/déjà révoqué — pas d'oracle d'existence)."""
     await revoke_refresh(db, body.refresh_token)
     return {"success": True}
+
+
+@router.get("/sessions", response_model=SessionListOut)
+async def list_sessions(request: Request, db: AsyncSession = Depends(get_db)) -> SessionListOut:
+    """Liste les sessions actives de l'utilisateur courant (une par appareil/
+    navigateur = une famille de refresh tokens vivante). Authentifié par l'access
+    token (pas de scope tenant : `refresh_tokens` est lié à `users`)."""
+    user_id = _require_user(request)
+    sessions = await list_active_sessions(db, user_id)
+    return SessionListOut(data=[SessionOut(**s) for s in sessions])
+
+
+@router.post("/sessions/revoke-all")
+async def revoke_all_sessions(
+    request: Request, db: AsyncSession = Depends(get_db)
+) -> dict[str, Any]:
+    """Déconnexion globale : révoque TOUS les refresh tokens actifs de
+    l'utilisateur (tous les appareils). La session courante devra se re-logger au
+    prochain refresh. Retourne le nombre de tokens révoqués."""
+    user_id = _require_user(request)
+    revoked = await revoke_all_user_tokens(db, user_id)
+    return {"success": True, "data": {"revoked": revoked}}
 
 
 @router.get("/me", response_model=UserMe)
