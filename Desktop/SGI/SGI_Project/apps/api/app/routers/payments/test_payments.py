@@ -65,11 +65,11 @@ async def test_payments_requires_auth(client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
-async def test_create_then_list_request(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_create_then_list_request(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
-    create = await client.post("/api/v1/payments/requests", headers=_auth(token), json=_req_payload())
+    create = await client.post(
+        "/api/v1/payments/requests", headers=_auth(token), json=_req_payload()
+    )
     assert create.status_code == 201, create.text
     body = create.json()
     assert body["status"] == "pending"
@@ -81,22 +81,28 @@ async def test_create_then_list_request(
     assert ref in refs
 
 
-async def test_pay_request_lifecycle(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_pay_request_lifecycle(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
-    create = await client.post("/api/v1/payments/requests", headers=_auth(token), json=_req_payload())
+    create = await client.post(
+        "/api/v1/payments/requests", headers=_auth(token), json=_req_payload()
+    )
     req_id = create.json()["id"]
 
     # pending → paid : autorisé.
-    paid = await client.post(f"/api/v1/payments/requests/{req_id}/pay", headers=_auth(token),
-                             json={"method": "bank_transfer"})
+    paid = await client.post(
+        f"/api/v1/payments/requests/{req_id}/pay",
+        headers=_auth(token),
+        json={"method": "bank_transfer"},
+    )
     assert paid.status_code == 200, paid.text
     assert paid.json()["status"] == "paid"
 
     # paid → pay : interdit (déjà réglée).
-    again = await client.post(f"/api/v1/payments/requests/{req_id}/pay", headers=_auth(token),
-                              json={"method": "bank_transfer"})
+    again = await client.post(
+        f"/api/v1/payments/requests/{req_id}/pay",
+        headers=_auth(token),
+        json={"method": "bank_transfer"},
+    )
     assert again.status_code == 422
     assert again.json()["detail"] == "request_not_payable"
 
@@ -108,7 +114,9 @@ async def test_payments_tenant_isolation(
     _admin, token_a = seed_admin
     _company_b, token_b = second_admin
 
-    created = await client.post("/api/v1/payments/requests", headers=_auth(token_a), json=_req_payload())
+    created = await client.post(
+        "/api/v1/payments/requests", headers=_auth(token_a), json=_req_payload()
+    )
     assert created.status_code == 201
     ref_a = created.json()["reference"]
 
