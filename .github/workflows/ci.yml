@@ -44,9 +44,9 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
       - name: Install deps (uv)
@@ -60,9 +60,7 @@ jobs:
       - name: Migrate (alembic upgrade head)
         run: uv run alembic upgrade head
       - name: Tests (pytest)
-        # Chemin explicite `app` (le `testpaths` par défaut référence un dossier
-        # `tests/` inexistant) → collecte tous les test_*.py sous app/.
-        run: uv run pytest app -q
+        run: uv run pytest -q
 
   frontend:
     name: Frontend · vitest (web + portal)
@@ -71,11 +69,11 @@ jobs:
       run:
         working-directory: Desktop/SGI/SGI_Project
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v6
+      - uses: pnpm/action-setup@v6
         with:
           version: 9
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: pnpm
