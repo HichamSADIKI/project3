@@ -269,3 +269,106 @@ async def test_act_unknown_instance_404(
             db_session, admin.company_id, uuid.uuid4(), uuid.uuid4(), admin.id, StepAction()
         )
     assert exc.value.status_code == 404
+
+
+# ── Tests d'intégration ENDPOINT (auth HTTP + contexte tenant + machine à états) ──
+# Passent par le client HTTP (JWT + middleware + get_db_session) — couvrent la
+# couche réseau/auth que les tests « service » ci-dessus n'exercent pas.
+
+from httpx import AsyncClient  # noqa: E402
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_instance_http(client: AsyncClient, token: str) -> tuple[str, str]:
+    """Crée un template (2 étapes d'approbation) + une instance ;
+    renvoie (instance_id, id de la 1ʳᵉ étape — en in_progress)."""
+    tpl = await client.post(
+        "/api/v1/workflows/templates",
+        headers=_auth(token),
+        json={
+            "name": "Validation devis",
+            "workflow_type": "quote_approval",
+            "steps_definition": [
+                {
+                    "order": 1,
+                    "name": "Revue manager",
+                    "step_type": "approval",
+                    "actor_role": "manager",
+                    "sla_hours": 24,
+                },
+                {
+                    "order": 2,
+                    "name": "Signature admin",
+                    "step_type": "approval",
+                    "actor_role": "admin",
+                    "sla_hours": 4,
+                },
+            ],
+        },
+    )
+    assert tpl.status_code == 201, tpl.text
+    template_id = tpl.json()["id"]
+    inst = await client.post(
+        "/api/v1/workflows/instances",
+        headers=_auth(token),
+        json={"template_id": template_id},
+    )
+    assert inst.status_code == 201, inst.text
+    data = inst.json()["data"]
+    return data["id"], data["steps"][0]["id"]
+
+
+async def test_workflows_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/workflows/instances")
+    assert resp.status_code in (401, 403)
+
+
+async def test_create_then_list_instance_http(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    instance_id, _step_id = await _create_instance_http(client, token)
+
+    listed = await client.get("/api/v1/workflows/instances", headers=_auth(token))
+    assert listed.status_code == 200, listed.text
+    ids = [i["id"] for i in listed.json()["data"]]
+    assert instance_id in ids
+
+
+async def test_approve_step_then_reapprove_422_http(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    instance_id, step_id = await _create_instance_http(client, token)
+    # 1ʳᵉ étape in_progress → approved : autorisé.
+    approve = await client.post(
+        f"/api/v1/workflows/instances/{instance_id}/steps/{step_id}/approve",
+        headers=_auth(token),
+        json={},
+    )
+    assert approve.status_code == 200, approve.text
+    # Ré-approuver une étape déjà approuvée : transition interdite.
+    again = await client.post(
+        f"/api/v1/workflows/instances/{instance_id}/steps/{step_id}/approve",
+        headers=_auth(token),
+        json={},
+    )
+    assert again.status_code == 422, again.text
+    assert again.json()["detail"].startswith("invalid_step_transition")
+
+
+async def test_instance_tenant_isolation_http(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Une instance de workflow de la société A n'est pas visible par B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+    instance_id, _step_id = await _create_instance_http(client, token_a)
+
+    list_b = await client.get("/api/v1/workflows/instances", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    ids_b = [i["id"] for i in list_b.json()["data"]]
+    assert instance_id not in ids_b
