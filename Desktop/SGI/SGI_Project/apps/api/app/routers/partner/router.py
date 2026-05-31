@@ -1,6 +1,7 @@
 """Espace Partenaire (role=partner) — submissions, leads, commissions, services."""
+
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from fastapi import (
     APIRouter,
@@ -15,7 +16,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import storage
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.gemini import extract_trade_licence
 from app.core.route_deps import require_roles
 from app.models.party_vendor import Vendor
@@ -78,16 +79,14 @@ def _ctx(request: Request) -> tuple[uuid.UUID, uuid.UUID, str]:
     company_id = getattr(request.state, "company_id", None)
     email = getattr(request.state, "email", None)
     if not user_id or not company_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated")
     return uuid.UUID(user_id), uuid.UUID(company_id), email or ""
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────
 @router.get("/dashboard", response_model=PartnerDashboardOut)
 async def get_dashboard(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerDashboardOut:
     user_id, company_id, email = _ctx(request)
     data = await compute_dashboard(
@@ -99,16 +98,14 @@ async def get_dashboard(
 # ── Profil fournisseur ─────────────────────────────────────────────────────
 @router.get("/profile", response_model=FournisseurProfileOut)
 async def get_profile(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> FournisseurProfileOut:
     """Profil du fournisseur connecté : infos compte + profil prestataire
     (catégorie, licence commerciale, statut de validation, notation)."""
     user_id, company_id, email = _ctx(request)
     user = await get_account_user(db, user_id)
     if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="account_not_found")
 
     vendor = await get_my_vendor_profile(db, user_id, company_id)
     profile: VendorProfileOut | None = None
@@ -150,7 +147,7 @@ async def get_profile(
 # ── Submissions ──────────────────────────────────────────────────────────
 @router.get("/submissions", response_model=list[PropertySubmissionOut])
 async def list_submissions(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[PropertySubmissionOut]:
     user_id, company_id, _ = _ctx(request)
     items = await list_my_submissions(db, user_id, company_id)
@@ -165,7 +162,7 @@ async def list_submissions(
 async def post_submission(
     body: PropertySubmissionCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PropertySubmissionOut:
     user_id, company_id, _ = _ctx(request)
     sub = await create_submission(
@@ -181,25 +178,21 @@ async def post_submission(
 # ── Leads ────────────────────────────────────────────────────────────────
 @router.get("/leads", response_model=list[PartnerLeadOut])
 async def list_leads(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[PartnerLeadOut]:
     user_id, company_id, _ = _ctx(request)
     leads = await list_my_leads(db, user_id, company_id)
     return [PartnerLeadOut.model_validate(le) for le in leads]
 
 
-@router.post(
-    "/leads", response_model=PartnerLeadOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/leads", response_model=PartnerLeadOut, status_code=status.HTTP_201_CREATED)
 async def post_lead(
-    body: PartnerLeadCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: PartnerLeadCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerLeadOut:
     user_id, company_id, _ = _ctx(request)
     data = body.model_dump()
     # email arrive comme EmailStr-str ; FastAPI le sérialise déjà → on le passe brut
-    lead = await create_lead(
-        db, partner_user_id=user_id, company_id=company_id, data=data
-    )
+    lead = await create_lead(db, partner_user_id=user_id, company_id=company_id, data=data)
     await db.commit()
     return PartnerLeadOut.model_validate(lead)
 
@@ -207,7 +200,7 @@ async def post_lead(
 # ── Commissions ──────────────────────────────────────────────────────────
 @router.get("/commissions", response_model=list[CommissionOut])
 async def list_commissions(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[CommissionOut]:
     user_id, company_id, _ = _ctx(request)
     items = await list_my_commissions(db, user_id, company_id)
@@ -217,7 +210,7 @@ async def list_commissions(
 # ── Services ─────────────────────────────────────────────────────────────
 @router.get("/services", response_model=list[PartnerServiceOut])
 async def list_services(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[PartnerServiceOut]:
     user_id, company_id, _ = _ctx(request)
     items = await list_my_services(db, user_id, company_id)
@@ -230,7 +223,7 @@ async def list_services(
     status_code=status.HTTP_201_CREATED,
 )
 async def post_service(
-    body: PartnerServiceCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: PartnerServiceCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> PartnerServiceOut:
     user_id, company_id, _ = _ctx(request)
     svc = await create_service(
@@ -245,7 +238,7 @@ async def patch_service(
     service_id: uuid.UUID,
     body: PartnerServiceUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PartnerServiceOut:
     user_id, _, _ = _ctx(request)
     svc = await update_service(
@@ -255,16 +248,12 @@ async def patch_service(
         updates=body.model_dump(exclude_unset=True),
     )
     if not svc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="service_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="service_not_found")
     await db.commit()
     return PartnerServiceOut.model_validate(svc)
 
 
-async def _require_vendor(
-    db: AsyncSession, user_id: uuid.UUID, company_id: uuid.UUID
-) -> Vendor:
+async def _require_vendor(db: AsyncSession, user_id: uuid.UUID, company_id: uuid.UUID) -> Vendor:
     """Profil prestataire du fournisseur courant, ou 404 s'il n'en a pas."""
     vendor = await get_my_vendor_profile(db, user_id, company_id)
     if vendor is None:
@@ -277,12 +266,12 @@ async def _require_vendor(
 # ── Documents KYC ───────────────────────────────────────────────────────────
 @router.get("/documents", response_model=list[VendorDocumentOut])
 async def list_documents(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[VendorDocumentOut]:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
     docs = await list_my_documents(db, vendor.party_id, company_id)
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     out: list[VendorDocumentOut] = []
     for d in docs:
         url = await storage.presigned_url(d.file_path) if d.file_path else None
@@ -302,15 +291,13 @@ async def list_documents(
     return out
 
 
-@router.post(
-    "/documents", response_model=VendorDocumentOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/documents", response_model=VendorDocumentOut, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     request: Request,
     doc_type: str = Form(...),
     expiry_date: str | None = Form(default=None),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> VendorDocumentOut:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
@@ -327,9 +314,7 @@ async def upload_document(
         )
     data = await file.read()
     if not data:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file"
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file")
     if len(data) > MAX_DOC_BYTES:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="file_too_large"
@@ -377,7 +362,7 @@ async def upload_document(
         extracted=extracted,
     )
     url = await storage.presigned_url(doc.file_path)
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(UTC).date()
     return VendorDocumentOut(
         id=doc.id,
         doc_type=doc.doc_type,
@@ -394,7 +379,7 @@ async def upload_document(
 # ── Missions / interventions ────────────────────────────────────────────────
 @router.get("/missions", response_model=list[MissionOut])
 async def list_missions(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[MissionOut]:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
@@ -407,15 +392,13 @@ async def update_mission_status(
     mission_id: uuid.UUID,
     body: MissionStatusUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> MissionOut:
     user_id, company_id, _ = _ctx(request)
     vendor = await _require_vendor(db, user_id, company_id)
     mission = await get_mission(db, mission_id, vendor.party_id, company_id)
     if mission is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="mission_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="mission_not_found")
     if not is_valid_mission_transition(mission.status, body.status):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="invalid_status_transition"
@@ -427,7 +410,7 @@ async def update_mission_status(
 # ── Messagerie agence ───────────────────────────────────────────────────────
 @router.get("/messages", response_model=list[MessageOut])
 async def list_messages(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[MessageOut]:
     user_id, company_id, _ = _ctx(request)
     msgs = await list_my_messages(db, user_id, company_id)
@@ -439,20 +422,16 @@ async def list_messages(
     return out
 
 
-@router.post(
-    "/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def post_message(
     body: MessageCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> MessageOut:
     user_id, company_id, _ = _ctx(request)
     recipient = await resolve_agency_recipient(db, company_id)
     if recipient is None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="no_agency_recipient"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="no_agency_recipient")
     msg = await send_message_to_agency(
         db,
         sender_user_id=user_id,

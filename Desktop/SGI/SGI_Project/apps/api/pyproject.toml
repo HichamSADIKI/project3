@@ -24,6 +24,7 @@ dependencies = [
     "minio>=7.2.0",
     "playwright>=1.44.0",
     "curl-cffi>=0.7.0",
+    "pyotp>=2.9.0",
 ]
 
 [tool.uv]
@@ -42,11 +43,83 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "S", "B", "A"]
-ignore = ["S101"]
+# S101: asserts autorisés (tests).
+# A002: les filtres FastAPI nommés `type` (Query) shadowent le builtin — idiome assumé.
+# E501 est désormais géré par `ruff format` (longueur 100) → réactivé dans le gate.
+ignore = ["S101", "A002"]
+
+[tool.ruff.lint.per-file-ignores]
+# Les tests s'autorisent : lignes longues (données/HTML d'exemple), imports
+# après set-up (E402), pytest.raises(Exception) (B017), faux secrets (S105/S106),
+# random non-crypto (S311), try/except/pass (S110), noms shadowant des builtins.
+"**/test_*.py" = ["E501", "E402", "B017", "S105", "S106", "S311", "S110", "A001", "A002"]
+# DATABASE_URL / APP_DATABASE_URL sont des @property "constantes" (UPPER_CASE assumé).
+"app/core/config.py" = ["N802"]
+# Prompts LLM en chaînes triple-quotées (lignes longues non cassables sans altérer le prompt).
+"app/core/gemini.py" = ["E501"]
+
+[tool.ruff.lint.flake8-bugbear]
+# Les injecteurs FastAPI s'utilisent volontairement comme valeurs par défaut
+# d'arguments (Depends/Query/…) — ce n'est pas le piège B008 visé.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Header",
+    "fastapi.Body",
+    "fastapi.Cookie",
+    "fastapi.Form",
+    "fastapi.File",
+    "fastapi.Security",
+]
 
 [tool.mypy]
 strict = true
 python_version = "3.13"
+# `app` est un paquet namespace (pas d'__init__ racine) → lever l'ambiguïté
+# "module found twice" en fixant la base de paquets sur le répertoire courant.
+explicit_package_bases = true
+namespace_packages = true
+plugins = ["pydantic.mypy"]
+# mypy cible le code applicatif ; les tests sont validés en s'exécutant (pytest).
+exclude = ["(^|/)test_[^/]*\\.py$"]
+
+# Adoption progressive du typage strict : les modules ci-dessous ne sont pas
+# encore conformes (faux positifs sync_session_maker/Celery, génériques nus, etc.)
+# → ignore_errors le temps de les traiter. TOUT le reste (models, nombreux
+# service.py, schemas) est déjà strict-enforced et le gate CI le protège.
+# Retirer un module de cette liste au fur et à mesure de son typage.
+[[tool.mypy.overrides]]
+ignore_errors = true
+module = [
+    "app.main",
+    "app.core.auth", "app.core.database", "app.core.deps", "app.core.gemini",
+    "app.core.route_deps", "app.core.storage", "app.core.whisper",
+    "app.middleware.audit", "app.middleware.tenant",
+    "app.routers.ai_services.schemas", "app.routers.ai_services.service",
+    "app.routers.buildings.service",
+    "app.routers.client_portal.router", "app.routers.client_portal.service",
+    "app.routers.clients.router",
+    "app.routers.comms.router", "app.routers.comms.ws",
+    "app.routers.contracts.router",
+    "app.routers.crm.router", "app.routers.crm.service",
+    "app.routers.finance.router",
+    "app.routers.golden_visa.router", "app.routers.golden_visa.schemas",
+    "app.routers.golden_visa.service",
+    "app.routers.maintenance.service",
+    "app.routers.owner_portal.router",
+    "app.routers.partner.router", "app.routers.partner.service",
+    "app.routers.payments.service",
+    "app.routers.pdc.router", "app.routers.pdc.service",
+    "app.routers.properties.router", "app.routers.properties.service",
+    "app.routers.rentals.schemas", "app.routers.rentals.service",
+    "app.routers.reporting.router", "app.routers.reporting.service",
+    "app.routers.scraping.parsers", "app.routers.scraping.service",
+    "app.routers.workflows.service",
+    "app.tasks.audit", "app.tasks.celery_app", "app.tasks.comms",
+    "app.tasks.exports", "app.tasks.maintenance", "app.tasks.notifications",
+    "app.tasks.reminders", "app.tasks.workflows",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

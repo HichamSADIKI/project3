@@ -12,6 +12,7 @@ Couvre :
 - POST /client/messages/{id}/read → 204
 - Endpoints refusent un user agent (require_roles client) → 403
 """
+
 from __future__ import annotations
 
 import uuid
@@ -32,9 +33,7 @@ pytestmark = pytest.mark.asyncio
 # ── Fixtures locales ─────────────────────────────────────────────────────
 
 
-async def _make_client_user(
-    db_session: AsyncSession, company: Company
-) -> tuple[User, str]:
+async def _make_client_user(db_session: AsyncSession, company: Company) -> tuple[User, str]:
     """Crée un user role=client + son JWT."""
     user = User(
         id=uuid.uuid4(),
@@ -61,9 +60,7 @@ async def _make_client_user(
     return user, token
 
 
-async def _make_agent_user(
-    db_session: AsyncSession, company: Company
-) -> tuple[User, str]:
+async def _make_agent_user(db_session: AsyncSession, company: Company) -> tuple[User, str]:
     user = User(
         id=uuid.uuid4(),
         company_id=company.id,

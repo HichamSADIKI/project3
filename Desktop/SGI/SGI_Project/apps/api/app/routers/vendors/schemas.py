@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Vendors (prestataires externes)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -19,9 +20,7 @@ VendorType = Literal[
     "plumbing",
     "other",
 ]
-PaymentTerms = Literal[
-    "net_15", "net_30", "net_60", "on_completion", "advance_50"
-]
+PaymentTerms = Literal["net_15", "net_30", "net_60", "on_completion", "advance_50"]
 ServiceArea = Literal["DXB", "AUH", "SHJ", "AJM", "RAK", "FUJ", "UAQ"]
 
 

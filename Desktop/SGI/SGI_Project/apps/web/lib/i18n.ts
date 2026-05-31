@@ -21,6 +21,20 @@ export type Translations = {
   nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_marketing: string;
   nav_fournisseurs: string; nav_fournisseurs_fiches: string; nav_fournisseurs_validation: string;
   nav_news: string;
+  nav_buildings: string;
+  nav_units: string;
+  nav_tenants: string;
+  nav_owners: string;
+  nav_owner_portal: string;
+  nav_contracts_re: string;
+  nav_payments: string;
+  nav_cheques: string;
+  nav_maintenance_re: string;
+  nav_comms: string;
+  nav_workflows: string;
+  nav_branches: string;
+  nav_documents: string;
+  nav_re_settings: string;
   nav_parametres: string;
   nav_report: string;
 
@@ -83,6 +97,20 @@ const ar: Translations = {
   nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_marketing: "التسويق",
   nav_fournisseurs: "المورّدون", nav_fournisseurs_fiches: "بطاقات المورّدين", nav_fournisseurs_validation: "اعتماد المورّدين",
   nav_news: "الأخبار",
+  nav_buildings: "المباني",
+  nav_units: "الوحدات",
+  nav_tenants: "المستأجرون",
+  nav_owners: "الملاك",
+  nav_owner_portal: "بوابة المالك",
+  nav_contracts_re: "العقود",
+  nav_payments: "المدفوعات",
+  nav_cheques: "الشيكات",
+  nav_maintenance_re: "الصيانة",
+  nav_comms: "التواصل",
+  nav_workflows: "عمليات الموافقة",
+  nav_branches: "الفروع",
+  nav_documents: "المستندات",
+  nav_re_settings: "إعدادات العقارات",
   nav_parametres: "الإعدادات",
   nav_report: "التقارير",
 
@@ -148,6 +176,20 @@ const en: Translations = {
   nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
   nav_fournisseurs: "Suppliers", nav_fournisseurs_fiches: "Supplier records", nav_fournisseurs_validation: "Vendor approval",
   nav_news: "News",
+  nav_buildings: "Buildings",
+  nav_units: "Units",
+  nav_tenants: "Tenants",
+  nav_owners: "Owners",
+  nav_owner_portal: "Owner Portal",
+  nav_contracts_re: "Contracts",
+  nav_payments: "Payments",
+  nav_cheques: "Cheques",
+  nav_maintenance_re: "Maintenance",
+  nav_comms: "Communication",
+  nav_workflows: "Validations",
+  nav_branches: "Branches",
+  nav_documents: "Documents",
+  nav_re_settings: "Real Estate Settings",
   nav_parametres: "Settings",
   nav_report: "Reports",
 
@@ -213,6 +255,20 @@ const fr: Translations = {
   nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
   nav_fournisseurs: "Fournisseurs", nav_fournisseurs_fiches: "Fiches fournisseurs", nav_fournisseurs_validation: "Validation fournisseurs",
   nav_news: "Actualités",
+  nav_buildings: "Bâtiments",
+  nav_units: "Unités",
+  nav_tenants: "Locataires",
+  nav_owners: "Propriétaires",
+  nav_owner_portal: "Portail Propriétaire",
+  nav_contracts_re: "Contrats",
+  nav_payments: "Paiements",
+  nav_cheques: "Chèques",
+  nav_maintenance_re: "Maintenance",
+  nav_comms: "Communication",
+  nav_workflows: "Validations",
+  nav_branches: "Succursales",
+  nav_documents: "Documents",
+  nav_re_settings: "Paramètres Immobilier",
   nav_parametres: "Paramètres",
   nav_report: "Rapports",
 

@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { getJson, postJson } from "@/lib/api-client";
+
 interface PendingUser {
   id: string;
   email: string;
@@ -30,12 +32,7 @@ export function PendingUsersClient() {
     setError(null);
     try {
       const qs = filter !== "all" ? `?role_filter=${filter}` : "";
-      const res = await fetch(`/api/admin/pending-users${qs}`, { cache: "no-store" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.detail ?? data.error ?? "load_failed");
-      }
-      const data = (await res.json()) as PendingUser[];
+      const data = await getJson<PendingUser[]>(`/api/admin/pending-users${qs}`);
       setUsers(data);
     } catch (e) {
       setError(e instanceof Error ? e.message : "load_failed");
@@ -51,11 +48,7 @@ export function PendingUsersClient() {
   async function decide(id: string, approve: boolean) {
     setBusy((b) => ({ ...b, [id]: true }));
     try {
-      const res = await fetch(`/api/admin/pending-users/${id}/decision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ approve }),
-      });
+      const res = await postJson(`/api/admin/pending-users/${id}/decision`, { approve });
       if (!res.ok) throw new Error("decision_failed");
       setUsers((u) => u.filter((x) => x.id !== id));
     } catch (e) {

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import (
     APIRouter,
@@ -30,6 +30,14 @@ from app.routers.auth.mfa import (
     generate_totp_secret,
     verify_totp,
 )
+from app.routers.auth.refresh_service import (
+    RefreshError,
+    issue_refresh,
+    refresh_lifetime,
+    revoke_family,
+    revoke_refresh,
+    rotate_refresh,
+)
 from app.routers.auth.schemas import (
     ApproveUserRequest,
     FournisseurRegisterResponse,
@@ -42,6 +50,7 @@ from app.routers.auth.schemas import (
     PendingFournisseurItem,
     PendingUserItem,
     PublicRegisterRequest,
+    RefreshRequest,
     RegisterResponse,
     SocialLoginRequest,
     TokenResponse,
@@ -63,12 +72,38 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 MAX_LICENSE_BYTES = 8 * 1024 * 1024
 
 
+def _access_token_for(user: User) -> str:
+    """Construit l'access JWT (durée normale) à partir d'un compte actif."""
+    return encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+            "language": user.preferred_language,
+        }
+    )
+
+
+async def _issue_session(db: AsyncSession, user: User) -> TokenResponse:
+    """Émet une session complète : access JWT court + refresh token (nouvelle
+    famille). Factorise login / mfa-validate / social-login."""
+    access = _access_token_for(user)
+    _rt, refresh_plain = await issue_refresh(db, user.id)
+    await db.commit()
+    return TokenResponse(
+        access_token=access,
+        expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
+        refresh_token=refresh_plain,
+        refresh_expires_in=int(refresh_lifetime().total_seconds()),
+    )
+
+
 @router.post("/login", response_model=TokenResponse)
 async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
     try:
-        user = await authenticate(
-            db, body.email, body.password, company_slug=body.company_slug
-        )
+        user = await authenticate(db, body.email, body.password, company_slug=body.company_slug)
     except AuthError as exc:
         # 422 : validation tenant (le client peut corriger le company_slug).
         # 403 : compte connu mais non-actif (pending/rejected/suspended) —
@@ -90,6 +125,7 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
     # MFA activé → token temporaire (5 min, claim mfa_pending=true).
     if user.mfa_enabled:
         from datetime import timedelta
+
         tmp = encode_jwt(
             {
                 "sub": str(user.id),
@@ -109,20 +145,48 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
             tmp_token=tmp,
         )
 
-    token = encode_jwt(
-        {
-            "sub": str(user.id),
-            "company_id": str(user.company_id),
-            "role": user.role,
-            "status": user.status,
-            "email": user.email,
-            "language": user.preferred_language,
-        }
-    )
+    return await _issue_session(db, user)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    """Échange un refresh token contre un nouvel access (rotation one-time-use).
+
+    - succès → nouvel access JWT + **nouveau** refresh (l'ancien est révoqué) ;
+    - token inconnu / expiré → 401 ;
+    - rejeu d'un token déjà consommé (`reuse_detected`) → 401 + révocation de
+      toute la famille (l'attaquant ET la victime sont déconnectés).
+    """
+    try:
+        new_rt, refresh_plain = await rotate_refresh(db, body.refresh_token)
+    except RefreshError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=exc.code,
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    # Recharge le compte : role/status/email à jour, et coupe si désactivé depuis.
+    user = (await db.execute(select(User).where(User.id == new_rt.user_id))).scalar_one_or_none()
+    if user is None or not user.is_active or user.status != UserStatus.ACTIVE.value:
+        await revoke_family(db, new_rt.family_id)
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="account_inactive")
+
     return TokenResponse(
-        access_token=token,
+        access_token=_access_token_for(user),
         expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
+        refresh_token=refresh_plain,
+        refresh_expires_in=int(refresh_lifetime().total_seconds()),
     )
+
+
+@router.post("/logout")
+async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
+    """Déconnexion : révoque le refresh token présenté. Idempotent (toujours 200,
+    même si le token est inconnu/déjà révoqué — pas d'oracle d'existence)."""
+    await revoke_refresh(db, body.refresh_token)
+    return {"success": True}
 
 
 @router.get("/me", response_model=UserMe)
@@ -149,13 +213,9 @@ async def _public_register(
     """Logique partagée register-client / register-partner."""
     company = await get_company_by_slug(db, body.company_slug)
     if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found")
     if await email_exists(db, body.email):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="email_already_registered"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email_already_registered")
 
     # Les clients sont actifs immédiatement (connexion directe après
     # inscription). Les fournisseurs restent `pending` : leur rattachement à
@@ -222,7 +282,7 @@ async def register_client(
 async def register_fournisseur(
     body: PublicRegisterRequest, db: AsyncSession = Depends(get_db)
 ) -> RegisterResponse:
-    """Inscription publique d'un fournisseur (propriétaire/apporteur/prestataire). Statut `pending`."""
+    """Inscription publique d'un fournisseur (propriétaire/apporteur/prestataire). Statut `pending`."""  # noqa: E501
     return await _public_register(db, body, UserRole.PARTNER)
 
 
@@ -276,13 +336,9 @@ async def register_fournisseur_profile(
 
     company = await get_company_by_slug(db, company_slug)
     if not company:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="company_not_found")
     if await email_exists(db, email):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="email_already_registered"
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="email_already_registered")
 
     # Upload licence (best-effort : un échec MinIO ne bloque pas l'inscription —
     # l'admin pourra redemander le document depuis le back-office).
@@ -441,12 +497,8 @@ async def decide_pending_user(
     )
     user = result.scalar_one_or_none()
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pending_user_not_found"
-        )
-    user.status = (
-        UserStatus.ACTIVE.value if body.approve else UserStatus.REJECTED.value
-    )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pending_user_not_found")
+    user.status = UserStatus.ACTIVE.value if body.approve else UserStatus.REJECTED.value
 
     # Cascade sur le profil prestataire lié, le cas échéant.
     vendor = (
@@ -461,7 +513,7 @@ async def decide_pending_user(
         admin_id = getattr(request.state, "user_id", None)
         if body.approve:
             vendor.verification_status = "verified"
-            vendor.verified_at = datetime.now(timezone.utc)
+            vendor.verified_at = datetime.now(UTC)
             vendor.verified_by_user_id = uuid.UUID(admin_id) if admin_id else None
             vendor.rejection_reason = None
         else:
@@ -502,6 +554,7 @@ async def health() -> dict[str, str]:
 
 
 # ── MFA TOTP ──────────────────────────────────────────────────────────────
+
 
 def _require_user(request: Request) -> uuid.UUID:
     uid = getattr(request.state, "user_id", None)
@@ -570,7 +623,7 @@ async def mfa_validate(
     try:
         payload = decode_jwt(body.tmp_token)
     except Exception:
-        raise HTTPException(status_code=401, detail="invalid_tmp_token")
+        raise HTTPException(status_code=401, detail="invalid_tmp_token") from None
 
     if not payload.get("mfa_pending"):
         raise HTTPException(status_code=400, detail="not_a_mfa_pending_token")
@@ -585,19 +638,8 @@ async def mfa_validate(
     if not verify_totp(secret, body.code):
         raise HTTPException(status_code=422, detail="invalid_totp_code")
 
-    # Émet le JWT final (durée normale).
-    token = encode_jwt({
-        "sub": str(user.id),
-        "company_id": str(user.company_id),
-        "role": user.role,
-        "status": user.status,
-        "email": user.email,
-        "language": user.preferred_language,
-    })
-    return TokenResponse(
-        access_token=token,
-        expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
-    )
+    # Code TOTP valide → session complète (access + refresh).
+    return await _issue_session(db, user)
 
 
 @router.delete("/mfa", response_model=MfaStatusOut)

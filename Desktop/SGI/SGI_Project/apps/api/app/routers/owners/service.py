@@ -1,6 +1,7 @@
 """Service — Owners. Toujours filtrer par company_id (Loi 1)."""
+
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.client import Client
 from app.models.party_owner import Owner
 from app.routers.owners.schemas import OwnerCreate, OwnerUpdate
-
 
 # ─── Helpers métier purs (testables sans DB) ──────────────────────────────
 
@@ -66,16 +66,12 @@ async def list_owners(
     total: int = (await db.execute(count_query)).scalar_one()
 
     offset = (page - 1) * limit
-    paginated = (
-        base_query.order_by(Owner.created_at.desc()).offset(offset).limit(limit)
-    )
+    paginated = base_query.order_by(Owner.created_at.desc()).offset(offset).limit(limit)
     result = await db.execute(paginated)
     return list(result.scalars().all()), total
 
 
-async def get_owner(
-    db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID
-) -> Owner | None:
+async def get_owner(db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID) -> Owner | None:
     result = await db.execute(
         select(Owner).where(
             Owner.party_id == party_id,
@@ -86,9 +82,7 @@ async def get_owner(
     return result.scalar_one_or_none()
 
 
-async def create_owner(
-    db: AsyncSession, company_id: uuid.UUID, data: OwnerCreate
-) -> Owner | None:
+async def create_owner(db: AsyncSession, company_id: uuid.UUID, data: OwnerCreate) -> Owner | None:
     """
     Crée le profil owner pour un client existant.
     Retourne None si le client n'existe pas ou si un profil owner existe déjà.
@@ -149,19 +143,17 @@ async def update_owner(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(owner, field, value)
-    owner.updated_at = datetime.now(timezone.utc)
+    owner.updated_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(owner)
     return owner
 
 
-async def delete_owner(
-    db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID
-) -> bool:
+async def delete_owner(db: AsyncSession, company_id: uuid.UUID, party_id: uuid.UUID) -> bool:
     owner = await get_owner(db, company_id, party_id)
     if owner is None:
         return False
-    owner.deleted_at = datetime.now(timezone.utc)
+    owner.deleted_at = datetime.now(UTC)
     await db.commit()
     return True

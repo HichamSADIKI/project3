@@ -1,4 +1,5 @@
 """Tests IA — helpers purs de scoring/prédiction."""
+
 from __future__ import annotations
 
 import pytest
@@ -9,8 +10,8 @@ from app.routers.ai_services.service import (
     suggest_preventive_frequency,
 )
 
-
 # ── compute_risk_score ─────────────────────────────────────────────────────
+
 
 def test_risk_score_zero_tickets() -> None:
     assert compute_risk_score(0, 0, 0, 0) == 0
@@ -33,8 +34,8 @@ def test_risk_score_recurrence_component() -> None:
 
 def test_risk_score_old_history_amortized() -> None:
     # Historique > 1 an avec ≤ 2 tickets → amorti à 70%.
-    base = compute_risk_score(1, 1, 1, 30)        # récent
-    aged = compute_risk_score(1, 1, 1, 400)       # ancien
+    base = compute_risk_score(1, 1, 1, 30)  # récent
+    aged = compute_risk_score(1, 1, 1, 400)  # ancien
     assert aged < base
 
 
@@ -43,6 +44,7 @@ def test_risk_score_never_exceeds_100() -> None:
 
 
 # ── risk_level ─────────────────────────────────────────────────────────────
+
 
 def test_risk_levels() -> None:
     assert risk_level(0) == "low"
@@ -56,6 +58,7 @@ def test_risk_levels() -> None:
 
 
 # ── suggest_preventive_frequency ───────────────────────────────────────────
+
 
 def test_suggest_freq_too_few_tickets() -> None:
     assert suggest_preventive_frequency("hvac", 1) is None

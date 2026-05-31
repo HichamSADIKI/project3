@@ -1,10 +1,11 @@
 """Router FastAPI — Technicians (techniciens internes)."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.technicians.schemas import (
     TechnicianCreate,
@@ -37,12 +38,10 @@ async def list_technicians_endpoint(
     on_call: bool | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TechnicianListOut:
     company_id = await get_company_id(db)
-    techs, total = await list_technicians(
-        db, company_id, page, limit, mobile_active, on_call
-    )
+    techs, total = await list_technicians(db, company_id, page, limit, mobile_active, on_call)
     return TechnicianListOut(
         data=[TechnicianOut.model_validate(t) for t in techs],
         meta={"total": total, "page": page, "limit": limit},
@@ -57,7 +56,7 @@ async def list_technicians_endpoint(
 )
 async def create_technician_endpoint(
     body: TechnicianCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TechnicianDetailOut:
     company_id = await get_company_id(db)
     tech = await create_technician(db, company_id, body)
@@ -72,14 +71,12 @@ async def create_technician_endpoint(
 @router.get("/{user_id}", response_model=TechnicianDetailOut)
 async def get_technician_endpoint(
     user_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TechnicianDetailOut:
     company_id = await get_company_id(db)
     tech = await get_technician(db, company_id, user_id)
     if tech is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
 
 
@@ -91,14 +88,12 @@ async def get_technician_endpoint(
 async def update_technician_endpoint(
     user_id: uuid.UUID,
     body: TechnicianUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TechnicianDetailOut:
     company_id = await get_company_id(db)
     tech = await update_technician(db, company_id, user_id, body)
     if tech is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
 
 
@@ -110,14 +105,12 @@ async def update_technician_endpoint(
 async def rate_technician_endpoint(
     user_id: uuid.UUID,
     body: TechnicianRatingInput,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TechnicianDetailOut:
     company_id = await get_company_id(db)
     tech = await add_rating(db, company_id, user_id, body.score)
     if tech is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
 
 
@@ -128,11 +121,9 @@ async def rate_technician_endpoint(
 )
 async def delete_technician_endpoint(
     user_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await get_company_id(db)
     deleted = await delete_technician(db, company_id, user_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="technician_not_found")

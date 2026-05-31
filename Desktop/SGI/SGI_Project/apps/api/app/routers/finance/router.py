@@ -1,11 +1,12 @@
 """Router FastAPI — Finance."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.routers.finance.schemas import (
     FinanceSummary,
     TransactionCreate,
@@ -27,9 +28,7 @@ router = APIRouter(prefix="/finance", tags=["finance"])
 
 async def _get_company_id(db: AsyncSession) -> uuid.UUID:
     """Récupère le company_id depuis la session PostgreSQL (injecté par le middleware JWT)."""
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(sql_text("SELECT current_setting('app.current_company_id', true)"))
     raw = result.scalar()
     if not raw:
         raise HTTPException(
@@ -60,7 +59,7 @@ async def health() -> dict[str, str]:
 
 @router.get("/summary", response_model=FinanceSummary)
 async def get_finance_summary(
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> FinanceSummary:
     """Retourne les KPIs financiers agrégés du tenant."""
     company_id = await _get_company_id(db)
@@ -82,7 +81,7 @@ async def list_transactions_endpoint(
     direction: str | None = Query(None, pattern="^(debit|credit)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TransactionListOut:
     company_id = await _get_company_id(db)
     transactions, total = await list_transactions(
@@ -102,7 +101,7 @@ async def list_transactions_endpoint(
 )
 async def create_transaction_endpoint(
     body: TransactionCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TransactionDetailOut:
     company_id = await _get_company_id(db)
     txn = await create_transaction(db, company_id, body)
@@ -112,14 +111,12 @@ async def create_transaction_endpoint(
 @router.get("/transactions/{txn_id}", response_model=TransactionDetailOut)
 async def get_transaction_endpoint(
     txn_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TransactionDetailOut:
     company_id = await _get_company_id(db)
     txn = await get_transaction(db, company_id, txn_id)
     if not txn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found")
     return TransactionDetailOut(data=TransactionOut.model_validate(txn))
 
 
@@ -131,12 +128,10 @@ async def get_transaction_endpoint(
 async def update_transaction_endpoint(
     txn_id: uuid.UUID,
     body: TransactionUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> TransactionDetailOut:
     company_id = await _get_company_id(db)
     txn = await update_transaction(db, company_id, txn_id, body)
     if not txn:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found")
     return TransactionDetailOut(data=TransactionOut.model_validate(txn))

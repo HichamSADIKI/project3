@@ -5,8 +5,9 @@ Cycle de vie strict :
                       → bounced → replaced (terminal pour ce cheque)
   pending → cancelled (annulation avant dépôt)
 """
+
 import uuid
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -17,7 +18,6 @@ from app.models.contract import Contract
 from app.models.pdc_cheque import PdcCheque
 from app.models.rental import Rental
 from app.routers.pdc.schemas import PdcCreate, PdcUpdate
-
 
 # ─── Logique métier pure ──────────────────────────────────────────────────
 
@@ -45,6 +45,23 @@ def is_overdue(today: date, due: date, status: str) -> bool:
     return status == "pending" and due < today
 
 
+def pdc_reminder_level(today: date, due: date, status: str, due_soon_days: int = 7) -> str | None:
+    """Niveau de rappel d'un PDC pour la tâche Celery (M8).
+
+    - 'overdue'  : pending et échéance dépassée (doit être déposé/relancé)
+    - 'due_soon' : pending/deposited et échéance dans 0..due_soon_days jours
+    - None       : aucun rappel (terminal, ou échéance lointaine)
+    """
+    if status not in ("pending", "deposited"):
+        return None
+    remaining = days_to_due(today, due)
+    if status == "pending" and remaining < 0:
+        return "overdue"
+    if 0 <= remaining <= due_soon_days:
+        return "due_soon"
+    return None
+
+
 def generate_reference(year: int, sequence: int) -> str:
     """Format interne : PDC-YYYY-NNNNNN (6 chiffres pour faciliter le tri)."""
     return f"PDC-{year}-{sequence:06d}"
@@ -63,7 +80,7 @@ def aggregate_outstanding(cheques: list[PdcCheque]) -> Decimal:
 
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     """Génère une référence unique par tenant + année courante."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count_result = await db.execute(
         select(func.count(PdcCheque.id)).where(
             PdcCheque.company_id == company_id,
@@ -97,9 +114,7 @@ async def list_pdc(
     if drawer_party_id:
         base = base.where(PdcCheque.drawer_party_id == drawer_party_id)
 
-    total: int = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total: int = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
 
     offset = (page - 1) * limit
     paginated = base.order_by(PdcCheque.due_date).offset(offset).limit(limit)
@@ -107,9 +122,7 @@ async def list_pdc(
     return list(result.scalars().all()), total
 
 
-async def get_pdc(
-    db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID
-) -> PdcCheque | None:
+async def get_pdc(db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID) -> PdcCheque | None:
     result = await db.execute(
         select(PdcCheque).where(
             PdcCheque.id == pdc_id,
@@ -120,9 +133,7 @@ async def get_pdc(
     return result.scalar_one_or_none()
 
 
-async def _validate_links(
-    db: AsyncSession, company_id: uuid.UUID, data: PdcCreate
-) -> bool:
+async def _validate_links(db: AsyncSession, company_id: uuid.UUID, data: PdcCreate) -> bool:
     """Vérifie l'existence des liens (rental/contract/drawer) dans le même tenant."""
     if data.rental_id:
         rental_check = await db.execute(
@@ -157,9 +168,7 @@ async def _validate_links(
     return True
 
 
-async def create_pdc(
-    db: AsyncSession, company_id: uuid.UUID, data: PdcCreate
-) -> PdcCheque | None:
+async def create_pdc(db: AsyncSession, company_id: uuid.UUID, data: PdcCreate) -> PdcCheque | None:
     if not await _validate_links(db, company_id, data):
         return None
 
@@ -200,7 +209,7 @@ async def update_pdc(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(pdc, field, value)
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -222,7 +231,7 @@ async def mark_deposited(
         return "invalid_transition"
     pdc.status = "deposited"
     pdc.deposit_date = deposit_date
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -236,7 +245,7 @@ async def mark_cleared(
         return None
     if not is_valid_pdc_transition(pdc.status, "cleared"):
         return "invalid_transition"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pdc.status = "cleared"
     pdc.cleared_at = now
     pdc.updated_at = now
@@ -257,7 +266,7 @@ async def mark_bounced(
         return None
     if not is_valid_pdc_transition(pdc.status, "bounced"):
         return "invalid_transition"
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     pdc.status = "bounced"
     pdc.bounced_at = now
     pdc.bounce_reason = bounce_reason
@@ -277,7 +286,7 @@ async def mark_cancelled(
     if not is_valid_pdc_transition(pdc.status, "cancelled"):
         return "invalid_transition"
     pdc.status = "cancelled"
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
@@ -304,7 +313,7 @@ async def replace_bounced(
     if new is None:
         return None
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     old.status = "replaced"
     old.replaced_by_pdc_id = new.id
     old.updated_at = now
@@ -320,19 +329,17 @@ async def increment_legal_notices(
     if pdc is None:
         return None
     pdc.legal_notices_sent += 1
-    pdc.updated_at = datetime.now(timezone.utc)
+    pdc.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(pdc)
     return pdc
 
 
-async def soft_delete_pdc(
-    db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID
-) -> bool:
+async def soft_delete_pdc(db: AsyncSession, company_id: uuid.UUID, pdc_id: uuid.UUID) -> bool:
     pdc = await get_pdc(db, company_id, pdc_id)
     if pdc is None:
         return False
-    pdc.deleted_at = datetime.now(timezone.utc)
+    pdc.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 

@@ -1,13 +1,19 @@
 import ipaddress
 from typing import Literal
+
 from pydantic import BaseModel, HttpUrl, field_validator
 
 # Explicit allowlist — prevents SSRF probing of internal network
-_ALLOWED_HOSTS: frozenset[str] = frozenset({
-    "bayut.com", "www.bayut.com",
-    "propertyfinder.ae", "www.propertyfinder.ae",
-    "dubizzle.com", "uae.dubizzle.com",
-})
+_ALLOWED_HOSTS: frozenset[str] = frozenset(
+    {
+        "bayut.com",
+        "www.bayut.com",
+        "propertyfinder.ae",
+        "www.propertyfinder.ae",
+        "dubizzle.com",
+        "uae.dubizzle.com",
+    }
+)
 
 
 class ScrapeRequest(BaseModel):
@@ -30,8 +36,8 @@ class ScrapeRequest(BaseModel):
             # Not an IP — check against allowlist
             if host not in _ALLOWED_HOSTS:
                 raise ValueError(
-                    f"Host not allowed. Supported sites: Bayut, PropertyFinder, Dubizzle"
-                )
+                    "Host not allowed. Supported sites: Bayut, PropertyFinder, Dubizzle"
+                ) from None
         return v
 
 

@@ -1,11 +1,11 @@
 """Schémas Pydantic v2 — Owners (profil propriétaire)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
-
 
 PayoutMethod = Literal["bank_transfer", "cheque", "cash"]
 

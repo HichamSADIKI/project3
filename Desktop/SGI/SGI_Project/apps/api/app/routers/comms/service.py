@@ -3,8 +3,9 @@
 Toutes les fonctions filtrent par company_id (Loi 1).
 Un utilisateur ne peut lire/écrire que dans les conversations dont il est participant.
 """
+
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -19,8 +20,8 @@ from app.models.conversation import (
 
 from .schemas import ConversationCreate, MessageCreate, ParticipantAdd
 
-
 # ── Helpers purs ──────────────────────────────────────────────────────────
+
 
 def is_valid_conversation_type(t: str) -> bool:
     return t in ("direct", "group", "ticket", "contract")
@@ -31,6 +32,7 @@ def is_valid_message_kind(k: str) -> bool:
 
 
 # ── Conversations ─────────────────────────────────────────────────────────
+
 
 async def create_conversation(
     db: AsyncSession,
@@ -138,9 +140,7 @@ async def list_conversations(
         filters.append(Conversation.type == type_filter)
 
     total = (
-        await db.execute(
-            select(func.count()).select_from(Conversation).where(and_(*filters))
-        )
+        await db.execute(select(func.count()).select_from(Conversation).where(and_(*filters)))
     ).scalar_one()
 
     result = await db.execute(
@@ -194,7 +194,7 @@ async def add_participant(
         await db.refresh(part)
     except Exception:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="already_participant")
+        raise HTTPException(status_code=409, detail="already_participant") from None
     return part
 
 
@@ -214,12 +214,13 @@ async def mark_read(
     part = result.scalar_one_or_none()
     if not part:
         return False
-    part.last_read_at = datetime.now(timezone.utc)
+    part.last_read_at = datetime.now(UTC)
     await db.commit()
     return True
 
 
 # ── Messages ──────────────────────────────────────────────────────────────
+
 
 async def send_message(
     db: AsyncSession,
@@ -233,7 +234,7 @@ async def send_message(
     if not data.body and data.kind == "text":
         raise HTTPException(status_code=422, detail="body_required_for_text_message")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     msg = ConversationMessage(
         company_id=company_id,
         conversation_id=conv_id,
@@ -248,11 +249,13 @@ async def send_message(
 
     # Mentions.
     for uid in set(data.mentioned_user_ids):
-        db.add(MessageMention(
-            company_id=company_id,
-            message_id=msg.id,
-            mentioned_user_id=uid,
-        ))
+        db.add(
+            MessageMention(
+                company_id=company_id,
+                message_id=msg.id,
+                mentioned_user_id=uid,
+            )
+        )
 
     # Mise à jour last_message_at sur la conversation.
     conv_result = await db.execute(
@@ -289,9 +292,7 @@ async def list_messages(
 
     if before_id:
         cursor_result = await db.execute(
-            select(ConversationMessage.created_at).where(
-                ConversationMessage.id == before_id
-            )
+            select(ConversationMessage.created_at).where(ConversationMessage.id == before_id)
         )
         cursor_ts = cursor_result.scalar_one_or_none()
         if cursor_ts:
@@ -299,8 +300,7 @@ async def list_messages(
 
     total = (
         await db.execute(
-            select(func.count()).select_from(ConversationMessage)
-            .where(and_(*filters))
+            select(func.count()).select_from(ConversationMessage).where(and_(*filters))
         )
     ).scalar_one()
 

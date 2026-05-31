@@ -28,8 +28,8 @@ make backup           # pg_dump compressed → ./backups/
 
 # Dev (web/portal use pnpm via Turborepo)
 pnpm dev                        # All frontend apps (Turborepo)
-pnpm dev --filter=web           # Backoffice only (port 5001 local · 3000 in Docker)
-pnpm dev --filter=portal        # Public portal only (port 3001)
+pnpm dev --filter=sgi-web       # Backoffice only (port 5001 local · 3000 in Docker)
+pnpm dev --filter=@sgi/portal   # Public portal only (port 3001)
 
 # Mobile (apps/mobile uses npm — separate lockfile, Expo 51 + Expo Router)
 cd apps/mobile && npm install
@@ -64,9 +64,9 @@ MCP servers configured in `.mcp.json`:
 
 | Layer | Technology |
 |---|---|
-| Frontend | Next.js 16.2 (App Router · Turbopack) · React 19 · TypeScript 5 |
+| Frontend | Next.js 15.3 (App Router · Turbopack) · React 19 · TypeScript 5 |
 | UI | shadcn/ui (RTL) · Radix UI · Tailwind CSS v4 |
-| State | TanStack Query v5 · Zustand v5 · React Hook Form + Zod v4 |
+| State | TanStack Query v5 · Zustand v4 · Zod v3 |
 | i18n | i18next · AR/EN/FR · Noto Sans Arabic · Geist |
 | Mobile | Expo 51 · React Native 0.74 · Expo Router · NativeWind · react-native-maps · MMKV · expo-secure-store |
 | Backend | FastAPI 0.136 · Python 3.13 · Pydantic v2 · Uvicorn + uvloop |
@@ -98,6 +98,15 @@ CREATE POLICY tenant_isolation ON {t}
   USING (company_id = current_setting('app.current_company_id')::UUID);
 CREATE INDEX idx_{t}_company ON {t}(company_id);
 ```
+
+**Runtime enforcement — split de rôles (migration 0022).** La RLS n'est réellement
+appliquée que si la connexion n'est ni superuser ni propriétaire des tables. L'API
+se connecte donc via le rôle restreint **`sgi_app`** (`NOSUPERUSER`, `NOBYPASSRLS`,
+non-propriétaire — `APP_DATABASE_URL`/`APP_DB_PASSWORD`). Le **worker Celery** et les
+**migrations** gardent `sgi_user` (privilégié) car les tâches cron scannent toutes les
+sociétés. `get_db` épingle une connexion par requête et `get_db_session` pose
+`app.current_company_id` au niveau session (survit aux commits). **En prod, définir
+`APP_DB_PASSWORD`** sinon l'API retombe sur le rôle privilégié et la RLS est inerte.
 
 ### Law 2 — PostGIS: geospatial data in the database
 
@@ -164,6 +173,12 @@ Example: `feat(m2-crm): ajouter calcul lead scoring automatique`
 Red test → minimum code → green → refactor → commit.
 Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 
+**Two test layers (both live in `test_{module}.py`, co-located in the router):**
+- *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
+- *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
+
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0026_merge_0025`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+
 ## Monorepo Layout
 
 ```
@@ -192,7 +207,7 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`.
 
 ### RealEstate party-role pattern (migration 0002)
 
@@ -240,13 +255,50 @@ Routes: `/api/v1/pdc` (CRUD), plus state actions `/pdc/{id}/{deposit,clear,bounc
 
 Pure helpers in `pdc.service`: `is_valid_pdc_transition`, `days_to_due`, `is_overdue`, `generate_reference`, `aggregate_outstanding`.
 
+### Operations modules (migrations 0013–0019)
+
+All follow the same router/schemas/service/test pattern, mount under `/api/v1`, filter by `company_id`, and keep pure (DB-free) helpers in `service.py` — verify the state machine helper before changing any lifecycle.
+
+| Module | Route prefix | Migration | Notes |
+|---|---|---|---|
+| `maintenance` | `/maintenance` | 0013–0014 | Tickets + quotes/invoices/preventive plans. Helpers: `generate_reference`, `is_valid_transition`, `compute_sla_due`, `is_sla_breached`. Celery task module `tasks/maintenance.py`. |
+| `inspections` | `/inspections` | 0018 | Inspection → sections → items → photos (move-in/out, periodic). State-machine helpers in service. |
+| `payments` | `/payments` | 0019 | Payment requests + transactions + summaries. Backs the owner portal. |
+| `comms` | `/comms` | 0015 | In-app conversations + **WebSocket**. Fan-out across `make scale` replicas via Valkey pub/sub (`conv:{cid}:{conv_id}`); presence/typing keys carry TTLs — see [app/routers/comms/ws.py](apps/api/app/routers/comms/ws.py). Celery task `tasks/comms.py`. |
+| `workflows` | `/workflows` | 0016 | Generic workflow engine: templates → instances → steps → events. Celery task `tasks/workflows.py`. |
+| `ai_services` | `/ai` | — | Gemini-backed endpoints (contract summary, lead scoring, maintenance prediction). Wired to the `gemini` MCP server tools. |
+| `partner` | `/fournisseur` | 0005–0006, 0010–0012 | Fournisseur (vendor) self-service: KYC docs, missions, categories. Role renamed `partner → fournisseur` (0006). |
+| `client_portal` | `/client` | — | Authenticated client self-service: profile, needs, listings. |
+| `owner_portal` | `/owner` | — | Owner self-service: payouts, **statements + notifications** (M6/M7), expense approval. Reuses `owner_statements`/`notifications` services; strict owner scoping (anti-BOLA). |
+
+Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **Refresh tokens (migration `0027_refresh_tokens`): access JWT court (`JWT_ACCESS_EXPIRE_HOURS=1`) + refresh opaque 30 j stocké haché SHA-256 dans `refresh_tokens` (rotation one-time-use, détection de réutilisation → révocation de famille via `family_id`). Endpoints `/auth/{refresh,logout}`; helpers purs dans `auth/refresh_service.py`. Côté web : cookie `sgi-refresh` httpOnly scopé `/api/auth`, route proxy `/api/auth/refresh` (publique dans `middleware.ts`), et `getJson` rejoue après un refresh transparent sur 401 (`apps/web/lib/api-client.ts`).** **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
+
+### Rubrique Immobilier — chantier d'intégration (migrations 0020–0026)
+
+Catégorie principale **Immobilier** du backoffice (`apps/web`), 12 modules livrés. Tous suivent le pattern router/schemas/service/test, filtrent par `company_id`, helpers purs testés.
+
+| Module / Migration | Route prefix | Notes |
+|---|---|---|
+| `realestate_core` (0020) | `/branches`, `/company-settings` | Succursales (multi-branch, PostGIS) + paramètres UAE (TVA 5 %, Ejari, DLD). Singleton settings par tenant. |
+| `documents` (0021) | `/documents` | Documents génériques (lien polymorphe `entity_type`+`entity_id`) + versioning immuable (sha256) + **e-signature interne UAE** (hash + OTP + audit). Réutilise `app.core.storage` (MinIO). |
+| `tenant_kyc` (0022) | `/tenants/{id}/kyc` | Workflow KYC locataire (not_started→pending→verified\|rejected), checklist docs (Emirates ID + passeport via `documents`) + alertes expiration. |
+| `contract_renewal_signature` (0023) | `/contracts/{id}/{renew,request-signature,sync-signature}` | Renouvellement de contrats (+ bail lié, escalade loyer) + e-signature via `documents`. Tâche `check_rental_renewals` (J-120). |
+| `owner_statements` (0025) | `/owners/{id}/statements` | Relevés mensuels propriétaires (revenus − dépenses − commission = payout net), statut draft→sent. |
+| `notifications` (0025) | `/notifications` | Notifications in-app génériques réutilisables (statement_ready, pdc_due, maintenance_sla_breach, message_mention, workflow_escalation…). |
+
+Tâches Celery beat ajoutées (queue `reminders`) qui alimentent `notifications` : `check_rental_renewals` (J-120), `check_pdc_due` (échéance/retard chèques), et l'enrichissement de `check_maintenance_sla` / `check_workflow_sla` / `notify_mentions`.
+
+**Frontend** : la rubrique **Immobilier** (`apps/web`, `components/sgi-ui.tsx` + `app/screens/realestate-*.tsx`) regroupe 14 sous-catégories : Bâtiments · Unités · Locataires · Propriétaires · Portail Propriétaire · Contrats · Paiements · Chèques · Maintenance · Communication · Validations · Succursales · Documents · Paramètres. Migration de merge `0026_merge_0025` réconcilie le fork `owner_statements` / `reference_composite_unique`.
+
 ## API Wiring
 
 - Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
 - **Middleware order matters** (last added = first executed): `CORSMiddleware` → `TenantMiddleware` → `AuditMiddleware` → `GZipMiddleware`. `TenantMiddleware` ([app/middleware/tenant.py](apps/api/app/middleware/tenant.py)) decodes the JWT and `SET LOCAL app.current_company_id` per request — this is the runtime enforcement of Law 1. Do not reorder.
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
-- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container.
+- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`.
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
+- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0026. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
+- **Production RLS activation runbook**: [DEPLOYMENT.md](DEPLOYMENT.md) — the one-step gotcha for going live (set `APP_DB_PASSWORD` so the API uses `sgi_app` and Law 1 RLS is actually enforced).
 
 ## CRM Business Rules
 
@@ -336,3 +388,4 @@ Only the skills below actually exist on disk — verified against `.claude/skill
 | `rtl-components` | Composants RTL-safe, CSS logique, i18n |
 | `dev-process` | **Toute demande complexe** : questions → sous-questions → solution → plan → confirmation → dev → déploiement → tests → audit sécurité → validation. Son à chaque étape. |
 | `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. |
+| `progression` | **Tableau de bord graphique** du taux de réalisation (tâche principale + sous-tâches) dans le terminal : barres Unicode + %. Invocable `/progression`. À afficher au début d'une demande multi-étapes (≥ 2 sous-tâches), à chaque fin de phase, et quand l'utilisateur demande « où on en est » / « taux de réalisation ». Se combine avec `dev-process`. |

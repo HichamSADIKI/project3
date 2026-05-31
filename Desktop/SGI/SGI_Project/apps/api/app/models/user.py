@@ -8,7 +8,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import Base, SoftDeleteMixin, TimestampMixin
 
 
-class UserRole(str, enum.Enum):
+class UserRole(str, enum.Enum):  # noqa: UP042  (str, Enum) volontaire : str(role) ≠ valeur en StrEnum
     """Rôles utilisateur SGI. Stockés comme VARCHAR + CHECK constraint."""
 
     ADMIN = "admin"
@@ -18,7 +18,7 @@ class UserRole(str, enum.Enum):
     PARTNER = "fournisseur"
 
 
-class UserStatus(str, enum.Enum):
+class UserStatus(str, enum.Enum):  # noqa: UP042  idem UserRole
     """Statut du compte. `pending` pour inscriptions publiques en attente."""
 
     ACTIVE = "active"
@@ -38,20 +38,12 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         CheckConstraint(f"status IN ({_STATUS_VALUES})", name="ck_users_status"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
-    company_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
-    )
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     hashed_password: Mapped[str] = mapped_column(Text, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    role: Mapped[str] = mapped_column(
-        String(20), nullable=False, default=UserRole.AGENT.value
-    )
+    role: Mapped[str] = mapped_column(String(20), nullable=False, default=UserRole.AGENT.value)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default=UserStatus.ACTIVE.value, index=True
     )

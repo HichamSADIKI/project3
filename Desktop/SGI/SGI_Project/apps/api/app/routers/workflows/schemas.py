@@ -1,20 +1,23 @@
 """Schémas Pydantic v2 — Workflow Engine (Phase 5)."""
+
 import uuid
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-VALID_TYPES   = ("quote_approval", "sla_escalation", "contract_approval", "custom")
+VALID_TYPES = ("quote_approval", "sla_escalation", "contract_approval", "custom")
 VALID_INST_ST = ("in_progress", "approved", "rejected", "cancelled")
 VALID_STEP_ST = ("pending", "in_progress", "approved", "rejected", "skipped", "escalated")
-VALID_EV_TYPES= ("approve", "reject", "note", "escalate", "start", "complete", "cancel")
+VALID_EV_TYPES = ("approve", "reject", "note", "escalate", "start", "complete", "cancel")
 
 
 # ── Templates ─────────────────────────────────────────────────────────────
 
+
 class StepDef(BaseModel):
     """Définition d'un step dans un template (JSONB)."""
+
     order: int
     name: str
     step_type: str = Field(..., pattern="^(approval|notification|auto|escalation)$")
@@ -24,7 +27,9 @@ class StepDef(BaseModel):
 
 class TemplateCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
-    workflow_type: str = Field(..., pattern="^(quote_approval|sla_escalation|contract_approval|custom)$")
+    workflow_type: str = Field(
+        ..., pattern="^(quote_approval|sla_escalation|contract_approval|custom)$"
+    )
     description: str | None = None
     steps_definition: list[StepDef] = Field(default_factory=list)
 
@@ -42,6 +47,7 @@ class TemplateOut(BaseModel):
 
 
 # ── Instances ─────────────────────────────────────────────────────────────
+
 
 class InstanceCreate(BaseModel):
     template_id: uuid.UUID
@@ -93,11 +99,13 @@ class InstanceDetailOut(BaseModel):
 
 # ── Actions sur step ──────────────────────────────────────────────────────
 
+
 class StepAction(BaseModel):
     comment: str | None = Field(None, max_length=2000)
 
 
 # ── Events ────────────────────────────────────────────────────────────────
+
 
 class EventOut(BaseModel):
     id: uuid.UUID

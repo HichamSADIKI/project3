@@ -1,6 +1,7 @@
 """Service — Clients. Toujours filtrer par company_id (Loi 1)."""
+
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -115,7 +116,7 @@ async def update_client(
     for field, value in update_data.items():
         setattr(client, field, value)
 
-    client.updated_at = datetime.now(timezone.utc)
+    client.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(client)
     return client
@@ -131,6 +132,6 @@ async def delete_client(
     if not client:
         return False
 
-    client.deleted_at = datetime.now(timezone.utc)
+    client.deleted_at = datetime.now(UTC)
     await db.commit()
     return True

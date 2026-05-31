@@ -1,11 +1,12 @@
 """Router FastAPI — PDC (post-dated cheques)."""
+
 import uuid
-from datetime import date
+from datetime import UTC, date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.pdc.schemas import (
     DepositCalendarEntry,
@@ -39,9 +40,7 @@ router = APIRouter(prefix="/pdc", tags=["pdc"])
 
 def _handle_transition_result(result):
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     if result == "invalid_transition":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -63,7 +62,7 @@ async def list_pdc_endpoint(
     drawer_party_id: uuid.UUID | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcListOut:
     company_id = await get_company_id(db)
     rows, total = await list_pdc(
@@ -90,7 +89,7 @@ async def list_pdc_endpoint(
 )
 async def create_pdc_endpoint(
     body: PdcCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = await create_pdc(db, company_id, body)
@@ -106,13 +105,13 @@ async def create_pdc_endpoint(
 async def deposit_calendar_endpoint(
     today: date | None = Query(None),
     horizon_days: int = Query(60, ge=1, le=365),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> DepositCalendarOut:
     """Calendrier des PDC à venir dans les `horizon_days` prochains jours."""
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     company_id = await get_company_id(db)
-    ref_today = today or datetime.now(timezone.utc).date()
+    ref_today = today or datetime.now(UTC).date()
     entries = await deposit_calendar(db, company_id, ref_today, horizon_days)
     return DepositCalendarOut(
         data=[DepositCalendarEntry.model_validate(e) for e in entries],
@@ -123,14 +122,12 @@ async def deposit_calendar_endpoint(
 @router.get("/{pdc_id}", response_model=PdcDetailOut)
 async def get_pdc_endpoint(
     pdc_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = await get_pdc(db, company_id, pdc_id)
     if pdc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -142,14 +139,12 @@ async def get_pdc_endpoint(
 async def update_pdc_endpoint(
     pdc_id: uuid.UUID,
     body: PdcUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = await update_pdc(db, company_id, pdc_id, body)
     if pdc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -161,12 +156,10 @@ async def update_pdc_endpoint(
 async def deposit_pdc_endpoint(
     pdc_id: uuid.UUID,
     body: PdcDepositAction,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
-    pdc = _handle_transition_result(
-        await mark_deposited(db, company_id, pdc_id, body.deposit_date)
-    )
+    pdc = _handle_transition_result(await mark_deposited(db, company_id, pdc_id, body.deposit_date))
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -177,7 +170,7 @@ async def deposit_pdc_endpoint(
 )
 async def clear_pdc_endpoint(
     pdc_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = _handle_transition_result(await mark_cleared(db, company_id, pdc_id))
@@ -192,13 +185,11 @@ async def clear_pdc_endpoint(
 async def bounce_pdc_endpoint(
     pdc_id: uuid.UUID,
     body: PdcBounceAction,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = _handle_transition_result(
-        await mark_bounced(
-            db, company_id, pdc_id, body.bounce_reason, body.bounce_fee_aed
-        )
+        await mark_bounced(db, company_id, pdc_id, body.bounce_reason, body.bounce_fee_aed)
     )
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
@@ -210,7 +201,7 @@ async def bounce_pdc_endpoint(
 )
 async def cancel_pdc_endpoint(
     pdc_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     company_id = await get_company_id(db)
     pdc = _handle_transition_result(await mark_cancelled(db, company_id, pdc_id))
@@ -225,7 +216,7 @@ async def cancel_pdc_endpoint(
 async def replace_pdc_endpoint(
     pdc_id: uuid.UUID,
     body: PdcReplaceAction,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     """Crée un nouveau PDC et chaîne l'ancien (bounced → replaced)."""
     company_id = await get_company_id(db)
@@ -251,15 +242,13 @@ async def replace_pdc_endpoint(
 )
 async def legal_notice_endpoint(
     pdc_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> PdcDetailOut:
     """Incrémente le compteur de mises en demeure envoyées."""
     company_id = await get_company_id(db)
     pdc = await increment_legal_notices(db, company_id, pdc_id)
     if pdc is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")
     return PdcDetailOut(data=PdcOut.model_validate(pdc))
 
 
@@ -270,11 +259,9 @@ async def legal_notice_endpoint(
 )
 async def delete_pdc_endpoint(
     pdc_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await get_company_id(db)
     deleted = await soft_delete_pdc(db, company_id, pdc_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="pdc_not_found")

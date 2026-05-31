@@ -11,10 +11,10 @@
  * Edge (middleware.ts) re-vérifie sa signature avec JWT_SECRET — les deux
  * secrets DOIVENT être identiques (cf. apps/web/.env.local & docker-compose).
  */
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.BACKEND_API_URL ?? "http://api:8000";
+import { BACKEND_URL } from "@/lib/api-proxy";
+import { setSessionCookies } from "@/lib/auth-cookies";
 
 // ─── Rate limiter (in-memory) — max 5 tentatives par IP / 15 min ───────────────
 
@@ -52,6 +52,8 @@ interface TokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
+  refresh_token: string;
+  refresh_expires_in: number;
 }
 
 interface JwtPayloadLite {
@@ -170,17 +172,15 @@ export async function POST(req: Request) {
     );
   }
 
-  // Succès → reset rate limit + cookie httpOnly avec le JWT backend
+  // Succès → reset rate limit + cookies httpOnly (access + refresh)
   resetRateLimit(ip);
 
-  const cookieStore = await cookies();
-  cookieStore.set("sgi-session", data.access_token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge: data.expires_in,
-    path: "/",
-  });
+  await setSessionCookies(
+    data.access_token,
+    data.expires_in,
+    data.refresh_token,
+    data.refresh_expires_in,
+  );
 
   return NextResponse.json({ success: true });
 }

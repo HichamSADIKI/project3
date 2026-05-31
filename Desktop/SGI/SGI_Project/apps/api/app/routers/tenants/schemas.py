@@ -1,11 +1,11 @@
 """Schémas Pydantic v2 — Tenants (profil locataire / candidat)."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 LifecycleStatus = Literal["candidate", "active", "former", "blacklisted"]
 VisaType = Literal["employment", "family", "golden", "visit", "other"]
@@ -75,6 +75,9 @@ class TenantOut(BaseModel):
     emergency_contact_phone: str | None
     emergency_contact_relation: str | None
     loyalty_score: int
+    kyc_status: str
+    kyc_verified_at: datetime | None
+    kyc_rejection_reason: str | None
     candidacy_submitted_at: datetime | None
     candidacy_approved_at: datetime | None
     activated_at: datetime | None
@@ -95,3 +98,29 @@ class TenantListOut(BaseModel):
 class TenantDetailOut(BaseModel):
     success: bool = True
     data: TenantOut
+
+
+# ─── KYC ───────────────────────────────────────────────────────────────────
+
+
+class KycReject(BaseModel):
+    reason: str = Field(..., min_length=1, max_length=500)
+
+
+class KycReport(BaseModel):
+    kyc_status: str
+    kyc_verified_at: datetime | None
+    kyc_rejection_reason: str | None
+    required_doc_types: list[str]
+    present_doc_types: list[str]
+    missing_doc_types: list[str]
+    missing_identity_fields: list[str]
+    visa_alert: str | None
+    emirates_id_alert: str | None
+    passport_alert: str | None
+    ready_to_verify: bool
+
+
+class KycReportOut(BaseModel):
+    success: bool = True
+    data: KycReport

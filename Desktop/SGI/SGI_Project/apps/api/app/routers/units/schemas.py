@@ -1,11 +1,11 @@
 """Schémas Pydantic v2 — Units."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field
-
 
 UnitType = Literal[
     "studio",
@@ -22,9 +22,7 @@ UnitType = Literal[
     "warehouse",
     "other",
 ]
-UnitStatus = Literal[
-    "vacant", "occupied", "reserved", "maintenance", "renovation", "off_market"
-]
+UnitStatus = Literal["vacant", "occupied", "reserved", "maintenance", "renovation", "off_market"]
 
 
 class UnitCreate(BaseModel):

@@ -1,10 +1,11 @@
 """Espace Client (role=client) — favoris, visites, messages, dashboard."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import require_roles
 from app.core.whisper import MAX_AUDIO_BYTES, WhisperUnavailable, transcribe_audio
 from app.routers.client_portal.schemas import (
@@ -29,12 +30,12 @@ from app.routers.client_portal.service import (
     add_favorite,
     compute_dashboard,
     create_visit_request,
+    find_linked_client_id,
     get_my_profile,
     list_my_favorites,
     list_my_leads,
     list_my_messages,
     list_my_visits,
-    find_linked_client_id,
     mark_message_read,
     preview_client_need,
     remove_favorite,
@@ -57,34 +58,28 @@ def _ctx(request: Request) -> tuple[uuid.UUID, uuid.UUID, str]:
     company_id = getattr(request.state, "company_id", None)
     email = getattr(request.state, "email", None)
     if not user_id or not company_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="not_authenticated")
     return uuid.UUID(user_id), uuid.UUID(company_id), email or ""
 
 
 # ── Dashboard ────────────────────────────────────────────────────────────
 @router.get("/dashboard", response_model=ClientDashboardOut)
 async def get_dashboard(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> ClientDashboardOut:
     user_id, company_id, email = _ctx(request)
-    data = await compute_dashboard(
-        db, user_id=user_id, user_email=email, company_id=company_id
-    )
+    data = await compute_dashboard(db, user_id=user_id, user_email=email, company_id=company_id)
     return ClientDashboardOut(**data)
 
 
 # ── Profil « mon profil » (sync portal ↔ back-office CRM) ────────────────
 @router.get("/me/profile", response_model=ClientMeProfileOut)
 async def get_me_profile(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> ClientMeProfileOut:
     """Profil CRM du client connecté. Crée la fiche à la volée si absente."""
     user_id, company_id, email = _ctx(request)
-    client = await get_my_profile(
-        db, user_id=user_id, user_email=email, company_id=company_id
-    )
+    client = await get_my_profile(db, user_id=user_id, user_email=email, company_id=company_id)
     await db.commit()
     return ClientMeProfileOut.model_validate(client)
 
@@ -93,7 +88,7 @@ async def get_me_profile(
 async def patch_me_profile(
     body: ClientMeProfileUpdate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ClientMeProfileOut:
     """Met à jour les champs whitelistés du profil — la modif est visible
     immédiatement côté back-office via GET /api/v1/clients/{id}."""
@@ -113,18 +108,16 @@ async def patch_me_profile(
 # ── Favoris ──────────────────────────────────────────────────────────────
 @router.get("/favorites", response_model=list[FavoriteOut])
 async def list_favorites(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[FavoriteOut]:
     user_id, company_id, _ = _ctx(request)
     favs = await list_my_favorites(db, user_id, company_id)
     return [FavoriteOut.model_validate(f) for f in favs]
 
 
-@router.post(
-    "/favorites", response_model=FavoriteOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/favorites", response_model=FavoriteOut, status_code=status.HTTP_201_CREATED)
 async def post_favorite(
-    body: FavoriteCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: FavoriteCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> FavoriteOut:
     user_id, company_id, _ = _ctx(request)
     try:
@@ -135,37 +128,33 @@ async def post_favorite(
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="already_in_favorites"
-        )
+        ) from None
 
 
 @router.delete("/favorites/{favorite_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_favorite(
-    favorite_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)
+    favorite_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> None:
     user_id, _, _ = _ctx(request)
     ok = await remove_favorite(db, user_id, favorite_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="favorite_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="favorite_not_found")
     await db.commit()
 
 
 # ── Visites ──────────────────────────────────────────────────────────────
 @router.get("/visits", response_model=list[VisitRequestOut])
 async def list_visits(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[VisitRequestOut]:
     user_id, company_id, _ = _ctx(request)
     visits = await list_my_visits(db, user_id, company_id)
     return [VisitRequestOut.model_validate(v) for v in visits]
 
 
-@router.post(
-    "/visits", response_model=VisitRequestOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/visits", response_model=VisitRequestOut, status_code=status.HTTP_201_CREATED)
 async def post_visit(
-    body: VisitRequestCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: VisitRequestCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> VisitRequestOut:
     user_id, company_id, _ = _ctx(request)
     visit = await create_visit_request(
@@ -184,7 +173,7 @@ async def post_visit(
 # ── Mes leads (besoins/deals créés par le client) ────────────────────────
 @router.get("/leads", response_model=list[MyLeadOut])
 async def list_leads(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[MyLeadOut]:
     """Liste les leads/besoins créés par le client connecté (les plus récents
     en premier). Alimente la page « Mes leads » du portail."""
@@ -196,18 +185,16 @@ async def list_leads(
 # ── Messages ─────────────────────────────────────────────────────────────
 @router.get("/messages", response_model=list[MessageOut])
 async def list_messages(
-    request: Request, db: AsyncSession = Depends(get_db)
+    request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> list[MessageOut]:
     user_id, company_id, _ = _ctx(request)
     msgs = await list_my_messages(db, user_id, company_id)
     return [MessageOut.model_validate(m) for m in msgs]
 
 
-@router.post(
-    "/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/messages", response_model=MessageOut, status_code=status.HTTP_201_CREATED)
 async def post_message(
-    body: MessageCreate, request: Request, db: AsyncSession = Depends(get_db)
+    body: MessageCreate, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> MessageOut:
     user_id, company_id, _ = _ctx(request)
     msg = await send_message(
@@ -226,24 +213,21 @@ async def post_message(
 
 @router.post("/messages/{message_id}/read", status_code=status.HTTP_204_NO_CONTENT)
 async def post_mark_read(
-    message_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db)
+    message_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> None:
     user_id, _, _ = _ctx(request)
     ok = await mark_message_read(db, user_id, message_id)
     if not ok:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="message_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="message_not_found")
     await db.commit()
 
 
 # ── Maintenance (tickets du client connecté) ─────────────────────────────
 @router.get("/maintenance")
-async def list_my_maintenance(
-    request: Request, db: AsyncSession = Depends(get_db)
-):
+async def list_my_maintenance(request: Request, db: AsyncSession = Depends(get_db_session)):
     """Liste les tickets de maintenance rapportés par le client connecté."""
     from sqlalchemy import select
+
     from app.models.maintenance import MaintenanceTicket
 
     _user_id, company_id, email = _ctx(request)
@@ -252,13 +236,16 @@ async def list_my_maintenance(
         return []
 
     result = await db.execute(
-        select(MaintenanceTicket).where(
+        select(MaintenanceTicket)
+        .where(
             MaintenanceTicket.company_id == company_id,
             MaintenanceTicket.reported_by_user_id == _user_id,
             MaintenanceTicket.deleted_at.is_(None),
-        ).order_by(MaintenanceTicket.created_at.desc())
+        )
+        .order_by(MaintenanceTicket.created_at.desc())
     )
     from app.routers.maintenance.schemas import TicketOut
+
     return [TicketOut.model_validate(t) for t in result.scalars().all()]
 
 
@@ -272,7 +259,7 @@ async def list_my_maintenance(
 async def post_need(
     body: NeedSubmitIn,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> NeedSubmitOut:
     """
     Reçoit un besoin client en texte libre (écrit ou transcrit du micro),
@@ -324,7 +311,7 @@ async def post_need(
 async def post_need_preview(
     body: NeedSubmitIn,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> ParsedNeedOut:
     """Analyse le besoin et renvoie la catégorie détectée (+ budget, urgence…)
     SANS rien créer en base.
@@ -349,7 +336,7 @@ async def post_need_preview(
 async def post_needs_multi(
     body: NeedSubmitMultiIn,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> NeedSubmitMultiOut:
     """Crée un deal CRM par catégorie validée par le client dans la popup.
 

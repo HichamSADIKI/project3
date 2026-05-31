@@ -13,6 +13,7 @@ Conception :
     3. Sinon → 503 service_unavailable.
 - Limites strictes : ≤ 5 MB d'audio par requête.
 """
+
 from __future__ import annotations
 
 import base64
@@ -27,8 +28,7 @@ logger = logging.getLogger(__name__)
 WHISPER_URL = "https://api.openai.com/v1/audio/transcriptions"
 WHISPER_MODEL = "whisper-1"
 GEMINI_URL = (
-    "https://generativelanguage.googleapis.com/v1beta/models/"
-    "gemini-2.0-flash:generateContent"
+    "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent"
 )
 MAX_AUDIO_BYTES = 5 * 1024 * 1024  # 5 MB
 ALLOWED_MIME_PREFIXES = ("audio/webm", "audio/mp4", "audio/mpeg", "audio/wav", "audio/ogg")
@@ -45,18 +45,17 @@ _GEMINI_PROMPT = {
         "Return only the transcribed text, no prefix or commentary."
     ),
     "ar": (
-        "اكتب بالضبط ما يقوله المتحدث باللغة العربية. "
-        "أعد فقط النص المنسوخ، بدون مقدمة أو تعليق."
+        "اكتب بالضبط ما يقوله المتحدث باللغة العربية. أعد فقط النص المنسوخ، بدون مقدمة أو تعليق."
     ),
 }
 
 
-class WhisperUnavailable(RuntimeError):
+class WhisperUnavailable(RuntimeError):  # noqa: N818  nom métier conservé (référencé ailleurs)
     """Levée quand aucun provider n'est configuré ou que l'API échoue."""
 
 
 def _gemini_mime(content_type: str) -> str:
-    """Gemini n'accepte pas les codecs (ex: 'audio/webm;codecs=opus'), seulement le type principal."""
+    """Gemini n'accepte pas les codecs (ex: 'audio/webm;codecs=opus'), seulement le type principal."""  # noqa: E501
     return content_type.split(";")[0].strip()
 
 
@@ -166,9 +165,7 @@ async def transcribe_audio(
 
     openai_key = os.getenv("OPENAI_API_KEY", "").strip()
     if openai_key:
-        return await _transcribe_via_openai(
-            audio_bytes, filename, content_type, locale, openai_key
-        )
+        return await _transcribe_via_openai(audio_bytes, filename, content_type, locale, openai_key)
 
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     if gemini_key:

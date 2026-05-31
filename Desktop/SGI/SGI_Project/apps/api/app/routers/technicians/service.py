@@ -1,6 +1,7 @@
 """Service — Technicians. Profil rattaché à un User salarié."""
+
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
@@ -10,7 +11,6 @@ from app.models.party_technician import Technician
 from app.models.user import User
 from app.routers.technicians.schemas import TechnicianCreate, TechnicianUpdate
 from app.routers.vendors.service import merge_rating  # même formule cumulée
-
 
 # ─── CRUD ─────────────────────────────────────────────────────────────────
 
@@ -37,11 +37,7 @@ async def list_technicians(
     ).scalar_one()
 
     offset = (page - 1) * limit
-    paginated = (
-        base_query.order_by(Technician.rating_avg.desc())
-        .offset(offset)
-        .limit(limit)
-    )
+    paginated = base_query.order_by(Technician.rating_avg.desc()).offset(offset).limit(limit)
     result = await db.execute(paginated)
     return list(result.scalars().all()), total
 
@@ -104,7 +100,7 @@ async def update_technician(
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(tech, field, value)
-    tech.updated_at = datetime.now(timezone.utc)
+    tech.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(tech)
     return tech
@@ -122,18 +118,16 @@ async def add_rating(
     new_avg, new_count = merge_rating(tech.rating_avg, tech.rating_count, score)
     tech.rating_avg = new_avg
     tech.rating_count = new_count
-    tech.updated_at = datetime.now(timezone.utc)
+    tech.updated_at = datetime.now(UTC)
     await db.commit()
     await db.refresh(tech)
     return tech
 
 
-async def delete_technician(
-    db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
-) -> bool:
+async def delete_technician(db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID) -> bool:
     tech = await get_technician(db, company_id, user_id)
     if tech is None:
         return False
-    tech.deleted_at = datetime.now(timezone.utc)
+    tech.deleted_at = datetime.now(UTC)
     await db.commit()
     return True

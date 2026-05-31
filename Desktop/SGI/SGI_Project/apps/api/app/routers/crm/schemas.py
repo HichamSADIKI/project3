@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 pour le module CRM."""
+
 import uuid
 from datetime import datetime
 from decimal import Decimal
@@ -31,6 +32,7 @@ ACTIVITY_TYPE_PATTERN = "^(call|email|whatsapp|visit|note|status_change)$"
 # ---------------------------------------------------------------------------
 # Lead schemas
 # ---------------------------------------------------------------------------
+
 
 class LeadCreate(BaseModel):
     client_id: uuid.UUID
@@ -75,6 +77,7 @@ class LeadStatusUpdate(BaseModel):
 # Activity schemas
 # ---------------------------------------------------------------------------
 
+
 class ActivityCreate(BaseModel):
     lead_id: uuid.UUID
     type: str = Field(..., pattern=ACTIVITY_TYPE_PATTERN)
@@ -85,6 +88,7 @@ class ActivityCreate(BaseModel):
 # ---------------------------------------------------------------------------
 # Output schemas
 # ---------------------------------------------------------------------------
+
 
 class LeadOut(BaseModel):
     id: uuid.UUID

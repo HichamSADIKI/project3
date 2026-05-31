@@ -11,6 +11,7 @@ Couvre :
 - PATCH /partner/services/{id}    → 200
 - Un user role=client est refusé sur /partner/* → 403
 """
+
 from __future__ import annotations
 
 import uuid
@@ -26,9 +27,7 @@ from app.models.user import User, UserRole, UserStatus
 pytestmark = pytest.mark.asyncio
 
 
-async def _make_partner_user(
-    db_session: AsyncSession, company: Company
-) -> tuple[User, str]:
+async def _make_partner_user(db_session: AsyncSession, company: Company) -> tuple[User, str]:
     user = User(
         id=uuid.uuid4(),
         company_id=company.id,
@@ -54,9 +53,7 @@ async def _make_partner_user(
     return user, token
 
 
-async def _make_client_user(
-    db_session: AsyncSession, company: Company
-) -> tuple[User, str]:
+async def _make_client_user(db_session: AsyncSession, company: Company) -> tuple[User, str]:
     user = User(
         id=uuid.uuid4(),
         company_id=company.id,

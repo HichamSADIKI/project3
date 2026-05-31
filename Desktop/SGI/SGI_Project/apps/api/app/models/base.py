@@ -20,9 +20,7 @@ class TimestampMixin:
 
 
 class TenantMixin:
-    company_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), nullable=False, index=True
-    )
+    company_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
 
 
 class SoftDeleteMixin:

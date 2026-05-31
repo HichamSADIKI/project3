@@ -1,15 +1,26 @@
 """Router Communication — /api/v1/comms (REST + WebSocket)."""
+
 import uuid
+from datetime import UTC
 
 from fastapi import (
-    APIRouter, Depends, File, Form, HTTPException,
-    Query, Request, UploadFile, WebSocket, WebSocketDisconnect, status,
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    UploadFile,
+    WebSocket,
+    status,
 )
+from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
-from app.core.route_deps import get_company_id, require_roles
 from app.core.auth import decode_jwt
+from app.core.database import get_db
+from app.core.deps import get_db_session
+from app.core.route_deps import get_company_id, require_roles
 
 from .schemas import (
     ConversationCreate,
@@ -45,6 +56,7 @@ def _user_id(request: Request) -> uuid.UUID:
 
 # ── Conversations ─────────────────────────────────────────────────────────
 
+
 @router.post(
     "/conversations",
     response_model=ConversationDetailOut,
@@ -53,7 +65,7 @@ def _user_id(request: Request) -> uuid.UUID:
 async def create_conv(
     body: ConversationCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> ConversationDetailOut:
     company_id = await get_company_id(db)
@@ -71,7 +83,7 @@ async def list_convs(
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
     request: Request = ...,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> ConversationListOut:
     company_id = await get_company_id(db)
@@ -96,7 +108,7 @@ async def list_convs(
 async def get_conv(
     conv_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> ConversationDetailOut:
     company_id = await get_company_id(db)
@@ -112,6 +124,7 @@ async def get_conv(
 
 # ── Participants ──────────────────────────────────────────────────────────
 
+
 @router.post(
     "/conversations/{conv_id}/participants",
     response_model=ParticipantOut,
@@ -120,7 +133,7 @@ async def get_conv(
 async def add_part(
     conv_id: uuid.UUID,
     body: ParticipantAdd,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> ParticipantOut:
     company_id = await get_company_id(db)
@@ -130,6 +143,7 @@ async def add_part(
 
 # ── Marquer comme lu ──────────────────────────────────────────────────────
 
+
 @router.post(
     "/conversations/{conv_id}/read",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -137,7 +151,7 @@ async def add_part(
 async def read_conv(
     conv_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> None:
     company_id = await get_company_id(db)
@@ -149,6 +163,7 @@ async def read_conv(
 
 # ── Messages ──────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/conversations/{conv_id}/messages",
     response_model=MessageOut,
@@ -158,7 +173,7 @@ async def send_msg(
     conv_id: uuid.UUID,
     body: MessageCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> MessageOut:
     company_id = await get_company_id(db)
@@ -173,7 +188,7 @@ async def list_msgs(
     request: Request,
     before_id: uuid.UUID | None = Query(None, description="Curseur de pagination"),
     limit: int = Query(50, ge=1, le=200),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> MessageListOut:
     company_id = await get_company_id(db)
@@ -187,6 +202,7 @@ async def list_msgs(
 
 # ── Phase 4 : Upload voice note ───────────────────────────────────────────
 
+
 @router.post(
     "/conversations/{conv_id}/voice",
     response_model=MessageOut,
@@ -196,7 +212,7 @@ async def upload_voice(
     conv_id: uuid.UUID,
     request: Request,
     audio: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> MessageOut:
     """Upload une voice note → MinIO → message kind=voice → transcription Celery."""
@@ -221,19 +237,20 @@ async def upload_voice(
     if is_configured():
         try:
             from app.core.storage import extension_for_mime
+
             ext = extension_for_mime(content_type) or "webm"
             key = f"voice/{company_id}/{conv_id}/{uuid.uuid4()}.{ext}"
             attachment_key = upload_bytes(key, audio_bytes, content_type)
         except StorageError as exc:
             raise HTTPException(status_code=503, detail=f"storage_error: {exc}") from exc
 
-    # Crée le message kind=voice.
-    from .schemas import MessageCreate
-    body_data = MessageCreate(body=None, kind="voice")
-    # Patch direct pour attachment_key (non exposé dans le schéma).
+    # Crée le message kind=voice (attachment_key patché ci-dessous, non exposé au schéma).
+    from datetime import datetime
+
     from app.models.conversation import ConversationMessage
+
     from .service import _check_participant
-    from datetime import datetime, timezone
+
     if not await _check_participant(db, company_id, conv_id, user_id):
         raise HTTPException(status_code=403, detail="not_a_participant")
 
@@ -244,7 +261,7 @@ async def upload_voice(
         kind="voice",
         body=None,
         attachment_key=attachment_key,
-        created_at=datetime.now(timezone.utc),
+        created_at=datetime.now(UTC),
     )
     db.add(msg)
     await db.commit()
@@ -253,26 +270,33 @@ async def upload_voice(
     # Enqueue transcription Celery (best-effort, ne bloque pas la réponse).
     if attachment_key:
         from app.tasks.comms import transcribe_voice_note
+
         transcribe_voice_note.delay(str(msg.id), str(company_id))
 
     # Publie l'event WS.
-    from .ws import publish_event
     from .schemas import MessageOut as MOut
-    await publish_event(company_id, conv_id, {
-        "type": "message.created",
-        "data": MOut.model_validate(msg).model_dump(mode="json"),
-    })
+    from .ws import publish_event
+
+    await publish_event(
+        company_id,
+        conv_id,
+        {
+            "type": "message.created",
+            "data": MOut.model_validate(msg).model_dump(mode="json"),
+        },
+    )
 
     return MessageOut.model_validate(msg)
 
 
 # ── Phase 4 : Résumé IA ───────────────────────────────────────────────────
 
+
 @router.post("/conversations/{conv_id}/summarize")
 async def summarize_conv(
     conv_id: uuid.UUID,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> dict:
     """Génère un résumé Gemini de la conversation (30 derniers messages)."""
@@ -284,11 +308,11 @@ async def summarize_conv(
         return {"summary": ""}
 
     text = "\n".join(
-        f"[{m.sender_user_id}] {m.body or '[voice]'}"
-        for m in msgs if m.body or m.transcript
+        f"[{m.sender_user_id}] {m.body or '[voice]'}" for m in msgs if m.body or m.transcript
     )
     try:
         from app.core.gemini import parse_client_need
+
         # Réutilise le moteur Gemini pour résumer (prompt libre via summary).
         result = await parse_client_need(
             f"Résume cette conversation en 2-3 phrases :\n{text[:3000]}",
@@ -301,15 +325,17 @@ async def summarize_conv(
 
 # ── Phase 4 : Traduction inline ───────────────────────────────────────────
 
+
 @router.get("/messages/{message_id}/translate")
 async def translate_message(
     message_id: uuid.UUID,
     target_locale: str = Query("fr", pattern="^(ar|en|fr)$"),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent", "client")),
 ) -> dict:
     """Traduit le corps d'un message via Gemini translate."""
     from sqlalchemy import select
+
     from app.models.conversation import ConversationMessage
 
     company_id = await get_company_id(db)
@@ -329,6 +355,7 @@ async def translate_message(
 
     try:
         from app.core.gemini import parse_client_need
+
         result_g = await parse_client_need(
             f"Traduis ce texte en {target_locale} :\n{text[:2000]}",
             locale=target_locale,
@@ -339,6 +366,7 @@ async def translate_message(
 
 
 # ── Phase 4 : WebSocket ───────────────────────────────────────────────────
+
 
 @router.websocket("/ws/conversations/{conv_id}")
 async def ws_endpoint(
@@ -379,6 +407,14 @@ async def ws_endpoint(
     except (ValueError, TypeError):
         await websocket.close(code=4401)
         return
+
+    # Le middleware tenant ne s'exécute pas sur le scope WebSocket : on pose
+    # manuellement le contexte tenant (RLS) depuis le company_id du token,
+    # sinon _check_participant serait filtré par la RLS et fermerait toujours.
+    await db.execute(
+        sql_text("SELECT set_config('app.current_company_id', :cid, true)"),
+        {"cid": str(company_uuid)},
+    )
 
     is_participant = await _check_participant(db, company_uuid, conv_uuid, user_uuid)
     if not is_participant:

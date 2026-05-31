@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Finance."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -19,16 +20,12 @@ class TransactionCreate(BaseModel):
     related_client_id: uuid.UUID | None = None
     related_property_id: uuid.UUID | None = None
     due_date: date | None = None
-    payment_method: str | None = Field(
-        None, pattern="^(bank_transfer|cheque|cash|card)$"
-    )
+    payment_method: str | None = Field(None, pattern="^(bank_transfer|cheque|cash|card)$")
     bank_reference: str | None = None
 
 
 class TransactionUpdate(BaseModel):
-    status: str | None = Field(
-        None, pattern="^(pending|paid|cancelled|overdue)$"
-    )
+    status: str | None = Field(None, pattern="^(pending|paid|cancelled|overdue)$")
     paid_at: datetime | None = None
     payment_method: str | None = None
     bank_reference: str | None = None

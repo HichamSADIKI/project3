@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack --port 5001",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run"
   },
   "dependencies": {
     "next": "15.3.2",
@@ -29,6 +30,7 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "^15.3.2",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
-    "@typescript-eslint/parser": "^8.0.0"
+    "@typescript-eslint/parser": "^8.0.0",
+    "vitest": "^2.1.9"
   }
 }

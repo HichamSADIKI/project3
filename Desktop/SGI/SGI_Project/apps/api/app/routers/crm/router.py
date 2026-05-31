@@ -1,4 +1,5 @@
 """Router CRM — gestion du pipeline de leads et des activités."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -26,11 +27,10 @@ router = APIRouter(prefix="/crm", tags=["crm"])
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_company_id(db: AsyncSession) -> str:
     """Récupère company_id depuis le contexte PostgreSQL (set_config par get_db_session)."""
-    result = await db.execute(
-        sql_text("SELECT current_setting('app.current_company_id', true)")
-    )
+    result = await db.execute(sql_text("SELECT current_setting('app.current_company_id', true)"))
     return result.scalar()
 
 
@@ -46,6 +46,7 @@ def _get_user_id(request: Request) -> uuid.UUID:
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
+
 
 @router.get("/health")
 async def health():

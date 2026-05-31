@@ -1,4 +1,5 @@
 """Tests MFA TOTP — helpers purs (sans DB ni réseau)."""
+
 from __future__ import annotations
 
 import pyotp
@@ -27,7 +28,7 @@ def test_generate_totp_secret_unique() -> None:
 def test_encrypt_decrypt_roundtrip() -> None:
     secret = generate_totp_secret()
     encrypted = encrypt_secret(secret)
-    assert encrypted != secret           # stocké chiffré
+    assert encrypted != secret  # stocké chiffré
     assert decrypt_secret(encrypted) == secret
 
 
@@ -35,6 +36,24 @@ def test_encrypt_different_each_call() -> None:
     """Fernet utilise un IV aléatoire — deux chiffrements du même secret diffèrent."""
     s = generate_totp_secret()
     assert encrypt_secret(s) != encrypt_secret(s)
+
+
+def test_key_derives_from_settings_secret_key(monkeypatch) -> None:
+    """La clé dérive de settings.SECRET_KEY (HKDF) — aucun fallback codé en dur.
+
+    Changer SECRET_KEY doit rendre un ancien chiffré indéchiffrable : preuve que
+    la dérivation dépend réellement du secret de config et non d'une valeur fixe.
+    """
+    from cryptography.fernet import InvalidToken
+
+    from app.core.config import settings
+
+    secret = generate_totp_secret()
+    encrypted = encrypt_secret(secret)
+
+    monkeypatch.setattr(settings, "SECRET_KEY", "cle-de-config-completement-differente-xyz")
+    with pytest.raises(InvalidToken):
+        decrypt_secret(encrypted)
 
 
 def test_provisioning_uri_format() -> None:
@@ -64,7 +83,7 @@ def test_verify_totp_empty_inputs() -> None:
 
 def test_verify_totp_wrong_length() -> None:
     secret = generate_totp_secret()
-    assert verify_totp(secret, "12345") is False   # 5 digits
+    assert verify_totp(secret, "12345") is False  # 5 digits
     assert verify_totp(secret, "1234567") is False  # 7 digits
 
 

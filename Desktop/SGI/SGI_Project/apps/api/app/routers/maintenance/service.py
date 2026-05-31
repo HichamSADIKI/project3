@@ -4,9 +4,9 @@ Toutes les fonctions filtrent par company_id (Loi 1).
 Les helpers purs (generate_reference, is_valid_transition, compute_sla_due,
 is_sla_breached) sont testables sans DB.
 """
+
 import uuid
-from datetime import datetime, timedelta, timezone
-from decimal import Decimal
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
@@ -30,27 +30,28 @@ from .schemas import (
 # ── Machine à états ───────────────────────────────────────────────────────
 
 VALID_TRANSITIONS: dict[str, list[str]] = {
-    "new":         ["triaged", "assigned", "cancelled"],
-    "triaged":     ["assigned", "cancelled"],
-    "assigned":    ["in_progress", "cancelled"],
+    "new": ["triaged", "assigned", "cancelled"],
+    "triaged": ["assigned", "cancelled"],
+    "assigned": ["in_progress", "cancelled"],
     "in_progress": ["on_hold", "resolved", "cancelled"],
-    "on_hold":     ["in_progress", "cancelled"],
-    "resolved":    ["closed", "in_progress"],   # réouverture possible
-    "closed":      [],                           # terminal
-    "cancelled":   [],                           # terminal
+    "on_hold": ["in_progress", "cancelled"],
+    "resolved": ["closed", "in_progress"],  # réouverture possible
+    "closed": [],  # terminal
+    "cancelled": [],  # terminal
 }
 
 # ── SLA par priorité ─────────────────────────────────────────────────────
 
 SLA_HOURS: dict[str, int] = {
     "urgent": 4,
-    "high":   24,
+    "high": 24,
     "medium": 72,
-    "low":    168,  # 7 jours
+    "low": 168,  # 7 jours
 }
 
 
 # ── Helpers purs (testables sans DB) ─────────────────────────────────────
+
 
 def generate_reference(year: int, sequence: int) -> str:
     """Format : MNT-YYYY-NNNNNN (6 chiffres, triable)."""
@@ -67,7 +68,7 @@ def compute_sla_due(priority: str, created_at: datetime) -> datetime:
     hours = SLA_HOURS.get(priority, SLA_HOURS["medium"])
     base = created_at
     if base.tzinfo is None:
-        base = base.replace(tzinfo=timezone.utc)
+        base = base.replace(tzinfo=UTC)
     return base + timedelta(hours=hours)
 
 
@@ -79,15 +80,103 @@ def is_sla_breached(ticket: MaintenanceTicket) -> bool:
         return False
     due = ticket.sla_due_at
     if due.tzinfo is None:
-        due = due.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) > due
+        due = due.replace(tzinfo=UTC)
+    return datetime.now(UTC) > due
+
+
+# ── Parsing cron (sans dépendance externe) ─────────────────────────────────
+
+# Champs cron standard : minute heure jour-du-mois mois jour-de-semaine.
+# Bornes (min, max) par position.
+_CRON_BOUNDS = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 6)]
+
+
+def _parse_cron_field(field: str, lo: int, hi: int) -> set[int]:
+    """Parse un champ cron en l'ensemble des valeurs autorisées.
+
+    Gère `*`, listes `a,b`, plages `a-b`, pas `*/n` et `a-b/n`. Pour le champ
+    jour-de-semaine, 7 est ramené à 0 (dimanche). Lève ValueError si invalide.
+    """
+    values: set[int] = set()
+    for part in field.split(","):
+        step = 1
+        if "/" in part:
+            part, step_str = part.split("/", 1)
+            step = int(step_str)
+            if step <= 0:
+                raise ValueError("step must be > 0")
+        if part == "*":
+            start, end = lo, hi
+        elif "-" in part:
+            a, b = part.split("-", 1)
+            start, end = int(a), int(b)
+        else:
+            start = end = int(part)
+        if start > end or start < lo or end > hi:
+            raise ValueError(f"field out of range [{lo},{hi}]: {part}")
+        values.update(range(start, end + 1, step))
+    # Dimanche accepté comme 7 → normalisé en 0.
+    if hi == 6 and 7 in values:  # défense (non atteignable via bornes ci-dessus)
+        values.discard(7)
+        values.add(0)
+    return values
+
+
+def _cron_matches(expr_sets: list[set[int]], moment: datetime) -> bool:
+    """True si `moment` (à la minute) satisfait l'expression cron parsée.
+
+    Sémantique standard : si jour-du-mois ET jour-de-semaine sont tous deux
+    restreints (≠ *), la correspondance est un OU entre les deux.
+    """
+    minute, hour, dom, month, dow = expr_sets
+    if moment.minute not in minute or moment.hour not in hour or moment.month not in month:
+        return False
+    # cron : dimanche = 0 ; Python weekday() : lundi = 0, dimanche = 6.
+    py_dow = (moment.weekday() + 1) % 7
+    dom_restricted = dom != set(range(1, 32))
+    dow_restricted = dow != set(range(0, 7))
+    dom_ok = moment.day in dom
+    dow_ok = py_dow in dow
+    if dom_restricted and dow_restricted:
+        return dom_ok or dow_ok
+    return dom_ok and dow_ok
+
+
+def next_cron_run(cron_expression: str, after: datetime, max_days: int = 366) -> datetime | None:
+    """Renvoie la prochaine occurrence STRICTEMENT après `after`, ou None.
+
+    Helper pur sans dépendance (cron 5 champs). Recherche minute par minute
+    dans une fenêtre bornée (`max_days`) ; None si l'expression est invalide
+    ou si aucune occurrence n'est trouvée dans la fenêtre — l'appelant peut
+    alors retomber sur un intervalle par défaut.
+    """
+    fields = cron_expression.split()
+    if len(fields) != 5:
+        return None
+    try:
+        expr_sets = [
+            _parse_cron_field(f, lo, hi) for f, (lo, hi) in zip(fields, _CRON_BOUNDS, strict=True)
+        ]
+    except (ValueError, TypeError):
+        return None
+
+    base = after if after.tzinfo else after.replace(tzinfo=UTC)
+    # On part de la minute suivante (occurrence strictement postérieure).
+    candidate = (base + timedelta(minutes=1)).replace(second=0, microsecond=0)
+    limit = base + timedelta(days=max_days)
+    while candidate <= limit:
+        if _cron_matches(expr_sets, candidate):
+            return candidate
+        candidate += timedelta(minutes=1)
+    return None
 
 
 # ── Génération de référence (async, DB) ───────────────────────────────────
 
+
 async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     """Référence séquentielle unique par tenant + année."""
-    year = datetime.now(timezone.utc).year
+    year = datetime.now(UTC).year
     count_result = await db.execute(
         select(func.count(MaintenanceTicket.id)).where(
             MaintenanceTicket.company_id == company_id,
@@ -99,6 +188,7 @@ async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
 
 
 # ── CRUD ──────────────────────────────────────────────────────────────────
+
 
 async def list_tickets(
     db: AsyncSession,
@@ -142,9 +232,7 @@ async def list_tickets(
         )
 
     total = (
-        await db.execute(
-            select(func.count()).select_from(MaintenanceTicket).where(and_(*filters))
-        )
+        await db.execute(select(func.count()).select_from(MaintenanceTicket).where(and_(*filters)))
     ).scalar_one()
 
     offset = (page - 1) * limit
@@ -184,7 +272,7 @@ async def create_ticket(
         raise HTTPException(status_code=422, detail="unit_id_or_building_id_required")
 
     reference = await _next_reference(db, company_id)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sla_due = compute_sla_due(data.priority, now)
 
     ticket = MaintenanceTicket(
@@ -297,25 +385,24 @@ async def update_ticket_status(
 
     ticket.status = data.status
     if data.status in ("resolved", "closed"):
-        ticket.resolved_at = datetime.now(timezone.utc)
+        ticket.resolved_at = datetime.now(UTC)
 
     await db.commit()
     await db.refresh(ticket)
     return ticket
 
 
-async def soft_delete_ticket(
-    db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID
-) -> bool:
+async def soft_delete_ticket(db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID) -> bool:
     ticket = await get_ticket(db, company_id, ticket_id)
     if not ticket:
         return False
-    ticket.deleted_at = datetime.now(timezone.utc)
+    ticket.deleted_at = datetime.now(UTC)
     await db.commit()
     return True
 
 
 # ── Phase 2 : Devis (Quotes) ──────────────────────────────────────────────
+
 
 async def create_quote(
     db: AsyncSession,
@@ -390,16 +477,19 @@ async def list_quotes(
     db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID
 ) -> list[MaintenanceQuote]:
     result = await db.execute(
-        select(MaintenanceQuote).where(
+        select(MaintenanceQuote)
+        .where(
             MaintenanceQuote.ticket_id == ticket_id,
             MaintenanceQuote.company_id == company_id,
             MaintenanceQuote.deleted_at.is_(None),
-        ).order_by(MaintenanceQuote.created_at.desc())
+        )
+        .order_by(MaintenanceQuote.created_at.desc())
     )
     return list(result.scalars().all())
 
 
 # ── Phase 2 : Factures (Invoices) ─────────────────────────────────────────
+
 
 async def create_invoice(
     db: AsyncSession,
@@ -428,16 +518,19 @@ async def list_invoices(
     db: AsyncSession, company_id: uuid.UUID, ticket_id: uuid.UUID
 ) -> list[MaintenanceInvoice]:
     result = await db.execute(
-        select(MaintenanceInvoice).where(
+        select(MaintenanceInvoice)
+        .where(
             MaintenanceInvoice.ticket_id == ticket_id,
             MaintenanceInvoice.company_id == company_id,
             MaintenanceInvoice.deleted_at.is_(None),
-        ).order_by(MaintenanceInvoice.created_at.desc())
+        )
+        .order_by(MaintenanceInvoice.created_at.desc())
     )
     return list(result.scalars().all())
 
 
 # ── Phase 2 : Plans préventifs ────────────────────────────────────────────
+
 
 async def list_plans(
     db: AsyncSession, company_id: uuid.UUID, active_only: bool = False
@@ -449,15 +542,14 @@ async def list_plans(
     if active_only:
         filters.append(MaintenancePlan.active.is_(True))
     result = await db.execute(
-        select(MaintenancePlan).where(and_(*filters))
+        select(MaintenancePlan)
+        .where(and_(*filters))
         .order_by(MaintenancePlan.next_due_at.asc().nulls_last())
     )
     return list(result.scalars().all())
 
 
-async def create_plan(
-    db: AsyncSession, company_id: uuid.UUID, data: PlanCreate
-) -> MaintenancePlan:
+async def create_plan(db: AsyncSession, company_id: uuid.UUID, data: PlanCreate) -> MaintenancePlan:
     if not data.unit_id and not data.building_id:
         raise HTTPException(status_code=422, detail="unit_id_or_building_id_required")
     plan = MaintenancePlan(
@@ -498,60 +590,68 @@ async def update_plan(
 
 # ── Phase 2 : Calendrier ──────────────────────────────────────────────────
 
+
 async def get_calendar(
     db: AsyncSession,
     company_id: uuid.UUID,
     horizon_days: int = 30,
 ) -> list[dict]:
     """Retourne les tickets avec SLA à venir + plans préventifs dans l'horizon."""
-    from .schemas import CalendarEntry
 
-    horizon = datetime.now(timezone.utc) + timedelta(days=horizon_days)
+    horizon = datetime.now(UTC) + timedelta(days=horizon_days)
     entries: list[dict] = []
 
     # Tickets avec SLA dans l'horizon (non terminaux).
     result = await db.execute(
-        select(MaintenanceTicket).where(
+        select(MaintenanceTicket)
+        .where(
             MaintenanceTicket.company_id == company_id,
             MaintenanceTicket.deleted_at.is_(None),
             MaintenanceTicket.sla_due_at.isnot(None),
             MaintenanceTicket.sla_due_at <= horizon,
             MaintenanceTicket.status.notin_(["closed", "cancelled"]),
-        ).order_by(MaintenanceTicket.sla_due_at)
+        )
+        .order_by(MaintenanceTicket.sla_due_at)
     )
     for t in result.scalars().all():
-        entries.append({
-            "kind": "sla",
-            "ticket_id": t.id,
-            "plan_id": None,
-            "reference": t.reference,
-            "title": t.title,
-            "priority": t.priority,
-            "due_at": t.sla_due_at,
-            "is_breached": is_sla_breached(t),
-        })
+        entries.append(
+            {
+                "kind": "sla",
+                "ticket_id": t.id,
+                "plan_id": None,
+                "reference": t.reference,
+                "title": t.title,
+                "priority": t.priority,
+                "due_at": t.sla_due_at,
+                "is_breached": is_sla_breached(t),
+            }
+        )
 
     # Plans préventifs actifs avec next_due_at dans l'horizon.
     result_p = await db.execute(
-        select(MaintenancePlan).where(
+        select(MaintenancePlan)
+        .where(
             MaintenancePlan.company_id == company_id,
             MaintenancePlan.deleted_at.is_(None),
             MaintenancePlan.active.is_(True),
             MaintenancePlan.next_due_at.isnot(None),
             MaintenancePlan.next_due_at <= horizon,
-        ).order_by(MaintenancePlan.next_due_at)
+        )
+        .order_by(MaintenancePlan.next_due_at)
     )
     for p in result_p.scalars().all():
-        entries.append({
-            "kind": "preventive",
-            "ticket_id": None,
-            "plan_id": p.id,
-            "reference": None,
-            "title": p.title,
-            "priority": p.priority,
-            "due_at": p.next_due_at,
-            "is_breached": False,
-        })
+        entries.append(
+            {
+                "kind": "preventive",
+                "ticket_id": None,
+                "plan_id": p.id,
+                "reference": None,
+                "title": p.title,
+                "priority": p.priority,
+                "due_at": p.next_due_at,
+                "is_breached": False,
+            }
+        )
 
     entries.sort(key=lambda e: e["due_at"])
     return entries

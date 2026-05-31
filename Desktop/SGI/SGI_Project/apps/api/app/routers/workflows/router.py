@@ -1,10 +1,11 @@
 """Router Workflow Engine — /api/v1/workflows."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 
 from .schemas import (
@@ -43,21 +44,21 @@ def _uid(request: Request) -> uuid.UUID:
 
 # ── Templates ─────────────────────────────────────────────────────────────
 
+
 @router.get("/templates", response_model=list[TemplateOut])
 async def list_tpls(
     active_only: bool = Query(True),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> list[TemplateOut]:
     cid = await get_company_id(db)
     return [TemplateOut.model_validate(t) for t in await list_templates(db, cid, active_only)]
 
 
-@router.post("/templates", response_model=TemplateOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
 async def create_tpl(
     body: TemplateCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin")),
 ) -> TemplateOut:
     cid = await get_company_id(db)
@@ -66,12 +67,13 @@ async def create_tpl(
 
 # ── Instances ─────────────────────────────────────────────────────────────
 
+
 @router.get("/instances", response_model=InstanceListOut)
 async def list_inst(
     status: str | None = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InstanceListOut:
     cid = await get_company_id(db)
@@ -88,12 +90,11 @@ async def list_inst(
     )
 
 
-@router.post("/instances", response_model=InstanceDetailOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post("/instances", response_model=InstanceDetailOut, status_code=status.HTTP_201_CREATED)
 async def create_inst(
     body: InstanceCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> InstanceDetailOut:
     cid = await get_company_id(db)
@@ -107,7 +108,7 @@ async def create_inst(
 @router.get("/instances/{instance_id}", response_model=InstanceDetailOut)
 async def get_inst(
     instance_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InstanceDetailOut:
     cid = await get_company_id(db)
@@ -122,12 +123,14 @@ async def get_inst(
 
 # ── Actions sur step ──────────────────────────────────────────────────────
 
-@router.post("/instances/{instance_id}/steps/{step_id}/approve",
-             response_model=InstanceDetailOut)
+
+@router.post("/instances/{instance_id}/steps/{step_id}/approve", response_model=InstanceDetailOut)
 async def do_approve(
-    instance_id: uuid.UUID, step_id: uuid.UUID,
-    body: StepAction, request: Request,
-    db: AsyncSession = Depends(get_db),
+    instance_id: uuid.UUID,
+    step_id: uuid.UUID,
+    body: StepAction,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> InstanceDetailOut:
     cid = await get_company_id(db)
@@ -138,12 +141,13 @@ async def do_approve(
     return InstanceDetailOut(data=out)
 
 
-@router.post("/instances/{instance_id}/steps/{step_id}/reject",
-             response_model=InstanceDetailOut)
+@router.post("/instances/{instance_id}/steps/{step_id}/reject", response_model=InstanceDetailOut)
 async def do_reject(
-    instance_id: uuid.UUID, step_id: uuid.UUID,
-    body: StepAction, request: Request,
-    db: AsyncSession = Depends(get_db),
+    instance_id: uuid.UUID,
+    step_id: uuid.UUID,
+    body: StepAction,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> InstanceDetailOut:
     cid = await get_company_id(db)
@@ -154,12 +158,13 @@ async def do_reject(
     return InstanceDetailOut(data=out)
 
 
-@router.post("/instances/{instance_id}/steps/{step_id}/note",
-             response_model=InstanceDetailOut)
+@router.post("/instances/{instance_id}/steps/{step_id}/note", response_model=InstanceDetailOut)
 async def do_note(
-    instance_id: uuid.UUID, step_id: uuid.UUID,
-    body: StepAction, request: Request,
-    db: AsyncSession = Depends(get_db),
+    instance_id: uuid.UUID,
+    step_id: uuid.UUID,
+    body: StepAction,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> InstanceDetailOut:
     cid = await get_company_id(db)
@@ -172,10 +177,11 @@ async def do_note(
 
 # ── Events ────────────────────────────────────────────────────────────────
 
+
 @router.get("/instances/{instance_id}/events", response_model=list[EventOut])
 async def get_evts(
     instance_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[EventOut]:
     cid = await get_company_id(db)

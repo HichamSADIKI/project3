@@ -15,9 +15,7 @@ class Client(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "clients"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # Type: individual / company
     type: Mapped[str] = mapped_column(String(20), nullable=False)

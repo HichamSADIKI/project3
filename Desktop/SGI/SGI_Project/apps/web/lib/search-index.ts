@@ -16,14 +16,11 @@ export interface SearchItem {
 export const SEARCH_INDEX: SearchItem[] = [
   // ── Navigation ──────────────────────────────────────────────
   { id: "nav-dash",      category: "navigation", label: "Dashboard",             label_ar: "لوحة التحكم",       label_fr: "Tableau de bord",    screen: "dash",      emoji: "◼",  keywords: "dashboard tableau bord accueil home main" },
-  { id: "nav-prop",      category: "navigation", label: "Properties",            label_ar: "العقارات",           label_fr: "Biens immobiliers",   screen: "prop",      emoji: "🏠",  keywords: "properties biens immobilier property appartement villa" },
+  { id: "nav-realestate",category: "navigation", label: "Real Estate",           label_ar: "العقارات",           label_fr: "Immobilier",          screen: "realestate", emoji: "🏠", keywords: "real estate immobilier biens property properties dashboard" },
   { id: "nav-crm",       category: "navigation", label: "CRM / Leads",           label_ar: "إدارة العملاء",      label_fr: "CRM / Prospects",    screen: "crm",       emoji: "📊",  keywords: "crm leads prospects pipeline vente sales" },
   { id: "nav-orders",    category: "navigation", label: "Orders",                label_ar: "الطلبات",            label_fr: "Commandes",          screen: "orders",    emoji: "📋",  keywords: "orders commandes bons achats purchases" },
   { id: "nav-personne",  category: "navigation", label: "Individual Clients",    label_ar: "الأشخاص",            label_fr: "Clients Personnes",  screen: "personne",  emoji: "👤",  keywords: "clients personnes individuals personne physique" },
   { id: "nav-societe",   category: "navigation", label: "Company Clients",       label_ar: "الشركات",            label_fr: "Clients Sociétés",   screen: "societe",   emoji: "🏢",  keywords: "clients societes entreprises companies corporate" },
-  { id: "nav-contract",  category: "navigation", label: "Contracts",             label_ar: "العقود",             label_fr: "Contrats",           screen: "contract",  emoji: "📄",  keywords: "contracts contrats juridique legal agreements" },
-  { id: "nav-rental",    category: "navigation", label: "Rentals",               label_ar: "الإيجارات",          label_fr: "Locations",          screen: "rental",    emoji: "🔑",  keywords: "rentals locations loyer ijara rent tenants" },
-  { id: "nav-visa",      category: "navigation", label: "Golden Visa",           label_ar: "التأشيرة الذهبية",   label_fr: "Visa Doré",          screen: "visa",      emoji: "⭐",  keywords: "golden visa tashira dhahabi residence uae" },
   { id: "nav-consult",   category: "navigation", label: "Consultants",           label_ar: "المستشارون",         label_fr: "Consultants",        screen: "consultants", emoji: "💼", keywords: "consultants experts specialists advisors" },
   { id: "nav-finance",   category: "navigation", label: "Finance",               label_ar: "المالية",            label_fr: "Finance",            screen: "finance",   emoji: "💰",  keywords: "finance comptabilite accounting tresorerie" },
   { id: "nav-report",    category: "navigation", label: "Reports",               label_ar: "التقارير",           label_fr: "Rapports",           screen: "report",    emoji: "📈",  keywords: "reports rapports statistiques analytics insights" },
@@ -59,9 +56,6 @@ export const SEARCH_INDEX: SearchItem[] = [
   // ── Quick actions ───────────────────────────────────────────
   { id: "act-new-person",   category: "action", label: "New Individual Client",   label_fr: "Nouveau client (personne)", sub: "Add a person to CRM",       screen: "personne",  emoji: "➕", keywords: "new add create client person nouveau ajouter" },
   { id: "act-new-company",  category: "action", label: "New Company",             label_fr: "Nouvelle société",          sub: "Add a company to CRM",      screen: "societe",   emoji: "➕", keywords: "new add create company societe nouveau" },
-  { id: "act-new-property", category: "action", label: "Add Property",            label_fr: "Ajouter un bien",           sub: "List a new property",       screen: "prop",      emoji: "➕", keywords: "new add property listing bien immobilier" },
-  { id: "act-new-contract", category: "action", label: "New Contract",            label_fr: "Nouveau contrat",           sub: "Create a contract",         screen: "contract",  emoji: "➕", keywords: "new contract contrat create ajouter" },
-  { id: "act-visa",         category: "action", label: "Golden Visa Tracker",     label_fr: "Suivi Visa Doré",           sub: "Check visa status",         screen: "visa",      emoji: "⭐", keywords: "golden visa check status tracker suivi" },
   { id: "act-report",       category: "action", label: "View Reports",            label_fr: "Voir les rapports",         sub: "Analytics & statistics",    screen: "report",    emoji: "📈", keywords: "reports analytics view voir rapports stats" },
 ];
 

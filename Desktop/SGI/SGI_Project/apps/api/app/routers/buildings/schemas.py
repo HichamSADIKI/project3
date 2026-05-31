@@ -1,4 +1,5 @@
 """Schémas Pydantic v2 — Buildings."""
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -6,13 +7,10 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
-
 BuildingType = Literal[
     "residential_tower", "villa_compound", "mixed_use", "commercial", "warehouse"
 ]
-BuildingStatus = Literal[
-    "operational", "under_renovation", "off_market", "demolished"
-]
+BuildingStatus = Literal["operational", "under_renovation", "off_market", "demolished"]
 Tenure = Literal["freehold", "leasehold"]
 Emirate = Literal["DXB", "AUH", "SHJ", "AJM", "RAK", "FUJ", "UAQ"]
 

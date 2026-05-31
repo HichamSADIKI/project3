@@ -1,6 +1,7 @@
 """Service Workflow Engine — CRUD + machine à états + helpers purs."""
+
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -15,23 +16,22 @@ from app.models.workflow import (
 
 from .schemas import InstanceCreate, StepAction, TemplateCreate
 
-
 # ── Helpers purs ──────────────────────────────────────────────────────────
 
 STEP_TRANSITIONS: dict[str, list[str]] = {
-    "pending":    ["in_progress", "skipped"],
-    "in_progress":["approved", "rejected", "escalated", "skipped"],
-    "approved":   [],
-    "rejected":   [],
-    "skipped":    [],
-    "escalated":  ["in_progress"],
+    "pending": ["in_progress", "skipped"],
+    "in_progress": ["approved", "rejected", "escalated", "skipped"],
+    "approved": [],
+    "rejected": [],
+    "skipped": [],
+    "escalated": ["in_progress"],
 }
 
 INSTANCE_TRANSITIONS: dict[str, list[str]] = {
     "in_progress": ["approved", "rejected", "cancelled"],
-    "approved":    [],
-    "rejected":    [],
-    "cancelled":   [],
+    "approved": [],
+    "rejected": [],
+    "cancelled": [],
 }
 
 
@@ -50,18 +50,19 @@ def is_step_sla_breached(step: WorkflowStep) -> bool:
         return False
     due = step.sla_due_at
     if due.tzinfo is None:
-        due = due.replace(tzinfo=timezone.utc)
-    return datetime.now(timezone.utc) > due
+        due = due.replace(tzinfo=UTC)
+    return datetime.now(UTC) > due
 
 
 def compute_step_sla(sla_hours: int | None, from_dt: datetime) -> datetime | None:
     if not sla_hours:
         return None
-    base = from_dt if from_dt.tzinfo else from_dt.replace(tzinfo=timezone.utc)
+    base = from_dt if from_dt.tzinfo else from_dt.replace(tzinfo=UTC)
     return base + timedelta(hours=sla_hours)
 
 
 # ── Templates ─────────────────────────────────────────────────────────────
+
 
 async def list_templates(
     db: AsyncSession, company_id: uuid.UUID, active_only: bool = True
@@ -73,7 +74,8 @@ async def list_templates(
     if active_only:
         filters.append(WorkflowTemplate.active.is_(True))
     result = await db.execute(
-        select(WorkflowTemplate).where(and_(*filters))
+        select(WorkflowTemplate)
+        .where(and_(*filters))
         .order_by(WorkflowTemplate.workflow_type, WorkflowTemplate.name)
     )
     return list(result.scalars().all())
@@ -97,6 +99,7 @@ async def create_template(
 
 
 # ── Instances ─────────────────────────────────────────────────────────────
+
 
 async def start_workflow(
     db: AsyncSession,
@@ -130,7 +133,7 @@ async def start_workflow(
     await db.flush()
 
     # Crée les steps à partir de la définition.
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     steps_def: list[dict] = tpl.steps_definition or []
     for step_def in sorted(steps_def, key=lambda s: s.get("order", 0)):
         step = WorkflowStep(
@@ -186,13 +189,15 @@ async def list_instances(
     ]
     if status:
         filters.append(WorkflowInstance.status == status)
-    total = (await db.execute(
-        select(func.count()).select_from(WorkflowInstance).where(and_(*filters))
-    )).scalar_one()
+    total = (
+        await db.execute(select(func.count()).select_from(WorkflowInstance).where(and_(*filters)))
+    ).scalar_one()
     result = await db.execute(
-        select(WorkflowInstance).where(and_(*filters))
+        select(WorkflowInstance)
+        .where(and_(*filters))
         .order_by(WorkflowInstance.created_at.desc())
-        .offset((page - 1) * limit).limit(limit)
+        .offset((page - 1) * limit)
+        .limit(limit)
     )
     return list(result.scalars().all()), total
 
@@ -201,10 +206,12 @@ async def get_steps(
     db: AsyncSession, company_id: uuid.UUID, instance_id: uuid.UUID
 ) -> list[WorkflowStep]:
     result = await db.execute(
-        select(WorkflowStep).where(
+        select(WorkflowStep)
+        .where(
             WorkflowStep.instance_id == instance_id,
             WorkflowStep.company_id == company_id,
-        ).order_by(WorkflowStep.step_order)
+        )
+        .order_by(WorkflowStep.step_order)
     )
     return list(result.scalars().all())
 
@@ -213,15 +220,18 @@ async def get_events(
     db: AsyncSession, company_id: uuid.UUID, instance_id: uuid.UUID
 ) -> list[WorkflowEvent]:
     result = await db.execute(
-        select(WorkflowEvent).where(
+        select(WorkflowEvent)
+        .where(
             WorkflowEvent.instance_id == instance_id,
             WorkflowEvent.company_id == company_id,
-        ).order_by(WorkflowEvent.created_at)
+        )
+        .order_by(WorkflowEvent.created_at)
     )
     return list(result.scalars().all())
 
 
 # ── Actions sur step ──────────────────────────────────────────────────────
+
 
 async def _act_on_step(
     db: AsyncSession,
@@ -229,7 +239,7 @@ async def _act_on_step(
     instance_id: uuid.UUID,
     step_id: uuid.UUID,
     actor_id: uuid.UUID,
-    action: str,      # approve | reject | note | escalate
+    action: str,  # approve | reject | note | escalate
     comment: str | None,
 ) -> WorkflowInstance:
     instance = await get_instance(db, company_id, instance_id)
@@ -249,12 +259,12 @@ async def _act_on_step(
     if not step:
         raise HTTPException(status_code=404, detail="step_not_found")
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     target_status = {
-        "approve":   "approved",
-        "reject":    "rejected",
-        "escalate":  "escalated",
-        "note":      step.status,   # note ne change pas le statut
+        "approve": "approved",
+        "reject": "rejected",
+        "escalate": "escalated",
+        "note": step.status,  # note ne change pas le statut
     }.get(action, step.status)
 
     if action != "note" and not is_valid_step_transition(step.status, target_status):
@@ -270,40 +280,51 @@ async def _act_on_step(
         step.notes = comment
 
     # Journal.
-    db.add(WorkflowEvent(
-        company_id=company_id,
-        instance_id=instance_id,
-        step_id=step_id,
-        actor_user_id=actor_id,
-        event_type=action,
-        comment=comment,
-        created_at=now,
-    ))
+    db.add(
+        WorkflowEvent(
+            company_id=company_id,
+            instance_id=instance_id,
+            step_id=step_id,
+            actor_user_id=actor_id,
+            event_type=action,
+            comment=comment,
+            created_at=now,
+        )
+    )
 
     # Avancement de l'instance.
     steps = await get_steps(db, company_id, instance_id)
     if action == "reject":
         instance.status = "rejected"
         instance.completed_at = now
-        db.add(WorkflowEvent(
-            company_id=company_id, instance_id=instance_id,
-            actor_user_id=actor_id, event_type="complete",
-            comment="Rejected", created_at=now,
-        ))
+        db.add(
+            WorkflowEvent(
+                company_id=company_id,
+                instance_id=instance_id,
+                actor_user_id=actor_id,
+                event_type="complete",
+                comment="Rejected",
+                created_at=now,
+            )
+        )
     elif action == "approve":
         # Passe au step suivant ou clôture l'instance.
-        next_steps = [s for s in steps if s.step_order > step.step_order
-                      and s.status == "pending"]
+        next_steps = [s for s in steps if s.step_order > step.step_order and s.status == "pending"]
         if next_steps:
             next_steps[0].status = "in_progress"
         else:
             instance.status = "approved"
             instance.completed_at = now
-            db.add(WorkflowEvent(
-                company_id=company_id, instance_id=instance_id,
-                actor_user_id=actor_id, event_type="complete",
-                comment="All steps approved", created_at=now,
-            ))
+            db.add(
+                WorkflowEvent(
+                    company_id=company_id,
+                    instance_id=instance_id,
+                    actor_user_id=actor_id,
+                    event_type="complete",
+                    comment="All steps approved",
+                    created_at=now,
+                )
+            )
 
     await db.commit()
     await db.refresh(instance)
@@ -313,19 +334,20 @@ async def _act_on_step(
 async def approve_step(
     db, company_id, instance_id, step_id, actor_id, data: StepAction
 ) -> WorkflowInstance:
-    return await _act_on_step(db, company_id, instance_id, step_id,
-                               actor_id, "approve", data.comment)
+    return await _act_on_step(
+        db, company_id, instance_id, step_id, actor_id, "approve", data.comment
+    )
 
 
 async def reject_step(
     db, company_id, instance_id, step_id, actor_id, data: StepAction
 ) -> WorkflowInstance:
-    return await _act_on_step(db, company_id, instance_id, step_id,
-                               actor_id, "reject", data.comment)
+    return await _act_on_step(
+        db, company_id, instance_id, step_id, actor_id, "reject", data.comment
+    )
 
 
 async def note_step(
     db, company_id, instance_id, step_id, actor_id, data: StepAction
 ) -> WorkflowInstance:
-    return await _act_on_step(db, company_id, instance_id, step_id,
-                               actor_id, "note", data.comment)
+    return await _act_on_step(db, company_id, instance_id, step_id, actor_id, "note", data.comment)

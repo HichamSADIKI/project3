@@ -1,7 +1,15 @@
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import DECIMAL, Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import (
+    DECIMAL,
+    Date,
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -18,12 +26,10 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     __tablename__ = "contracts"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
-    # Référence unique lisible
-    reference: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    # Référence lisible — unique PAR société (multi-tenant), pas globalement.
+    reference: Mapped[str] = mapped_column(String(50), nullable=False)
 
     # "sale" | "rental"
     type: Mapped[str] = mapped_column(String(20), nullable=False)
@@ -50,18 +56,12 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Montants AED
     amount: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    commission_rate: Mapped[float] = mapped_column(
-        DECIMAL(5, 2), nullable=False, default=2.0
-    )
-    commission_amount: Mapped[float | None] = mapped_column(
-        DECIMAL(15, 2), nullable=True
-    )
+    commission_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False, default=2.0)
+    commission_amount: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Cycle de vie
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")
-    signed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    signed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
@@ -75,3 +75,19 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Métadonnées additionnelles
     metadata_ = mapped_column("metadata", JSONB, nullable=False, default=dict)
+
+    # Renouvellement (M5) — contrat parent dont celui-ci est le renouvellement
+    renewed_from_contract_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("contracts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # E-signature (M5) — document M2 servant de support de signature
+    signing_document_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+
+    __table_args__ = (
+        # Référence unique PAR société (multi-tenant) — pas globalement.
+        UniqueConstraint("company_id", "reference", name="uq_contracts_company_reference"),
+    )

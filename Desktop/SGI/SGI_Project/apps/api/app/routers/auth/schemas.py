@@ -19,34 +19,48 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: str = "bearer"
+    token_type: str = "bearer"  # noqa: S105  type de jeton OAuth, pas un secret
     expires_in: int  # seconds
+    # Refresh token (secret opaque). Absent quand MFA en attente (mfa_required).
+    refresh_token: str | None = None
+    refresh_expires_in: int | None = None  # seconds — pilote le maxAge du cookie
     # MFA : si True, le token est temporaire — doit être validé via /auth/mfa/validate
     mfa_required: bool = False
     tmp_token: str | None = None
 
 
+class RefreshRequest(BaseModel):
+    """Échange d'un refresh token contre un nouvel access (+ refresh tourné)."""
+
+    refresh_token: str = Field(..., min_length=1, max_length=512)
+
+
 # ── MFA TOTP ──────────────────────────────────────────────────────────────
+
 
 class MfaSetupOut(BaseModel):
     """Réponse au setup MFA — QR code URI (une seule fois)."""
+
     provisioning_uri: str
     issuer: str = "SGI ERP"
 
 
 class MfaVerifySetupIn(BaseModel):
     """Confirmation du setup MFA avec le premier code TOTP."""
+
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class MfaValidateIn(BaseModel):
     """Validation TOTP après login (échange tmp_token → JWT final)."""
+
     tmp_token: str
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 
 class MfaDisableIn(BaseModel):
     """Désactivation MFA — le code TOTP courant est requis."""
+
     code: str = Field(..., min_length=6, max_length=6, pattern=r"^\d{6}$")
 
 

@@ -5,17 +5,27 @@ import { Sidebar } from "@/components/sgi-ui";
 import { apiLogout } from "@/lib/auth";
 import { ScreenLogin } from "./screens/login";
 import { ScreenDashboard } from "./screens/dashboard";
-import { ScreenProperties } from "./screens/properties";
 import { ScreenCRM } from "./screens/crm";
-import { ScreenContracts } from "./screens/contracts";
-import { ScreenGoldenVisa } from "./screens/golden-visa";
 import { ScreenPortal } from "./screens/portal";
-import { ScreenRentals } from "./screens/rentals";
 import { ScreenAdministrations } from "./screens/administrations";
 import { ScreenTourisme } from "./screens/tourisme";
 import { ScreenSante } from "./screens/sante";
 import { ScreenAssurance } from "./screens/assurance";
 import { ScreenRealEstate } from "./screens/real-estate";
+import { ScreenRealEstateBranches } from "./screens/realestate-branches";
+import { ScreenRealEstateSettings } from "./screens/realestate-settings";
+import { ScreenRealEstateDocuments } from "./screens/realestate-documents";
+import { ScreenRealEstateBuildings } from "./screens/realestate-buildings";
+import { ScreenRealEstateUnits } from "./screens/realestate-units";
+import { ScreenRealEstateTenants } from "./screens/realestate-tenants";
+import { ScreenRealEstateContracts } from "./screens/realestate-contracts";
+import { ScreenRealEstateOwners } from "./screens/realestate-owners";
+import { ScreenRealEstateOwnerPortal } from "./screens/realestate-owner-portal";
+import { ScreenRealEstatePayments } from "./screens/realestate-payments";
+import { ScreenRealEstateCheques } from "./screens/realestate-cheques";
+import { MaintenanceScreen } from "./screens/maintenance";
+import { ScreenRealEstateComms } from "./screens/realestate-comms";
+import { ScreenRealEstateWorkflows } from "./screens/realestate-workflows";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
@@ -46,14 +56,14 @@ import { GlobalSearch } from "@/components/global-search";
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ScreenKey =
-  | "dash" | "prop" | "crm" | "orders" | "contract" | "rental"
-  | "realestate" | "admin" | "travail"
-  | "realestate_crm" | "tourisme_crm" | "sante_crm" | "assurance_crm"
+  | "dash" | "crm" | "orders"
+  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
+  | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
-  | "realestate_news" | "tourisme_news" | "sante_news" | "assurance_news"
+  | "tourisme_news" | "sante_news" | "assurance_news"
   | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
-  | "visa" | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
+  | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
   | "finance" | "marketing" | "report" | "parametres"
   | "clients" | "personne" | "societe"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
@@ -71,17 +81,27 @@ type ScreenProps = {
 const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode> = {
   // Core screens
   "dash":        (p)  => <ScreenDashboard onNavigate={p.onNavigate} />,
-  "prop":        (_)  => <ScreenProperties />,
   "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} />,
   "orders":      (_)  => <ScreenOrders />,
-  "contract":    (_)  => <ScreenContracts />,
-  "rental":      (_)  => <ScreenRentals />,
   "realestate":  (_)  => <ScreenRealEstate />,
+  "realestate_buildings": (_) => <ScreenRealEstateBuildings />,
+  "realestate_units": (_) => <ScreenRealEstateUnits />,
+  "realestate_tenants": (_) => <ScreenRealEstateTenants />,
+  "realestate_contracts": (_) => <ScreenRealEstateContracts />,
+  "realestate_payments": (_) => <ScreenRealEstatePayments />,
+  "realestate_cheques": (_) => <ScreenRealEstateCheques />,
+  "realestate_maintenance": (_) => <MaintenanceScreen />,
+  "realestate_comms": (_) => <ScreenRealEstateComms />,
+  "realestate_workflows": (_) => <ScreenRealEstateWorkflows />,
+  "realestate_owners": (_) => <ScreenRealEstateOwners />,
+  "realestate_owner_portal": (_) => <ScreenRealEstateOwnerPortal />,
+  "realestate_branches": (_) => <ScreenRealEstateBranches />,
+  "realestate_settings": (_) => <ScreenRealEstateSettings />,
+  "realestate_documents": (_) => <ScreenRealEstateDocuments />,
   "admin":       (_)  => <ScreenAdministrations />,
   "travail":     (_)  => <ScreenTravail />,
 
   // Sector CRM screens
-  "realestate_crm":  (p) => <ScreenSectorCRM sector="realestate"  confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
   "tourisme_crm":    (p) => <ScreenSectorCRM sector="tourisme"    confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
   "sante_crm":       (p) => <ScreenSectorCRM sector="sante"       confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
   "assurance_crm":   (p) => <ScreenSectorCRM sector="assurance"   confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
@@ -93,7 +113,6 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "callcenter_crm":  (p) => <ScreenSectorCRM sector="callcenter"  confirmedDeals={p.confirmedDeals} onNavigateToClient={p.onNavigateToClient} />,
 
   // Sector News screens
-  "realestate_news":  (_) => <ScreenSectorNews sector="realestate" />,
   "tourisme_news":    (_) => <ScreenSectorNews sector="tourisme" />,
   "sante_news":       (_) => <ScreenSectorNews sector="sante" />,
   "assurance_news":   (_) => <ScreenSectorNews sector="assurance" />,
@@ -114,7 +133,6 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "callcenter":  (_) => <ScreenCallCenter />,
 
   // Back-office & tools
-  "visa":       (_)  => <ScreenGoldenVisa />,
   "erp":        (_)  => <ScreenERP />,
   "workspace":  (_)  => <ScreenWorkspace />,
   "audit":      (_)  => <ScreenAudit />,

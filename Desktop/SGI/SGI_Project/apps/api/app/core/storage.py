@@ -11,6 +11,7 @@ Conception :
 Arborescence des clés objet :
   fournisseurs/{company_id}/{user_id}/{slug-document}-{hex}.{ext}
 """
+
 from __future__ import annotations
 
 import logging
@@ -40,11 +41,7 @@ _EXT_BY_MIME = {
 
 def is_configured() -> bool:
     """True si les credentials MinIO sont renseignés (sinon on skippe l'upload)."""
-    return bool(
-        settings.MINIO_ENDPOINT
-        and settings.MINIO_ACCESS_KEY
-        and settings.MINIO_SECRET_KEY
-    )
+    return bool(settings.MINIO_ENDPOINT and settings.MINIO_ACCESS_KEY and settings.MINIO_SECRET_KEY)
 
 
 def extension_for_mime(content_type: str) -> str | None:
@@ -101,10 +98,7 @@ def build_fournisseur_license_key(
 ) -> str:
     """Clé objet déterministe-par-tenant pour une licence commerciale."""
     ext = extension_for_mime(content_type) or "bin"
-    return (
-        f"fournisseurs/{company_id}/{user_id}/"
-        f"licence-commerciale-{uuid.uuid4().hex[:12]}.{ext}"
-    )
+    return f"fournisseurs/{company_id}/{user_id}/licence-commerciale-{uuid.uuid4().hex[:12]}.{ext}"
 
 
 def download_bytes(object_key: str) -> tuple[bytes, str]:

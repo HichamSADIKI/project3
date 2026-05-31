@@ -1,10 +1,11 @@
 """Router Maintenance — /api/v1/maintenance."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 
 from .schemas import (
@@ -20,7 +21,6 @@ from .schemas import (
     TicketCreate,
     TicketDetailOut,
     TicketListOut,
-    TicketOut,
     TicketStatusUpdate,
     TicketUpdate,
 )
@@ -32,7 +32,6 @@ from .service import (
     create_quote,
     create_ticket,
     get_calendar,
-    get_quote,
     get_ticket,
     list_invoices,
     list_plans,
@@ -57,6 +56,7 @@ def _user_id(request: Request) -> uuid.UUID:
 
 # ── Liste ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/tickets", response_model=TicketListOut)
 async def list_tickets_endpoint(
     page: int = Query(1, ge=1),
@@ -67,15 +67,21 @@ async def list_tickets_endpoint(
     unit_id: uuid.UUID | None = Query(None),
     assignee_id: uuid.UUID | None = Query(None),
     q: str | None = Query(None),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> TicketListOut:
     company_id = await get_company_id(db)
     items, total = await list_tickets(
-        db, company_id,
-        page=page, limit=limit,
-        status=status, priority=priority, category=category,
-        unit_id=unit_id, assignee_id=assignee_id, q=q,
+        db,
+        company_id,
+        page=page,
+        limit=limit,
+        status=status,
+        priority=priority,
+        category=category,
+        unit_id=unit_id,
+        assignee_id=assignee_id,
+        q=q,
     )
     pages = (total + limit - 1) // limit
     return TicketListOut(
@@ -86,6 +92,7 @@ async def list_tickets_endpoint(
 
 # ── Création ──────────────────────────────────────────────────────────────
 
+
 @router.post(
     "/tickets",
     response_model=TicketDetailOut,
@@ -94,7 +101,7 @@ async def list_tickets_endpoint(
 async def create_ticket_endpoint(
     body: TicketCreate,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> TicketDetailOut:
     company_id = await get_company_id(db)
@@ -105,10 +112,11 @@ async def create_ticket_endpoint(
 
 # ── Détail ────────────────────────────────────────────────────────────────
 
+
 @router.get("/tickets/{ticket_id}", response_model=TicketDetailOut)
 async def get_ticket_endpoint(
     ticket_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> TicketDetailOut:
     company_id = await get_company_id(db)
@@ -120,11 +128,12 @@ async def get_ticket_endpoint(
 
 # ── Mise à jour partielle ─────────────────────────────────────────────────
 
+
 @router.patch("/tickets/{ticket_id}", response_model=TicketDetailOut)
 async def update_ticket_endpoint(
     ticket_id: uuid.UUID,
     body: TicketUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> TicketDetailOut:
     company_id = await get_company_id(db)
@@ -136,12 +145,13 @@ async def update_ticket_endpoint(
 
 # ── Assignation ───────────────────────────────────────────────────────────
 
+
 @router.post("/tickets/{ticket_id}/assign", response_model=TicketDetailOut)
 async def assign_ticket_endpoint(
     ticket_id: uuid.UUID,
     body: TicketAssign,
     request: Request,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> TicketDetailOut:
     company_id = await get_company_id(db)
@@ -154,11 +164,12 @@ async def assign_ticket_endpoint(
 
 # ── Transition de statut ──────────────────────────────────────────────────
 
+
 @router.post("/tickets/{ticket_id}/status", response_model=TicketDetailOut)
 async def update_status_endpoint(
     ticket_id: uuid.UUID,
     body: TicketStatusUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> TicketDetailOut:
     company_id = await get_company_id(db)
@@ -170,13 +181,14 @@ async def update_status_endpoint(
 
 # ── Soft delete ───────────────────────────────────────────────────────────
 
+
 @router.delete(
     "/tickets/{ticket_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_ticket_endpoint(
     ticket_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> None:
     company_id = await get_company_id(db)
@@ -187,22 +199,24 @@ async def delete_ticket_endpoint(
 
 # ── Phase 2 : Devis ───────────────────────────────────────────────────────
 
+
 @router.get("/tickets/{ticket_id}/quotes", response_model=list[QuoteOut])
 async def list_quotes_endpoint(
     ticket_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[QuoteOut]:
     company_id = await get_company_id(db)
     return [QuoteOut.model_validate(q) for q in await list_quotes(db, company_id, ticket_id)]
 
 
-@router.post("/tickets/{ticket_id}/quotes", response_model=QuoteOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tickets/{ticket_id}/quotes", response_model=QuoteOut, status_code=status.HTTP_201_CREATED
+)
 async def create_quote_endpoint(
     ticket_id: uuid.UUID,
     body: QuoteCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> QuoteOut:
     company_id = await get_company_id(db)
@@ -215,7 +229,7 @@ async def create_quote_endpoint(
 @router.post("/quotes/{quote_id}/approve", response_model=QuoteOut)
 async def approve_quote_endpoint(
     quote_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> QuoteOut:
     company_id = await get_company_id(db)
@@ -228,7 +242,7 @@ async def approve_quote_endpoint(
 @router.post("/quotes/{quote_id}/reject", response_model=QuoteOut)
 async def reject_quote_endpoint(
     quote_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> QuoteOut:
     company_id = await get_company_id(db)
@@ -240,22 +254,24 @@ async def reject_quote_endpoint(
 
 # ── Phase 2 : Factures ────────────────────────────────────────────────────
 
+
 @router.get("/tickets/{ticket_id}/invoices", response_model=list[InvoiceOut])
 async def list_invoices_endpoint(
     ticket_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[InvoiceOut]:
     company_id = await get_company_id(db)
     return [InvoiceOut.model_validate(i) for i in await list_invoices(db, company_id, ticket_id)]
 
 
-@router.post("/tickets/{ticket_id}/invoices", response_model=InvoiceOut,
-             status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/tickets/{ticket_id}/invoices", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED
+)
 async def create_invoice_endpoint(
     ticket_id: uuid.UUID,
     body: InvoiceCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> InvoiceOut:
     company_id = await get_company_id(db)
@@ -267,10 +283,11 @@ async def create_invoice_endpoint(
 
 # ── Phase 2 : Plans préventifs ────────────────────────────────────────────
 
+
 @router.get("/plans", response_model=list[PlanOut])
 async def list_plans_endpoint(
     active_only: bool = Query(False),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> list[PlanOut]:
     company_id = await get_company_id(db)
@@ -280,7 +297,7 @@ async def list_plans_endpoint(
 @router.post("/plans", response_model=PlanOut, status_code=status.HTTP_201_CREATED)
 async def create_plan_endpoint(
     body: PlanCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> PlanOut:
     company_id = await get_company_id(db)
@@ -292,7 +309,7 @@ async def create_plan_endpoint(
 async def update_plan_endpoint(
     plan_id: uuid.UUID,
     body: PlanUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager")),
 ) -> PlanOut:
     company_id = await get_company_id(db)
@@ -304,10 +321,11 @@ async def update_plan_endpoint(
 
 # ── Phase 2 : Calendrier ──────────────────────────────────────────────────
 
+
 @router.get("/calendar", response_model=CalendarOut)
 async def get_calendar_endpoint(
     horizon_days: int = Query(30, ge=1, le=365),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
     _: None = Depends(require_roles("admin", "manager", "agent")),
 ) -> CalendarOut:
     company_id = await get_company_id(db)

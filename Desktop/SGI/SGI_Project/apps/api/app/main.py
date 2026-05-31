@@ -1,23 +1,45 @@
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from app.core.config import settings
 from app.core.database import create_db_pool
-from app.middleware.tenant import TenantMiddleware
 from app.middleware.audit import AuditMiddleware
-from app.routers import auth, clients, properties, crm, contracts, golden_visa, rentals, finance, reporting, scraping
-from app.routers import owners, tenants, vendors, technicians
-from app.routers import buildings, units, pdc
-from app.routers import client_portal, partner
-from app.routers import maintenance
-from app.routers import comms
-from app.routers import workflows
-from app.routers import inspections
-from app.routers import payments
-from app.routers import owner_portal
-from app.routers import ai_services
+from app.middleware.tenant import TenantMiddleware
+from app.routers import (
+    ai_services,
+    auth,
+    buildings,
+    client_portal,
+    clients,
+    comms,
+    contracts,
+    crm,
+    documents,
+    finance,
+    golden_visa,
+    inspections,
+    maintenance,
+    notifications,
+    owner_portal,
+    owner_statements,
+    owners,
+    partner,
+    payments,
+    pdc,
+    properties,
+    realestate_core,
+    rentals,
+    reporting,
+    scraping,
+    technicians,
+    tenants,
+    units,
+    vendors,
+    workflows,
+)
 from app.routers.scraping.service import start_browser, stop_browser
 
 
@@ -29,12 +51,50 @@ async def lifespan(app: FastAPI):
     await stop_browser()
 
 
+# Ordre des catégories dans la doc OpenAPI/Swagger.
+# Les tags listés ici apparaissent dans cet ordre ; ceux absents suivent dans
+# l'ordre de montage des routers. La catégorie Fournisseur (fournisseur +
+# vendors) est volontairement placée AVANT Clients — miroir du menu back-office.
+TAGS_METADATA = [
+    {"name": "System", "description": "Santé & supervision."},
+    {"name": "auth", "description": "Authentification, MFA, sessions."},
+    {
+        "name": "fournisseur",
+        "description": "Espace fournisseur (self-service prestataires : KYC, missions).",
+    },
+    {"name": "vendors", "description": "Fiches fournisseurs / prestataires (party-role)."},
+    {"name": "clients", "description": "Parties (particuliers / sociétés) — table umbrella."},
+    {"name": "owners", "description": "Propriétaires (mandats, IBAN, payouts)."},
+    {"name": "tenants", "description": "Locataires / candidats (cycle de vie, loyauté)."},
+    {"name": "technicians", "description": "Techniciens internes (salariés)."},
+    {"name": "properties", "description": "Catalogue legacy (PostGIS)."},
+    {"name": "buildings", "description": "Bâtiments (PostGIS, DLD)."},
+    {"name": "units", "description": "Unités louables / vendables."},
+    {"name": "crm", "description": "Leads, scoring, pipeline, relances."},
+    {"name": "contracts", "description": "Contrats."},
+    {"name": "golden_visa", "description": "Golden Visa UAE."},
+    {"name": "rentals", "description": "Locations."},
+    {"name": "pdc", "description": "Chèques post-datés (UAE)."},
+    {"name": "payments", "description": "Demandes de paiement & transactions."},
+    {"name": "finance", "description": "Finance & comptabilité."},
+    {"name": "maintenance", "description": "Tickets, devis, plans préventifs."},
+    {"name": "inspections", "description": "États des lieux (check-in/out)."},
+    {"name": "workflows", "description": "Moteur de workflows générique."},
+    {"name": "communication", "description": "Conversations + WebSocket."},
+    {"name": "client_portal", "description": "Portail client (self-service)."},
+    {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
+    {"name": "ai_services", "description": "Services IA (Gemini)."},
+    {"name": "reporting", "description": "Rapports & exports."},
+    {"name": "scraping", "description": "Scraping (Playwright)."},
+]
+
 app = FastAPI(
     title="SGI API",
     version="0.1.0",
     docs_url="/docs" if settings.DEBUG else None,
     redoc_url="/redoc" if settings.DEBUG else None,
     openapi_url="/openapi.json" if settings.DEBUG else None,
+    openapi_tags=TAGS_METADATA,
     lifespan=lifespan,
 )
 
@@ -92,6 +152,13 @@ app.include_router(payments.router, prefix="/api/v1")
 app.include_router(owner_portal.router, prefix="/api/v1")
 # ERP — IA avancée (contrats + prédiction maintenance, sans table)
 app.include_router(ai_services.router, prefix="/api/v1")
+# Immobilier Core — succursales (multi-branch) + paramètres UAE (migration 0020)
+app.include_router(realestate_core.router, prefix="/api/v1")
+# Documents & Signature — versioning + e-signature UAE (migration 0021)
+app.include_router(documents.router, prefix="/api/v1")
+# Propriétaires — relevés mensuels + notifications in-app (migration 0025)
+app.include_router(owner_statements.router, prefix="/api/v1")
+app.include_router(notifications.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])

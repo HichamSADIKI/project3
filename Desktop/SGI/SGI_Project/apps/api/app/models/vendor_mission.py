@@ -3,6 +3,7 @@
 Rattaché à `vendors.party_id`. Machine à états :
   assigned → accepted → in_progress → done | cancelled
 """
+
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
@@ -26,9 +27,7 @@ from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin
 class VendorMission(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     __tablename__ = "vendor_missions"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     vendor_party_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("vendors.party_id", ondelete="CASCADE"),
@@ -46,9 +45,7 @@ class VendorMission(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     created_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     __table_args__ = (
         CheckConstraint(

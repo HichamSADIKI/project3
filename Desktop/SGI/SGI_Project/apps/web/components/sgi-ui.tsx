@@ -21,6 +21,7 @@ export const IcCRM       = () => <Ic><circle cx="9" cy="8" r="3.5"/><path d="M2 
 export const IcContract  = () => <Ic><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/><path d="M8 13h8M8 17h5"/></Ic>;
 export const IcRental    = () => <Ic><path d="M21 10V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l3-1.7"/><circle cx="17" cy="17" r="3"/><path d="M19.5 19.5 22 22"/></Ic>;
 export const IcVisa      = () => <Ic><path d="M12 2 14.5 9 22 9.3l-6 4.6 2.2 7.4L12 17.5 5.8 21.3 8 13.9 2 9.3 9.5 9z"/></Ic>;
+export const IcCalendar  = () => <Ic><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></Ic>;
 export const IcFinance   = () => <Ic><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 6-7"/></Ic>;
 export const IcReport    = () => <Ic><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 12v5M12 8v9M16 14v3"/></Ic>;
 export const IcSearch    = () => <Ic><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></Ic>;
@@ -131,7 +132,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "prop" | "contract" | "rental" | "visa" | "realestate_crm" | "realestate_news"
+  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -169,12 +170,20 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "crm",         icon: <IcCRM />,    badge: 12 },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
-      { key: "prop",           icon: <IcProp /> },
-      { key: "contract",       icon: <IcContract /> },
-      { key: "rental",         icon: <IcRental /> },
-      { key: "visa",           icon: <IcVisa />, badge: 3 },
-      { key: "realestate_crm",  icon: <IcCRM /> },
-      { key: "realestate_news", icon: <IcNews /> },
+      { key: "realestate_buildings", icon: <IcProp /> },
+      { key: "realestate_units", icon: <IcGrid /> },
+      { key: "realestate_tenants", icon: <IcPersonne /> },
+      { key: "realestate_owners", icon: <IcClients /> },
+      { key: "realestate_owner_portal", icon: <IcWorkspace /> },
+      { key: "realestate_contracts", icon: <IcContract /> },
+      { key: "realestate_payments", icon: <IcFinance /> },
+      { key: "realestate_cheques", icon: <IcReport /> },
+      { key: "realestate_maintenance", icon: <IcClock /> },
+      { key: "realestate_comms", icon: <IcChat /> },
+      { key: "realestate_workflows", icon: <IcAudit /> },
+      { key: "realestate_branches", icon: <IcPin /> },
+      { key: "realestate_documents", icon: <IcDoc /> },
+      { key: "realestate_settings", icon: <IcSettings /> },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
@@ -335,17 +344,19 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
-      dash: t.nav_dash, prop: t.nav_prop, crm: t.nav_crm, orders: t.nav_orders,
+      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
-      contract: t.nav_contract, rental: t.nav_rental, realestate: t.nav_realestate,
+      realestate: t.nav_realestate,
+      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_workflows: t.nav_workflows,
+      realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
-      visa: t.nav_visa, travail: t.nav_travail, callcenter: t.nav_callcenter,
-      realestate_crm: t.nav_crm,  tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
+      travail: t.nav_travail, callcenter: t.nav_callcenter,
+      tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
       assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
       consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
       callcenter_crm: t.nav_crm,
-      realestate_news: t.nav_news, tourisme_news: t.nav_news, sante_news: t.nav_news,
+      tourisme_news: t.nav_news, sante_news: t.nav_news,
       assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
       consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
       callcenter_news: t.nav_news,

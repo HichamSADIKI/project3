@@ -3,18 +3,19 @@
 Lecture seule sur contracts + maintenance_tickets. Aucune table propre.
 Les helpers de scoring sont purs et testables.
 """
+
 import uuid
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contract import Contract
 from app.models.maintenance import MaintenanceTicket
 
-
 # ── Helpers purs (scoring risque maintenance) ─────────────────────────────
+
 
 def compute_risk_score(
     ticket_count: int,
@@ -57,7 +58,7 @@ def suggest_preventive_frequency(category: str, ticket_count: int) -> str | None
     """
     if ticket_count < 2:
         return None
-    quarterly = "0 9 1 */3 *"   # 1er jour, tous les 3 mois
+    quarterly = "0 9 1 */3 *"  # 1er jour, tous les 3 mois
     semester = "0 9 1 */6 *"
     annual = "0 9 1 1 *"
     mapping = {
@@ -73,31 +74,38 @@ def suggest_preventive_frequency(category: str, ticket_count: int) -> str | None
 
 # ── Prédiction maintenance ─────────────────────────────────────────────────
 
-async def _analyze_unit(
-    db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID
-) -> dict:
-    rows = (await db.execute(
-        select(MaintenanceTicket).where(
-            MaintenanceTicket.company_id == company_id,
-            MaintenanceTicket.unit_id == unit_id,
-            MaintenanceTicket.deleted_at.is_(None),
+
+async def _analyze_unit(db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID) -> dict:
+    rows = (
+        (
+            await db.execute(
+                select(MaintenanceTicket).where(
+                    MaintenanceTicket.company_id == company_id,
+                    MaintenanceTicket.unit_id == unit_id,
+                    MaintenanceTicket.deleted_at.is_(None),
+                )
+            )
         )
-    )).scalars().all()
+        .scalars()
+        .all()
+    )
 
     ticket_count = len(rows)
     cats = Counter(t.category for t in rows)
-    top_category, top_count = (cats.most_common(1)[0] if cats else (None, 0))
+    top_category, top_count = cats.most_common(1)[0] if cats else (None, 0)
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     sla_breaches = sum(
-        1 for t in rows
-        if t.sla_due_at and t.status not in ("closed", "cancelled", "resolved")
-        and (t.sla_due_at.replace(tzinfo=timezone.utc) if t.sla_due_at.tzinfo is None
-             else t.sla_due_at) < now
+        1
+        for t in rows
+        if t.sla_due_at
+        and t.status not in ("closed", "cancelled", "resolved")
+        and (t.sla_due_at.replace(tzinfo=UTC) if t.sla_due_at.tzinfo is None else t.sla_due_at)
+        < now
     )
     oldest = min((t.created_at for t in rows), default=now)
     if oldest.tzinfo is None:
-        oldest = oldest.replace(tzinfo=timezone.utc)
+        oldest = oldest.replace(tzinfo=UTC)
     age_days = (now - oldest).days
 
     score = compute_risk_score(ticket_count, top_count, sla_breaches, age_days)
@@ -113,23 +121,23 @@ async def _analyze_unit(
     }
 
 
-async def unit_risk(
-    db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID
-) -> dict:
+async def unit_risk(db: AsyncSession, company_id: uuid.UUID, unit_id: uuid.UUID) -> dict:
     return await _analyze_unit(db, company_id, unit_id)
 
 
-async def predictions(
-    db: AsyncSession, company_id: uuid.UUID, min_score: int = 25
-) -> list[dict]:
+async def predictions(db: AsyncSession, company_id: uuid.UUID, min_score: int = 25) -> list[dict]:
     """Liste les unités à risque (score ≥ min_score) + plans préventifs suggérés."""
-    unit_ids = (await db.execute(
-        select(MaintenanceTicket.unit_id).where(
-            MaintenanceTicket.company_id == company_id,
-            MaintenanceTicket.unit_id.isnot(None),
-            MaintenanceTicket.deleted_at.is_(None),
-        ).group_by(MaintenanceTicket.unit_id)
-    )).all()
+    unit_ids = (
+        await db.execute(
+            select(MaintenanceTicket.unit_id)
+            .where(
+                MaintenanceTicket.company_id == company_id,
+                MaintenanceTicket.unit_id.isnot(None),
+                MaintenanceTicket.deleted_at.is_(None),
+            )
+            .group_by(MaintenanceTicket.unit_id)
+        )
+    ).all()
 
     out: list[dict] = []
     for (uid,) in unit_ids:
@@ -144,19 +152,22 @@ async def predictions(
             f"catégorie dominante '{analysis['top_category']}' "
             f"({analysis['top_count']}×), {analysis['sla_breaches']} SLA dépassé(s)."
         )
-        out.append({
-            "unit_id": uid,
-            "risk_score": analysis["risk_score"],
-            "risk_level": analysis["risk_level"],
-            "top_category": analysis["top_category"],
-            "suggested_cron": cron,
-            "rationale": rationale,
-        })
+        out.append(
+            {
+                "unit_id": uid,
+                "risk_score": analysis["risk_score"],
+                "risk_level": analysis["risk_level"],
+                "top_category": analysis["top_category"],
+                "suggested_cron": cron,
+                "rationale": rationale,
+            }
+        )
     out.sort(key=lambda x: x["risk_score"], reverse=True)
     return out
 
 
 # ── Résumé de contrat (Gemini + fallback) ─────────────────────────────────
+
 
 async def contract_summary(
     db: AsyncSession, company_id: uuid.UUID, contract_id: uuid.UUID
@@ -183,6 +194,7 @@ async def contract_summary(
     engine = "local_facts"
     try:
         from app.core.gemini import parse_client_need
+
         result_g = await parse_client_need(
             f"Résume ce contrat immobilier en 2-3 phrases claires :\n{facts}",
             locale="fr",
@@ -190,7 +202,7 @@ async def contract_summary(
         if result_g.get("engine", "").startswith("gemini"):
             summary = result_g.get("summary", facts)
             engine = result_g["engine"]
-    except Exception:  # noqa: BLE001 — fail-safe : on garde le résumé factuel
+    except Exception:  # noqa: BLE001, S110 — fail-safe : on garde le résumé factuel
         pass
 
     return {

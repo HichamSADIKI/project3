@@ -4,6 +4,7 @@ Stub volontairement minimal : aucune logique d'envoi ici, juste les
 hooks attendus par le routing Celery (queue 'notifications').
 À implémenter lorsque les providers seront configurés.
 """
+
 from __future__ import annotations
 
 import logging

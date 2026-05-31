@@ -3,6 +3,7 @@
 Stub minimal : aucun PDF généré ici, juste les hooks attendus par le
 routing Celery (queue 'exports'). À implémenter avec WeasyPrint / Jinja2.
 """
+
 from __future__ import annotations
 
 import logging

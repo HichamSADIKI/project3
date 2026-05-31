@@ -1,18 +1,20 @@
 """Schémas Pydantic v2 — module Communication (Phase 3)."""
+
 import uuid
 from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-VALID_TYPES  = ("direct", "group", "ticket", "contract")
-VALID_KINDS  = ("text", "voice", "system")
-VALID_ROLES  = ("admin", "member")
+VALID_TYPES = ("direct", "group", "ticket", "contract")
+VALID_KINDS = ("text", "voice", "system")
+VALID_ROLES = ("admin", "member")
 TYPE_PATTERN = "^(direct|group|ticket|contract)$"
 KIND_PATTERN = "^(text|voice|system)$"
 
 
 # ── Conversations ─────────────────────────────────────────────────────────
+
 
 class ConversationCreate(BaseModel):
     type: str = Field("direct", pattern=TYPE_PATTERN)
@@ -62,6 +64,7 @@ class ConversationDetailOut(BaseModel):
 
 # ── Messages ──────────────────────────────────────────────────────────────
 
+
 class MessageCreate(BaseModel):
     body: str | None = Field(None, max_length=10000)
     kind: str = Field("text", pattern=KIND_PATTERN)
@@ -91,6 +94,7 @@ class MessageListOut(BaseModel):
 
 
 # ── Participants ──────────────────────────────────────────────────────────
+
 
 class ParticipantAdd(BaseModel):
     user_id: uuid.UUID

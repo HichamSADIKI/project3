@@ -1,5 +1,7 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+
+import { BACKEND_URL } from "@/lib/api-proxy";
+import { clearSessionCookies, getRefreshToken } from "@/lib/auth-cookies";
 
 export async function POST(req: Request) {
   // CORS check: reject cross-origin logout requests
@@ -16,15 +18,23 @@ export async function POST(req: Request) {
     }
   }
 
-  const cookieStore = await cookies();
-  // Force cookie deletion with explicit security attributes
-  cookieStore.set("sgi-session", "", {
-    httpOnly: true,
-    secure:   process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    maxAge:   0,
-    path:     "/",
-  });
+  // Révoque le refresh token côté serveur (best-effort) avant d'effacer les
+  // cookies — invalide la session même si un cookie traînait ailleurs.
+  const refreshToken = await getRefreshToken();
+  if (refreshToken) {
+    try {
+      await fetch(`${BACKEND_URL}/api/v1/auth/logout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+        cache: "no-store",
+      });
+    } catch {
+      /* révocation best-effort : on efface les cookies quoi qu'il arrive */
+    }
+  }
+
+  await clearSessionCookies();
 
   const response = NextResponse.json({ success: true });
 

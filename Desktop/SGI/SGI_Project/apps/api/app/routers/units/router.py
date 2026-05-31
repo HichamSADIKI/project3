@@ -1,10 +1,11 @@
 """Router FastAPI — Units."""
+
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.units.schemas import (
     UnitCreate,
@@ -39,7 +40,7 @@ async def list_units_endpoint(
     status_filter: str | None = Query(None, alias="status"),
     page: int = Query(1, ge=1),
     limit: int = Query(20, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UnitListOut:
     company_id = await get_company_id(db)
     units, total = await list_units(
@@ -59,7 +60,7 @@ async def list_units_endpoint(
 )
 async def create_unit_endpoint(
     body: UnitCreate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UnitDetailOut:
     company_id = await get_company_id(db)
     unit = await create_unit(db, company_id, body)
@@ -74,14 +75,12 @@ async def create_unit_endpoint(
 @router.get("/{unit_id}", response_model=UnitDetailOut)
 async def get_unit_endpoint(
     unit_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UnitDetailOut:
     company_id = await get_company_id(db)
     unit = await get_unit(db, company_id, unit_id)
     if unit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
     return UnitDetailOut(data=UnitOut.model_validate(unit))
 
 
@@ -93,14 +92,12 @@ async def get_unit_endpoint(
 async def update_unit_endpoint(
     unit_id: uuid.UUID,
     body: UnitUpdate,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UnitDetailOut:
     company_id = await get_company_id(db)
     unit = await update_unit(db, company_id, unit_id, body)
     if unit is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
     return UnitDetailOut(data=UnitOut.model_validate(unit))
 
 
@@ -112,14 +109,12 @@ async def update_unit_endpoint(
 async def change_unit_status(
     unit_id: uuid.UUID,
     body: UnitStatusChange,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> UnitDetailOut:
     company_id = await get_company_id(db)
     result = await change_status(db, company_id, unit_id, body.target_status)
     if result is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
     if result == "invalid_transition":
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -135,11 +130,9 @@ async def change_unit_status(
 )
 async def delete_unit_endpoint(
     unit_id: uuid.UUID,
-    db: AsyncSession = Depends(get_db),
+    db: AsyncSession = Depends(get_db_session),
 ) -> None:
     company_id = await get_company_id(db)
     deleted = await delete_unit(db, company_id, unit_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="unit_not_found")
