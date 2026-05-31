@@ -13,6 +13,7 @@ from decimal import Decimal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.models.client import Client
 from app.models.contract import Contract
 from app.models.pdc_cheque import PdcCheque
@@ -172,28 +173,27 @@ async def create_pdc(db: AsyncSession, company_id: uuid.UUID, data: PdcCreate) -
     if not await _validate_links(db, company_id, data):
         return None
 
-    reference = await _next_reference(db, company_id)
-    pdc = PdcCheque(
-        company_id=company_id,
-        reference=reference,
-        rental_id=data.rental_id,
-        contract_id=data.contract_id,
-        drawer_party_id=data.drawer_party_id,
-        cheque_number=data.cheque_number,
-        bank_name=data.bank_name,
-        bank_branch=data.bank_branch,
-        account_holder_name=data.account_holder_name,
-        amount_aed=data.amount_aed,
-        due_date=data.due_date,
-        document_path=data.document_path,
-        ocr_data=data.ocr_data,
-        ocr_confidence=data.ocr_confidence,
-        notes=data.notes,
+    return await commit_with_reference_retry(
+        db,
+        lambda: _next_reference(db, company_id),
+        lambda reference: PdcCheque(
+            company_id=company_id,
+            reference=reference,
+            rental_id=data.rental_id,
+            contract_id=data.contract_id,
+            drawer_party_id=data.drawer_party_id,
+            cheque_number=data.cheque_number,
+            bank_name=data.bank_name,
+            bank_branch=data.bank_branch,
+            account_holder_name=data.account_holder_name,
+            amount_aed=data.amount_aed,
+            due_date=data.due_date,
+            document_path=data.document_path,
+            ocr_data=data.ocr_data,
+            ocr_confidence=data.ocr_confidence,
+            notes=data.notes,
+        ),
     )
-    db.add(pdc)
-    await db.commit()
-    await db.refresh(pdc)
-    return pdc
 
 
 async def update_pdc(
