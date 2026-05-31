@@ -135,8 +135,8 @@ async def post_favorite(
 async def delete_favorite(
     favorite_id: uuid.UUID, request: Request, db: AsyncSession = Depends(get_db_session)
 ) -> None:
-    user_id, _, _ = _ctx(request)
-    ok = await remove_favorite(db, user_id, favorite_id)
+    user_id, company_id, _ = _ctx(request)
+    ok = await remove_favorite(db, user_id, company_id, favorite_id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="favorite_not_found")
     await db.commit()

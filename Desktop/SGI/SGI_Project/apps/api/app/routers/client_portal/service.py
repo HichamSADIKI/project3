@@ -153,9 +153,16 @@ async def add_favorite(
     return fav
 
 
-async def remove_favorite(db: AsyncSession, user_id: uuid.UUID, favorite_id: uuid.UUID) -> bool:
+async def remove_favorite(
+    db: AsyncSession, user_id: uuid.UUID, company_id: uuid.UUID, favorite_id: uuid.UUID
+) -> bool:
+    # Filtre company_id explicite (défense en profondeur, indépendante de la RLS).
     result = await db.execute(
-        select(Favorite).where(Favorite.id == favorite_id, Favorite.user_id == user_id)
+        select(Favorite).where(
+            Favorite.id == favorite_id,
+            Favorite.user_id == user_id,
+            Favorite.company_id == company_id,
+        )
     )
     fav = result.scalar_one_or_none()
     if not fav:

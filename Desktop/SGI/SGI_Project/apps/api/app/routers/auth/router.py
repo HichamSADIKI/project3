@@ -515,9 +515,13 @@ async def decide_pending_user(
     fournisseur unifié immédiatement exploitable (compte ET fiche) après
     validation.
     """
+    # `users` est exempt de RLS (Loi 1) : on scope company_id explicitement pour
+    # qu'un admin ne puisse pas décider d'une inscription d'un autre tenant (IDOR).
+    admin_company_id = getattr(request.state, "company_id", None)
     result = await db.execute(
         select(User).where(
             User.id == user_id,
+            User.company_id == uuid.UUID(admin_company_id),
             User.status == UserStatus.PENDING.value,
             User.deleted_at.is_(None),
         )
@@ -528,10 +532,13 @@ async def decide_pending_user(
     user.status = UserStatus.ACTIVE.value if body.approve else UserStatus.REJECTED.value
 
     # Cascade sur le profil prestataire lié, le cas échéant.
+    # NB : `vendors` n'est pas exempt de la Loi 1 et la session n'a pas de contexte
+    # RLS — on filtre company_id explicitement pour empêcher une cascade cross-tenant.
     vendor = (
         await db.execute(
             select(Vendor).where(
                 Vendor.account_user_id == user.id,
+                Vendor.company_id == uuid.UUID(admin_company_id),
                 Vendor.deleted_at.is_(None),
             )
         )
