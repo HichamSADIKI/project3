@@ -193,28 +193,48 @@ def _auth(token: str) -> dict[str, str]:
 
 async def _create_pending_pdc(client: AsyncClient, token: str) -> tuple[str, str]:
     """Chaîne complète client → bien → contrat → PDC. Renvoie (pdc_id, reference)."""
-    c = await client.post("/api/v1/clients/", headers=_auth(token),
-                          json={"type": "individual", "first_name": "Ali", "last_name": "Noor"})
+    c = await client.post(
+        "/api/v1/clients/",
+        headers=_auth(token),
+        json={"type": "individual", "first_name": "Ali", "last_name": "Noor"},
+    )
     assert c.status_code == 201, c.text
     party_id = c.json()["data"]["id"]
 
-    p = await client.post("/api/v1/properties/", headers=_auth(token),
-                          json={"type": "apartment", "price": "900000.00"})
+    p = await client.post(
+        "/api/v1/properties/",
+        headers=_auth(token),
+        json={"type": "apartment", "price": "900000.00"},
+    )
     assert p.status_code == 201, p.text
     property_id = p.json()["data"]["id"]
 
-    ct = await client.post("/api/v1/contracts/", headers=_auth(token),
-                           json={"type": "rental", "client_id": party_id,
-                                 "property_id": property_id, "amount": 120000})
+    ct = await client.post(
+        "/api/v1/contracts/",
+        headers=_auth(token),
+        json={
+            "type": "rental",
+            "client_id": party_id,
+            "property_id": property_id,
+            "amount": 120000,
+        },
+    )
     assert ct.status_code == 201, ct.text
     contract_id = ct.json()["data"]["id"]
 
-    pdc = await client.post("/api/v1/pdc/", headers=_auth(token), json={
-        "contract_id": contract_id, "drawer_party_id": party_id,
-        "cheque_number": "100123", "bank_name": "Emirates NBD",
-        "account_holder_name": "Ali Noor", "amount_aed": "10000.00",
-        "due_date": "2026-06-30",
-    })
+    pdc = await client.post(
+        "/api/v1/pdc/",
+        headers=_auth(token),
+        json={
+            "contract_id": contract_id,
+            "drawer_party_id": party_id,
+            "cheque_number": "100123",
+            "bank_name": "Emirates NBD",
+            "account_holder_name": "Ali Noor",
+            "amount_aed": "10000.00",
+            "due_date": "2026-06-30",
+        },
+    )
     assert pdc.status_code == 201, pdc.text
     data = pdc.json()["data"]
     assert data["status"] == "pending"
@@ -226,9 +246,7 @@ async def test_pdc_requires_auth(client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
-async def test_create_then_list_pdc(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_create_then_list_pdc(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
     _pdc_id, reference = await _create_pending_pdc(client, token)
     listed = await client.get("/api/v1/pdc/", headers=_auth(token))
@@ -237,9 +255,7 @@ async def test_create_then_list_pdc(
     assert reference in refs
 
 
-async def test_pdc_state_machine(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_pdc_state_machine(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
     pdc_id, _ref = await _create_pending_pdc(client, token)
 
@@ -249,8 +265,9 @@ async def test_pdc_state_machine(
     assert bad.json()["detail"] == "invalid_status_transition"
 
     # pending → deposited → cleared : chemin valide.
-    dep = await client.post(f"/api/v1/pdc/{pdc_id}/deposit", headers=_auth(token),
-                            json={"deposit_date": "2026-06-25"})
+    dep = await client.post(
+        f"/api/v1/pdc/{pdc_id}/deposit", headers=_auth(token), json={"deposit_date": "2026-06-25"}
+    )
     assert dep.status_code == 200, dep.text
     assert dep.json()["data"]["status"] == "deposited"
 

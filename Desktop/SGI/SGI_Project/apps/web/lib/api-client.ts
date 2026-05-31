@@ -18,9 +18,53 @@ export async function extractError(
   return data.detail ?? data.error ?? fallback;
 }
 
-/** GET JSON ; lève `Error(detail|error|fallback)` si la réponse n'est pas ok. */
+/**
+ * Session définitivement expirée : on recharge vers la racine, qui remonte
+ * l'écran de login (l'état `screen` repart à "login").
+ */
+function handleUnauthenticated(): void {
+  if (typeof window === "undefined") return;
+  if (window.location.pathname !== "/") window.location.href = "/";
+  else window.location.reload();
+}
+
+/**
+ * Tente un refresh transparent (rotation du refresh token côté serveur).
+ * Single-flight : les requêtes concurrentes qui prennent un 401 en même temps
+ * partagent UN seul appel `/api/auth/refresh` au lieu d'en déclencher N.
+ * Retourne true si la session a été renouvelée.
+ */
+let refreshInFlight: Promise<boolean> | null = null;
+
+function tryRefresh(): Promise<boolean> {
+  if (typeof window === "undefined") return Promise.resolve(false);
+  if (!refreshInFlight) {
+    refreshInFlight = fetch("/api/auth/refresh", { method: "POST", cache: "no-store" })
+      .then((r) => r.ok)
+      .catch(() => false)
+      .finally(() => {
+        refreshInFlight = null;
+      });
+  }
+  return refreshInFlight;
+}
+
+/**
+ * GET JSON ; lève `Error(detail|error|fallback)` si la réponse n'est pas ok.
+ * Sur 401 (access JWT expiré), tente un refresh transparent puis rejoue **une
+ * fois** la requête avant d'abandonner vers le login.
+ */
 export async function getJson<T>(url: string, fallback = "load_failed"): Promise<T> {
-  const res = await fetch(url, { cache: "no-store" });
+  let res = await fetch(url, { cache: "no-store" });
+  if (res.status === 401) {
+    if (await tryRefresh()) {
+      res = await fetch(url, { cache: "no-store" });
+    }
+    if (res.status === 401) {
+      handleUnauthenticated();
+      throw new Error("unauthenticated");
+    }
+  }
   if (!res.ok) throw new Error(await extractError(res, fallback));
   return (await res.json()) as T;
 }
