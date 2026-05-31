@@ -127,7 +127,10 @@ module = [
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
-testpaths = ["tests", "app/routers"]
+# Tests co-localisés sous app/{core,middleware,models,routers}/test_*.py.
+# (Anciennement ["tests", "app/routers"] : le dossier `tests/` n'existe pas et
+#  app/routers ratait app/core & app/models — d'où le workaround `pytest app`.)
+testpaths = ["app"]
 python_files = ["test_*.py"]
 # Garde-fou anti-hang : un test qui dépasse 120 s échoue proprement au lieu de
 # bloquer toute la CI (cf. run #50 gelé ~45 min sur la suite d'intégration).
