@@ -33,6 +33,7 @@ from app.models.party_vendor import Vendor
 from app.models.pdc_cheque import PdcCheque
 from app.models.property import Property
 from app.models.property_submission import PropertySubmission
+from app.models.refresh_token import RefreshToken
 from app.models.rental import Rental
 from app.models.unit import Unit
 from app.models.user import User
@@ -73,4 +74,5 @@ __all__ = [
     "DocumentSignature",
     "OwnerStatement",
     "Notification",
+    "RefreshToken",
 ]
