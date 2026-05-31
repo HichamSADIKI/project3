@@ -425,3 +425,143 @@ async def test_reject_quote_then_cannot_reapprove(
     with pytest.raises(HTTPException) as exc:
         await approve_quote(db_session, company.id, quote.id)
     assert exc.value.status_code == 422
+
+
+# ── Tests d'intégration ENDPOINT (auth HTTP + contexte tenant + machine à états) ──
+# Passent par le client HTTP (JWT + middleware + get_db_session) — couvrent la
+# couche réseau/auth que les tests « service » ci-dessus n'exercent pas.
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+from httpx import AsyncClient  # noqa: E402
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_ticket_http(client: AsyncClient, token: str) -> str:
+    """Crée un bâtiment puis un ticket de maintenance ; renvoie l'id du ticket."""
+    b = await client.post(
+        "/api/v1/buildings/",
+        headers=_auth(token),
+        json={"reference": f"BLD-{uuid.uuid4().hex[:8]}", "building_type": "residential_tower"},
+    )
+    assert b.status_code == 201, b.text
+    building_id = b.json()["data"]["id"]
+    t = await client.post(
+        "/api/v1/maintenance/tickets",
+        headers=_auth(token),
+        json={
+            "title": "Fuite robinet cuisine",
+            "category": "plumbing",
+            "priority": "high",
+            "building_id": building_id,
+        },
+    )
+    assert t.status_code == 201, t.text
+    return t.json()["data"]["id"]
+
+
+async def _create_vendor_http(client: AsyncClient, token: str) -> str:
+    """Crée un client (party) + sa fiche vendor ; renvoie le party_id."""
+    c = await client.post(
+        "/api/v1/clients/",
+        headers=_auth(token),
+        json={"type": "company", "company_name": "Cool Plumbing LLC"},
+    )
+    assert c.status_code == 201, c.text
+    party_id = c.json()["data"]["id"]
+    v = await client.post(
+        "/api/v1/vendors/",
+        headers=_auth(token),
+        json={"party_id": party_id, "vendor_type": "maintenance"},
+    )
+    assert v.status_code == 201, v.text
+    return party_id
+
+
+async def test_maintenance_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/maintenance/tickets")
+    assert resp.status_code in (401, 403)
+
+
+async def test_create_then_list_ticket_http(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    ticket_id = await _create_ticket_http(client, token)
+
+    listed = await client.get("/api/v1/maintenance/tickets", headers=_auth(token))
+    assert listed.status_code == 200, listed.text
+    ids = [t["id"] for t in listed.json()["data"]]
+    assert ticket_id in ids
+
+
+async def test_status_valid_transition_http(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    ticket_id = await _create_ticket_http(client, token)
+    # new → triaged : transition autorisée.
+    resp = await client.post(
+        f"/api/v1/maintenance/tickets/{ticket_id}/status",
+        headers=_auth(token),
+        json={"status": "triaged"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["status"] == "triaged"
+
+
+async def test_status_invalid_transition_422_http(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    ticket_id = await _create_ticket_http(client, token)
+    # new → resolved : saut interdit par la machine à états.
+    resp = await client.post(
+        f"/api/v1/maintenance/tickets/{ticket_id}/status",
+        headers=_auth(token),
+        json={"status": "resolved"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert resp.json()["detail"].startswith("invalid_transition")
+
+
+async def test_quote_approve_then_reapprove_422_http(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    ticket_id = await _create_ticket_http(client, token)
+    vendor_id = await _create_vendor_http(client, token)
+    q = await client.post(
+        f"/api/v1/maintenance/tickets/{ticket_id}/quotes",
+        headers=_auth(token),
+        json={"vendor_party_id": vendor_id, "amount_aed": "1250.00"},
+    )
+    assert q.status_code == 201, q.text
+    quote_id = q.json()["id"]
+
+    approve = await client.post(
+        f"/api/v1/maintenance/quotes/{quote_id}/approve", headers=_auth(token)
+    )
+    assert approve.status_code == 200, approve.text
+    # Un devis déjà approuvé n'est plus « pending ».
+    again = await client.post(
+        f"/api/v1/maintenance/quotes/{quote_id}/approve", headers=_auth(token)
+    )
+    assert again.status_code == 422, again.text
+    assert again.json()["detail"] == "quote_not_pending"
+
+
+async def test_ticket_tenant_isolation_http(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """Un ticket de la société A n'est pas visible par la société B (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+    ticket_id = await _create_ticket_http(client, token_a)
+
+    list_b = await client.get("/api/v1/maintenance/tickets", headers=_auth(token_b))
+    assert list_b.status_code == 200
+    ids_b = [t["id"] for t in list_b.json()["data"]]
+    assert ticket_id not in ids_b
