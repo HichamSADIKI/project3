@@ -242,14 +242,21 @@ async def search_by_radius(
     Retourne une liste de dicts incluant dist_m (distance en mètres).
     Utilise ST_DWithin + ST_Distance sur geography (unité = mètres).
     """
-    # Paramètre injecté en SQL via texte sécurisé (valeurs viennent de Pydantic validé)
-    geo_point = f"ST_SetSRID(ST_MakePoint({lng}, {lat}), 4326)"
+    # Point de référence en bind params (jamais d'interpolation de chaîne dans le
+    # SQL) — conforme au template PostGIS de CLAUDE.md (Loi 2).
+    geo_point = "ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography"
+    dwithin = text(f"ST_DWithin(location::geography, {geo_point}, :radius_m)").bindparams(
+        lng=lng, lat=lat, radius_m=radius_m
+    )
+    dist_m = text(f"ST_Distance(location::geography, {geo_point}) AS dist_m").bindparams(
+        lng=lng, lat=lat
+    )
 
     filters = [
         Property.company_id == uuid.UUID(company_id),
         Property.deleted_at.is_(None),
         Property.location.isnot(None),
-        text(f"ST_DWithin(location::geography, {geo_point}::geography, {radius_m})"),
+        dwithin,
     ]
     if type_:
         filters.append(Property.type == type_)
@@ -260,15 +267,7 @@ async def search_by_radius(
     if bedrooms is not None:
         filters.append(Property.bedrooms == bedrooms)
 
-    stmt = (
-        select(
-            Property,
-            text(f"ST_Distance(location::geography, {geo_point}::geography) AS dist_m"),
-        )
-        .where(and_(*filters))
-        .order_by(text("dist_m"))
-        .limit(limit)
-    )
+    stmt = select(Property, dist_m).where(and_(*filters)).order_by(text("dist_m")).limit(limit)
 
     result = await db.execute(stmt)
     rows = result.all()

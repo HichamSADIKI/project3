@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.models.maintenance import MaintenanceTicket
 from app.models.maintenance_ext import MaintenanceInvoice, MaintenancePlan, MaintenanceQuote
 from app.models.vendor_mission import VendorMission
@@ -271,29 +272,28 @@ async def create_ticket(
     if not data.unit_id and not data.building_id:
         raise HTTPException(status_code=422, detail="unit_id_or_building_id_required")
 
-    reference = await _next_reference(db, company_id)
     now = datetime.now(UTC)
     sla_due = compute_sla_due(data.priority, now)
 
-    ticket = MaintenanceTicket(
-        company_id=company_id,
-        reference=reference,
-        unit_id=data.unit_id,
-        building_id=data.building_id,
-        reported_by_user_id=user_id,
-        reporter_role=data.reporter_role,
-        category=data.category,
-        priority=data.priority,
-        status="new",
-        title=data.title,
-        description=data.description,
-        sla_due_at=sla_due,
-        cost_estimate_aed=data.cost_estimate_aed,
+    return await commit_with_reference_retry(
+        db,
+        lambda: _next_reference(db, company_id),
+        lambda reference: MaintenanceTicket(
+            company_id=company_id,
+            reference=reference,
+            unit_id=data.unit_id,
+            building_id=data.building_id,
+            reported_by_user_id=user_id,
+            reporter_role=data.reporter_role,
+            category=data.category,
+            priority=data.priority,
+            status="new",
+            title=data.title,
+            description=data.description,
+            sla_due_at=sla_due,
+            cost_estimate_aed=data.cost_estimate_aed,
+        ),
     )
-    db.add(ticket)
-    await db.commit()
-    await db.refresh(ticket)
-    return ticket
 
 
 async def update_ticket(
