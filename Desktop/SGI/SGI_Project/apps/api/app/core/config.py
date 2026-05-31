@@ -36,6 +36,9 @@ class Settings(BaseSettings):
 
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
+    # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus
+    # rapide) — le hachage des mots de passe dans les fixtures dominait le temps.
+    BCRYPT_ROUNDS: int = 12
 
     @property
     def DATABASE_URL(self) -> str:
