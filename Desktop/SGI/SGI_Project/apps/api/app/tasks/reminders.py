@@ -77,7 +77,26 @@ def check_rental_renewals() -> dict:
             for rental in rentals:
                 rental.renewal_alert_sent = True
                 alerted += 1
-                # TODO : pousser la notification (email/WhatsApp/push) au gestionnaire.
+                # Notification in-app au locataire (le bail ne porte pas de FK
+                # gestionnaire ; recipient_party_id = client_id). Idempotence via
+                # renewal_alert_sent (posé ci-dessus). Canaux externes
+                # (email/WhatsApp/push) à brancher via le module comms.
+                db.add(
+                    Notification(
+                        company_id=rental.company_id,
+                        recipient_party_id=rental.client_id,
+                        type="rental_renewal_due",
+                        channel="in_app",
+                        title="Renouvellement de bail à prévoir",
+                        body=(
+                            "Votre bail arrive à échéance le "
+                            f"{rental.end_date.isoformat()} (J-{RENEWAL_HORIZON_DAYS})."
+                        ),
+                        payload={"rental_id": str(rental.id)},
+                        status="sent",
+                        sent_at=datetime.now(UTC),
+                    )
+                )
 
             if alerted:
                 db.commit()
@@ -111,20 +130,26 @@ def check_pdc_due() -> dict:
                 .all()
             )
 
+            # Anti-N+1 : précharge en une requête toutes les notifs PDC déjà
+            # émises (type pdc_*), puis déduplique en mémoire sur (pdc_id, type)
+            # au lieu d'un SELECT par chèque.
+            existing_keys: set[tuple[str, str]] = {
+                (str(pdc_id), notif_type)
+                for pdc_id, notif_type in db.execute(
+                    select(
+                        Notification.payload["pdc_id"].astext,
+                        Notification.type,
+                    ).where(Notification.type.in_(["pdc_due_soon", "pdc_overdue"]))
+                ).all()
+            }
+
             for pdc in cheques:
                 level = pdc_reminder_level(today, pdc.due_date, pdc.status, PDC_DUE_SOON_DAYS)
                 if level is None:
                     continue
                 notif_type = f"pdc_{level}"
-                # Dédup : une notif par (pdc, niveau).
-                exists = db.execute(
-                    select(Notification.id).where(
-                        Notification.company_id == pdc.company_id,
-                        Notification.type == notif_type,
-                        Notification.payload["pdc_id"].astext == str(pdc.id),
-                    )
-                ).first()
-                if exists:
+                # Dédup : une notif par (pdc, niveau) — lookup en mémoire.
+                if (str(pdc.id), notif_type) in existing_keys:
                     continue
                 title = (
                     f"Chèque {pdc.reference} en retard de dépôt"
