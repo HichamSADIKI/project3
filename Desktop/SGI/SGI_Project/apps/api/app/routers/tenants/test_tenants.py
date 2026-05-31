@@ -215,8 +215,11 @@ def _auth(token: str) -> dict[str, str]:
 
 async def _create_tenant(client: AsyncClient, token: str) -> str:
     """Crée un client (party) puis sa fiche locataire ; renvoie party_id."""
-    c = await client.post("/api/v1/clients/", headers=_auth(token),
-                          json={"type": "individual", "first_name": "Sara", "last_name": "Khan"})
+    c = await client.post(
+        "/api/v1/clients/",
+        headers=_auth(token),
+        json={"type": "individual", "first_name": "Sara", "last_name": "Khan"},
+    )
     assert c.status_code == 201, c.text
     party_id = c.json()["data"]["id"]
     tn = await client.post("/api/v1/tenants/", headers=_auth(token), json={"party_id": party_id})
