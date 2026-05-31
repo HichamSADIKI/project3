@@ -22,7 +22,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
-from sqlalchemy import CursorResult, select, update
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -151,3 +151,53 @@ async def revoke_refresh(db: AsyncSession, plain: str) -> bool:
     rt.revoked_at = _now()
     await db.commit()
     return True
+
+
+# ─── Gestion des sessions (familles de refresh tokens) ───────────────────────
+
+
+async def list_active_sessions(db: AsyncSession, user_id: uuid.UUID) -> list[dict[str, Any]]:
+    """Sessions actives d'un utilisateur = familles de refresh tokens encore
+    vivantes (au moins un token non révoqué et non expiré). Une famille = une
+    connexion (un appareil/navigateur). Agrège par `family_id`."""
+    now = _now()
+    res = await db.execute(
+        select(
+            RefreshToken.family_id,
+            func.min(RefreshToken.created_at).label("created_at"),
+            func.max(RefreshToken.created_at).label("last_active_at"),
+            func.max(RefreshToken.expires_at).label("expires_at"),
+            func.count().label("token_count"),
+        )
+        .where(
+            RefreshToken.user_id == user_id,
+            RefreshToken.revoked_at.is_(None),
+            RefreshToken.expires_at > now,
+        )
+        .group_by(RefreshToken.family_id)
+        .order_by(func.max(RefreshToken.created_at).desc())
+    )
+    return [
+        {
+            "family_id": row.family_id,
+            "created_at": row.created_at,
+            "last_active_at": row.last_active_at,
+            "expires_at": row.expires_at,
+            "token_count": row.token_count,
+        }
+        for row in res.all()
+    ]
+
+
+async def revoke_all_user_tokens(
+    db: AsyncSession, user_id: uuid.UUID, *, except_family_id: uuid.UUID | None = None
+) -> int:
+    """Révoque tous les refresh tokens actifs d'un utilisateur (déconnexion
+    globale). `except_family_id` permet d'épargner la session courante
+    (« déconnecter les autres appareils »). Retourne le nombre de révocations."""
+    conds = [RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None)]
+    if except_family_id is not None:
+        conds.append(RefreshToken.family_id != except_family_id)
+    res = await db.execute(update(RefreshToken).where(*conds).values(revoked_at=_now()))
+    await db.commit()
+    return cast(CursorResult[Any], res).rowcount or 0

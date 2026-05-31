@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field
 
@@ -33,6 +34,21 @@ class RefreshRequest(BaseModel):
     """Échange d'un refresh token contre un nouvel access (+ refresh tourné)."""
 
     refresh_token: str = Field(..., min_length=1, max_length=512)
+
+
+class SessionOut(BaseModel):
+    """Une session active = une famille de refresh tokens (un appareil)."""
+
+    family_id: uuid.UUID
+    created_at: datetime
+    last_active_at: datetime
+    expires_at: datetime
+    token_count: int
+
+
+class SessionListOut(BaseModel):
+    success: bool = True
+    data: list[SessionOut]
 
 
 # ── MFA TOTP ──────────────────────────────────────────────────────────────

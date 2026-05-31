@@ -172,3 +172,38 @@ async def test_refresh_expired_token_rejected(
     resp = await client.post("/api/v1/auth/refresh", json={"refresh_token": plain})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "expired_refresh"
+
+
+async def test_sessions_requires_auth(client: AsyncClient) -> None:
+    resp = await client.get("/api/v1/auth/sessions")
+    assert resp.status_code == 401
+
+
+async def test_list_then_revoke_all_sessions(
+    client: AsyncClient, seed_company: Company, db_session: AsyncSession
+) -> None:
+    user = await _make_login_user(db_session, seed_company)
+    s1 = await _login(client, user.email)  # session 1 (famille A)
+    s2 = await _login(client, user.email)  # session 2 (famille B)
+    hdr = {"Authorization": f"Bearer {s1['access_token']}"}
+
+    # Deux sessions actives listées.
+    resp = await client.get("/api/v1/auth/sessions", headers=hdr)
+    assert resp.status_code == 200, resp.text
+    sessions = resp.json()["data"]
+    assert len(sessions) == 2
+    assert {f["token_count"] for f in sessions} == {1}
+
+    # Déconnexion globale → les 2 familles révoquées.
+    revoke = await client.post("/api/v1/auth/sessions/revoke-all", headers=hdr)
+    assert revoke.status_code == 200
+    assert revoke.json()["data"]["revoked"] == 2
+
+    # Les deux refresh tokens sont morts…
+    for s in (s1, s2):
+        r = await client.post("/api/v1/auth/refresh", json={"refresh_token": s["refresh_token"]})
+        assert r.status_code == 401
+
+    # …et plus aucune session active (l'access reste valide ~1 h, donc /sessions répond).
+    resp2 = await client.get("/api/v1/auth/sessions", headers=hdr)
+    assert resp2.json()["data"] == []
