@@ -28,8 +28,8 @@ make backup           # pg_dump compressed → ./backups/
 
 # Dev (web/portal use pnpm via Turborepo)
 pnpm dev                        # All frontend apps (Turborepo)
-pnpm dev --filter=web           # Backoffice only (port 5001 local · 3000 in Docker)
-pnpm dev --filter=portal        # Public portal only (port 3001)
+pnpm dev --filter=sgi-web       # Backoffice only (port 5001 local · 3000 in Docker)
+pnpm dev --filter=@sgi/portal   # Public portal only (port 3001)
 
 # Mobile (apps/mobile uses npm — separate lockfile, Expo 51 + Expo Router)
 cd apps/mobile && npm install
