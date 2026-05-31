@@ -171,12 +171,13 @@ async def test_documents_requires_auth(client: AsyncClient) -> None:
     assert resp.status_code == 401
 
 
-async def test_create_then_list_document(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_create_then_list_document(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
-    create = await client.post("/api/v1/documents/", headers=_auth(token),
-                               json={"title": "Bail Marina 101", "doc_type": "contract"})
+    create = await client.post(
+        "/api/v1/documents/",
+        headers=_auth(token),
+        json={"title": "Bail Marina 101", "doc_type": "contract"},
+    )
     assert create.status_code == 201, create.text
     body = create.json()["data"]
     assert body["title"] == "Bail Marina 101"
@@ -195,8 +196,11 @@ async def test_document_tenant_isolation(
     _admin, token_a = seed_admin
     _company_b, token_b = second_admin
 
-    created = await client.post("/api/v1/documents/", headers=_auth(token_a),
-                                json={"title": "Secret A", "doc_type": "other"})
+    created = await client.post(
+        "/api/v1/documents/",
+        headers=_auth(token_a),
+        json={"title": "Secret A", "doc_type": "other"},
+    )
     assert created.status_code == 201
 
     list_b = await client.get("/api/v1/documents/", headers=_auth(token_b))
