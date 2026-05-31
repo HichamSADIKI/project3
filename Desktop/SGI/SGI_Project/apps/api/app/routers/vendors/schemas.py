@@ -27,6 +27,7 @@ ServiceArea = Literal["DXB", "AUH", "SHJ", "AJM", "RAK", "FUJ", "UAQ"]
 class VendorCreate(BaseModel):
     party_id: uuid.UUID
     vendor_type: VendorType
+    categories: list[VendorType] = Field(default_factory=list)
     specialities: list[str] = Field(default_factory=list)
     service_areas: list[ServiceArea] = Field(default_factory=list)
 
@@ -43,6 +44,8 @@ class VendorCreate(BaseModel):
 
 class VendorUpdate(BaseModel):
     vendor_type: VendorType | None = None
+    # Catégories activées par l'admin — au moins une si fournie.
+    categories: list[VendorType] | None = Field(default=None, min_length=1)
     specialities: list[str] | None = None
     service_areas: list[ServiceArea] | None = None
     trade_licence_number: str | None = None
@@ -64,6 +67,7 @@ class VendorRatingInput(BaseModel):
 class VendorOut(BaseModel):
     party_id: uuid.UUID
     vendor_type: str
+    categories: list[str] = Field(default_factory=list)
     specialities: list[str]
     service_areas: list[str]
     trade_licence_number: str | None

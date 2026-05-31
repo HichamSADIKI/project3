@@ -39,10 +39,16 @@ class Vendor(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         primary_key=True,
     )
 
-    # Catégorie globale
+    # Catégorie principale (choisie à l'inscription)
     # maintenance | cleaning | security | landscaping | pest_control
     # | elevator | moving | hvac | electrical | plumbing | other
     vendor_type: Mapped[str] = mapped_column(String(30), nullable=False)
+
+    # Catégories activées par l'admin (1..n codes VendorType). Source de vérité
+    # de « sur quoi ce fournisseur est activé ». Toujours ≥ 1 (≥ vendor_type).
+    categories = mapped_column(
+        JSONB, nullable=False, default=list, server_default=text("'[]'::jsonb")
+    )
 
     # Spécialités fines stockées en JSONB (sous-catégories libres)
     specialities = mapped_column(JSONB, nullable=False, default=list)

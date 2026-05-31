@@ -127,10 +127,16 @@ async def create_vendor(
     if await get_vendor(db, company_id, data.party_id) is not None:
         return None
 
+    # Au moins une catégorie activée (la principale par défaut), dédupliquée.
+    categories = list(dict.fromkeys(data.categories or [data.vendor_type]))
+    if data.vendor_type not in categories:
+        categories.insert(0, data.vendor_type)
+
     vendor = Vendor(
         party_id=data.party_id,
         company_id=company_id,
         vendor_type=data.vendor_type,
+        categories=categories,
         specialities=data.specialities,
         service_areas=data.service_areas,
         trade_licence_number=data.trade_licence_number,

@@ -24,7 +24,7 @@ from app.routers.vendors.service import (
     update_vendor,
 )
 
-router = APIRouter(prefix="/vendors", tags=["vendors"])
+router = APIRouter(prefix="/vendors", tags=["fournisseurs"])
 
 
 @router.get("/health")
