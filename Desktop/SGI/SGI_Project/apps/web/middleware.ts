@@ -10,11 +10,15 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// Routes accessibles sans session
+// Routes accessibles sans session.
+// `/api/auth/refresh` est public car il s'authentifie via le cookie httpOnly
+// `sgi-refresh`, PAS via l'access JWT (justement expiré quand on le sollicite) :
+// le passer par la vérif d'access bloquerait le renouvellement de session.
 const PUBLIC_PATHS: string[] = [
   "/",
   "/api/auth/login",
   "/api/auth/logout",
+  "/api/auth/refresh",
 ];
 
 // Extensions de fichiers statiques autorisées sans vérification
@@ -110,6 +114,27 @@ async function verifyJwt(
   }
 }
 
+/**
+ * Refus d'accès pour une route non authentifiée/non autorisée.
+ *
+ * Les routes `/api/*` sont consommées par `fetch()` côté client qui attend du
+ * JSON : un `redirect` 307 vers `/` serait suivi silencieusement, renverrait le
+ * shell HTML (`<!DOCTYPE …>`) en 200, et `res.json()` planterait avec
+ * « Unexpected token '<' ». On renvoie donc un **401/403 JSON** pour l'API et on
+ * ne redirige (vers le login `/`) que les navigations de pages.
+ */
+function deny(request: NextRequest, status: 401 | 403, clearCookie: boolean): NextResponse {
+  const isApi = request.nextUrl.pathname.startsWith("/api/");
+  const response = isApi
+    ? NextResponse.json(
+        { error: status === 401 ? "unauthenticated" : "forbidden" },
+        { status },
+      )
+    : NextResponse.redirect(new URL("/", request.url));
+  if (clearCookie) response.cookies.delete("sgi-session");
+  return response;
+}
+
 // Rôles autorisés sur le backoffice web. Les rôles publics (client/fournisseur) sont
 // redirigés vers leur espace dédié sur le portal.
 const BACKOFFICE_ROLES = new Set(["admin", "manager", "agent"]);
@@ -139,9 +164,9 @@ export async function middleware(request: NextRequest) {
   // 3. Récupérer le cookie de session
   const token = request.cookies.get("sgi-session")?.value;
 
-  // 4. Pas de cookie → redirect vers login (racine)
+  // 4. Pas de cookie → login (pages) ou 401 JSON (API)
   if (!token) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return deny(request, 401, false);
   }
 
   // 5. Vérification de signature JWT si JWT_SECRET est disponible
@@ -150,21 +175,23 @@ export async function middleware(request: NextRequest) {
 
   // Fail-closed : JWT_SECRET absent → on bloque (pas de bypass silencieux)
   if (!jwtSecret) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return deny(request, 401, false);
   }
 
   const { valid, payload } = await verifyJwt(token, jwtSecret);
   if (!valid || !payload) {
-    // Cookie présent mais invalide ou expiré → supprimer et rediriger
-    const response = NextResponse.redirect(new URL("/", request.url));
-    response.cookies.delete("sgi-session");
-    return response;
+    // Cookie présent mais invalide ou expiré → supprimer + bloquer
+    return deny(request, 401, true);
   }
 
   // 6. RBAC : rôles publics (client/fournisseur) ne peuvent pas accéder au backoffice.
   //    On les redirige vers le portal dédié.
   const role = payload.role ?? "agent";
   if (!BACKOFFICE_ROLES.has(role)) {
+    // API : 403 JSON. Pages : redirection vers l'espace portal dédié.
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+      return deny(request, 403, true);
+    }
     const target =
       role === "fournisseur" ? `${PORTAL_BASE_URL}/fr/fournisseur` : `${PORTAL_BASE_URL}/fr/client`;
     const response = NextResponse.redirect(target);
@@ -174,9 +201,7 @@ export async function middleware(request: NextRequest) {
 
   // 7. Statut : seul `active` accède au backoffice. `pending` → page d'attente.
   if (payload.status && payload.status !== "active") {
-    const response = NextResponse.redirect(new URL("/", request.url));
-    response.cookies.delete("sgi-session");
-    return response;
+    return deny(request, 403, true);
   }
 
   // 8. Session valide → continuer avec security headers

@@ -30,6 +30,14 @@ from app.routers.auth.mfa import (
     generate_totp_secret,
     verify_totp,
 )
+from app.routers.auth.refresh_service import (
+    RefreshError,
+    issue_refresh,
+    refresh_lifetime,
+    revoke_family,
+    revoke_refresh,
+    rotate_refresh,
+)
 from app.routers.auth.schemas import (
     ApproveUserRequest,
     FournisseurRegisterResponse,
@@ -42,6 +50,7 @@ from app.routers.auth.schemas import (
     PendingFournisseurItem,
     PendingUserItem,
     PublicRegisterRequest,
+    RefreshRequest,
     RegisterResponse,
     SocialLoginRequest,
     TokenResponse,
@@ -61,6 +70,34 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 # Licence commerciale : ≤ 8 Mo, PDF ou image scannée.
 MAX_LICENSE_BYTES = 8 * 1024 * 1024
+
+
+def _access_token_for(user: User) -> str:
+    """Construit l'access JWT (durée normale) à partir d'un compte actif."""
+    return encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+            "language": user.preferred_language,
+        }
+    )
+
+
+async def _issue_session(db: AsyncSession, user: User) -> TokenResponse:
+    """Émet une session complète : access JWT court + refresh token (nouvelle
+    famille). Factorise login / mfa-validate / social-login."""
+    access = _access_token_for(user)
+    _rt, refresh_plain = await issue_refresh(db, user.id)
+    await db.commit()
+    return TokenResponse(
+        access_token=access,
+        expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
+        refresh_token=refresh_plain,
+        refresh_expires_in=int(refresh_lifetime().total_seconds()),
+    )
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -108,20 +145,48 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
             tmp_token=tmp,
         )
 
-    token = encode_jwt(
-        {
-            "sub": str(user.id),
-            "company_id": str(user.company_id),
-            "role": user.role,
-            "status": user.status,
-            "email": user.email,
-            "language": user.preferred_language,
-        }
-    )
+    return await _issue_session(db, user)
+
+
+@router.post("/refresh", response_model=TokenResponse)
+async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse:
+    """Échange un refresh token contre un nouvel access (rotation one-time-use).
+
+    - succès → nouvel access JWT + **nouveau** refresh (l'ancien est révoqué) ;
+    - token inconnu / expiré → 401 ;
+    - rejeu d'un token déjà consommé (`reuse_detected`) → 401 + révocation de
+      toute la famille (l'attaquant ET la victime sont déconnectés).
+    """
+    try:
+        new_rt, refresh_plain = await rotate_refresh(db, body.refresh_token)
+    except RefreshError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=exc.code,
+            headers={"WWW-Authenticate": "Bearer"},
+        ) from exc
+
+    # Recharge le compte : role/status/email à jour, et coupe si désactivé depuis.
+    user = (await db.execute(select(User).where(User.id == new_rt.user_id))).scalar_one_or_none()
+    if user is None or not user.is_active or user.status != UserStatus.ACTIVE.value:
+        await revoke_family(db, new_rt.family_id)
+        await db.commit()
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="account_inactive")
+
     return TokenResponse(
-        access_token=token,
+        access_token=_access_token_for(user),
         expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
+        refresh_token=refresh_plain,
+        refresh_expires_in=int(refresh_lifetime().total_seconds()),
     )
+
+
+@router.post("/logout")
+async def logout(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> dict[str, bool]:
+    """Déconnexion : révoque le refresh token présenté. Idempotent (toujours 200,
+    même si le token est inconnu/déjà révoqué — pas d'oracle d'existence)."""
+    await revoke_refresh(db, body.refresh_token)
+    return {"success": True}
 
 
 @router.get("/me", response_model=UserMe)
@@ -573,21 +638,8 @@ async def mfa_validate(
     if not verify_totp(secret, body.code):
         raise HTTPException(status_code=422, detail="invalid_totp_code")
 
-    # Émet le JWT final (durée normale).
-    token = encode_jwt(
-        {
-            "sub": str(user.id),
-            "company_id": str(user.company_id),
-            "role": user.role,
-            "status": user.status,
-            "email": user.email,
-            "language": user.preferred_language,
-        }
-    )
-    return TokenResponse(
-        access_token=token,
-        expires_in=settings.JWT_ACCESS_EXPIRE_HOURS * 3600,
-    )
+    # Code TOTP valide → session complète (access + refresh).
+    return await _issue_session(db, user)
 
 
 @router.delete("/mfa", response_model=MfaStatusOut)

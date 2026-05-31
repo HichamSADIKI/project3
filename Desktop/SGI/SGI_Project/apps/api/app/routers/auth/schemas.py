@@ -21,9 +21,18 @@ class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"  # noqa: S105  type de jeton OAuth, pas un secret
     expires_in: int  # seconds
+    # Refresh token (secret opaque). Absent quand MFA en attente (mfa_required).
+    refresh_token: str | None = None
+    refresh_expires_in: int | None = None  # seconds — pilote le maxAge du cookie
     # MFA : si True, le token est temporaire — doit être validé via /auth/mfa/validate
     mfa_required: bool = False
     tmp_token: str | None = None
+
+
+class RefreshRequest(BaseModel):
+    """Échange d'un refresh token contre un nouvel access (+ refresh tourné)."""
+
+    refresh_token: str = Field(..., min_length=1, max_length=512)
 
 
 # ── MFA TOTP ──────────────────────────────────────────────────────────────

@@ -55,6 +55,8 @@ jobs:
         run: uv run ruff check app
       - name: Format (ruff format --check)
         run: uv run ruff format --check app
+      - name: Types (mypy — sous-ensemble strict, voir overrides pyproject)
+        run: uv run mypy app
       - name: Migrate (alembic upgrade head)
         run: uv run alembic upgrade head
       - name: Tests (pytest)
