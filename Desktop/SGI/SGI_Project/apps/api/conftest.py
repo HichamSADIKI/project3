@@ -10,11 +10,13 @@
 ⚠️ Tests d'intégration : requièrent PostgreSQL via `DATABASE_URL` du conteneur.
 Lancer avec : `docker compose exec api uv run pytest`.
 """
+
 from __future__ import annotations
 
 import uuid
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Generator
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import (
@@ -31,17 +33,25 @@ from app.main import app
 from app.models.company import Company
 from app.models.user import User, UserRole, UserStatus
 
-
 # Engine de test avec NullPool — évite les "Future attached to a different loop"
 # quand pytest-asyncio recrée un event loop par test.
-_test_engine = create_async_engine(
-    settings.DATABASE_URL, echo=False, poolclass=NullPool
-)
+_test_engine = create_async_engine(settings.DATABASE_URL, echo=False, poolclass=NullPool)
 _test_session_maker = async_sessionmaker(_test_engine, expire_on_commit=False)
 
 
+@pytest.fixture(autouse=True, scope="session")
+def _fast_password_hashing() -> Generator[None]:
+    """Abaisse le coût bcrypt à rounds=4 pour TOUTE la suite (vs 12 en prod) :
+    le hachage des mots de passe dans les fixtures/login dominait le temps des
+    tests (~250× plus rapide). Le hash reste vérifiable (`verify_password` lit les
+    rounds depuis le hash). Aucun impact sur la prod (défaut 12)."""
+    settings.BCRYPT_ROUNDS = 4
+    yield
+    settings.BCRYPT_ROUNDS = 12
+
+
 @pytest_asyncio.fixture
-async def db_session() -> AsyncGenerator[AsyncSession, None]:
+async def db_session() -> AsyncGenerator[AsyncSession]:
     """Session SQLAlchemy ouverte sur une connexion fraîche (NullPool)."""
     async with _test_session_maker() as session:
         try:
@@ -51,7 +61,7 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 @pytest_asyncio.fixture
-async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
+async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient]:
     """Client HTTP avec la session de test injectée dans la dépendance get_db."""
 
     async def _override_get_db():

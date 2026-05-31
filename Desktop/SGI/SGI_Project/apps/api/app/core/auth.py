@@ -18,7 +18,7 @@ def _truncate(plain: str) -> bytes:
 
 
 def hash_password(plain: str) -> str:
-    salt = bcrypt.gensalt(rounds=12)
+    salt = bcrypt.gensalt(rounds=settings.BCRYPT_ROUNDS)
     return bcrypt.hashpw(_truncate(plain), salt).decode("utf-8")
 
 
