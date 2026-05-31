@@ -1,3 +1,5 @@
+import logging
+import sys
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -42,9 +44,37 @@ from app.routers import (
 )
 from app.routers.scraping.service import start_browser, stop_browser
 
+logger = logging.getLogger("app.startup")
+
+
+def _enforce_rls_or_fail() -> None:
+    """Garde-fou multi-tenant (Loi 1) au démarrage.
+
+    Si l'API tourne avec le rôle privilégié (APP_DB_PASSWORD absent), la RLS est
+    inerte. C'était jusqu'ici un fail-open **silencieux**. Désormais :
+    - prod (`DEBUG=false`)  → on **refuse de démarrer** (fail-closed) ;
+    - dev  (`DEBUG=true`)   → simple WARNING (pratique en local) ;
+    - tests (pytest chargé) → on n'interrompt pas la suite (la CI tourne sans
+      rôle restreint et `test_rls_isolation` se skip déjà dans ce cas).
+    """
+    if settings.RLS_ENFORCED:
+        return
+    if "pytest" in sys.modules:
+        return
+    message = (
+        "APP_DB_PASSWORD absent : l'API utilise le rôle privilégié et la RLS "
+        "multi-tenant est INERTE (isolation déléguée au seul filtrage applicatif). "
+        "Définissez APP_DB_PASSWORD (rôle sgi_app) en production."
+    )
+    if settings.DEBUG:
+        logger.warning("RLS non appliquée — %s", message)
+        return
+    raise RuntimeError(message)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _enforce_rls_or_fail()
     await create_db_pool()
     await start_browser()
     yield

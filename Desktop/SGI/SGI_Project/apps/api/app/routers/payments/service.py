@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.models.payment import PaymentRequest, PaymentTransaction
 
 from .schemas import PayIn, RequestCreate
@@ -43,24 +44,23 @@ async def _next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
 async def create_request(
     db: AsyncSession, company_id: uuid.UUID, data: RequestCreate
 ) -> PaymentRequest:
-    ref = await _next_reference(db, company_id)
-    req = PaymentRequest(
-        company_id=company_id,
-        reference=ref,
-        tenant_client_id=data.tenant_client_id,
-        owner_client_id=data.owner_client_id,
-        unit_id=data.unit_id,
-        rental_id=data.rental_id,
-        payment_type=data.payment_type,
-        status="pending",
-        amount_aed=data.amount_aed,
-        due_date=data.due_date,
-        description=data.description,
+    return await commit_with_reference_retry(
+        db,
+        lambda: _next_reference(db, company_id),
+        lambda ref: PaymentRequest(
+            company_id=company_id,
+            reference=ref,
+            tenant_client_id=data.tenant_client_id,
+            owner_client_id=data.owner_client_id,
+            unit_id=data.unit_id,
+            rental_id=data.rental_id,
+            payment_type=data.payment_type,
+            status="pending",
+            amount_aed=data.amount_aed,
+            due_date=data.due_date,
+            description=data.description,
+        ),
     )
-    db.add(req)
-    await db.commit()
-    await db.refresh(req)
-    return req
 
 
 async def get_request(
