@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.models.inspection import (
     Inspection,
     InspectionItem,
@@ -121,25 +122,24 @@ async def get_inspection(
 async def create_inspection(
     db: AsyncSession, company_id: uuid.UUID, data: InspectionCreate
 ) -> Inspection:
-    ref = await _next_reference(db, company_id)
-    insp = Inspection(
-        company_id=company_id,
-        reference=ref,
-        unit_id=data.unit_id,
-        rental_id=data.rental_id,
-        contract_id=data.contract_id,
-        inspection_type=data.inspection_type,
-        status="draft",
-        scheduled_date=data.scheduled_date,
-        inspector_user_id=data.inspector_user_id,
-        tenant_user_id=data.tenant_user_id,
-        owner_user_id=data.owner_user_id,
-        notes=data.notes,
+    return await commit_with_reference_retry(
+        db,
+        lambda: _next_reference(db, company_id),
+        lambda ref: Inspection(
+            company_id=company_id,
+            reference=ref,
+            unit_id=data.unit_id,
+            rental_id=data.rental_id,
+            contract_id=data.contract_id,
+            inspection_type=data.inspection_type,
+            status="draft",
+            scheduled_date=data.scheduled_date,
+            inspector_user_id=data.inspector_user_id,
+            tenant_user_id=data.tenant_user_id,
+            owner_user_id=data.owner_user_id,
+            notes=data.notes,
+        ),
     )
-    db.add(insp)
-    await db.commit()
-    await db.refresh(insp)
-    return insp
 
 
 async def update_inspection(
