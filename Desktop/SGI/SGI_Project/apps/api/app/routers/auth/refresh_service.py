@@ -20,8 +20,9 @@ import hashlib
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import select, update
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
@@ -107,7 +108,9 @@ async def revoke_family(db: AsyncSession, family_id: uuid.UUID) -> int:
         .where(RefreshToken.family_id == family_id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=_now())
     )
-    return res.rowcount or 0
+    # `db.execute(update(...))` est typé `Result[Any]` mais renvoie en réalité un
+    # CursorResult (DML) qui porte `rowcount` — cast pour satisfaire mypy.
+    return cast(CursorResult[Any], res).rowcount or 0
 
 
 async def rotate_refresh(db: AsyncSession, plain: str) -> tuple[RefreshToken, str]:
