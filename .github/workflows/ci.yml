@@ -45,7 +45,7 @@ jobs:
           --health-retries 10
     steps:
       - uses: actions/checkout@v6
-      - uses: astral-sh/setup-uv@v8
+      - uses: astral-sh/setup-uv@v7  # pas de tag majeur v8 publié → v7 (dernier major)
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
