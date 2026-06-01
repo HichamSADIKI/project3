@@ -195,6 +195,56 @@ def _client_role_token(admin: User) -> str:
     )
 
 
+def _agent_token(company_id: uuid.UUID, user_id: uuid.UUID) -> str:
+    return encode_jwt(
+        {
+            "sub": str(user_id),
+            "company_id": str(company_id),
+            "role": "agent",
+            "status": "active",
+            "email": f"agent-{user_id}@test.local",
+        }
+    )
+
+
+async def test_recording_forbidden_for_non_owner_agent(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Anti-BOLA (PDPL) : un agent ne peut écouter QUE ses propres appels.
+
+    Un autre agent du même tenant qui devine le call_id reçoit 403 (l'audio est
+    une donnée personnelle). admin/manager voient tous les appels du tenant.
+    """
+    from sqlalchemy import text as sql_text
+
+    admin, token = seed_admin
+    created = await client.post(
+        "/api/v1/telephony/calls",
+        json={"direction": "inbound", "recording_consent": True},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    cid = created.json()["data"]["id"]
+
+    # L'appel appartient à l'agent A (posé directement en base, GUC tenant requis par RLS).
+    await db_session.execute(
+        sql_text("SELECT set_config('app.current_company_id', :cid, false)"),
+        {"cid": str(admin.company_id)},
+    )
+    call = await service.get_call(db_session, admin.company_id, uuid.UUID(cid))
+    assert call is not None
+    call.agent_user_id = uuid.uuid4()
+    await db_session.commit()
+
+    # L'agent B (même tenant, autre user_id) ne doit PAS pouvoir y accéder.
+    other_agent = _agent_token(admin.company_id, uuid.uuid4())
+    resp = await client.get(
+        f"/api/v1/telephony/calls/{cid}/recording",
+        headers={"Authorization": f"Bearer {other_agent}"},
+    )
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "not_call_owner"
+
+
 async def test_transition_forbidden_for_client_role(
     client: AsyncClient, seed_admin: tuple[User, str]
 ) -> None:
