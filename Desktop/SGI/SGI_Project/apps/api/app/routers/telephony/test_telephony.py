@@ -81,6 +81,13 @@ def test_map_hangup_to_status() -> None:
     assert service.map_hangup_to_status(False, "inbound", "Congestion") == "failed"
 
 
+def test_infer_call_direction() -> None:
+    assert service.infer_call_direction("6005", {"6005", "6006"}) == "internal"
+    assert service.infer_call_direction("971500000000", {"6005"}) == "inbound"
+    assert service.infer_call_direction(None, {"6005"}) == "inbound"
+    assert service.infer_call_direction("6005", set()) == "inbound"
+
+
 def test_parse_ami_packet() -> None:
     raw = "Event: Newchannel\r\nChannel: PJSIP/6001-0000001\r\nCallerIDNum: 971500000000\r\n"
     pkt = ami.parse_ami_packet(raw)
@@ -193,6 +200,27 @@ async def test_ami_cdr_idempotent_no_duplicate(db_session, seed_company) -> None
     assert a.id == b.id
     _, total = await service.list_calls(db_session, cid)
     assert total == 1
+
+
+async def test_ami_cdr_internal_when_caller_is_known_extension(
+    db_session, seed_admin
+) -> None:
+    """Appelant = extension connue du tenant → direction `internal`."""
+    admin, _ = seed_admin
+    cid = admin.company_id
+    await service.set_agent_status(
+        db_session, cid, admin.id, "available", extension="6005"
+    )
+    ev = _ami_event("Newchannel", "link-internal-1", ext="6006", caller="6005")
+    c = await service.apply_ami_cdr(db_session, cid, ev)
+    assert c.direction == "internal" and c.from_number == "6005"
+
+
+async def test_ami_cdr_inbound_when_caller_is_external(db_session, seed_company) -> None:
+    """Appelant externe (numéro UAE) → direction `inbound`."""
+    ev = _ami_event("Newchannel", "link-ext-1", ext="6001", caller="971501234567")
+    c = await service.apply_ami_cdr(db_session, seed_company.id, ev)
+    assert c.direction == "inbound"
 
 
 async def test_ami_cdr_reuses_outbound_rest_row(db_session, seed_company) -> None:

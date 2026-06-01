@@ -127,8 +127,22 @@ def map_hangup_to_status(answered: bool, direction: str, cause: str | None) -> s
         return "cancelled"
     if "congestion" in c or "fail" in c or "unavailable" in c:
         return "failed"
-    # Non décroché : entrant = manqué, sortant = pas de réponse.
+    # Non décroché : entrant = manqué, sortant/interne = pas de réponse.
     return "missed" if direction == "inbound" else "no_answer"
+
+
+def infer_call_direction(
+    caller_number: str | None, internal_extensions: set[str]
+) -> str:
+    """Classe un appel entrant AMI : `internal` si l'appelant est une extension
+    connue du tenant, sinon `inbound` (appelant externe). Pur.
+
+    (Les sortants click-to-call sont créés en `outbound` côté REST et réutilisés
+    par l'AMI sans changer de direction.)
+    """
+    if caller_number and caller_number in internal_extensions:
+        return "internal"
+    return "inbound"
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -352,12 +366,26 @@ async def apply_ami_cdr(
     if not channel_id:
         return None
 
+    # Classe entrant vs interne d'après l'appelant (extension connue du tenant ?).
+    caller = data.get("caller_number")
+    internal_exts = set(
+        (
+            await db.execute(
+                select(AgentState.extension).where(
+                    AgentState.company_id == company_id,
+                    AgentState.extension.isnot(None),
+                )
+            )
+        ).scalars().all()
+    )
+    direction = infer_call_direction(caller, internal_exts)
+
     call, _created = await get_or_create_call_by_channel(
         db,
         company_id,
         channel_id,
-        direction="inbound",
-        from_number=data.get("caller_number"),
+        direction=direction,
+        from_number=caller,
         to_number=extension,
         agent_extension=extension,
         recording_consent=True,  # l'annonce PDPL est jouée par le dialplan
