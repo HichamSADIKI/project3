@@ -11,7 +11,10 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
+from typing import Any
+
 from sqlalchemy import func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.routers.telephony.models import AgentState, Call
@@ -262,6 +265,115 @@ async def transition_call(
     call.updated_at = now
     await db.commit()
     await db.refresh(call)
+    return call
+
+
+# ── CDR via AMI — get-or-create idempotent + cycle de vie ─────────────────
+
+
+async def get_call_by_channel(
+    db: AsyncSession, company_id: uuid.UUID, channel_id: str
+) -> Call | None:
+    result = await db.execute(
+        select(Call).where(
+            Call.company_id == company_id, Call.channel_id == channel_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_or_create_call_by_channel(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    channel_id: str,
+    **defaults: Any,
+) -> tuple[Call, bool]:
+    """Récupère le CDR (company_id, channel_id) ou le crée. Idempotent.
+
+    Sûr sous plusieurs réplicas (listener AMI par process) : la contrainte
+    unique `uq_calls_company_channel` arbitre les races ; en cas de
+    IntegrityError concurrente, on re-fetch la ligne gagnante. Retourne
+    (call, created).
+    """
+    existing = await get_call_by_channel(db, company_id, channel_id)
+    if existing is not None:
+        return existing, False
+
+    call = Call(
+        company_id=company_id,
+        reference=await next_reference(db, company_id),
+        channel_id=channel_id,
+        direction=defaults.get("direction", "inbound"),
+        status=defaults.get("status", "ringing"),
+        from_number=defaults.get("from_number"),
+        to_number=defaults.get("to_number"),
+        agent_extension=defaults.get("agent_extension"),
+        recording_consent=defaults.get("recording_consent", False),
+        started_at=defaults.get("started_at") or datetime.now(UTC),
+    )
+    db.add(call)
+    try:
+        await db.commit()
+        await db.refresh(call)
+        return call, True
+    except IntegrityError:
+        # Course perdue contre un autre réplica → la ligne gagnante existe.
+        await db.rollback()
+        winner = await get_call_by_channel(db, company_id, channel_id)
+        if winner is None:  # pragma: no cover — incohérence improbable
+            raise
+        return winner, False
+
+
+# Mapping event AMI → transition CDR (None = pas de transition).
+def _ami_target_status(current: str, ami_event: str, channel_state: str | None,
+                       direction: str, cause: str | None) -> str | None:
+    if ami_event == "Newstate" and channel_state == "Up":
+        return "answered"
+    if ami_event == "Hangup":
+        answered = current == "answered"
+        return map_hangup_to_status(answered, direction, cause)
+    return None
+
+
+async def apply_ami_cdr(
+    db: AsyncSession, company_id: uuid.UUID, event: dict[str, Any]
+) -> Call | None:
+    """Crée/met à jour le CDR d'un appel à partir d'un event AMI normalisé.
+
+    Identité d'appel = `Linkedid` (regroupe les deux pattes ; pour un sortant
+    click-to-call, Linkedid == le ChannelId `sgi-…` déjà posé par REST → le CDR
+    existant est réutilisé, pas de doublon). Consommateur de fond privilégié
+    (cross-tenant) — filtré explicitement par company_id (Loi 1).
+    """
+    data = event.get("data", {})
+    channel_id = data.get("linkedid") or data.get("uniqueid")
+    extension = event.get("extension")
+    if not channel_id:
+        return None
+
+    call, _created = await get_or_create_call_by_channel(
+        db,
+        company_id,
+        channel_id,
+        direction="inbound",
+        from_number=data.get("caller_number"),
+        to_number=extension,
+        agent_extension=extension,
+        recording_consent=True,  # l'annonce PDPL est jouée par le dialplan
+    )
+
+    target = _ami_target_status(
+        call.status, data.get("ami_event", ""), data.get("channel_state"),
+        call.direction, data.get("cause"),
+    )
+    if target and target != call.status and is_valid_call_transition(call.status, target):
+        try:
+            return await transition_call(
+                db, company_id, call.id, target, hangup_cause=data.get("cause")
+            )
+        except ValueError:
+            return call
     return call
 
 

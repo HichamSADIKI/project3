@@ -201,55 +201,60 @@ _listener_task: asyncio.Task | None = None
 _client: AMIClient | None = None
 
 
-async def _resolve_companies_for_extension(extension: str) -> list[str]:
+async def _resolve_companies_for_extension(db, extension: str) -> list[str]:
     """Résout TOUS les company_id propriétaires d'une extension (cross-tenant).
 
     Consommateur de fond légitime → rôle privilégié (comme les tâches Celery).
-    Lecture seule ; aucune écriture cross-tenant.
 
     Correctif M-3 : l'extension n'est unique que PAR tenant
     (``uq_agent_states_extension = (company_id, extension)``). Un ancien
     ``.limit(1)`` sans ``company_id`` pouvait publier un event sur le MAUVAIS
     tenant (fan-out croisé) si deux sociétés partagent une extension (ex. 6001
-    en dev). On retourne désormais l'ensemble des tenants concernés : chaque
-    agent ne s'abonnant qu'au channel de SON tenant
-    (``voice:{company_id}:ext:{extension}``), l'event n'atteint que les
-    destinataires légitimes — aucune fuite inter-tenant. Idéalement Asterisk
-    devrait porter le company_id dans une variable de canal pour cibler un seul
-    tenant ; à défaut cette diffusion ciblée par channel reste sûre.
+    en dev). On retourne l'ensemble des tenants concernés : chaque agent ne
+    s'abonnant qu'au channel de SON tenant (``voice:{company_id}:ext:{ext}``),
+    l'event n'atteint que les destinataires légitimes — aucune fuite inter-tenant.
     """
     from sqlalchemy import select
 
-    from app.core.database import async_session_maker
     from app.routers.telephony.models import AgentState
 
-    try:
-        async with async_session_maker() as db:
-            rows = (
-                await db.execute(
-                    select(AgentState.company_id).where(
-                        AgentState.extension == extension
-                    )
-                )
-            ).scalars().all()
-            return [str(r) for r in rows]
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("résolution extension→company échouée: %s", exc)
-        return []
+    rows = (
+        await db.execute(
+            select(AgentState.company_id).where(AgentState.extension == extension)
+        )
+    ).scalars().all()
+    return [str(r) for r in rows]
 
 
 async def _dispatch(packet: dict[str, str]) -> None:
+    """Pour chaque event AMI pertinent : persiste/maj le CDR (idempotent) PUIS
+    publie l'event temps réel, par tenant propriétaire de l'extension.
+
+    Écriture privilégiée cross-tenant assumée (pattern Celery), bornée au
+    company_id résolu. Tout échec est non bloquant : le flux AMI continue.
+    """
+    import uuid as _uuid
+
+    from app.core.database import async_session_maker
+    from app.routers.telephony import service
+
     event = normalize_ami_event(packet)
     if event is None or not event.get("extension"):
         return
     extension = event["extension"]
-    company_ids = await _resolve_companies_for_extension(extension)
-    if not company_ids:
-        return  # extension inconnue (ex. echo test) → on ignore
-    # Publication ciblée par channel tenant (cf. M-3) : sûr même si plusieurs
-    # tenants partagent l'extension, chaque agent n'écoutant que son channel.
-    for company_id in company_ids:
-        await publish_voice_event(company_id, extension, event)
+    try:
+        async with async_session_maker() as db:
+            company_ids = await _resolve_companies_for_extension(db, extension)
+            for company_id in company_ids:
+                try:
+                    await service.apply_ami_cdr(db, _uuid.UUID(company_id), event)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("persistance CDR AMI échouée (%s): %s",
+                                   company_id, exc)
+                # Publication ciblée par channel tenant (cf. M-3).
+                await publish_voice_event(company_id, extension, event)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("dispatch AMI (session) échoué: %s", exc)
 
 
 async def _run_listener() -> None:

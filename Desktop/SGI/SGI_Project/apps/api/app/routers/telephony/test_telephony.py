@@ -119,6 +119,98 @@ def test_normalize_ami_event_irrelevant() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────
+# CDR via AMI (entrants/internes) — persistance idempotente + cycle de vie
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _ami_event(
+    event: str,
+    linkedid: str,
+    *,
+    ext: str = "6001",
+    state: str | None = None,
+    caller: str = "971500000000",
+    cause: str | None = None,
+) -> dict:
+    pkt = {
+        "Event": event,
+        "Linkedid": linkedid,
+        "Channel": f"PJSIP/{ext}-00000001",
+        "CallerIDNum": caller,
+    }
+    if state:
+        pkt["ChannelStateDesc"] = state
+    if cause:
+        pkt["Cause-txt"] = cause
+    return ami.normalize_ami_event(pkt)
+
+
+async def test_get_or_create_call_by_channel_idempotent(db_session, seed_company) -> None:
+    cid = seed_company.id
+    c1, created1 = await service.get_or_create_call_by_channel(
+        db_session, cid, "chan-1", direction="inbound"
+    )
+    c2, created2 = await service.get_or_create_call_by_channel(db_session, cid, "chan-1")
+    assert created1 is True and created2 is False
+    assert c1.id == c2.id
+
+
+async def test_ami_cdr_inbound_lifecycle(db_session, seed_company) -> None:
+    cid = seed_company.id
+    link = "link-inbound-aaa"
+    c1 = await service.apply_ami_cdr(db_session, cid, _ami_event("Newchannel", link))
+    assert c1.direction == "inbound" and c1.status == "ringing"
+    assert c1.channel_id == link and c1.from_number == "971500000000"
+
+    c2 = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Newstate", link, state="Up")
+    )
+    assert c2.id == c1.id and c2.status == "answered" and c2.answered_at is not None
+
+    c3 = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Hangup", link, cause="Normal Clearing")
+    )
+    assert c3.status == "completed" and c3.ended_at is not None
+
+
+async def test_ami_cdr_inbound_unanswered_is_missed(db_session, seed_company) -> None:
+    cid = seed_company.id
+    link = "link-inbound-bbb"
+    await service.apply_ami_cdr(db_session, cid, _ami_event("Newchannel", link))
+    c = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Hangup", link, cause="Normal")
+    )
+    # Jamais décroché + entrant → manqué.
+    assert c.status == "missed"
+
+
+async def test_ami_cdr_idempotent_no_duplicate(db_session, seed_company) -> None:
+    """Deux réplicas reçoivent le même Newchannel → une seule ligne."""
+    cid = seed_company.id
+    link = "link-dup-ccc"
+    a = await service.apply_ami_cdr(db_session, cid, _ami_event("Newchannel", link))
+    b = await service.apply_ami_cdr(db_session, cid, _ami_event("Newchannel", link))
+    assert a.id == b.id
+    _, total = await service.list_calls(db_session, cid)
+    assert total == 1
+
+
+async def test_ami_cdr_reuses_outbound_rest_row(db_session, seed_company) -> None:
+    """Sortant click-to-call : le CDR REST (channel_id=Linkedid) est réutilisé."""
+    cid = seed_company.id
+    link = "sgi-deadbeef"
+    rest = await service.create_call(
+        db_session, cid, direction="outbound", channel_id=link, agent_extension="6001"
+    )
+    updated = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Newstate", link, state="Up")
+    )
+    assert updated.id == rest.id
+    assert updated.direction == "outbound"  # direction préservée
+    assert updated.status == "answered"
+
+
+# ─────────────────────────────────────────────────────────────────────────
 # Intégration HTTP
 # ─────────────────────────────────────────────────────────────────────────
 
