@@ -27,6 +27,13 @@ jobs:
       POSTGRES_PASSWORD: sgi_password
       SECRET_KEY: ci-secret-not-for-prod
       MEILI_MASTER_KEY: ci-meili-key
+      # Valkey (broker + backend Celery) : les tests d'intégration HTTP passent par
+      # AuditMiddleware → write_audit_log.delay(), qui exige un broker joignable.
+      # Sans ce service, chaque mutation bloquait 120 s → timeout pytest.
+      VALKEY_URL: redis://localhost:6379/0
+      # MinIO joignable en local (sinon l'upload de licence fournisseur bloquait sur
+      # la résolution DNS de l'hôte par défaut « minio:9000 »).
+      MINIO_ENDPOINT: localhost:9000
       MINIO_ACCESS_KEY: ci-minio-access
       MINIO_SECRET_KEY: ci-minio-secret
     services:
@@ -43,8 +50,28 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
+      valkey:
+        image: valkey/valkey:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "valkey-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      # MinIO n'est pas déclaré ici : un service container GitHub ne peut pas passer
+      # la commande « server /data » qu'exige l'image officielle, et bitnami/minio
+      # a été retiré de Docker Hub. On le lance donc dans un step `docker run`.
     steps:
       - uses: actions/checkout@v6
+      - name: Start MinIO (image officielle, commande server)
+        # Lancé tôt pour qu'il soit prêt à l'heure de pytest. L'app crée le bucket
+        # (make_bucket) au premier upload si besoin.
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=ci-minio-access \
+            -e MINIO_ROOT_PASSWORD=ci-minio-secret \
+            minio/minio:latest server /data
       - uses: astral-sh/setup-uv@v7  # pas de tag majeur v8 publié → v7 (dernier major)
       - uses: actions/setup-python@v6
         with:
@@ -59,6 +86,15 @@ jobs:
         run: uv run mypy app
       - name: Migrate (alembic upgrade head)
         run: uv run alembic upgrade head
+      - name: Wait for MinIO
+        # Le runner exécute les steps sur l'hôte (pas dans un conteneur) : curl est
+        # dispo nativement. On attend que MinIO réponde avant pytest.
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:9000/minio/health/live; then echo "minio ready"; exit 0; fi
+            echo "waiting for minio ($i/30)"; sleep 2
+          done
+          echo "::warning::MinIO non joignable après 60 s — les tests d'upload pourraient échouer"
       - name: Tests (pytest)
         run: uv run pytest -q
 
