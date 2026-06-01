@@ -96,8 +96,9 @@ services:
     volumes:
       - ./apps/api/app:/app/app
       - ./apps/api/scripts:/app/scripts
-      # Lecture seule des enregistrements Asterisk pour l'upload MinIO (PDPL).
-      - asterisk_recordings:/var/spool/asterisk/monitor:ro
+      # Enregistrements Asterisk : le worker lit les .wav, les uploade vers
+      # MinIO puis les déplace (uploaded/ ou orphan/) → accès rw requis.
+      - asterisk_recordings:/var/spool/asterisk/monitor
     networks:
       - backend
     depends_on:

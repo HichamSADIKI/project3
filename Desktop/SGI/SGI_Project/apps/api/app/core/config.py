@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     AMI_USER: str = "sgi-api"
     AMI_PASSWORD: str = ""
     TELEPHONY_AMI_ENABLED: bool = True
+    # Enregistrements : répertoire local du volume Asterisk lu par le worker
+    # d'upload, et durée de rétention PDPL (purge au-delà → MinIO + recording_url).
+    RECORDING_MONITOR_DIR: str = "/var/spool/asterisk/monitor"
+    RECORDING_RETENTION_DAYS: int = 365
 
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30

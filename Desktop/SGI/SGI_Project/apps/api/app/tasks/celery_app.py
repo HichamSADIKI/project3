@@ -14,6 +14,7 @@ celery_app = Celery(
         "app.tasks.comms",
         "app.tasks.workflows",
         "app.tasks.audit",
+        "app.tasks.telephony",
     ],
 )
 
@@ -36,6 +37,9 @@ celery_app.conf.update(
         "app.tasks.comms.notify_mentions": {"queue": "notifications"},
         "app.tasks.comms.transcribe_voice_note": {"queue": "exports"},
         "app.tasks.audit.*": {"queue": "reminders"},
+        # ── Téléphonie ───────────────────────────────────────────────────
+        "app.tasks.telephony.upload_call_recordings": {"queue": "exports"},
+        "app.tasks.telephony.purge_expired_recordings": {"queue": "reminders"},
     },
     beat_schedule={
         "crm-followup-check": {
@@ -67,6 +71,16 @@ celery_app.conf.update(
         "workflow-sla-check": {
             "task": "app.tasks.workflows.check_workflow_sla",
             "schedule": 3600.0,
+        },
+        # ── Téléphonie ───────────────────────────────────────────────────
+        # Upload des enregistrements toutes les 2 min ; purge PDPL quotidienne.
+        "telephony-upload-recordings": {
+            "task": "app.tasks.telephony.upload_call_recordings",
+            "schedule": 120.0,
+        },
+        "telephony-purge-recordings": {
+            "task": "app.tasks.telephony.purge_expired_recordings",
+            "schedule": 86400.0,
         },
     },
 )

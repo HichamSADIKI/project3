@@ -328,6 +328,26 @@ async def test_click_to_call_503_when_ami_unavailable(
     assert resp.status_code == 503
 
 
+async def test_click_to_call_persists_channel_id(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    """Même si l'Originate échoue (AMI down → 503), le CDR outbound est créé
+    AVANT avec un channel_id → linkage pour le worker d'upload (#6)."""
+    _, token = seed_admin
+    headers = {"Authorization": f"Bearer {token}"}
+    await client.post(
+        "/api/v1/telephony/calls/click-to-call",
+        json={"to_number": "6002", "agent_extension": "6001"},
+        headers=headers,
+    )
+    listing = await client.get(
+        "/api/v1/telephony/calls", params={"direction": "outbound"}, headers=headers
+    )
+    rows = listing.json()["data"]
+    assert rows, "un CDR outbound doit exister malgré l'échec AMI"
+    assert all(r["direction"] == "outbound" for r in rows)
+
+
 async def test_my_agent_state_404_before_set(
     client: AsyncClient, seed_admin: tuple[User, str]
 ) -> None:

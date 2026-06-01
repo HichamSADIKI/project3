@@ -222,6 +222,9 @@ async def click_to_call_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST, detail="agent_extension_required"
         )
 
+    # UNIQUEID imposé au canal Asterisk (ChannelId de l'Originate) = channel_id
+    # du CDR → permet au worker de rapprocher l'enregistrement <UNIQUEID>.wav.
+    channel_id = f"sgi-{uuid.uuid4().hex}"
     call = await service.create_call(
         db,
         company_id,
@@ -231,6 +234,7 @@ async def click_to_call_endpoint(
         client_id=body.client_id,
         agent_user_id=user_id,
         agent_extension=extension,
+        channel_id=channel_id,
     )
 
     ami = get_client()
@@ -239,7 +243,7 @@ async def click_to_call_endpoint(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="ami_unavailable"
         )
     try:
-        await ami.originate(extension, body.to_number)
+        await ami.originate(extension, body.to_number, channel_id=channel_id)
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY, detail="originate_failed"

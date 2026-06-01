@@ -5,6 +5,7 @@ dispo stockage) sans dépendre d'un MinIO réel.
 """
 
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -28,9 +29,48 @@ def test_build_recording_key_namespaced_by_tenant() -> None:
     )
 
 
+def test_channel_id_from_filename() -> None:
+    assert recording.channel_id_from_filename("sgi-abc123.wav") == "sgi-abc123"
+    assert recording.channel_id_from_filename("1718000000.42.wav") == "1718000000.42"
+    assert recording.channel_id_from_filename("notes.txt") is None
+    assert recording.channel_id_from_filename(".wav") is None
+
+
+def test_is_recording_expired() -> None:
+    now = datetime(2026, 6, 1, 12, 0, 0, tzinfo=UTC)
+    old = now - timedelta(days=400)
+    recent = now - timedelta(days=10)
+    assert recording.is_recording_expired(old, 365, now) is True
+    assert recording.is_recording_expired(recent, 365, now) is False
+    # ended_at None (appel non terminé) → jamais expiré
+    assert recording.is_recording_expired(None, 365, now) is False
+    # rétention désactivée (<=0) → jamais expiré
+    assert recording.is_recording_expired(old, 0, now) is False
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # attach_recording
 # ─────────────────────────────────────────────────────────────────────────
+
+
+async def test_find_call_by_channel_id_scoped_tenant(
+    db_session, seed_company: Company
+) -> None:
+    call = await service.create_call(
+        db_session, seed_company.id, direction="outbound",
+        channel_id="sgi-chan-xyz", recording_consent=True,
+    )
+    found = await recording.find_call_by_channel_id(
+        db_session, seed_company.id, "sgi-chan-xyz"
+    )
+    assert found is not None and found.id == call.id
+    # Autre tenant → None (Loi 1)
+    assert (
+        await recording.find_call_by_channel_id(
+            db_session, uuid.uuid4(), "sgi-chan-xyz"
+        )
+        is None
+    )
 
 
 async def test_attach_recording_sets_url_when_consent(

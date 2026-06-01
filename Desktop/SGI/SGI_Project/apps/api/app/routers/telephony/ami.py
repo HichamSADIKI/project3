@@ -148,19 +148,27 @@ class AMIClient:
         *,
         context: str = "internal",
         caller_id: str | None = None,
+        channel_id: str | None = None,
     ) -> None:
-        """Click-to-call : fait sonner l'extension de l'agent puis compose le numéro."""
-        await self._send_action(
-            {
-                "Action": "Originate",
-                "Channel": f"PJSIP/{extension}",
-                "Context": context,
-                "Exten": to_number,
-                "Priority": "1",
-                "CallerID": caller_id or to_number,
-                "Async": "true",
-            }
-        )
+        """Click-to-call : fait sonner l'extension de l'agent puis compose le numéro.
+
+        `channel_id` (optionnel) force l'UNIQUEID du canal Asterisk via le
+        paramètre `ChannelId` de l'action Originate (Asterisk ≥14). On le
+        renseigne pour que l'enregistrement (`<UNIQUEID>.wav`) soit rapprochable
+        du CDR applicatif (`Call.channel_id`).
+        """
+        action = {
+            "Action": "Originate",
+            "Channel": f"PJSIP/{extension}",
+            "Context": context,
+            "Exten": to_number,
+            "Priority": "1",
+            "CallerID": caller_id or to_number,
+            "Async": "true",
+        }
+        if channel_id:
+            action["ChannelId"] = channel_id
+        await self._send_action(action)
 
     async def read_packets(self):
         """Générateur asynchrone de paquets AMI (un dict par bloc)."""

@@ -21,13 +21,16 @@ depuis `router.py` pour rester cohérents avec le reste du module.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import storage
 from app.core.deps import get_db_session
 from app.routers.telephony import service
+from app.routers.telephony.models import Call
 
 # ─────────────────────────────────────────────────────────────────────────
 # Stockage objet — clé déterministe par tenant
@@ -43,9 +46,46 @@ def build_recording_key(company_id: uuid.UUID, call_id: uuid.UUID) -> str:
     return f"telephony/{company_id}/recordings/{call_id}.wav"
 
 
+def channel_id_from_filename(filename: str) -> str | None:
+    """`<UNIQUEID>.wav` → `<UNIQUEID>`. None si ce n'est pas un .wav.
+
+    Asterisk nomme l'enregistrement d'après l'UNIQUEID du canal (cf. macro
+    `pdpl-record`), qu'on stocke dans `Call.channel_id` au click-to-call.
+    """
+    if not filename.endswith(".wav"):
+        return None
+    stem = filename[:-4]
+    return stem or None
+
+
+def is_recording_expired(
+    ended_at: datetime | None, retention_days: int, now: datetime
+) -> bool:
+    """True si un appel terminé dépasse la durée de rétention PDPL.
+
+    Pur : sert à la purge. `ended_at` None (appel non terminé) → jamais expiré.
+    `retention_days <= 0` désactive la purge (jamais expiré).
+    """
+    if ended_at is None or retention_days <= 0:
+        return False
+    return now - ended_at > timedelta(days=retention_days)
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Fonctions de service — toujours filtrées par company_id (Loi 1)
 # ─────────────────────────────────────────────────────────────────────────
+
+
+async def find_call_by_channel_id(
+    db: AsyncSession, company_id: uuid.UUID, channel_id: str
+) -> Call | None:
+    """Retrouve un appel par son channel_id (UNIQUEID Asterisk), scoped tenant."""
+    result = await db.execute(
+        select(Call).where(
+            Call.company_id == company_id, Call.channel_id == channel_id
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def attach_recording(
