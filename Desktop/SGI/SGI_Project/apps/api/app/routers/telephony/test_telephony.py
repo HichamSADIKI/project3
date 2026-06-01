@@ -294,9 +294,70 @@ async def test_phone_lookup_screen_pop(
     assert "Layla" in matches[0]["display_name"]
 
 
-async def test_lookup_requires_tenant_context(client: AsyncClient) -> None:
+async def test_lookup_requires_auth(client: AsyncClient) -> None:
+    # Depuis le durcissement H-2, /lookup porte un garde de rôle
+    # (admin/manager/agent) : une requête sans token est refusée par ce garde
+    # (403) avant même le contrôle de contexte tenant (401). 403 = plus sûr.
     resp = await client.get("/api/v1/telephony/lookup", params={"phone": "971501234567"})
-    assert resp.status_code == 401
+    assert resp.status_code == 403
+
+
+async def test_click_to_call_requires_extension(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    """Sans extension agent (pas d'agent_state, pas de champ) → 400."""
+    _, token = seed_admin
+    resp = await client.post(
+        "/api/v1/telephony/calls/click-to-call",
+        json={"to_number": "971501112233"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
+
+
+async def test_click_to_call_503_when_ami_unavailable(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    """Extension fournie mais AMI down (cas test) → CDR créé puis 503."""
+    _, token = seed_admin
+    resp = await client.post(
+        "/api/v1/telephony/calls/click-to-call",
+        json={"to_number": "971501112233", "agent_extension": "6001"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 503
+
+
+async def test_my_agent_state_404_before_set(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _, token = seed_admin
+    resp = await client.get(
+        "/api/v1/telephony/agents/me",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 404
+
+
+async def test_agents_list_returns_set_states(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _, token = seed_admin
+    headers = {"Authorization": f"Bearer {token}"}
+    await client.post(
+        "/api/v1/telephony/agents/me/status",
+        json={"status": "available", "extension": "6009"},
+        headers=headers,
+    )
+    resp = await client.get("/api/v1/telephony/agents", headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert any(a["extension"] == "6009" for a in data)
+    # Filtre par statut
+    resp2 = await client.get(
+        "/api/v1/telephony/agents", params={"status": "busy"}, headers=headers
+    )
+    assert all(a["status"] == "busy" for a in resp2.json()["data"])
 
 
 async def test_create_call_forbidden_for_client_role(

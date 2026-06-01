@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -46,9 +46,15 @@ class Call(Base, TimestampMixin, TenantMixin):
         Boolean, nullable=False, default=False
     )
 
-    started_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    answered_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    ended_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    answered_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    ended_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     wait_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hangup_cause: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -71,4 +77,6 @@ class AgentState(Base, TimestampMixin, TenantMixin):
     current_call_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
     )
-    last_changed_at: Mapped[datetime] = mapped_column(nullable=True)
+    last_changed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
