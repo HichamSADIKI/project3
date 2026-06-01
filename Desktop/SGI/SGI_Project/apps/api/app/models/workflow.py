@@ -156,6 +156,7 @@ class WorkflowStep(Base, TimestampMixin, TenantMixin):
             "status IN ('pending','in_progress','approved','rejected','skipped','escalated')",
             name="ck_wf_step_status",
         ),
+        Index("idx_wf_steps_company", "company_id"),
         Index("idx_wf_steps_instance", "instance_id", "step_order"),
         Index("idx_wf_steps_sla", "sla_due_at"),
     )
@@ -193,5 +194,6 @@ class WorkflowEvent(Base, TenantMixin):
             "event_type IN ('approve','reject','note','escalate','start','complete','cancel')",
             name="ck_wf_event_type",
         ),
+        Index("idx_wf_events_company", "company_id"),
         Index("idx_wf_events_instance", "instance_id", "created_at"),
     )
