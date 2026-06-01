@@ -12,11 +12,13 @@ ligne et on construit la clé objet namespacée par tenant.
 """
 
 import logging
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any, Protocol, cast
 
-from celery import shared_task
-from sqlalchemy import select
+from celery import shared_task as _shared_task  # type: ignore[import-untyped]
+from sqlalchemy import Result, Select, select
 
 from app.core import storage
 from app.core.config import settings
@@ -29,9 +31,34 @@ from app.routers.telephony.recording import (
 
 logger = logging.getLogger(__name__)
 
+# `celery` n'expose pas de stubs (py.typed absent) → `shared_task` est `Any`,
+# ce qui rendrait toute fonction décorée « untyped ». On re-type le décorateur
+# en identité préservant la signature pour garder les tâches typées.
+_F = Callable[..., Any]
+shared_task: Callable[..., Callable[[_F], _F]] = cast(
+    "Callable[..., Callable[[_F], _F]]", _shared_task
+)
+
+
+class _SyncSession(Protocol):
+    """Interface synchrone réellement exposée par ``sync_session_maker``.
+
+    Le context manager (cf. ``app.core.database``) yield un proxy qui exécute
+    chaque appel via ``run_until_complete`` : ``execute`` renvoie donc un
+    ``Result`` synchrone (pas une coroutine), et ``commit``/``rollback`` sont
+    des appels bloquants. On type ce contrat localement pour rester cohérent
+    avec l'usage synchrone des tâches Celery sans modifier le runtime.
+    """
+
+    def execute(self, stmt: Select[Any], *args: Any, **kwargs: Any) -> Result[Any]: ...
+
+    def commit(self) -> None: ...
+
+    def rollback(self) -> None: ...
+
 
 @shared_task(name="app.tasks.telephony.upload_call_recordings", bind=True)
-def upload_call_recordings(self):
+def upload_call_recordings(self: Any) -> dict[str, int | str]:
     """Uploade les .wav du volume Asterisk vers MinIO et les associe aux CDR.
 
     Rapproche par `channel_id` (UNIQUEID posé au click-to-call). Fichiers traités
@@ -48,7 +75,10 @@ def upload_call_recordings(self):
     orphan_dir.mkdir(exist_ok=True)
 
     uploaded = orphan = 0
-    with sync_session_maker() as db:
+    with sync_session_maker() as _raw_db:
+        # `sync_session_maker` yield un proxy synchrone (cf. app.core.database) ;
+        # on le re-type pour que `execute` renvoie un `Result` non-coroutine.
+        db = cast("_SyncSession", _raw_db)
         for wav in monitor.glob("*.wav"):
             channel_id = channel_id_from_filename(wav.name)
             if not channel_id:
@@ -79,7 +109,7 @@ def upload_call_recordings(self):
 
 
 @shared_task(name="app.tasks.telephony.purge_expired_recordings", bind=True)
-def purge_expired_recordings(self):
+def purge_expired_recordings(self: Any) -> dict[str, int | str]:
     """Purge PDPL : supprime de MinIO + anonymise les enregistrements expirés.
 
     Rétention = `RECORDING_RETENTION_DAYS` (<=0 désactive). Scan cross-tenant.
@@ -90,8 +120,9 @@ def purge_expired_recordings(self):
 
     cutoff = datetime.now(UTC) - timedelta(days=retention)
     purged = 0
-    with sync_session_maker() as db:
-        rows = (
+    with sync_session_maker() as _raw_db:
+        db = cast("_SyncSession", _raw_db)
+        rows: Sequence[Call] = (
             db.execute(
                 select(Call).where(
                     Call.recording_url.isnot(None),
@@ -103,6 +134,8 @@ def purge_expired_recordings(self):
             .all()
         )
         for call in rows:
+            if call.recording_url is None:  # garanti par le WHERE, garde-fou typage
+                continue
             storage.delete_object_sync(call.recording_url)
             call.recording_url = None  # anonymisation du CDR
             db.commit()

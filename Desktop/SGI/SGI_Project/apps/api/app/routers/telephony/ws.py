@@ -29,7 +29,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 logger = logging.getLogger(__name__)
 
 _connections: dict[str, set[WebSocket]] = {}
-_subscriber_tasks: dict[str, asyncio.Task] = {}
+_subscriber_tasks: dict[str, asyncio.Task[None]] = {}
 
 
 def voice_channel(company_id: str, extension: str) -> str:

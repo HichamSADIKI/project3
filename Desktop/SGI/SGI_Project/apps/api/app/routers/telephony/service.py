@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
@@ -18,6 +18,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.routers.telephony.models import AgentState, Call
+
+if TYPE_CHECKING:
+    from app.models.client import Client
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helpers purs — machine à états APPEL
@@ -356,8 +359,9 @@ async def apply_ami_cdr(
 
     # Classe entrant vs interne d'après l'appelant (extension connue du tenant ?).
     caller = data.get("caller_number")
-    internal_exts = set(
-        (
+    internal_exts = {
+        ext
+        for ext in (
             await db.execute(
                 select(AgentState.extension).where(
                     AgentState.company_id == company_id,
@@ -367,7 +371,8 @@ async def apply_ami_cdr(
         )
         .scalars()
         .all()
-    )
+        if ext is not None
+    }
     direction = infer_call_direction(caller, internal_exts)
 
     call, _created = await get_or_create_call_by_channel(
@@ -466,7 +471,9 @@ async def list_agent_states(
 # ── Screen pop : résolution client par numéro ─────────────────────────────
 
 
-async def find_clients_by_phone(db: AsyncSession, company_id: uuid.UUID, phone: str) -> list:
+async def find_clients_by_phone(
+    db: AsyncSession, company_id: uuid.UUID, phone: str
+) -> list[Client]:
     """Clients du tenant dont phone/phone2 matche (screen pop sur appel entrant).
 
     Matche sur les derniers chiffres pour tolérer les variations de format

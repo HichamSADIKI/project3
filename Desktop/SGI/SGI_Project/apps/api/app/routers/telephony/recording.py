@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -90,7 +91,7 @@ async def attach_recording(
     call_id: uuid.UUID,
     *,
     object_key: str,
-) -> service.Call | None:
+) -> Call | None:
     """Associe une clé objet MinIO à un appel (renseigne `recording_url`).
 
     Filtré tenant. Retourne l'appel mis à jour, ou ``None`` si l'appel
@@ -115,7 +116,7 @@ async def upload_recording(
     *,
     data: bytes,
     content_type: str = "audio/wav",
-) -> service.Call | None:
+) -> Call | None:
     """Uploade le binaire d'un enregistrement vers MinIO puis l'associe au call.
 
     Pensé pour un worker qui lit le ``.wav`` du volume Asterisk partagé et le
@@ -186,7 +187,7 @@ def _get_company_id(request: Request) -> uuid.UUID:
     return uuid.UUID(raw)
 
 
-def _require_roles(*allowed_roles: str):
+def _require_roles(*allowed_roles: str) -> Any:
     async def _check(request: Request) -> None:
         role = getattr(request.state, "role", None)
         if role not in allowed_roles:
@@ -206,7 +207,7 @@ async def get_call_recording_endpoint(
     call_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
-) -> dict:
+) -> dict[str, Any]:
     """Téléchargement sécurisé de l'enregistrement d'un appel (PDPL).
 
     Renvoie une URL signée MinIO à durée de vie courte plutôt que le binaire :

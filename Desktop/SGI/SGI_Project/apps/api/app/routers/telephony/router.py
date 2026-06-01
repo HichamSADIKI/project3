@@ -1,6 +1,7 @@
 """Router FastAPI — Téléphonie (journal d'appels, agents, click-to-call, WS)."""
 
 import uuid
+from collections.abc import Awaitable, Callable
 
 from fastapi import (
     APIRouter,
@@ -15,9 +16,11 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import decode_jwt
-from app.core.deps import get_db, get_db_session
+from app.core.database import get_db
+from app.core.deps import get_db_session
 from app.routers.telephony import service
 from app.routers.telephony.ami import get_client
+from app.routers.telephony.models import Call
 from app.routers.telephony.recording import recording_router
 from app.routers.telephony.schemas import (
     AgentStateDetailOut,
@@ -58,7 +61,7 @@ def _get_user_id(request: Request) -> uuid.UUID:
     return uuid.UUID(raw)
 
 
-def _require_roles(*allowed_roles: str):
+def _require_roles(*allowed_roles: str) -> Callable[[Request], Awaitable[None]]:
     async def _check(request: Request) -> None:
         role = getattr(request.state, "role", None)
         if role not in allowed_roles:
@@ -69,7 +72,7 @@ def _require_roles(*allowed_roles: str):
     return _check
 
 
-def _call_out(call: service.Call) -> CallOut:
+def _call_out(call: Call) -> CallOut:
     """Sérialise un appel en masquant `recording_url` sans consentement (PDPL, H-1).
 
     Sans consentement enregistré, l'URL de l'enregistrement ne doit jamais
