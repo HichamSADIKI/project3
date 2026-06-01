@@ -38,24 +38,24 @@ export function ScreenRealEstateSettings() {
   }, []);
 
   const sections: { title: string; rows: { label: string; value: React.ReactNode }[] }[] = s ? [
-    { title: "TVA & Devise", rows: [
-      { label: "Devise", value: s.currency },
-      { label: "TVA activée", value: <Toggle on={s.vat_enabled} /> },
-      { label: "Taux de TVA (%)", value: s.vat_rate },
+    { title: t.set_sec_vat, rows: [
+      { label: t.set_currency, value: s.currency },
+      { label: t.set_vat_enabled, value: <Toggle on={s.vat_enabled} /> },
+      { label: t.set_vat_rate, value: s.vat_rate },
     ]},
-    { title: "Localisation", rows: [
-      { label: "Émirat par défaut", value: s.default_emirate },
-      { label: "Fuseau horaire", value: s.timezone },
+    { title: t.set_sec_loc, rows: [
+      { label: t.set_default_emirate, value: s.default_emirate },
+      { label: t.set_timezone, value: s.timezone },
     ]},
-    { title: "Conformité UAE", rows: [
-      { label: "Ejari activé", value: <Toggle on={s.ejari_enabled} /> },
-      { label: "DLD activé", value: <Toggle on={s.dld_enabled} /> },
+    { title: t.set_sec_compliance, rows: [
+      { label: t.set_ejari_enabled, value: <Toggle on={s.ejari_enabled} /> },
+      { label: t.set_dld_enabled, value: <Toggle on={s.dld_enabled} /> },
     ]},
-    { title: "Références & Paiements", rows: [
-      { label: "Préfixe facture", value: s.invoice_prefix },
-      { label: "Préfixe contrat", value: s.contract_prefix },
-      { label: "Délai de paiement (jours)", value: s.default_payment_terms_days },
-      { label: "Mois de début d'exercice", value: s.fiscal_year_start_month },
+    { title: t.set_sec_refs, rows: [
+      { label: t.set_invoice_prefix, value: s.invoice_prefix },
+      { label: t.set_contract_prefix, value: s.contract_prefix },
+      { label: t.set_payment_terms_days, value: s.default_payment_terms_days },
+      { label: t.set_fiscal_year_start, value: s.fiscal_year_start_month },
     ]},
   ] : [];
 
@@ -67,8 +67,8 @@ export function ScreenRealEstateSettings() {
           <span style={{ color: "var(--gold)" }}><IcSettings /></span>
           <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_re_settings}</div>
         </div>
-        {loading && <div style={{ color: "var(--ink-4)", fontSize: 13 }}>Chargement…</div>}
-        {error && <div style={{ padding: "12px 16px", borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
+        {loading && <div style={{ color: "var(--ink-4)", fontSize: 13 }}>{t.loading}</div>}
+        {error && <div style={{ padding: "12px 16px", borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.error_label} : {error}</div>}
 
         {s && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 18, maxWidth: 980 }}>

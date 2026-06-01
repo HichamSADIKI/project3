@@ -77,6 +77,15 @@ export type Translations = {
   add: string; export_btn: string; filter: string;
   view_all: string; save: string; cancel: string;
   new_btn: string; close_month: string; coming_soon: string;
+  loading: string; error_label: string;
+
+  // Real Estate Settings screen
+  set_sec_vat: string; set_sec_loc: string; set_sec_compliance: string; set_sec_refs: string;
+  set_currency: string; set_vat_enabled: string; set_vat_rate: string;
+  set_default_emirate: string; set_timezone: string;
+  set_ejari_enabled: string; set_dld_enabled: string;
+  set_invoice_prefix: string; set_contract_prefix: string;
+  set_payment_terms_days: string; set_fiscal_year_start: string;
 };
 
 const ar: Translations = {
@@ -156,6 +165,16 @@ const ar: Translations = {
   add: "إضافة", export_btn: "تصدير", filter: "تصفية",
   view_all: "عرض الكل", save: "حفظ", cancel: "إلغاء",
   new_btn: "جديد", close_month: "إغلاق الشهر", coming_soon: "قريباً",
+  loading: "جارٍ التحميل…", error_label: "خطأ",
+
+  set_sec_vat: "الضريبة والعملة", set_sec_loc: "الموقع",
+  set_sec_compliance: "الامتثال (الإمارات)", set_sec_refs: "المراجع والمدفوعات",
+  set_currency: "العملة", set_vat_enabled: "تفعيل ضريبة القيمة المضافة",
+  set_vat_rate: "نسبة الضريبة (%)",
+  set_default_emirate: "الإمارة الافتراضية", set_timezone: "المنطقة الزمنية",
+  set_ejari_enabled: "تفعيل إيجاري", set_dld_enabled: "تفعيل دائرة الأراضي",
+  set_invoice_prefix: "بادئة الفاتورة", set_contract_prefix: "بادئة العقد",
+  set_payment_terms_days: "مهلة السداد (أيام)", set_fiscal_year_start: "شهر بداية السنة المالية",
 };
 
 const en: Translations = {
@@ -235,6 +254,16 @@ const en: Translations = {
   add: "Add", export_btn: "Export", filter: "Filter",
   view_all: "View all", save: "Save", cancel: "Cancel",
   new_btn: "New", close_month: "Close month", coming_soon: "Coming soon",
+  loading: "Loading…", error_label: "Error",
+
+  set_sec_vat: "VAT & Currency", set_sec_loc: "Localization",
+  set_sec_compliance: "UAE Compliance", set_sec_refs: "References & Payments",
+  set_currency: "Currency", set_vat_enabled: "VAT enabled",
+  set_vat_rate: "VAT rate (%)",
+  set_default_emirate: "Default emirate", set_timezone: "Timezone",
+  set_ejari_enabled: "Ejari enabled", set_dld_enabled: "DLD enabled",
+  set_invoice_prefix: "Invoice prefix", set_contract_prefix: "Contract prefix",
+  set_payment_terms_days: "Payment terms (days)", set_fiscal_year_start: "Fiscal year start month",
 };
 
 const fr: Translations = {
@@ -314,6 +343,16 @@ const fr: Translations = {
   add: "Ajouter", export_btn: "Exporter", filter: "Filtrer",
   view_all: "Voir tout", save: "Enregistrer", cancel: "Annuler",
   new_btn: "Nouveau", close_month: "Clôturer le mois", coming_soon: "Prochainement",
+  loading: "Chargement…", error_label: "Erreur",
+
+  set_sec_vat: "TVA & Devise", set_sec_loc: "Localisation",
+  set_sec_compliance: "Conformité UAE", set_sec_refs: "Références & Paiements",
+  set_currency: "Devise", set_vat_enabled: "TVA activée",
+  set_vat_rate: "Taux de TVA (%)",
+  set_default_emirate: "Émirat par défaut", set_timezone: "Fuseau horaire",
+  set_ejari_enabled: "Ejari activé", set_dld_enabled: "DLD activé",
+  set_invoice_prefix: "Préfixe facture", set_contract_prefix: "Préfixe contrat",
+  set_payment_terms_days: "Délai de paiement (jours)", set_fiscal_year_start: "Mois de début d'exercice",
 };
 
 export const T: Record<Lang, Translations> = { ar, en, fr };
