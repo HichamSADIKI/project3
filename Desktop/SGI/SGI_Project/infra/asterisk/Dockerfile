@@ -1,10 +1,13 @@
-# Asterisk 20 (LTS) — image de dev pour la téléphonie Immobilier SGI.
-# On part de Debian bookworm (paquet binaire asterisk 20.x) : reproductible,
-# pas de compilation. Notre config applicative écrase les defaults Debian ;
-# les fichiers non fournis (asterisk.conf, modules.conf, logger.conf) restent
-# ceux du paquet → chemins de modules corrects + autoload=yes.
+# Asterisk 16 — image de dev pour la téléphonie Immobilier SGI.
+# Base Debian bullseye (11) : asterisk est dans `main` (paquet binaire, pas de
+# compilation). NB : Debian bookworm (12) a RETIRÉ le paquet asterisk, d'où
+# bullseye. Notre config applicative écrase les defaults Debian ; les fichiers
+# non fournis (asterisk.conf, modules.conf, logger.conf) restent ceux du
+# paquet → chemins de modules corrects + autoload=yes. Toutes les features
+# utilisées (chan_pjsip, res_http_websocket, webrtc=yes, dtls_auto_generate_cert,
+# MixMonitor) sont supportées par Asterisk 16.
 
-FROM debian:bookworm-slim
+FROM debian:bullseye-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 
