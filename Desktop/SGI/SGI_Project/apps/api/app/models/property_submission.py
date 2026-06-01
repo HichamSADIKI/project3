@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -22,8 +23,8 @@ class PropertySubmission(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     type: Mapped[str] = mapped_column(String(50), nullable=False)
     district: Mapped[str | None] = mapped_column(String(150), nullable=True)
     city: Mapped[str] = mapped_column(String(100), nullable=False, default="Dubai")
-    asking_price: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    area_sqm: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    asking_price: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
+    area_sqm: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2), nullable=True)
     bedrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bathrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contact_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)

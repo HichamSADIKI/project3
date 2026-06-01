@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, Boolean, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -19,5 +20,5 @@ class PartnerService(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     service_type: Mapped[str] = mapped_column(String(30), nullable=False)
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    fee_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    fee_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, Date, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
@@ -29,7 +30,7 @@ class FinanceTransaction(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     direction: Mapped[str] = mapped_column(String(10), nullable=False, default="debit")
 
     # Montant
-    amount: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    amount: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="AED")
 
     # Statut

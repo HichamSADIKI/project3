@@ -335,6 +335,15 @@ async def assign_ticket(
     if not ticket:
         return None
 
+    # Respecte la machine à états : l'assignation force status="assigned", qui n'est
+    # atteignable que depuis new/triaged. On autorise la ré-assignation (assigned→assigned)
+    # mais on interdit de ressusciter un ticket in_progress/on_hold/resolved/closed/cancelled.
+    if ticket.status != "assigned" and not is_valid_transition(ticket.status, "assigned"):
+        raise HTTPException(
+            status_code=422,
+            detail=f"cannot_assign_from_status_{ticket.status}",
+        )
+
     if data.technician_id:
         ticket.assigned_technician_id = data.technician_id
         ticket.assigned_vendor_party_id = None

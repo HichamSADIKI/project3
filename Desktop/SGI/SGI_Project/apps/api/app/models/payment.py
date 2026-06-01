@@ -13,6 +13,7 @@ Loi 1 : company_id NOT NULL + RLS (migration 0019).
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     DECIMAL,
@@ -75,7 +76,7 @@ class PaymentRequest(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # pending | paid | overdue | cancelled
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
 
-    amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -114,7 +115,7 @@ class PaymentTransaction(Base, TimestampMixin, TenantMixin):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="initiated")
     # bank_transfer | card | cash | cheque | online
     method: Mapped[str] = mapped_column(String(30), nullable=False)
-    amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     # Référence externe (numéro de virement, ID Stripe-like…)
     external_ref: Mapped[str | None] = mapped_column(String(255), nullable=True)
     settled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

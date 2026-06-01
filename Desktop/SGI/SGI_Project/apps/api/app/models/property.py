@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from geoalchemy2 import Geometry
 from sqlalchemy import (
@@ -45,10 +46,10 @@ class Property(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     description_fr: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # Prix en AED
-    price: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    price: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
 
     # Superficie
-    area_sqm: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    area_sqm: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2), nullable=True)
 
     # Caractéristiques
     bedrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)

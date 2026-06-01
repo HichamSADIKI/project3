@@ -9,6 +9,7 @@ Loi 1 : company_id NOT NULL + RLS sur chaque table (migration 0014).
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     DECIMAL,
@@ -45,7 +46,7 @@ class MaintenanceQuote(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         nullable=False,
         index=True,
     )
-    amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     valid_until: Mapped[date | None] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pending"
@@ -82,7 +83,7 @@ class MaintenanceInvoice(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         nullable=False,
         index=True,
     )
-    amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="draft"
     )  # draft | issued | paid | overdue
