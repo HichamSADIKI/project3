@@ -59,18 +59,19 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-      minio:
-        # bitnami/minio démarre le serveur automatiquement (les services GitHub ne
-        # peuvent pas passer la commande « server /data » à l'image officielle).
-        image: bitnami/minio:latest
-        env:
-          MINIO_ROOT_USER: ci-minio-access
-          MINIO_ROOT_PASSWORD: ci-minio-secret
-          MINIO_DEFAULT_BUCKETS: sgi-media
-        ports:
-          - 9000:9000
+      # MinIO n'est pas déclaré ici : un service container GitHub ne peut pas passer
+      # la commande « server /data » qu'exige l'image officielle, et bitnami/minio
+      # a été retiré de Docker Hub. On le lance donc dans un step `docker run`.
     steps:
       - uses: actions/checkout@v6
+      - name: Start MinIO (image officielle, commande server)
+        # Lancé tôt pour qu'il soit prêt à l'heure de pytest. L'app crée le bucket
+        # (make_bucket) au premier upload si besoin.
+        run: |
+          docker run -d --name minio -p 9000:9000 \
+            -e MINIO_ROOT_USER=ci-minio-access \
+            -e MINIO_ROOT_PASSWORD=ci-minio-secret \
+            minio/minio:latest server /data
       - uses: astral-sh/setup-uv@v7  # pas de tag majeur v8 publié → v7 (dernier major)
       - uses: actions/setup-python@v6
         with:
