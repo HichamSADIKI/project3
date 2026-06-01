@@ -40,9 +40,7 @@ def _valkey_url() -> str:
     return os.getenv("VALKEY_URL", "redis://valkey:6379/0")
 
 
-async def publish_voice_event(
-    company_id: str, extension: str, event: dict[str, Any]
-) -> None:
+async def publish_voice_event(company_id: str, extension: str, event: dict[str, Any]) -> None:
     """Publie un event d'appel dans le channel Valkey de l'extension (best-effort)."""
     try:
         async with aioredis.from_url(_valkey_url(), decode_responses=True) as r:
@@ -98,9 +96,7 @@ def _ensure_subscriber(channel: str) -> None:
         _subscriber_tasks[channel] = asyncio.ensure_future(_subscribe_loop(channel))
 
 
-async def voice_ws_handler(
-    websocket: WebSocket, company_id: str, extension: str
-) -> None:
+async def voice_ws_handler(websocket: WebSocket, company_id: str, extension: str) -> None:
     """Connexion WS d'un agent : reçoit les events de sa ligne. Keepalive ping."""
     await websocket.accept()
     channel = voice_channel(company_id, extension)
@@ -117,9 +113,7 @@ async def voice_ws_handler(
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
-                await websocket.send_text(
-                    json.dumps({"type": "error", "detail": "invalid_json"})
-                )
+                await websocket.send_text(json.dumps({"type": "error", "detail": "invalid_json"}))
                 continue
             if msg.get("type") == "ping":
                 await websocket.send_text(json.dumps({"type": "pong"}))

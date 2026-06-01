@@ -23,9 +23,7 @@ from app.routers.telephony import recording, service
 def test_build_recording_key_namespaced_by_tenant() -> None:
     cid = uuid.uuid4()
     call = uuid.uuid4()
-    assert recording.build_recording_key(cid, call) == (
-        f"telephony/{cid}/recordings/{call}.wav"
-    )
+    assert recording.build_recording_key(cid, call) == (f"telephony/{cid}/recordings/{call}.wav")
 
 
 def test_channel_id_from_filename() -> None:
@@ -52,29 +50,21 @@ def test_is_recording_expired() -> None:
 # ─────────────────────────────────────────────────────────────────────────
 
 
-async def test_find_call_by_channel_id_scoped_tenant(
-    db_session, seed_company: Company
-) -> None:
+async def test_find_call_by_channel_id_scoped_tenant(db_session, seed_company: Company) -> None:
     call = await service.create_call(
-        db_session, seed_company.id, direction="outbound",
-        channel_id="sgi-chan-xyz", recording_consent=True,
+        db_session,
+        seed_company.id,
+        direction="outbound",
+        channel_id="sgi-chan-xyz",
+        recording_consent=True,
     )
-    found = await recording.find_call_by_channel_id(
-        db_session, seed_company.id, "sgi-chan-xyz"
-    )
+    found = await recording.find_call_by_channel_id(db_session, seed_company.id, "sgi-chan-xyz")
     assert found is not None and found.id == call.id
     # Autre tenant → None (Loi 1)
-    assert (
-        await recording.find_call_by_channel_id(
-            db_session, uuid.uuid4(), "sgi-chan-xyz"
-        )
-        is None
-    )
+    assert await recording.find_call_by_channel_id(db_session, uuid.uuid4(), "sgi-chan-xyz") is None
 
 
-async def test_attach_recording_sets_url_when_consent(
-    db_session, seed_company: Company
-) -> None:
+async def test_attach_recording_sets_url_when_consent(db_session, seed_company: Company) -> None:
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=True
     )
@@ -85,16 +75,12 @@ async def test_attach_recording_sets_url_when_consent(
     assert updated.recording_url == "k/x.wav"
 
 
-async def test_attach_recording_refuses_without_consent(
-    db_session, seed_company: Company
-) -> None:
+async def test_attach_recording_refuses_without_consent(db_session, seed_company: Company) -> None:
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=False
     )
     with pytest.raises(ValueError, match="recording_consent_missing"):
-        await recording.attach_recording(
-            db_session, seed_company.id, call.id, object_key="k/x.wav"
-        )
+        await recording.attach_recording(db_session, seed_company.id, call.id, object_key="k/x.wav")
 
 
 async def test_attach_recording_cross_tenant_returns_none(
@@ -106,9 +92,7 @@ async def test_attach_recording_cross_tenant_returns_none(
     other_company = uuid.uuid4()
     # Le call n'appartient pas à other_company → None (Loi 1).
     assert (
-        await recording.attach_recording(
-            db_session, other_company, call.id, object_key="k/x.wav"
-        )
+        await recording.attach_recording(db_session, other_company, call.id, object_key="k/x.wav")
         is None
     )
 
@@ -136,22 +120,16 @@ async def test_upload_recording_pushes_and_attaches(
         db_session, seed_company.id, call.id, data=b"RIFFfake"
     )
     assert updated is not None
-    assert updated.recording_url == recording.build_recording_key(
-        seed_company.id, call.id
-    )
+    assert updated.recording_url == recording.build_recording_key(seed_company.id, call.id)
     assert uploaded["len"] == 8
 
 
-async def test_upload_recording_refuses_without_consent(
-    db_session, seed_company: Company
-) -> None:
+async def test_upload_recording_refuses_without_consent(db_session, seed_company: Company) -> None:
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=False
     )
     with pytest.raises(ValueError, match="recording_consent_missing"):
-        await recording.upload_recording(
-            db_session, seed_company.id, call.id, data=b"x"
-        )
+        await recording.upload_recording(db_session, seed_company.id, call.id, data=b"x")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -164,9 +142,7 @@ async def test_get_recording_url_not_found(db_session, seed_company: Company) ->
         await recording.get_recording_url(db_session, seed_company.id, uuid.uuid4())
 
 
-async def test_get_recording_url_refuses_without_consent(
-    db_session, seed_company: Company
-) -> None:
+async def test_get_recording_url_refuses_without_consent(db_session, seed_company: Company) -> None:
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=False
     )
@@ -174,9 +150,7 @@ async def test_get_recording_url_refuses_without_consent(
         await recording.get_recording_url(db_session, seed_company.id, call.id)
 
 
-async def test_get_recording_url_no_recording(
-    db_session, seed_company: Company
-) -> None:
+async def test_get_recording_url_no_recording(db_session, seed_company: Company) -> None:
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=True
     )
@@ -194,16 +168,12 @@ async def test_get_recording_url_storage_unavailable(
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=True
     )
-    await recording.attach_recording(
-        db_session, seed_company.id, call.id, object_key="k/x.wav"
-    )
+    await recording.attach_recording(db_session, seed_company.id, call.id, object_key="k/x.wav")
     with pytest.raises(storage.StorageError):
         await recording.get_recording_url(db_session, seed_company.id, call.id)
 
 
-async def test_get_recording_url_success(
-    db_session, seed_company: Company, monkeypatch
-) -> None:
+async def test_get_recording_url_success(db_session, seed_company: Company, monkeypatch) -> None:
     async def fake_presigned(key, expires):
         return f"https://minio.local/{key}?sig=abc"
 
@@ -211,9 +181,7 @@ async def test_get_recording_url_success(
     call = await service.create_call(
         db_session, seed_company.id, direction="inbound", recording_consent=True
     )
-    await recording.attach_recording(
-        db_session, seed_company.id, call.id, object_key="k/x.wav"
-    )
+    await recording.attach_recording(db_session, seed_company.id, call.id, object_key="k/x.wav")
     url = await recording.get_recording_url(db_session, seed_company.id, call.id)
     assert url.startswith("https://minio.local/k/x.wav")
 
@@ -234,9 +202,7 @@ async def test_recording_endpoint_403_without_consent(
         headers=headers,
     )
     cid = created.json()["data"]["id"]
-    resp = await client.get(
-        f"/api/v1/telephony/calls/{cid}/recording", headers=headers
-    )
+    resp = await client.get(f"/api/v1/telephony/calls/{cid}/recording", headers=headers)
     assert resp.status_code == 403
 
 
@@ -252,7 +218,5 @@ async def test_recording_endpoint_404_when_no_recording(
     )
     cid = created.json()["data"]["id"]
     # Consentement OK mais aucun enregistrement attaché → 404.
-    resp = await client.get(
-        f"/api/v1/telephony/calls/{cid}/recording", headers=headers
-    )
+    resp = await client.get(f"/api/v1/telephony/calls/{cid}/recording", headers=headers)
     assert resp.status_code == 404

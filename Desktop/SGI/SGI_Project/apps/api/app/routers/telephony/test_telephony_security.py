@@ -47,9 +47,7 @@ class _FakeWebSocket:
 
     async def accept(self) -> None:  # pragma: no cover - garde-fou
         self.accepted = True
-        raise AssertionError(
-            "accept() ne doit pas être atteint sur une connexion non autorisée"
-        )
+        raise AssertionError("accept() ne doit pas être atteint sur une connexion non autorisée")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -312,9 +310,7 @@ async def test_ws_refuses_token_without_company(
 ) -> None:
     """Un token sans company_id (claim manquant) → close(4401)."""
     admin, _ = seed_admin
-    token = encode_jwt(
-        {"sub": str(admin.id), "role": admin.role, "status": "active"}
-    )
+    token = encode_jwt({"sub": str(admin.id), "role": admin.role, "status": "active"})
     ws = _FakeWebSocket()
     await voice_ws_endpoint(ws, token=token, extension="6001", db=db_session)
     assert ws.closed_code == 4401

@@ -133,9 +133,7 @@ class AMIClient:
         # « connecté » et on bouclerait en reconnexion silencieuse.
         resp = await self._read_packet()
         if resp.get("Response") != "Success":
-            raise RuntimeError(
-                f"login AMI refusé: {resp.get('Message', 'réponse inattendue')}"
-            )
+            raise RuntimeError(f"login AMI refusé: {resp.get('Message', 'réponse inattendue')}")
         logger.info("AMI connecté %s:%s", settings.AMI_HOST, settings.AMI_PORT)
 
     async def _read_packet(self) -> dict[str, str]:
@@ -241,10 +239,10 @@ async def _resolve_companies_for_extension(db, extension: str) -> list[str]:
     from app.routers.telephony.models import AgentState
 
     rows = (
-        await db.execute(
-            select(AgentState.company_id).where(AgentState.extension == extension)
-        )
-    ).scalars().all()
+        (await db.execute(select(AgentState.company_id).where(AgentState.extension == extension)))
+        .scalars()
+        .all()
+    )
     return [str(r) for r in rows]
 
 
@@ -271,8 +269,7 @@ async def _dispatch(packet: dict[str, str]) -> None:
                 try:
                     await service.apply_ami_cdr(db, _uuid.UUID(company_id), event)
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("persistance CDR AMI échouée (%s): %s",
-                                   company_id, exc)
+                    logger.warning("persistance CDR AMI échouée (%s): %s", company_id, exc)
                 # Publication ciblée par channel tenant (cf. M-3).
                 await publish_voice_event(company_id, extension, event)
     except Exception as exc:  # noqa: BLE001

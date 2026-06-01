@@ -53,11 +53,7 @@ def upload_call_recordings(self):
             channel_id = channel_id_from_filename(wav.name)
             if not channel_id:
                 continue
-            call = (
-                db.execute(select(Call).where(Call.channel_id == channel_id))
-                .scalars()
-                .first()
-            )
+            call = db.execute(select(Call).where(Call.channel_id == channel_id)).scalars().first()
             # Pas de CDR rapprochable, ou consentement absent (PDPL) → orphelin.
             if call is None or not call.recording_consent:
                 _move(wav, orphan_dir)

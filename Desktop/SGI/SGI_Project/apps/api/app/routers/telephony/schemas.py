@@ -21,9 +21,7 @@ class CallCreate(BaseModel):
 
 
 class CallTransition(BaseModel):
-    status: Literal[
-        "answered", "completed", "missed", "busy", "no_answer", "failed", "cancelled"
-    ]
+    status: Literal["answered", "completed", "missed", "busy", "no_answer", "failed", "cancelled"]
     hangup_cause: str | None = Field(None, max_length=50)
 
 
@@ -33,7 +31,8 @@ class ClickToCall(BaseModel):
     to_number: str = Field(..., max_length=50)
     client_id: uuid.UUID | None = None
     agent_extension: str | None = Field(
-        None, max_length=20,
+        None,
+        max_length=20,
         description="Extension de l'agent ; défaut = celle de son agent_state.",
     )
 

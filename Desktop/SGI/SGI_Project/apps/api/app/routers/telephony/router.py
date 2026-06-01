@@ -54,9 +54,7 @@ def _get_company_id(request: Request) -> uuid.UUID:
 def _get_user_id(request: Request) -> uuid.UUID:
     raw = getattr(request.state, "user_id", None)
     if not raw:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="user_context_missing"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="user_context_missing")
     return uuid.UUID(raw)
 
 
@@ -186,9 +184,7 @@ async def transition_call_endpoint(
             db, company_id, call_id, body.status, hangup_cause=body.hangup_cause
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     if not call:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call_not_found")
     return CallDetailOut(data=_call_out(call))
@@ -278,9 +274,7 @@ async def my_agent_state_endpoint(
     user_id = _get_user_id(request)
     state = await service.get_agent_state(db, company_id, user_id)
     if not state:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="agent_state_not_found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="agent_state_not_found")
     return AgentStateDetailOut(data=AgentStateOut.model_validate(state))
 
 
@@ -297,9 +291,7 @@ async def set_my_status_endpoint(
             db, company_id, user_id, body.status, extension=body.extension
         )
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
     return AgentStateDetailOut(data=AgentStateOut.model_validate(state))
 
 
@@ -323,9 +315,7 @@ async def phone_lookup_endpoint(
         PhoneLookupMatch(
             client_id=c.id,
             display_name=(
-                c.company_name
-                or " ".join(filter(None, [c.first_name, c.last_name]))
-                or "—"
+                c.company_name or " ".join(filter(None, [c.first_name, c.last_name])) or "—"
             ),
             phone=c.phone,
             type=c.type,

@@ -58,9 +58,7 @@ def channel_id_from_filename(filename: str) -> str | None:
     return stem or None
 
 
-def is_recording_expired(
-    ended_at: datetime | None, retention_days: int, now: datetime
-) -> bool:
+def is_recording_expired(ended_at: datetime | None, retention_days: int, now: datetime) -> bool:
     """True si un appel terminé dépasse la durée de rétention PDPL.
 
     Pur : sert à la purge. `ended_at` None (appel non terminé) → jamais expiré.
@@ -81,9 +79,7 @@ async def find_call_by_channel_id(
 ) -> Call | None:
     """Retrouve un appel par son channel_id (UNIQUEID Asterisk), scoped tenant."""
     result = await db.execute(
-        select(Call).where(
-            Call.company_id == company_id, Call.channel_id == channel_id
-        )
+        select(Call).where(Call.company_id == company_id, Call.channel_id == channel_id)
     )
     return result.scalar_one_or_none()
 
@@ -214,13 +210,9 @@ async def get_call_recording_endpoint(
     try:
         url = await get_recording_url(db, company_id, call_id)
     except LookupError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except PermissionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except storage.StorageError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

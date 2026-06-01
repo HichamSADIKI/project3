@@ -19,9 +19,7 @@ class Call(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "calls"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     reference: Mapped[str] = mapped_column(String(20), nullable=False)
     direction: Mapped[str] = mapped_column(String(10), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="ringing")
@@ -42,19 +40,11 @@ class Call(Base, TimestampMixin, TenantMixin):
     sip_call_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     recording_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    recording_consent: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False
-    )
+    recording_consent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    started_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    answered_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-    ended_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     wait_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     duration_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     hangup_cause: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -66,9 +56,7 @@ class AgentState(Base, TimestampMixin, TenantMixin):
 
     __tablename__ = "agent_states"
 
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
-    )
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
@@ -77,6 +65,4 @@ class AgentState(Base, TimestampMixin, TenantMixin):
     current_call_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("calls.id", ondelete="SET NULL"), nullable=True
     )
-    last_changed_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    last_changed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

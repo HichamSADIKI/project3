@@ -169,9 +169,7 @@ async def test_ami_cdr_inbound_lifecycle(db_session, seed_company) -> None:
     assert c1.direction == "inbound" and c1.status == "ringing"
     assert c1.channel_id == link and c1.from_number == "971500000000"
 
-    c2 = await service.apply_ami_cdr(
-        db_session, cid, _ami_event("Newstate", link, state="Up")
-    )
+    c2 = await service.apply_ami_cdr(db_session, cid, _ami_event("Newstate", link, state="Up"))
     assert c2.id == c1.id and c2.status == "answered" and c2.answered_at is not None
 
     c3 = await service.apply_ami_cdr(
@@ -184,9 +182,7 @@ async def test_ami_cdr_inbound_unanswered_is_missed(db_session, seed_company) ->
     cid = seed_company.id
     link = "link-inbound-bbb"
     await service.apply_ami_cdr(db_session, cid, _ami_event("Newchannel", link))
-    c = await service.apply_ami_cdr(
-        db_session, cid, _ami_event("Hangup", link, cause="Normal")
-    )
+    c = await service.apply_ami_cdr(db_session, cid, _ami_event("Hangup", link, cause="Normal"))
     # Jamais décroché + entrant → manqué.
     assert c.status == "missed"
 
@@ -234,9 +230,14 @@ async def test_set_agent_status_extension_conflict_raises(db_session, seed_admin
     await service.set_agent_status(db_session, cid, admin.id, "available", extension="6007")
 
     u2 = _User(
-        id=_u.uuid4(), company_id=cid, email=f"a2-{_u.uuid4().hex[:6]}@t.test",
-        hashed_password=hash_password("x"), full_name="U2",
-        role=UserRole.ADMIN.value, status=UserStatus.ACTIVE.value, is_active=True,
+        id=_u.uuid4(),
+        company_id=cid,
+        email=f"a2-{_u.uuid4().hex[:6]}@t.test",
+        hashed_password=hash_password("x"),
+        full_name="U2",
+        role=UserRole.ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
     )
     db_session.add(u2)
     await db_session.commit()
@@ -244,15 +245,11 @@ async def test_set_agent_status_extension_conflict_raises(db_session, seed_admin
         await service.set_agent_status(db_session, cid, u2.id, "available", extension="6007")
 
 
-async def test_ami_cdr_internal_when_caller_is_known_extension(
-    db_session, seed_admin
-) -> None:
+async def test_ami_cdr_internal_when_caller_is_known_extension(db_session, seed_admin) -> None:
     """Appelant = extension connue du tenant → direction `internal`."""
     admin, _ = seed_admin
     cid = admin.company_id
-    await service.set_agent_status(
-        db_session, cid, admin.id, "available", extension="6005"
-    )
+    await service.set_agent_status(db_session, cid, admin.id, "available", extension="6005")
     ev = _ami_event("Newchannel", "link-internal-1", ext="6006", caller="6005")
     c = await service.apply_ami_cdr(db_session, cid, ev)
     assert c.direction == "internal" and c.from_number == "6005"
@@ -272,9 +269,7 @@ async def test_ami_cdr_reuses_outbound_rest_row(db_session, seed_company) -> Non
     rest = await service.create_call(
         db_session, cid, direction="outbound", channel_id=link, agent_extension="6001"
     )
-    updated = await service.apply_ami_cdr(
-        db_session, cid, _ami_event("Newstate", link, state="Up")
-    )
+    updated = await service.apply_ami_cdr(db_session, cid, _ami_event("Newstate", link, state="Up"))
     assert updated.id == rest.id
     assert updated.direction == "outbound"  # direction préservée
     assert updated.status == "answered"
@@ -291,9 +286,7 @@ async def test_health_is_public(client: AsyncClient) -> None:
     assert resp.json()["module"] == "telephony"
 
 
-async def test_create_then_get_call(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_create_then_get_call(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _, token = seed_admin
     headers = {"Authorization": f"Bearer {token}"}
     created = await client.post(
@@ -333,9 +326,7 @@ async def test_list_calls_tenant_isolation(
     assert resp.json()["meta"]["total"] == 0
 
 
-async def test_call_transition_lifecycle(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_call_transition_lifecycle(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _, token = seed_admin
     headers = {"Authorization": f"Bearer {token}"}
     created = await client.post(
@@ -428,9 +419,7 @@ async def test_agent_invalid_transition_returns_409(
     assert resp.status_code == 409
 
 
-async def test_phone_lookup_screen_pop(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_phone_lookup_screen_pop(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _, token = seed_admin
     headers = {"Authorization": f"Bearer {token}"}
     # On crée un client avec un numéro UAE.
@@ -536,9 +525,7 @@ async def test_agents_list_returns_set_states(
     data = resp.json()["data"]
     assert any(a["extension"] == "6009" for a in data)
     # Filtre par statut
-    resp2 = await client.get(
-        "/api/v1/telephony/agents", params={"status": "busy"}, headers=headers
-    )
+    resp2 = await client.get("/api/v1/telephony/agents", params={"status": "busy"}, headers=headers)
     assert all(a["status"] == "busy" for a in resp2.json()["data"])
 
 

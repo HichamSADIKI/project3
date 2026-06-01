@@ -24,8 +24,7 @@ from app.routers.telephony.models import AgentState, Call
 # ─────────────────────────────────────────────────────────────────────────
 
 CALL_STATUSES: frozenset[str] = frozenset(
-    {"ringing", "answered", "completed", "missed", "busy",
-     "no_answer", "failed", "cancelled"}
+    {"ringing", "answered", "completed", "missed", "busy", "no_answer", "failed", "cancelled"}
 )
 
 TERMINAL_CALL_STATUSES: frozenset[str] = frozenset(
@@ -35,9 +34,7 @@ TERMINAL_CALL_STATUSES: frozenset[str] = frozenset(
 # Transitions autorisées. Un appel naît `ringing`, est décroché (`answered`)
 # puis se termine (`completed`), ou échoue depuis la sonnerie.
 _CALL_TRANSITIONS: dict[str, frozenset[str]] = {
-    "ringing": frozenset(
-        {"answered", "missed", "busy", "no_answer", "failed", "cancelled"}
-    ),
+    "ringing": frozenset({"answered", "missed", "busy", "no_answer", "failed", "cancelled"}),
     "answered": frozenset({"completed", "failed"}),
     # États terminaux : aucune sortie.
     "completed": frozenset(),
@@ -64,9 +61,7 @@ def is_valid_call_transition(current: str, target: str) -> bool:
 # Helpers purs — machine à états AGENT
 # ─────────────────────────────────────────────────────────────────────────
 
-AGENT_STATUSES: frozenset[str] = frozenset(
-    {"offline", "available", "busy", "wrap_up", "paused"}
-)
+AGENT_STATUSES: frozenset[str] = frozenset({"offline", "available", "busy", "wrap_up", "paused"})
 
 _AGENT_TRANSITIONS: dict[str, frozenset[str]] = {
     "offline": frozenset({"available"}),
@@ -103,9 +98,7 @@ def compute_wait(started_at: datetime | None, answered_at: datetime | None) -> i
     return max(0, int((answered_at - started_at).total_seconds()))
 
 
-def compute_duration(
-    answered_at: datetime | None, ended_at: datetime | None
-) -> int | None:
+def compute_duration(answered_at: datetime | None, ended_at: datetime | None) -> int | None:
     """Durée de conversation (talk time) en secondes. None si non décroché."""
     if answered_at is None or ended_at is None:
         return None
@@ -131,9 +124,7 @@ def map_hangup_to_status(answered: bool, direction: str, cause: str | None) -> s
     return "missed" if direction == "inbound" else "no_answer"
 
 
-def infer_call_direction(
-    caller_number: str | None, internal_extensions: set[str]
-) -> str:
+def infer_call_direction(caller_number: str | None, internal_extensions: set[str]) -> str:
     """Classe un appel entrant AMI : `internal` si l'appelant est une extension
     connue du tenant, sinon `inbound` (appelant externe). Pur.
 
@@ -205,12 +196,8 @@ async def create_call(
     return call
 
 
-async def get_call(
-    db: AsyncSession, company_id: uuid.UUID, call_id: uuid.UUID
-) -> Call | None:
-    result = await db.execute(
-        select(Call).where(Call.id == call_id, Call.company_id == company_id)
-    )
+async def get_call(db: AsyncSession, company_id: uuid.UUID, call_id: uuid.UUID) -> Call | None:
+    result = await db.execute(select(Call).where(Call.id == call_id, Call.company_id == company_id))
     return result.scalar_one_or_none()
 
 
@@ -234,15 +221,17 @@ async def list_calls(
     if client_id:
         base = base.where(Call.client_id == client_id)
 
-    total = (
-        await db.execute(select(func.count()).select_from(base.subquery()))
-    ).scalar_one()
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     offset = (page - 1) * limit
     rows = (
-        await db.execute(
-            base.order_by(Call.started_at.desc().nullslast()).offset(offset).limit(limit)
+        (
+            await db.execute(
+                base.order_by(Call.started_at.desc().nullslast()).offset(offset).limit(limit)
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     return list(rows), total
 
 
@@ -289,9 +278,7 @@ async def get_call_by_channel(
     db: AsyncSession, company_id: uuid.UUID, channel_id: str
 ) -> Call | None:
     result = await db.execute(
-        select(Call).where(
-            Call.company_id == company_id, Call.channel_id == channel_id
-        )
+        select(Call).where(Call.company_id == company_id, Call.channel_id == channel_id)
     )
     return result.scalar_one_or_none()
 
@@ -340,8 +327,9 @@ async def get_or_create_call_by_channel(
 
 
 # Mapping event AMI → transition CDR (None = pas de transition).
-def _ami_target_status(current: str, ami_event: str, channel_state: str | None,
-                       direction: str, cause: str | None) -> str | None:
+def _ami_target_status(
+    current: str, ami_event: str, channel_state: str | None, direction: str, cause: str | None
+) -> str | None:
     if ami_event == "Newstate" and channel_state == "Up":
         return "answered"
     if ami_event == "Hangup":
@@ -376,7 +364,9 @@ async def apply_ami_cdr(
                     AgentState.extension.isnot(None),
                 )
             )
-        ).scalars().all()
+        )
+        .scalars()
+        .all()
     )
     direction = infer_call_direction(caller, internal_exts)
 
@@ -395,8 +385,11 @@ async def apply_ami_cdr(
     )
 
     target = _ami_target_status(
-        call.status, data.get("ami_event", ""), data.get("channel_state"),
-        call.direction, data.get("cause"),
+        call.status,
+        data.get("ami_event", ""),
+        data.get("channel_state"),
+        call.direction,
+        data.get("cause"),
     )
     if target and target != call.status and is_valid_call_transition(call.status, target):
         try:
@@ -415,9 +408,7 @@ async def get_agent_state(
     db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
 ) -> AgentState | None:
     result = await db.execute(
-        select(AgentState).where(
-            AgentState.company_id == company_id, AgentState.user_id == user_id
-        )
+        select(AgentState).where(AgentState.company_id == company_id, AgentState.user_id == user_id)
     )
     return result.scalar_one_or_none()
 
@@ -444,9 +435,7 @@ async def set_agent_status(
         )
         db.add(state)
     else:
-        if state.status != new_status and not is_valid_agent_transition(
-            state.status, new_status
-        ):
+        if state.status != new_status and not is_valid_agent_transition(state.status, new_status):
             raise ValueError(f"invalid_transition:{state.status}->{new_status}")
         state.status = new_status
         if extension is not None:
@@ -477,9 +466,7 @@ async def list_agent_states(
 # ── Screen pop : résolution client par numéro ─────────────────────────────
 
 
-async def find_clients_by_phone(
-    db: AsyncSession, company_id: uuid.UUID, phone: str
-) -> list:
+async def find_clients_by_phone(db: AsyncSession, company_id: uuid.UUID, phone: str) -> list:
     """Clients du tenant dont phone/phone2 matche (screen pop sur appel entrant).
 
     Matche sur les derniers chiffres pour tolérer les variations de format
@@ -495,10 +482,12 @@ async def find_clients_by_phone(
         return []
     pattern = f"%{suffix}"
     result = await db.execute(
-        select(Client).where(
+        select(Client)
+        .where(
             Client.company_id == company_id,
             Client.deleted_at.is_(None),
             or_(Client.phone.like(pattern), Client.phone2.like(pattern)),
-        ).limit(10)
+        )
+        .limit(10)
     )
     return list(result.scalars().all())
