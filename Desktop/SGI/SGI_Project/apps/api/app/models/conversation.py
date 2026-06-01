@@ -107,6 +107,7 @@ class ConversationParticipant(Base, TenantMixin):
             "role IN ('admin','member')",
             name="ck_conv_participant_role",
         ),
+        Index("idx_conv_participants_company", "company_id"),
         Index("idx_conv_participants_user", "user_id"),
     )
 
@@ -158,6 +159,7 @@ class ConversationMessage(Base, TenantMixin, SoftDeleteMixin):
             "body IS NOT NULL OR attachment_key IS NOT NULL",
             name="ck_conv_msg_content",
         ),
+        Index("idx_conv_msgs_company", "company_id"),
         Index("idx_conv_msgs_conv_created", "conversation_id", "created_at"),
     )
 
@@ -183,5 +185,6 @@ class MessageMention(Base, TenantMixin):
 
     __table_args__ = (
         UniqueConstraint("message_id", "mentioned_user_id", name="uq_mention"),
+        Index("idx_mentions_company", "company_id"),
         Index("idx_mentions_user", "mentioned_user_id"),
     )

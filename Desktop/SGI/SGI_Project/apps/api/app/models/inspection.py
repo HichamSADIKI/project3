@@ -128,7 +128,10 @@ class InspectionSection(Base, TenantMixin):
     section_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    __table_args__ = (Index("idx_insp_sections_inspection", "inspection_id"),)
+    __table_args__ = (
+        Index("idx_insp_sections_company", "company_id"),
+        Index("idx_insp_sections_inspection", "inspection_id"),
+    )
 
 
 class InspectionItem(Base, TenantMixin):
@@ -161,6 +164,7 @@ class InspectionItem(Base, TenantMixin):
             "score IS NULL OR (score >= 0 AND score <= 5)",
             name="ck_item_score",
         ),
+        Index("idx_insp_items_company", "company_id"),
         Index("idx_insp_items_section", "section_id"),
     )
 
@@ -182,4 +186,7 @@ class InspectionPhoto(Base, TenantMixin):
     caption: Mapped[str | None] = mapped_column(String(255), nullable=True)
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
-    __table_args__ = (Index("idx_insp_photos_item", "item_id"),)
+    __table_args__ = (
+        Index("idx_insp_photos_company", "company_id"),
+        Index("idx_insp_photos_item", "item_id"),
+    )

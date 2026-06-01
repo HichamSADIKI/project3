@@ -89,5 +89,12 @@ async def send_statement_endpoint(
     statement = await service.get_statement(db, company_id, statement_id)
     if statement is None or statement.owner_party_id != party_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="statement_not_found")
+    # Garde de transition : seul un relevé en brouillon peut être envoyé (évite de
+    # ré-écraser sent_at / de « renvoyer » un relevé déjà envoyé).
+    if statement.status != "draft":
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="statement_not_draft",
+        )
     statement = await service.mark_sent(db, statement)
     return OwnerStatementResponse(data=OwnerStatementOut.model_validate(statement))
