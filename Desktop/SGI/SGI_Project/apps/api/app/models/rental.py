@@ -1,5 +1,6 @@
 import uuid
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, Boolean, Date, ForeignKey, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -45,9 +46,9 @@ class Rental(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     # Loyers AED
-    monthly_rent: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    annual_rent: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    deposit: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False, default=0)
+    monthly_rent: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
+    annual_rent: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
+    deposit: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False, default=0)
 
     # Fréquence de paiement
     payment_frequency: Mapped[str] = mapped_column(String(20), nullable=False, default="monthly")

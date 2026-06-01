@@ -54,4 +54,7 @@ class Notification(Base, TimestampMixin, TenantMixin):
         Index("idx_notifications_company", "company_id"),
         Index("idx_notifications_recipient_user", "company_id", "recipient_user_id", "status"),
         Index("idx_notifications_recipient_party", "company_id", "recipient_party_id", "status"),
+        # Accélère la déduplication par type des tâches Celery (check_pdc_due,
+        # check_maintenance_sla, notify_mentions) qui filtrent sur (company_id, type).
+        Index("idx_notifications_company_type", "company_id", "type"),
     )

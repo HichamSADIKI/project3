@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.models.client import Client
 from app.models.crm import CRMActivity, CRMLead
 
@@ -191,29 +192,27 @@ async def create_lead(
         last_contact_at=None,
     )
 
-    reference = await _next_reference(db, uuid.UUID(company_id))
-
-    lead = CRMLead(
-        company_id=uuid.UUID(company_id),
-        reference=reference,
-        client_id=data.client_id,
-        agent_id=data.agent_id,
-        source=data.source,
-        budget=data.budget,
-        property_type=data.property_type,
-        preferred_location=data.preferred_location,
-        preferred_property_id=data.preferred_property_id,
-        golden_visa_eligible=data.golden_visa_eligible,
-        notes=data.notes,
-        score=score,
-        status="new",
-        response_rate=Decimal("0.0"),
-        contact_attempts=0,
+    return await commit_with_reference_retry(
+        db,
+        lambda: _next_reference(db, uuid.UUID(company_id)),
+        lambda reference: CRMLead(
+            company_id=uuid.UUID(company_id),
+            reference=reference,
+            client_id=data.client_id,
+            agent_id=data.agent_id,
+            source=data.source,
+            budget=data.budget,
+            property_type=data.property_type,
+            preferred_location=data.preferred_location,
+            preferred_property_id=data.preferred_property_id,
+            golden_visa_eligible=data.golden_visa_eligible,
+            notes=data.notes,
+            score=score,
+            status="new",
+            response_rate=Decimal("0.0"),
+            contact_attempts=0,
+        ),
     )
-    db.add(lead)
-    await db.commit()
-    await db.refresh(lead)
-    return lead
 
 
 async def update_lead(

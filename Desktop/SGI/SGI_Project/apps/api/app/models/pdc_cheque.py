@@ -15,6 +15,7 @@ de cette table).
 
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     DECIMAL,
@@ -69,7 +70,7 @@ class PdcCheque(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     bank_name: Mapped[str] = mapped_column(String(150), nullable=False)
     bank_branch: Mapped[str | None] = mapped_column(String(150), nullable=True)
     account_holder_name: Mapped[str] = mapped_column(String(255), nullable=False)
-    amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
 
     # Calendrier
     due_date: Mapped[date] = mapped_column(Date, nullable=False)
@@ -83,7 +84,7 @@ class PdcCheque(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Motif si bounced (NSF, account closed, signature mismatch, stop payment…)
     bounce_reason: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    bounce_fee_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False, default=0)
+    bounce_fee_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False, default=0)
 
     # Chaîne de remplacement : PDC qui remplace celui-ci
     replaced_by_pdc_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -95,7 +96,7 @@ class PdcCheque(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     # OCR / scan
     document_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     ocr_data = mapped_column(JSONB, nullable=False, default=dict)
-    ocr_confidence: Mapped[float | None] = mapped_column(DECIMAL(5, 2), nullable=True)
+    ocr_confidence: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)
 
     # Notes / suivi interne
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

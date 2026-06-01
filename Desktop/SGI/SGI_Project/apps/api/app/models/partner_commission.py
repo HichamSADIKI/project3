@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, DateTime, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
@@ -23,9 +24,9 @@ class PartnerCommissionEntry(Base, TimestampMixin, TenantMixin):
     )
     source_type: Mapped[str] = mapped_column(String(20), nullable=False)
     source_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
-    base_amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    commission_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False)
-    commission_amount_aed: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
+    base_amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
+    commission_rate: Mapped[Decimal] = mapped_column(DECIMAL(5, 2), nullable=False)
+    commission_amount_aed: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     finance_transaction_id: Mapped[uuid.UUID | None] = mapped_column(

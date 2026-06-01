@@ -11,6 +11,7 @@ migration progressifs.
 """
 
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import (
     DECIMAL,
@@ -61,15 +62,15 @@ class Unit(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="vacant")
 
     # Caractéristiques physiques
-    area_sqm: Mapped[float | None] = mapped_column(DECIMAL(10, 2), nullable=True)
+    area_sqm: Mapped[Decimal | None] = mapped_column(DECIMAL(10, 2), nullable=True)
     bedrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     bathrooms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     parking_spaces: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     furnished: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # Prix / loyer de référence
-    list_rent_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
-    list_sale_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    list_rent_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    list_sale_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Lien optionnel vers la fiche `properties` historique
     legacy_property_id: Mapped[uuid.UUID | None] = mapped_column(

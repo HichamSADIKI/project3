@@ -216,6 +216,29 @@ async def get_steps(
     return list(result.scalars().all())
 
 
+async def get_steps_map(
+    db: AsyncSession, company_id: uuid.UUID, instance_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[WorkflowStep]]:
+    """Étapes de plusieurs instances en UNE requête (évite le N+1 du listing).
+
+    Triées par (instance, step_order) → l'ordre des étapes est préservé par instance.
+    """
+    if not instance_ids:
+        return {}
+    result = await db.execute(
+        select(WorkflowStep)
+        .where(
+            WorkflowStep.instance_id.in_(instance_ids),
+            WorkflowStep.company_id == company_id,
+        )
+        .order_by(WorkflowStep.instance_id, WorkflowStep.step_order)
+    )
+    out: dict[uuid.UUID, list[WorkflowStep]] = {}
+    for s in result.scalars().all():
+        out.setdefault(s.instance_id, []).append(s)
+    return out
+
+
 async def get_events(
     db: AsyncSession, company_id: uuid.UUID, instance_id: uuid.UUID
 ) -> list[WorkflowEvent]:

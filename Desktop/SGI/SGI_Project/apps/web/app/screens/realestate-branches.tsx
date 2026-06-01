@@ -50,7 +50,7 @@ export function ScreenRealEstateBranches() {
   useEffect(() => { load(); }, [load]);
 
   async function submit() {
-    if (!form.name.trim()) { setFormError("Le nom est obligatoire."); return; }
+    if (!form.name.trim()) { setFormError(t.name_required); return; }
     setSaving(true); setFormError(null);
     try {
       const res = await postJson("/api/admin/branches", {
@@ -82,7 +82,7 @@ export function ScreenRealEstateBranches() {
             <span style={{ color: "var(--gold)" }}><IcPin /></span>
             <div>
               <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_branches}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${branches.length} · ${activeCount} active(s)`}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${branches.length} · ${activeCount} ${t.branches_active_count}`}</div>
             </div>
           </div>
           <button onClick={() => { setOpen(true); setFormError(null); }} style={{
@@ -96,7 +96,7 @@ export function ScreenRealEstateBranches() {
 
         {error && (
           <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>
-            Erreur de chargement : {error}
+            {t.error_label} : {error}
           </div>
         )}
 
@@ -104,16 +104,16 @@ export function ScreenRealEstateBranches() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-cream)", color: "var(--ink-4)", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4 }}>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Code</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_code}</th>
                 <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.nav_branches}</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Emirate</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Contact</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Status</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_emirate}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_contact}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_status}</th>
               </tr>
             </thead>
             <tbody>
               {!loading && branches.length === 0 && !error && (
-                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucune succursale.</td></tr>
+                <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>{t.empty_branches}</td></tr>
               )}
               {branches.map(b => (
                 <tr key={b.id} style={{ borderTop: "1px solid var(--line-soft)" }}>
@@ -127,7 +127,7 @@ export function ScreenRealEstateBranches() {
                   </td>
                   <td style={{ padding: "13px 16px" }}>
                     <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: b.is_active ? "rgba(16,185,129,0.12)" : "var(--line-soft)", color: b.is_active ? "var(--emerald)" : "var(--ink-4)" }}>
-                      {b.is_active ? "Active" : "Inactive"}
+                      {b.is_active ? t.br_active : t.br_inactive}
                     </span>
                   </td>
                 </tr>
@@ -142,25 +142,25 @@ export function ScreenRealEstateBranches() {
         <div onClick={() => !saving && setOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: 440, maxWidth: "92vw", background: "var(--bg-paper)", borderRadius: "var(--r)", border: "1px solid var(--line-soft)", overflow: "hidden" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px", borderBottom: "1px solid var(--line-soft)" }}>
-              <span className="font-display" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>Nouvelle succursale</span>
+              <span className="font-display" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{t.branch_new}</span>
               <button onClick={() => !saving && setOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)" }}><IcClose /></button>
             </div>
             <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Nom *
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{t.field_name} *
                 <input autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="Dubai Marina" />
               </label>
-              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Émirat
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{t.field_emirate}
                 <select value={form.emirate} onChange={e => setForm({ ...form, emirate: e.target.value })} style={{ ...inputStyle, marginTop: 5 }}>
                   {EMIRATES.map(e => <option key={e.code} value={e.code}>{e.label}</option>)}
                 </select>
               </label>
-              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Téléphone
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{t.field_phone}
                 <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="+971 4 …" />
               </label>
-              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>Email
+              <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{t.field_email}
                 <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="marina@infinity.ae" />
               </label>
-              {formError && <div style={{ color: "var(--rose)", fontSize: 12.5 }}>Erreur : {formError}</div>}
+              {formError && <div style={{ color: "var(--rose)", fontSize: 12.5 }}>{t.error_label} : {formError}</div>}
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "14px 20px", borderTop: "1px solid var(--line-soft)" }}>
               <button onClick={() => setOpen(false)} disabled={saving} style={{ padding: "8px 16px", background: "transparent", color: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "var(--r)", fontSize: 13, cursor: "pointer" }}>{t.cancel}</button>

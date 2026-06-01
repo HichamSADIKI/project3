@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -22,7 +23,7 @@ class PartnerLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     prospect_phone: Mapped[str] = mapped_column(String(50), nullable=False)
     prospect_nationality: Mapped[str | None] = mapped_column(String(100), nullable=True)
     interest_type: Mapped[str] = mapped_column(String(20), nullable=False)
-    budget_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    budget_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="new")
     converted_client_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -30,4 +31,4 @@ class PartnerLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
         ForeignKey("clients.id", ondelete="SET NULL"),
         nullable=True,
     )
-    commission_rate: Mapped[float | None] = mapped_column(DECIMAL(5, 2), nullable=True)
+    commission_rate: Mapped[Decimal | None] = mapped_column(DECIMAL(5, 2), nullable=True)

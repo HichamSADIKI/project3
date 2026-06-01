@@ -83,5 +83,16 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
         )
 
+    @property
+    def RLS_ENFORCED(self) -> bool:
+        """True quand l'API se connecte via le rôle restreint `sgi_app` et que la
+        RLS multi-tenant est donc réellement appliquée par PostgreSQL.
+
+        False = fallback sur le rôle privilégié (`sgi_user`, BYPASSRLS) : les
+        policies `tenant_isolation` sont **inertes** et l'isolation ne repose plus
+        que sur le filtrage applicatif `company_id`. Le boot refuse ce cas en prod
+        (cf. `main.py`)."""
+        return bool(self.APP_DB_PASSWORD)
+
 
 settings = Settings()
