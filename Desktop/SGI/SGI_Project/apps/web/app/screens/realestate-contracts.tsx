@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Topbar, IcContract, IcPlus, IcCheck, IcClock } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
+import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { getJson, postJson, extractError } from "@/lib/api-client";
@@ -21,13 +22,16 @@ const propLabel = (p: PropertyOpt) => p.reference || p.title_en || p.id.slice(0,
 const aed = (n: number) =>
   new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
 
-const STATUS: Record<string, { label: string; color: string; bg: string }> = {
-  draft: { label: "Brouillon", color: "var(--ink-4)", bg: "var(--line-soft)" },
-  signed: { label: "Signé", color: "var(--emerald)", bg: "rgba(16,185,129,0.12)" },
-  active: { label: "Actif", color: "var(--azure)", bg: "rgba(56,132,255,0.12)" },
-  expired: { label: "Expiré", color: "var(--gold-deep)", bg: "rgba(212,160,55,0.14)" },
-  cancelled: { label: "Annulé", color: "var(--rose)", bg: "var(--rose-soft)" },
+// Couleurs/fonds du badge (le label vient de t.*).
+const STATUS: Record<string, { color: string; bg: string }> = {
+  draft: { color: "var(--ink-4)", bg: "var(--line-soft)" },
+  signed: { color: "var(--emerald)", bg: "rgba(16,185,129,0.12)" },
+  active: { color: "var(--azure)", bg: "rgba(56,132,255,0.12)" },
+  expired: { color: "var(--gold-deep)", bg: "rgba(212,160,55,0.14)" },
+  cancelled: { color: "var(--rose)", bg: "var(--rose-soft)" },
 };
+const statusLabel = (t: Translations, k: string): string =>
+  ({ draft: t.ct_draft, signed: t.ct_signed, active: t.ct_active, expired: t.ct_expired, cancelled: t.ct_cancelled })[k] ?? k;
 
 type Contract = {
   id: string; reference: string; type: string; amount: string; status: string;
@@ -64,7 +68,7 @@ export function ScreenRealEstateContracts() {
   }
 
   async function submitSignature() {
-    if (!sigContract || !selectedDoc) { setSigErr("Sélectionnez un document."); return; }
+    if (!sigContract || !selectedDoc) { setSigErr(t.ct_select_document); return; }
     setSigSaving(true); setSigErr(null);
     try {
       const res = await postJson(`/api/admin/contracts/${sigContract.id}/request-signature`, { document_id: selectedDoc });
@@ -74,8 +78,8 @@ export function ScreenRealEstateContracts() {
   }
 
   async function submit() {
-    if (!form.client_id || !form.property_id) { setFormError("Client et bien obligatoires."); return; }
-    if (!form.amount || Number(form.amount) <= 0) { setFormError("Montant invalide."); return; }
+    if (!form.client_id || !form.property_id) { setFormError(t.ct_client_property_required); return; }
+    if (!form.amount || Number(form.amount) <= 0) { setFormError(t.invalid_amount); return; }
     setSaving(true); setFormError(null);
     try {
       const res = await postJson("/api/admin/contracts", {
@@ -95,54 +99,54 @@ export function ScreenRealEstateContracts() {
             <span style={{ color: "var(--gold)" }}><IcContract /></span>
             <div>
               <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_contracts_re}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} contrat(s)`}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${items.length} ${t.count_contracts}`}</div>
             </div>
           </div>
           <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
-        {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
-        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
+        {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.error_label} : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.action_refused} : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-cream)", color: "var(--ink-4)", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4 }}>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Référence</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Type</th>
-                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Montant</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Signature</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Échéance</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Statut</th>
-                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Action</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_reference}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_type}</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.col_amount}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_signature}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_due_date}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_status}</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.col_action}</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun contrat.</td></tr>
+                <tr><td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>{t.empty_contracts}</td></tr>
               )}
               {items.map(c => {
-                const st = STATUS[c.status] ?? { label: c.status, color: "var(--ink-3)", bg: "var(--line-soft)" };
+                const st = STATUS[c.status] ?? { color: "var(--ink-3)", bg: "var(--line-soft)" };
                 return (
                   <tr key={c.id} style={{ borderTop: "1px solid var(--line-soft)" }}>
                     <td className="tnum" style={{ padding: "13px 16px", fontWeight: 600, color: "var(--gold-deep)" }}>
                       {c.reference}{c.renewed_from_contract_id && <span style={{ marginInlineStart: 6, fontSize: 10, color: "var(--azure)" }}>↻</span>}
                     </td>
-                    <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{c.type === "rental" ? "Location" : "Vente"}</td>
+                    <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{c.type === "rental" ? t.contract_type_rental : t.contract_type_sale}</td>
                     <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink)" }}>{aed(Number(c.amount))}</td>
                     <td style={{ padding: "13px 16px" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600, color: c.signed_at ? "var(--emerald)" : "var(--ink-4)" }}>
-                        {c.signed_at ? <><IcCheck /> Signé</> : <><IcClock /> —</>}
+                        {c.signed_at ? <><IcCheck /> {t.ct_signed}</> : <><IcClock /> —</>}
                       </span>
                     </td>
                     <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{c.end_date ?? "—"}</td>
-                    <td style={{ padding: "13px 16px" }}><span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: st.bg, color: st.color }}>{st.label}</span></td>
+                    <td style={{ padding: "13px 16px" }}><span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 999, background: st.bg, color: st.color }}>{statusLabel(t, c.status)}</span></td>
                     <td style={{ padding: "13px 16px", textAlign: "end" }}>
                       {busy === c.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                         <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
-                          {(c.status === "active" || c.status === "expired") && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/renew`, { rent_escalation_pct: 0 })} style={cBtn("var(--azure)", "rgba(56,132,255,0.12)")}>Renouveler</button>}
-                          {!c.signed_at && c.status !== "cancelled" && <button onClick={() => openSignature(c)} style={cBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>Demander signature</button>}
-                          {c.status !== "draft" && c.status !== "cancelled" && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/sync-signature`)} style={cBtn("var(--ink-2)", "var(--line-soft)")}>Sync sign.</button>}
+                          {(c.status === "active" || c.status === "expired") && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/renew`, { rent_escalation_pct: 0 })} style={cBtn("var(--azure)", "rgba(56,132,255,0.12)")}>{t.ct_renew}</button>}
+                          {!c.signed_at && c.status !== "cancelled" && <button onClick={() => openSignature(c)} style={cBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>{t.ct_request_signature}</button>}
+                          {c.status !== "draft" && c.status !== "cancelled" && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/sync-signature`)} style={cBtn("var(--ink-2)", "var(--line-soft)")}>{t.ct_sync_signature}</button>}
                         </span>
                       )}
                     </td>
@@ -154,44 +158,44 @@ export function ScreenRealEstateContracts() {
         </div>
       </div>
 
-      <CreateModal title="Nouveau contrat" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
-        <Field label="Type">
+      <CreateModal title={t.contract_new} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label={t.col_type}>
           <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} style={fieldInput}>
-            <option value="rental">Location</option>
-            <option value="sale">Vente</option>
+            <option value="rental">{t.contract_type_rental}</option>
+            <option value="sale">{t.contract_type_sale}</option>
           </select>
         </Field>
-        <Field label="Client *">
+        <Field label={`${t.field_client} *`}>
           <select value={form.client_id} onChange={e => setForm({ ...form, client_id: e.target.value })} style={fieldInput}>
-            <option value="">— Sélectionner —</option>
+            <option value="">{t.select_placeholder}</option>
             {clients.map(c => <option key={c.id} value={c.id}>{clientLabel(c)}</option>)}
           </select>
         </Field>
-        <Field label="Bien *">
+        <Field label={`${t.field_property} *`}>
           <select value={form.property_id} onChange={e => setForm({ ...form, property_id: e.target.value })} style={fieldInput}>
-            <option value="">— Sélectionner —</option>
+            <option value="">{t.select_placeholder}</option>
             {properties.map(p => <option key={p.id} value={p.id}>{propLabel(p)}</option>)}
           </select>
         </Field>
-        <Field label="Montant (AED) *"><input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={fieldInput} placeholder="145000" /></Field>
+        <Field label={`${t.field_amount_aed} *`}><input type="number" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} style={fieldInput} placeholder="145000" /></Field>
       </CreateModal>
 
       <CreateModal
-        title={sigContract ? `Demander signature — ${sigContract.reference}` : ""}
+        title={sigContract ? `${t.ct_request_signature_title} ${sigContract.reference}` : ""}
         open={sigContract !== null}
         saving={sigSaving}
         error={sigErr}
         onClose={() => setSigContract(null)}
         onSubmit={submitSignature}
       >
-        <Field label="Document à signer">
+        <Field label={t.ct_document_to_sign}>
           {docsLoading ? (
-            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>Chargement des documents…</div>
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{t.ct_loading_documents}</div>
           ) : docs.length === 0 ? (
-            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>Aucun document lié à ce contrat. Ajoutez-en un dans la sous-catégorie Documents.</div>
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{t.ct_no_linked_documents}</div>
           ) : (
             <select value={selectedDoc} onChange={e => setSelectedDoc(e.target.value)} style={fieldInput}>
-              <option value="">— Sélectionner —</option>
+              <option value="">{t.select_placeholder}</option>
               {docs.map(d => <option key={d.id} value={d.id}>{d.title} ({d.doc_type})</option>)}
             </select>
           )}
