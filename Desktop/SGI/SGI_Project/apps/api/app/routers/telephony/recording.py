@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime, timedelta
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
@@ -90,7 +91,7 @@ async def attach_recording(
     call_id: uuid.UUID,
     *,
     object_key: str,
-) -> service.Call | None:
+) -> Call | None:
     """Associe une clé objet MinIO à un appel (renseigne `recording_url`).
 
     Filtré tenant. Retourne l'appel mis à jour, ou ``None`` si l'appel
@@ -115,7 +116,7 @@ async def upload_recording(
     *,
     data: bytes,
     content_type: str = "audio/wav",
-) -> service.Call | None:
+) -> Call | None:
     """Uploade le binaire d'un enregistrement vers MinIO puis l'associe au call.
 
     Pensé pour un worker qui lit le ``.wav`` du volume Asterisk partagé et le
@@ -140,18 +141,25 @@ async def get_recording_url(
     company_id: uuid.UUID,
     call_id: uuid.UUID,
     *,
+    requester_role: str | None = None,
+    requester_user_id: uuid.UUID | None = None,
     expires_seconds: int = 3600,
 ) -> str:
     """URL signée temporaire d'écoute d'un enregistrement.
 
-    Vérifie successivement : existence dans le tenant (Loi 1), consentement
-    PDPL, présence d'un enregistrement, disponibilité de MinIO. Lève
-    ``LookupError`` / ``PermissionError`` / ``storage.StorageError`` que le
-    router mappe en codes HTTP.
+    Vérifie successivement : existence dans le tenant (Loi 1), **appartenance de
+    l'appel à l'agent** (anti-BOLA : un agent ne peut écouter que ses propres
+    appels, comme pour la liste), consentement PDPL, présence d'un enregistrement,
+    disponibilité de MinIO. Lève ``LookupError`` / ``PermissionError`` /
+    ``storage.StorageError`` que le router mappe en codes HTTP.
     """
     call = await service.get_call(db, company_id, call_id)
     if call is None:
         raise LookupError("call_not_found")
+    # Anti-BOLA (PDPL) : un agent n'accède qu'à ses propres enregistrements.
+    # admin/manager voient tous les appels de leur tenant.
+    if requester_role == "agent" and call.agent_user_id != requester_user_id:
+        raise PermissionError("not_call_owner")
     if not call.recording_consent:
         raise PermissionError("recording_consent_missing")
     if not call.recording_url:
@@ -179,7 +187,7 @@ def _get_company_id(request: Request) -> uuid.UUID:
     return uuid.UUID(raw)
 
 
-def _require_roles(*allowed_roles: str):
+def _require_roles(*allowed_roles: str) -> Any:
     async def _check(request: Request) -> None:
         role = getattr(request.state, "role", None)
         if role not in allowed_roles:
@@ -199,7 +207,7 @@ async def get_call_recording_endpoint(
     call_id: uuid.UUID,
     request: Request,
     db: AsyncSession = Depends(get_db_session),
-) -> dict:
+) -> dict[str, Any]:
     """Téléchargement sécurisé de l'enregistrement d'un appel (PDPL).
 
     Renvoie une URL signée MinIO à durée de vie courte plutôt que le binaire :
@@ -207,8 +215,17 @@ async def get_call_recording_endpoint(
     conditionné au consentement PDPL.
     """
     company_id = _get_company_id(request)
+    role = getattr(request.state, "role", None)
+    user_id_raw = getattr(request.state, "user_id", None)
+    requester_user_id = uuid.UUID(user_id_raw) if user_id_raw else None
     try:
-        url = await get_recording_url(db, company_id, call_id)
+        url = await get_recording_url(
+            db,
+            company_id,
+            call_id,
+            requester_role=role,
+            requester_user_id=requester_user_id,
+        )
     except LookupError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except PermissionError as exc:

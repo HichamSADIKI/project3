@@ -17,9 +17,13 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING, Any
 
 from app.core.config import settings
+
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
 from app.routers.telephony.ws import publish_voice_event
 
 logger = logging.getLogger(__name__)
@@ -190,7 +194,7 @@ class AMIClient:
             action["ChannelId"] = channel_id
         await self._send_action(action)
 
-    async def read_packets(self):
+    async def read_packets(self) -> AsyncIterator[dict[str, str]]:
         """Générateur asynchrone de paquets AMI (un dict par bloc)."""
         assert self._reader is not None
         buffer: list[str] = []
@@ -217,11 +221,11 @@ class AMIClient:
 
 # ── Listener de fond (gardé) ──────────────────────────────────────────────
 
-_listener_task: asyncio.Task | None = None
+_listener_task: asyncio.Task[None] | None = None
 _client: AMIClient | None = None
 
 
-async def _resolve_companies_for_extension(db, extension: str) -> list[str]:
+async def _resolve_companies_for_extension(db: AsyncSession, extension: str) -> list[str]:
     """Résout TOUS les company_id propriétaires d'une extension (cross-tenant).
 
     Consommateur de fond légitime → rôle privilégié (comme les tâches Celery).
