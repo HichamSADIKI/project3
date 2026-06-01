@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Topbar, IcClients, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
+import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
@@ -15,9 +16,8 @@ const clientLabel = (c: ClientOpt) => c.company_name || [c.first_name, c.last_na
 // Les relevés (payout net) sont par propriétaire (GET /owners/{id}/statements) →
 // non chargés dans la liste ; voir le module relevés (M6).
 
-const PAYOUT_LABEL: Record<string, string> = {
-  bank_transfer: "Virement", cheque: "Chèque", cash: "Espèces",
-};
+const payoutLabel = (t: Translations, k: string): string =>
+  ({ bank_transfer: t.payout_bank_transfer, cheque: t.payout_cheque, cash: t.payout_cash })[k] ?? k;
 
 type Owner = {
   party_id: string; residency_uae: boolean; mandate_reference: string | null;
@@ -25,11 +25,12 @@ type Owner = {
   preferred_payout_method: string; monthly_statement_enabled: boolean;
 };
 
-function mandateAlert(end: string | null): { label: string; color: string } | null {
+// Alerte mandat — le label vient de t.* dans le rendu.
+function mandateAlert(end: string | null): { expired: boolean; days: number; color: string } | null {
   if (!end) return null;
   const days = Math.ceil((new Date(end).getTime() - Date.now()) / 86400000);
-  if (days < 0) return { label: "Mandat expiré", color: "var(--rose)" };
-  if (days <= 60) return { label: `Mandat J-${days}`, color: "var(--gold-deep)" };
+  if (days < 0) return { expired: true, days, color: "var(--rose)" };
+  if (days <= 60) return { expired: false, days, color: "var(--gold-deep)" };
   return null;
 }
 
@@ -50,7 +51,7 @@ export function ScreenRealEstateOwners() {
   const [form, setForm] = useState({ party_id: "", mandate_reference: "", mandate_commission_rate: "" });
 
   async function submit() {
-    if (!form.party_id) { setFormError("Sélectionnez un client."); return; }
+    if (!form.party_id) { setFormError(t.select_client_required); return; }
     setSaving(true); setFormError(null);
     try {
       const res = await postJson("/api/admin/owners", {
@@ -72,30 +73,30 @@ export function ScreenRealEstateOwners() {
             <span style={{ color: "var(--gold)" }}><IcClients /></span>
             <div>
               <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_owners}</div>
-              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? "Chargement…" : `${items.length} propriétaire(s)`}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${items.length} ${t.count_owners}`}</div>
             </div>
           </div>
           <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
-        {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Erreur : {error}</div>}
-        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>Action refusée : {actErr}</div>}
+        {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.error_label} : {error}</div>}
+        {actErr && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.action_refused} : {actErr}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ background: "var(--bg-cream)", color: "var(--ink-4)", fontSize: 11.5, textTransform: "uppercase", letterSpacing: 0.4 }}>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Propriétaire</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Mandat</th>
-                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Commission</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Versement</th>
-                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>Échéance mandat</th>
-                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>Relevé</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_owner}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_mandate}</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.col_commission}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_payout}</th>
+                <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_mandate_due}</th>
+                <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.col_statement}</th>
               </tr>
             </thead>
             <tbody>
               {!loading && items.length === 0 && !error && (
-                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>Aucun propriétaire.</td></tr>
+                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>{t.empty_owners}</td></tr>
               )}
               {items.map(o => {
                 const ma = mandateAlert(o.mandate_end_date);
@@ -104,13 +105,13 @@ export function ScreenRealEstateOwners() {
                     <td className="tnum" style={{ padding: "13px 16px", fontWeight: 500, color: "var(--ink-3)" }}>{o.party_id.slice(0, 8)}…</td>
                     <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{o.mandate_reference ?? "—"}</td>
                     <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink-2)" }}>{o.mandate_commission_rate ? `${o.mandate_commission_rate} %` : "—"}</td>
-                    <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{PAYOUT_LABEL[o.preferred_payout_method] ?? o.preferred_payout_method}</td>
+                    <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{payoutLabel(t, o.preferred_payout_method)}</td>
                     <td style={{ padding: "13px 16px" }}>
-                      {ma ? <span style={{ fontSize: 12, fontWeight: 600, color: ma.color }}>⚠ {ma.label}</span> : <span className="tnum" style={{ color: "var(--ink-3)" }}>{o.mandate_end_date ?? "—"}</span>}
+                      {ma ? <span style={{ fontSize: 12, fontWeight: 600, color: ma.color }}>⚠ {ma.expired ? t.mandate_expired : `${t.mandate_jminus_prefix}${ma.days}`}</span> : <span className="tnum" style={{ color: "var(--ink-3)" }}>{o.mandate_end_date ?? "—"}</span>}
                     </td>
                     <td style={{ padding: "13px 16px", textAlign: "end" }}>
                       {busy === o.party_id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
-                        <button onClick={() => genStatement(o.party_id)} style={{ border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: "rgba(212,160,55,0.14)", color: "var(--gold-deep)" }}>Générer (mois courant)</button>
+                        <button onClick={() => genStatement(o.party_id)} style={{ border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: "rgba(212,160,55,0.14)", color: "var(--gold-deep)" }}>{t.owner_generate_statement}</button>
                       )}
                     </td>
                   </tr>
@@ -121,15 +122,15 @@ export function ScreenRealEstateOwners() {
         </div>
       </div>
 
-      <CreateModal title="Nouveau propriétaire" open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
-        <Field label="Client *">
+      <CreateModal title={t.owner_new} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+        <Field label={`${t.field_client} *`}>
           <select value={form.party_id} onChange={e => setForm({ ...form, party_id: e.target.value })} style={fieldInput}>
-            <option value="">— Sélectionner —</option>
+            <option value="">{t.select_placeholder}</option>
             {clients.map(c => <option key={c.id} value={c.id}>{clientLabel(c)}</option>)}
           </select>
         </Field>
-        <Field label="Référence mandat"><input value={form.mandate_reference} onChange={e => setForm({ ...form, mandate_reference: e.target.value })} style={fieldInput} placeholder="MND-2026-001" /></Field>
-        <Field label="Commission mandat (%)"><input type="number" value={form.mandate_commission_rate} onChange={e => setForm({ ...form, mandate_commission_rate: e.target.value })} style={fieldInput} placeholder="5" /></Field>
+        <Field label={t.field_mandate_reference}><input value={form.mandate_reference} onChange={e => setForm({ ...form, mandate_reference: e.target.value })} style={fieldInput} placeholder="MND-2026-001" /></Field>
+        <Field label={t.field_mandate_commission}><input type="number" value={form.mandate_commission_rate} onChange={e => setForm({ ...form, mandate_commission_rate: e.target.value })} style={fieldInput} placeholder="5" /></Field>
       </CreateModal>
     </div>
   );
