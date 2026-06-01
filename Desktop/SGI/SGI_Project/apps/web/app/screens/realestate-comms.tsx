@@ -5,6 +5,8 @@ import { Topbar, IcChat } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson, extractError } from "@/lib/api-client";
+import { IcPhone } from "@/components/sgi-ui";
+import { CallsPanel } from "@/components/softphone/calls-panel";
 
 // Câblé sur /api/admin/comms/conversations (liste) + .../{id}/messages (fil REST)
 // + WebSocket temps réel. Le fil REST sert de socle ; la WS pousse les nouveaux
@@ -27,6 +29,7 @@ type Message = { id: string; sender_user_id: string | null; kind: string; body: 
 
 export function ScreenRealEstateComms() {
   const t = useT();
+  const [tab, setTab] = useState<"messages" | "calls">("messages");
   const { items: conversations, loading, error } = useApiList<Conversation>("/api/admin/comms/conversations?limit=100");
   const [selId, setSelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -99,6 +102,37 @@ export function ScreenRealEstateComms() {
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={t.nav_comms} />
+      {/* Onglets Messages / Appels */}
+      <div style={{ display: "flex", gap: 4, padding: "10px 26px 0", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)" }}>
+        {([["messages", t.tel_messages, <IcChat key="c" />], ["calls", t.tel_calls, <IcPhone key="p" />]] as const).map(([key, label, icon]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              padding: "9px 16px",
+              border: "none",
+              background: "transparent",
+              borderBottom: tab === key ? "2px solid var(--gold)" : "2px solid transparent",
+              color: tab === key ? "var(--ink)" : "var(--ink-4)",
+              fontWeight: 600,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            <span style={{ color: tab === key ? "var(--gold)" : "var(--ink-4)" }}>{icon}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "calls" ? (
+        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+          <CallsPanel />
+        </div>
+      ) : (
       <div style={{ flex: 1, display: "flex", minHeight: 0, background: "var(--bg-cream)" }}>
         {/* Liste conversations */}
         <div style={{ width: 320, borderInlineEnd: "1px solid var(--line-soft)", background: "var(--bg-paper)", overflowY: "auto" }}>
@@ -162,6 +196,7 @@ export function ScreenRealEstateComms() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }
