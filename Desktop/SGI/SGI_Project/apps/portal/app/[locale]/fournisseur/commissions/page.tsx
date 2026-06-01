@@ -60,14 +60,21 @@ export default async function CommissionsPage({
 
       {items.length === 0 ? (
         <div className="sgi-card" style={{ textAlign: "center", color: "var(--ink-3)" }}>
-          Aucune commission à afficher.
+          {t("commissions.empty")}
         </div>
       ) : (
         <div className="sgi-card sgi-table-wrap" style={{ padding: 0 }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead style={{ background: "var(--bg-paper)" }}>
               <tr>
-                {["Source", "Base", "Taux", "Commission", "Statut", "Date"].map((h) => (
+                {[
+                  t("commissions.cols.source"),
+                  t("commissions.cols.base"),
+                  t("commissions.cols.rate"),
+                  t("commissions.cols.commission"),
+                  t("commissions.cols.status"),
+                  t("commissions.cols.date"),
+                ].map((h) => (
                   <th key={h} style={{ padding: "0.75rem 1rem", textAlign: "start", fontSize: "0.75rem", color: "var(--ink-3)", textTransform: "uppercase" }}>
                     {h}
                   </th>
