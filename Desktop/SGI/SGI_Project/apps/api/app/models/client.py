@@ -1,4 +1,5 @@
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -40,8 +41,8 @@ class Client(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     source: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     # Budget AED
-    budget_min: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
-    budget_max: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    budget_min: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    budget_max: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Préférences
     preferred_property_type: Mapped[str | None] = mapped_column(String(50), nullable=True)

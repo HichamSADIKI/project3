@@ -17,6 +17,7 @@ Loi 1 : company_id NOT NULL sur toutes les tables. RLS en migration.
 
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     DECIMAL,
@@ -112,8 +113,8 @@ class MaintenanceTicket(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Coûts ─────────────────────────────────────────────────────────
-    cost_estimate_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
-    cost_final_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    cost_estimate_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    cost_final_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     __table_args__ = (
         # Au moins une localisation doit être définie.

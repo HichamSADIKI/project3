@@ -1,5 +1,6 @@
 import uuid
 from datetime import date, datetime
+from decimal import Decimal
 
 from sqlalchemy import (
     DECIMAL,
@@ -55,9 +56,9 @@ class Contract(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     )
 
     # Montants AED
-    amount: Mapped[float] = mapped_column(DECIMAL(15, 2), nullable=False)
-    commission_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False, default=2.0)
-    commission_amount: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    amount: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
+    commission_rate: Mapped[Decimal] = mapped_column(DECIMAL(5, 2), nullable=False, default=2.0)
+    commission_amount: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Cycle de vie
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="draft")

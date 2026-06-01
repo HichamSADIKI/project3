@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from sqlalchemy import DECIMAL, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -56,7 +57,7 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     category: Mapped[str] = mapped_column(String(30), nullable=False, default="realestate")
 
     # Budget AED
-    budget: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    budget: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     # Préférences
     property_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -73,7 +74,7 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Scoring automatique (0-100)
     score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    response_rate: Mapped[float] = mapped_column(DECIMAL(5, 2), nullable=False, default=0.0)
+    response_rate: Mapped[Decimal] = mapped_column(DECIMAL(5, 2), nullable=False, default=0.0)
 
     # Suivi des relances (séquence max 4 tentatives / 7 jours)
     contact_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -83,7 +84,7 @@ class CRMLead(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
 
     # Résultat final
     lost_reason: Mapped[str | None] = mapped_column(String(150), nullable=True)
-    won_amount: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    won_amount: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 

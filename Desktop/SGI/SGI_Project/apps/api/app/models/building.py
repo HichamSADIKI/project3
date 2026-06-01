@@ -10,6 +10,7 @@ Géolocalisation PostGIS : un Building porte sa propre `location` (POINT
 """
 
 import uuid
+from decimal import Decimal
 
 from geoalchemy2 import Geometry
 from sqlalchemy import DECIMAL, Boolean, Date, ForeignKey, Index, Integer, String, Text
@@ -81,7 +82,7 @@ class Building(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     documents = mapped_column(JSONB, nullable=False, default=list)
 
     # Valorisation estimée
-    estimated_value_aed: Mapped[float | None] = mapped_column(DECIMAL(15, 2), nullable=True)
+    estimated_value_aed: Mapped[Decimal | None] = mapped_column(DECIMAL(15, 2), nullable=True)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
