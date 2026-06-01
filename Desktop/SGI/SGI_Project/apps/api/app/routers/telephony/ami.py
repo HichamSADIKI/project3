@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import uuid
 from typing import Any
 
 from app.core.config import settings
@@ -214,8 +213,8 @@ class AMIClient:
             self._writer.close()
             try:
                 await self._writer.wait_closed()
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("fermeture writer AMI: %s", exc)
 
 
 # ── Listener de fond (gardé) ──────────────────────────────────────────────

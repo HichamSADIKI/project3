@@ -116,7 +116,7 @@ TAGS_METADATA = [
     {"name": "inspections", "description": "États des lieux (check-in/out)."},
     {"name": "workflows", "description": "Moteur de workflows générique."},
     {"name": "communication", "description": "Conversations + WebSocket."},
-    {"name": "telephony", "description": "Centre de contact (Asterisk WebRTC) : appels, agents, screen pop."},
+    {"name": "telephony", "description": "Centre de contact Asterisk WebRTC : appels, agents."},
     {"name": "client_portal", "description": "Portail client (self-service)."},
     {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
     {"name": "ai_services", "description": "Services IA (Gemini)."},

@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-
 from typing import Any
 
 from sqlalchemy import func, or_, select
