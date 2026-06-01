@@ -52,6 +52,8 @@ import { ScreenFournisseurs } from "./screens/fournisseurs";
 import { ScreenFournisseursFiches } from "./screens/fournisseurs-fiches";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
+import { SoftphoneProvider } from "@/components/softphone/softphone-provider";
+import { SoftphoneDock } from "@/components/softphone/softphone-dock";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -187,21 +189,25 @@ export default function App() {
   if (screen === "portal") return <ScreenPortal />;
 
   return (
-    <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}>
-      <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-        {renderScreen(screen, {
-          onNavigateToClient: handleNavigateToClient,
-          onDealConfirmed:    handleDealConfirmed,
-          onNavigate:         setScreen,
-          initialSearch:      clientSearch,
-          confirmedDeals:     confirmedDeals,
-        })}
+    <SoftphoneProvider>
+      <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}>
+        <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+          {renderScreen(screen, {
+            onNavigateToClient: handleNavigateToClient,
+            onDealConfirmed:    handleDealConfirmed,
+            onNavigate:         setScreen,
+            initialSearch:      clientSearch,
+            confirmedDeals:     confirmedDeals,
+          })}
+        </div>
+        <GlobalSearch
+          onNavigate={setScreen}
+          onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
+        />
+        {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
+        <SoftphoneDock />
       </div>
-      <GlobalSearch
-        onNavigate={setScreen}
-        onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
-      />
-    </div>
+    </SoftphoneProvider>
   );
 }

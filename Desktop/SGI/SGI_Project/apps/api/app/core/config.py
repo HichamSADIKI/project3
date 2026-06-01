@@ -34,6 +34,27 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # ── Téléphonie / Asterisk AMI ────────────────────────────────────────
+    # Consommé par le module telephony (pont AMI → WebSocket). Si le listener
+    # ne peut joindre l'AMI, il se met en reconnexion silencieuse (l'API reste
+    # up). TELEPHONY_AMI_ENABLED=false coupe le listener au démarrage.
+    AMI_HOST: str = "asterisk"
+    AMI_PORT: int = 5038
+    AMI_USER: str = "sgi-api"
+    AMI_PASSWORD: str = ""
+    TELEPHONY_AMI_ENABLED: bool = True
+    # Enregistrements : répertoire local du volume Asterisk lu par le worker
+    # d'upload, et durée de rétention PDPL (purge au-delà → MinIO + recording_url).
+    RECORDING_MONITOR_DIR: str = "/var/spool/asterisk/monitor"
+    RECORDING_RETENTION_DAYS: int = 365
+    # PDPL fail-closed : un CDR créé par l'AMI n'est PAS présumé consenti.
+    # L'annonce de consentement est jouée par le dialplan, mais l'API ne reçoit
+    # aujourd'hui aucun signal le confirmant → par défaut consent=False (pas
+    # d'upload/exposition d'enregistrement). Mettre =true en dev pour activer
+    # l'enregistrement automatique des appels AMI. Mécanisme propre à venir :
+    # UserEvent Asterisk portant le consentement effectif.
+    TELEPHONY_ASSUME_RECORDING_CONSENT: bool = False
+
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
     # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus

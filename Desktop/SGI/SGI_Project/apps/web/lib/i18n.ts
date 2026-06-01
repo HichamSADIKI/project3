@@ -77,6 +77,21 @@ export type Translations = {
   add: string; export_btn: string; filter: string;
   view_all: string; save: string; cancel: string;
   new_btn: string; close_month: string; coming_soon: string;
+
+  // Téléphonie / softphone
+  tel_calls: string; tel_messages: string;
+  tel_softphone: string; tel_extension: string; tel_secret: string;
+  tel_connect: string; tel_disconnect: string; tel_connecting: string;
+  tel_registered: string; tel_offline: string; tel_reg_failed: string;
+  tel_incoming: string; tel_outgoing: string; tel_in_call: string; tel_on_hold: string;
+  tel_answer: string; tel_hangup: string; tel_mute: string; tel_unmute: string;
+  tel_hold: string; tel_resume: string; tel_keypad: string;
+  tel_screen_pop: string; tel_no_match: string; tel_searching: string;
+  tel_agent_status: string; tel_status_available: string; tel_status_busy: string;
+  tel_status_wrap_up: string; tel_status_paused: string; tel_status_offline: string;
+  tel_call_log: string; tel_direction: string; tel_inbound: string; tel_outbound: string;
+  tel_internal: string; tel_duration: string; tel_dial: string; tel_dial_ph: string;
+  tel_no_calls: string; tel_unknown_caller: string;
   loading: string; error_label: string;
 
   // Real Estate Settings screen
@@ -252,6 +267,20 @@ const ar: Translations = {
   add: "إضافة", export_btn: "تصدير", filter: "تصفية",
   view_all: "عرض الكل", save: "حفظ", cancel: "إلغاء",
   new_btn: "جديد", close_month: "إغلاق الشهر", coming_soon: "قريباً",
+
+  tel_calls: "المكالمات", tel_messages: "الرسائل",
+  tel_softphone: "الهاتف البرمجي", tel_extension: "الرقم الداخلي", tel_secret: "كلمة السر",
+  tel_connect: "اتصال", tel_disconnect: "قطع الاتصال", tel_connecting: "جارٍ الاتصال…",
+  tel_registered: "متصل", tel_offline: "غير متصل", tel_reg_failed: "فشل التسجيل",
+  tel_incoming: "مكالمة واردة", tel_outgoing: "مكالمة صادرة", tel_in_call: "في مكالمة", tel_on_hold: "قيد الانتظار",
+  tel_answer: "رد", tel_hangup: "إنهاء", tel_mute: "كتم", tel_unmute: "إلغاء الكتم",
+  tel_hold: "انتظار", tel_resume: "استئناف", tel_keypad: "لوحة الأرقام",
+  tel_screen_pop: "بطاقة العميل", tel_no_match: "لا يوجد عميل مطابق", tel_searching: "جارٍ البحث…",
+  tel_agent_status: "حالة الموظف", tel_status_available: "متاح", tel_status_busy: "مشغول",
+  tel_status_wrap_up: "إنهاء", tel_status_paused: "متوقف مؤقتاً", tel_status_offline: "غير متصل",
+  tel_call_log: "سجل المكالمات", tel_direction: "الاتجاه", tel_inbound: "واردة", tel_outbound: "صادرة",
+  tel_internal: "داخلية", tel_duration: "المدة", tel_dial: "اتصال", tel_dial_ph: "أدخل الرقم…",
+  tel_no_calls: "لا توجد مكالمات.", tel_unknown_caller: "متصل مجهول",
   loading: "جارٍ التحميل…", error_label: "خطأ",
 
   set_sec_vat: "الضريبة والعملة", set_sec_loc: "الموقع",
@@ -418,6 +447,20 @@ const en: Translations = {
   add: "Add", export_btn: "Export", filter: "Filter",
   view_all: "View all", save: "Save", cancel: "Cancel",
   new_btn: "New", close_month: "Close month", coming_soon: "Coming soon",
+
+  tel_calls: "Calls", tel_messages: "Messages",
+  tel_softphone: "Softphone", tel_extension: "Extension", tel_secret: "Secret",
+  tel_connect: "Connect", tel_disconnect: "Disconnect", tel_connecting: "Connecting…",
+  tel_registered: "Registered", tel_offline: "Offline", tel_reg_failed: "Registration failed",
+  tel_incoming: "Incoming call", tel_outgoing: "Outgoing call", tel_in_call: "In call", tel_on_hold: "On hold",
+  tel_answer: "Answer", tel_hangup: "Hang up", tel_mute: "Mute", tel_unmute: "Unmute",
+  tel_hold: "Hold", tel_resume: "Resume", tel_keypad: "Keypad",
+  tel_screen_pop: "Caller", tel_no_match: "No matching client", tel_searching: "Searching…",
+  tel_agent_status: "Agent status", tel_status_available: "Available", tel_status_busy: "Busy",
+  tel_status_wrap_up: "Wrap-up", tel_status_paused: "Paused", tel_status_offline: "Offline",
+  tel_call_log: "Call log", tel_direction: "Direction", tel_inbound: "Inbound", tel_outbound: "Outbound",
+  tel_internal: "Internal", tel_duration: "Duration", tel_dial: "Dial", tel_dial_ph: "Enter a number…",
+  tel_no_calls: "No calls.", tel_unknown_caller: "Unknown caller",
   loading: "Loading…", error_label: "Error",
 
   set_sec_vat: "VAT & Currency", set_sec_loc: "Localization",
@@ -584,6 +627,20 @@ const fr: Translations = {
   add: "Ajouter", export_btn: "Exporter", filter: "Filtrer",
   view_all: "Voir tout", save: "Enregistrer", cancel: "Annuler",
   new_btn: "Nouveau", close_month: "Clôturer le mois", coming_soon: "Prochainement",
+
+  tel_calls: "Appels", tel_messages: "Messages",
+  tel_softphone: "Softphone", tel_extension: "Extension", tel_secret: "Secret",
+  tel_connect: "Connecter", tel_disconnect: "Déconnecter", tel_connecting: "Connexion…",
+  tel_registered: "Enregistré", tel_offline: "Hors-ligne", tel_reg_failed: "Échec d'enregistrement",
+  tel_incoming: "Appel entrant", tel_outgoing: "Appel sortant", tel_in_call: "En communication", tel_on_hold: "En attente",
+  tel_answer: "Répondre", tel_hangup: "Raccrocher", tel_mute: "Couper le micro", tel_unmute: "Réactiver le micro",
+  tel_hold: "Mettre en attente", tel_resume: "Reprendre", tel_keypad: "Clavier",
+  tel_screen_pop: "Appelant", tel_no_match: "Aucun client correspondant", tel_searching: "Recherche…",
+  tel_agent_status: "Statut agent", tel_status_available: "Disponible", tel_status_busy: "Occupé",
+  tel_status_wrap_up: "Clôture", tel_status_paused: "En pause", tel_status_offline: "Hors-ligne",
+  tel_call_log: "Journal d'appels", tel_direction: "Sens", tel_inbound: "Entrant", tel_outbound: "Sortant",
+  tel_internal: "Interne", tel_duration: "Durée", tel_dial: "Appeler", tel_dial_ph: "Saisir un numéro…",
+  tel_no_calls: "Aucun appel.", tel_unknown_caller: "Appelant inconnu",
   loading: "Chargement…", error_label: "Erreur",
 
   set_sec_vat: "TVA & Devise", set_sec_loc: "Localisation",

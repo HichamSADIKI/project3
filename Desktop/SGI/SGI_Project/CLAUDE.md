@@ -177,7 +177,9 @@ Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 - *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
 - *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
 
-Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0026_merge_0025`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0029_calls_channel_unique`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+
+Le coût bcrypt est réglable via `BCRYPT_ROUNDS` (`app/core/config.py`, défaut 12). La suite de tests le baisse à 4 (≈ −13 % de temps) — ne jamais hasher en prod avec un coût aussi bas.
 
 ## Monorepo Layout
 
@@ -207,7 +209,9 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`.
+
+> `tenant_kyc` and `contract_renewal_signature` (migrations 0022–0024) are **not** standalone router dirs — they are sub-routes mounted under `tenants`/`contracts`. Don't look for `tenant_kyc/` or `contract_renewal_signature/` directories.
 
 ### RealEstate party-role pattern (migration 0002)
 
@@ -271,7 +275,7 @@ All follow the same router/schemas/service/test pattern, mount under `/api/v1`, 
 | `client_portal` | `/client` | — | Authenticated client self-service: profile, needs, listings. |
 | `owner_portal` | `/owner` | — | Owner self-service: payouts, **statements + notifications** (M6/M7), expense approval. Reuses `owner_statements`/`notifications` services; strict owner scoping (anti-BOLA). |
 
-Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **Refresh tokens (migration `0027_refresh_tokens`): access JWT court (`JWT_ACCESS_EXPIRE_HOURS=1`) + refresh opaque 30 j stocké haché SHA-256 dans `refresh_tokens` (rotation one-time-use, détection de réutilisation → révocation de famille via `family_id`). Endpoints `/auth/{refresh,logout}`; helpers purs dans `auth/refresh_service.py`. Côté web : cookie `sgi-refresh` httpOnly scopé `/api/auth`, route proxy `/api/auth/refresh` (publique dans `middleware.ts`), et `getJson` rejoue après un refresh transparent sur 401 (`apps/web/lib/api-client.ts`).** **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
+Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **Refresh tokens (migration `0027_refresh_tokens`): access JWT court (`JWT_ACCESS_EXPIRE_HOURS=1`) + refresh opaque 30 j stocké haché SHA-256 dans `refresh_tokens` (rotation one-time-use, détection de réutilisation → révocation de famille via `family_id`). Endpoints `/auth/{refresh,logout}` + gestion de sessions `GET /auth/sessions` (familles de refresh tokens actives) et `POST /auth/sessions/revoke-all`. Helpers purs dans `auth/refresh_service.py`. Côté web : cookie `sgi-refresh` httpOnly scopé `/api/auth`, route proxy `/api/auth/refresh` (publique dans `middleware.ts`), et `getJson`/`postJson` rejouent après un refresh transparent sur 401 (`apps/web/lib/api-client.ts`).** **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
 
 ### Rubrique Immobilier — chantier d'intégration (migrations 0020–0026)
 
@@ -290,6 +294,17 @@ Tâches Celery beat ajoutées (queue `reminders`) qui alimentent `notifications`
 
 **Frontend** : la rubrique **Immobilier** (`apps/web`, `components/sgi-ui.tsx` + `app/screens/realestate-*.tsx`) regroupe 14 sous-catégories : Bâtiments · Unités · Locataires · Propriétaires · Portail Propriétaire · Contrats · Paiements · Chèques · Maintenance · Communication · Validations · Succursales · Documents · Paramètres. Migration de merge `0026_merge_0025` réconcilie le fork `owner_statements` / `reference_composite_unique`.
 
+### Téléphonie — centre de contact Asterisk WebRTC (migration 0028)
+
+Module `telephony` (`/api/v1/telephony`) : centre de contact temps réel branché sur **Asterisk** (WebRTC/PJSIP). Suit le pattern router/schemas/service/test, filtre par `company_id` (Loi 1), helpers purs testés.
+
+- **Infra dev** : `infra/asterisk/` (Dockerfile + config pjsip/http/manager/extensions/rtp/queues). WSS sur **8089** (signalisation softphone), AMI interne sur **5038** (non publié — joignable seulement via le réseau `backend`). Agents test 6001/6002, echo test 600 (non enregistré). Var `AMI_PASSWORD` (durcissement : en prod, `AMI_PASSWORD` vide → listener AMI **non démarré** ; en dev `DEBUG=true` un warning suffit). `NEXT_PUBLIC_SIP_WS_URL=wss://localhost:8089/ws`, `NEXT_PUBLIC_WS_URL` (events backend, optionnel).
+- **Backend** : `models.py` (`calls` + `agent_states`, RLS) · `service.py` (machines à états appel/agent, `generate_reference` `CALL-YYYY-NNNNNN`, `find_clients_by_phone` pour le screen pop) · `ami.py` (pont AMI → WebSocket, listener gardé, reconnexion silencieuse, lecture cross-tenant privilégiée) · `ws.py` (bus Valkey `voice:{cid}:ext:{ext}`, fan-out multi-réplicas) · `recording.py` (enregistrement PDPL, voir plus bas).
+- **Routes** : `GET /calls` · `POST /calls` · `GET /calls/{id}` · `POST /calls/{id}/transition` · `POST /calls/click-to-call` (Originate AMI) · `GET /agents` · `GET /agents/me` · `POST /agents/me/status` · `GET /lookup` (screen pop) · `WS /ws?token=&extension=` · `GET /calls/{id}/recording`. Les 4 GET et les actions d'écriture exigent `_require_roles("admin","manager","agent")`.
+- **Sécurité (Loi 1 + RBAC + BOLA)** : tous les GET sont gardés par rôle (pas de lecture par `client`/`fournisseur`/portails) ; un simple `agent` ne voit que SES appels (`agent_user_id` forcé sur son `user_id` — anti-BOLA horizontal) ; le WS valide le JWT (4401) et l'appartenance de l'extension (4403, anti-spoof), pose le GUC RLS en portée session (survit aux requêtes). L'AMI publie sur **tous** les tenants propriétaires d'une extension partagée mais via le channel namespacé par tenant → aucune fuite inter-tenant.
+- **Enregistrement PDPL** (Federal Decree-Law No. 45/2021) : Asterisk diffuse une annonce de consentement (`PDPL_NOTICE`, `beep` placeholder en dev) **puis** arme `MixMonitor` (macro `[macro-pdpl-record]` dans `extensions.conf`), écrit `<UNIQUEID>.wav` dans `RECORDING_DIR=/var/spool/asterisk/monitor` (volume Docker nommé `asterisk_recordings`, monté `:ro` sur le worker). Un worker uploade vers MinIO (`telephony/{company_id}/recordings/{call_id}.wav`). `GET /calls/{id}/recording` renvoie une **URL signée** temporaire (jamais le binaire), refuse 403 sans consentement, 404 hors tenant. `recording_url` est **masquée** (→`None`) dans toutes les sorties `CallOut` tant que `recording_consent` est faux.
+- **Frontend** (`apps/web`) : softphone JsSIP (`lib/sip-client.ts`, import dynamique SSR-safe) + `SoftphoneProvider`/`useSoftphone` + `SoftphoneDock` (widget persistant `inset-inline-end`, RTL-safe, numéros en chiffres latins) monté dans `app/page.tsx`. Onglet **Appels** (`CallsPanel`) intégré au screen **Communication** (`realestate-comms.tsx`) — pas d'entrée de nav dédiée. Route handlers proxy sous `app/api/admin/telephony/**` (mêmes patterns que comms : `proxy()` + `ws-token`). Libellés `tel_*` (AR/EN/FR) dans `apps/web/lib/i18n.ts`.
+
 ## API Wiring
 
 - Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
@@ -297,7 +312,7 @@ Tâches Celery beat ajoutées (queue `reminders`) qui alimentent `notifications`
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
 - Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`.
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
-- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0026. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
+- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0029. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
 - **Production RLS activation runbook**: [DEPLOYMENT.md](DEPLOYMENT.md) — the one-step gotcha for going live (set `APP_DB_PASSWORD` so the API uses `sgi_app` and Law 1 RLS is actually enforced).
 
 ## CRM Business Rules

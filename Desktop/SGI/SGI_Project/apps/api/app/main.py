@@ -37,12 +37,14 @@ from app.routers import (
     reporting,
     scraping,
     technicians,
+    telephony,
     tenants,
     units,
     vendors,
     workflows,
 )
 from app.routers.scraping.service import start_browser, stop_browser
+from app.routers.telephony.ami import start_ami_listener, stop_ami_listener
 
 logger = logging.getLogger("app.startup")
 
@@ -77,7 +79,10 @@ async def lifespan(app: FastAPI):
     _enforce_rls_or_fail()
     await create_db_pool()
     await start_browser()
+    # Pont AMI → WebSocket (gardé : si Asterisk est down, l'API reste up).
+    start_ami_listener()
     yield
+    await stop_ami_listener()
     await stop_browser()
 
 
@@ -111,6 +116,7 @@ TAGS_METADATA = [
     {"name": "inspections", "description": "États des lieux (check-in/out)."},
     {"name": "workflows", "description": "Moteur de workflows générique."},
     {"name": "communication", "description": "Conversations + WebSocket."},
+    {"name": "telephony", "description": "Centre de contact Asterisk WebRTC : appels, agents."},
     {"name": "client_portal", "description": "Portail client (self-service)."},
     {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
     {"name": "ai_services", "description": "Services IA (Gemini)."},
@@ -189,6 +195,8 @@ app.include_router(documents.router, prefix="/api/v1")
 # Propriétaires — relevés mensuels + notifications in-app (migration 0025)
 app.include_router(owner_statements.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+# Téléphonie — centre de contact Asterisk WebRTC (migration 0028)
+app.include_router(telephony.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])

@@ -142,3 +142,21 @@ async def presigned_url(object_key: str, expires_seconds: int = 3600) -> str | N
     except Exception as exc:  # noqa: BLE001
         logger.warning("MinIO presign échoué (%s): %s", object_key, exc)
         return None
+
+
+def _delete_sync(object_key: str) -> None:
+    client = _client()
+    client.remove_object(settings.MINIO_BUCKET, object_key)
+
+
+def delete_object_sync(object_key: str) -> bool:
+    """Supprime un objet MinIO (synchrone — pour les tâches Celery, ex. purge
+    de rétention PDPL). Retourne True si supprimé, False si indisponible/échec."""
+    if not object_key or not is_configured():
+        return False
+    try:
+        _delete_sync(object_key)
+        return True
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("MinIO delete échoué (%s): %s", object_key, exc)
+        return False
