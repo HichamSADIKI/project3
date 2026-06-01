@@ -86,6 +86,44 @@ export type Translations = {
   set_ejari_enabled: string; set_dld_enabled: string;
   set_invoice_prefix: string; set_contract_prefix: string;
   set_payment_terms_days: string; set_fiscal_year_start: string;
+
+  // Common table / list
+  col_reference: string; col_type: string; col_status: string; col_emirate: string; col_name: string;
+  count_buildings: string; count_units: string; empty_buildings: string; empty_units: string;
+  field_name: string; field_emirate: string;
+
+  // Building types
+  bt_residential_tower: string; bt_villa_compound: string; bt_mixed_use: string;
+  bt_commercial: string; bt_warehouse: string;
+  // Building status
+  bs_operational: string; bs_under_renovation: string; bs_off_market: string; bs_demolished: string;
+  // Buildings form
+  bld_new: string; bld_ref_required: string;
+
+  // Units — types
+  ut_studio: string; ut_1br: string; ut_2br: string; ut_3br: string; ut_4br_plus: string;
+  ut_penthouse: string; ut_duplex: string; ut_villa: string; ut_townhouse: string;
+  ut_office: string; ut_shop: string; ut_warehouse: string; ut_other: string;
+  // Units — status
+  us_vacant: string; us_reserved: string; us_occupied: string;
+  us_maintenance: string; us_renovation: string; us_off_market: string;
+  // Units — list/form
+  col_unit_number: string; col_rent_year: string; col_action: string;
+  units_vacant_count: string; unit_status_refused: string; action_change: string;
+  unit_new: string; field_building: string; field_unit_number: string; select_placeholder: string;
+  unit_building_required: string; unit_number_required: string;
+
+  // PDC cheques — status
+  ps_pending: string; ps_deposited: string; ps_cleared: string;
+  ps_bounced: string; ps_replaced: string; ps_cancelled: string;
+  // PDC — columns / list / actions
+  col_cheque_number: string; col_bank: string; col_amount: string; col_due_date: string;
+  count_cheques: string; outstanding_label: string; empty_cheques: string; action_refused: string;
+  pdc_deposit: string; pdc_clear: string; pdc_bounce: string; pdc_replace: string;
+  pdc_bounce_reason: string;
+  // PDC — replace modal
+  pdc_replace_title: string; pdc_new_cheque_number: string; field_bank: string;
+  field_branch_opt: string; field_amount_aed: string; pdc_new_due_date: string;
 };
 
 const ar: Translations = {
@@ -175,6 +213,34 @@ const ar: Translations = {
   set_ejari_enabled: "تفعيل إيجاري", set_dld_enabled: "تفعيل دائرة الأراضي",
   set_invoice_prefix: "بادئة الفاتورة", set_contract_prefix: "بادئة العقد",
   set_payment_terms_days: "مهلة السداد (أيام)", set_fiscal_year_start: "شهر بداية السنة المالية",
+
+  col_reference: "المرجع", col_type: "النوع", col_status: "الحالة", col_emirate: "الإمارة", col_name: "الاسم",
+  count_buildings: "مبنى", count_units: "وحدة", empty_buildings: "لا توجد مبانٍ.", empty_units: "لا توجد وحدات.",
+  field_name: "الاسم", field_emirate: "الإمارة",
+
+  bt_residential_tower: "برج سكني", bt_villa_compound: "مجمع فلل", bt_mixed_use: "استخدام مختلط",
+  bt_commercial: "تجاري", bt_warehouse: "مستودع",
+  bs_operational: "تشغيلي", bs_under_renovation: "قيد التجديد", bs_off_market: "خارج السوق", bs_demolished: "مهدوم",
+  bld_new: "مبنى جديد", bld_ref_required: "المرجع إلزامي.",
+
+  ut_studio: "استوديو", ut_1br: "شقة غرفة", ut_2br: "شقة غرفتين", ut_3br: "شقة 3 غرف", ut_4br_plus: "شقة 4 غرف+",
+  ut_penthouse: "بنتهاوس", ut_duplex: "دوبلكس", ut_villa: "فيلا", ut_townhouse: "تاون هاوس",
+  ut_office: "مكتب", ut_shop: "محل", ut_warehouse: "مستودع", ut_other: "أخرى",
+  us_vacant: "شاغر", us_reserved: "محجوز", us_occupied: "مشغول",
+  us_maintenance: "صيانة", us_renovation: "تجديد", us_off_market: "خارج السوق",
+  col_unit_number: "رقم الوحدة", col_rent_year: "الإيجار / سنة", col_action: "إجراء",
+  units_vacant_count: "شاغرة", unit_status_refused: "رُفض تغيير الحالة", action_change: "تغيير ←",
+  unit_new: "وحدة جديدة", field_building: "المبنى", field_unit_number: "رقم الوحدة", select_placeholder: "— اختر —",
+  unit_building_required: "اختر مبنى.", unit_number_required: "رقم الوحدة إلزامي.",
+
+  ps_pending: "للإيداع", ps_deposited: "مُودع", ps_cleared: "مُحصّل",
+  ps_bounced: "مرتجع", ps_replaced: "مُستبدل", ps_cancelled: "مُلغى",
+  col_cheque_number: "رقم الشيك", col_bank: "البنك", col_amount: "المبلغ", col_due_date: "تاريخ الاستحقاق",
+  count_cheques: "شيك", outstanding_label: "المستحق", empty_cheques: "لا توجد شيكات.", action_refused: "رُفض الإجراء",
+  pdc_deposit: "إيداع", pdc_clear: "تحصيل", pdc_bounce: "رفض", pdc_replace: "استبدال",
+  pdc_bounce_reason: "سبب رفض الشيك؟",
+  pdc_replace_title: "استبدال", pdc_new_cheque_number: "رقم الشيك الجديد", field_bank: "البنك",
+  field_branch_opt: "الفرع (اختياري)", field_amount_aed: "المبلغ (درهم)", pdc_new_due_date: "تاريخ استحقاق جديد",
 };
 
 const en: Translations = {
@@ -264,6 +330,34 @@ const en: Translations = {
   set_ejari_enabled: "Ejari enabled", set_dld_enabled: "DLD enabled",
   set_invoice_prefix: "Invoice prefix", set_contract_prefix: "Contract prefix",
   set_payment_terms_days: "Payment terms (days)", set_fiscal_year_start: "Fiscal year start month",
+
+  col_reference: "Reference", col_type: "Type", col_status: "Status", col_emirate: "Emirate", col_name: "Name",
+  count_buildings: "building(s)", count_units: "unit(s)", empty_buildings: "No buildings.", empty_units: "No units.",
+  field_name: "Name", field_emirate: "Emirate",
+
+  bt_residential_tower: "Residential tower", bt_villa_compound: "Villa compound", bt_mixed_use: "Mixed use",
+  bt_commercial: "Commercial", bt_warehouse: "Warehouse",
+  bs_operational: "Operational", bs_under_renovation: "Renovation", bs_off_market: "Off market", bs_demolished: "Demolished",
+  bld_new: "New building", bld_ref_required: "Reference is required.",
+
+  ut_studio: "Studio", ut_1br: "1BR apt.", ut_2br: "2BR apt.", ut_3br: "3BR apt.", ut_4br_plus: "4BR+ apt.",
+  ut_penthouse: "Penthouse", ut_duplex: "Duplex", ut_villa: "Villa", ut_townhouse: "Townhouse",
+  ut_office: "Office", ut_shop: "Shop", ut_warehouse: "Warehouse", ut_other: "Other",
+  us_vacant: "Vacant", us_reserved: "Reserved", us_occupied: "Occupied",
+  us_maintenance: "Maintenance", us_renovation: "Renovation", us_off_market: "Off market",
+  col_unit_number: "Unit no.", col_rent_year: "Rent / year", col_action: "Action",
+  units_vacant_count: "vacant", unit_status_refused: "Status change refused", action_change: "Change →",
+  unit_new: "New unit", field_building: "Building", field_unit_number: "Unit number", select_placeholder: "— Select —",
+  unit_building_required: "Select a building.", unit_number_required: "Unit number is required.",
+
+  ps_pending: "To deposit", ps_deposited: "Deposited", ps_cleared: "Cleared",
+  ps_bounced: "Bounced", ps_replaced: "Replaced", ps_cancelled: "Cancelled",
+  col_cheque_number: "Cheque no.", col_bank: "Bank", col_amount: "Amount", col_due_date: "Due date",
+  count_cheques: "cheque(s)", outstanding_label: "outstanding", empty_cheques: "No cheques.", action_refused: "Action refused",
+  pdc_deposit: "Deposit", pdc_clear: "Cleared", pdc_bounce: "Bounced", pdc_replace: "Replace",
+  pdc_bounce_reason: "Cheque bounce reason?",
+  pdc_replace_title: "Replace", pdc_new_cheque_number: "New cheque number", field_bank: "Bank",
+  field_branch_opt: "Branch (optional)", field_amount_aed: "Amount (AED)", pdc_new_due_date: "New due date",
 };
 
 const fr: Translations = {
@@ -353,6 +447,34 @@ const fr: Translations = {
   set_ejari_enabled: "Ejari activé", set_dld_enabled: "DLD activé",
   set_invoice_prefix: "Préfixe facture", set_contract_prefix: "Préfixe contrat",
   set_payment_terms_days: "Délai de paiement (jours)", set_fiscal_year_start: "Mois de début d'exercice",
+
+  col_reference: "Référence", col_type: "Type", col_status: "Statut", col_emirate: "Émirat", col_name: "Nom",
+  count_buildings: "bâtiment(s)", count_units: "unité(s)", empty_buildings: "Aucun bâtiment.", empty_units: "Aucune unité.",
+  field_name: "Nom", field_emirate: "Émirat",
+
+  bt_residential_tower: "Tour résidentielle", bt_villa_compound: "Compound villas", bt_mixed_use: "Usage mixte",
+  bt_commercial: "Commercial", bt_warehouse: "Entrepôt",
+  bs_operational: "Opérationnel", bs_under_renovation: "Rénovation", bs_off_market: "Hors marché", bs_demolished: "Démoli",
+  bld_new: "Nouveau bâtiment", bld_ref_required: "La référence est obligatoire.",
+
+  ut_studio: "Studio", ut_1br: "Appart. 1ch", ut_2br: "Appart. 2ch", ut_3br: "Appart. 3ch", ut_4br_plus: "Appart. 4ch+",
+  ut_penthouse: "Penthouse", ut_duplex: "Duplex", ut_villa: "Villa", ut_townhouse: "Townhouse",
+  ut_office: "Bureau", ut_shop: "Local", ut_warehouse: "Entrepôt", ut_other: "Autre",
+  us_vacant: "Vacant", us_reserved: "Réservé", us_occupied: "Occupé",
+  us_maintenance: "Maintenance", us_renovation: "Rénovation", us_off_market: "Hors marché",
+  col_unit_number: "N° Unité", col_rent_year: "Loyer / an", col_action: "Action",
+  units_vacant_count: "vacant(s)", unit_status_refused: "Changement de statut refusé", action_change: "Changer →",
+  unit_new: "Nouvelle unité", field_building: "Bâtiment", field_unit_number: "N° d'unité", select_placeholder: "— Sélectionner —",
+  unit_building_required: "Sélectionnez un bâtiment.", unit_number_required: "Le numéro d'unité est obligatoire.",
+
+  ps_pending: "À déposer", ps_deposited: "Déposé", ps_cleared: "Encaissé",
+  ps_bounced: "Rejeté", ps_replaced: "Remplacé", ps_cancelled: "Annulé",
+  col_cheque_number: "N° chèque", col_bank: "Banque", col_amount: "Montant", col_due_date: "Échéance",
+  count_cheques: "chèque(s)", outstanding_label: "encours", empty_cheques: "Aucun chèque.", action_refused: "Action refusée",
+  pdc_deposit: "Déposer", pdc_clear: "Encaissé", pdc_bounce: "Rejeté", pdc_replace: "Remplacer",
+  pdc_bounce_reason: "Motif du rejet du chèque ?",
+  pdc_replace_title: "Remplacer", pdc_new_cheque_number: "N° du nouveau chèque", field_bank: "Banque",
+  field_branch_opt: "Agence (optionnel)", field_amount_aed: "Montant (AED)", pdc_new_due_date: "Nouvelle échéance",
 };
 
 export const T: Record<Lang, Translations> = { ar, en, fr };
