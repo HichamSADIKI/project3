@@ -25,6 +25,7 @@ from .service import (
     get_events,
     get_instance,
     get_steps,
+    get_steps_map,
     list_instances,
     list_templates,
     note_step,
@@ -79,11 +80,12 @@ async def list_inst(
     cid = await get_company_id(db)
     items, total = await list_instances(db, cid, status, page, limit)
     pages = (total + limit - 1) // limit
+    # Étapes de toutes les instances de la page en UNE requête (anti-N+1).
+    steps_map = await get_steps_map(db, cid, [i.id for i in items])
     data = []
     for inst in items:
-        steps = await get_steps(db, cid, inst.id)
         out = InstanceOut.model_validate(inst)
-        out.steps = [StepOut.model_validate(s) for s in steps]
+        out.steps = [StepOut.model_validate(s) for s in steps_map.get(inst.id, [])]
         data.append(out)
     return InstanceListOut(
         data=data, meta={"total": total, "page": page, "limit": limit, "pages": pages}
