@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # ── Téléphonie / Asterisk AMI ────────────────────────────────────────
+    # Consommé par le module telephony (pont AMI → WebSocket). Si le listener
+    # ne peut joindre l'AMI, il se met en reconnexion silencieuse (l'API reste
+    # up). TELEPHONY_AMI_ENABLED=false coupe le listener au démarrage.
+    AMI_HOST: str = "asterisk"
+    AMI_PORT: int = 5038
+    AMI_USER: str = "sgi-api"
+    AMI_PASSWORD: str = ""
+    TELEPHONY_AMI_ENABLED: bool = True
+
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
     # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus
