@@ -38,6 +38,7 @@ from .service import (
     create_conversation,
     get_conversation,
     get_participants,
+    get_participants_map,
     list_conversations,
     list_messages,
     mark_read,
@@ -91,11 +92,12 @@ async def list_convs(
     items, total = await list_conversations(db, company_id, user_id, type, page, limit)
     pages = (total + limit - 1) // limit
 
+    # Participants de toutes les conversations de la page en UNE requête (anti-N+1).
+    parts_map = await get_participants_map(db, company_id, [c.id for c in items])
     data = []
     for conv in items:
-        parts = await get_participants(db, company_id, conv.id)
         out = ConversationOut.model_validate(conv)
-        out.participants = [ParticipantOut.model_validate(p) for p in parts]
+        out.participants = [ParticipantOut.model_validate(p) for p in parts_map.get(conv.id, [])]
         data.append(out)
 
     return ConversationListOut(

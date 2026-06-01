@@ -165,6 +165,24 @@ async def get_participants(
     return list(result.scalars().all())
 
 
+async def get_participants_map(
+    db: AsyncSession, company_id: uuid.UUID, conv_ids: list[uuid.UUID]
+) -> dict[uuid.UUID, list[ConversationParticipant]]:
+    """Participants de plusieurs conversations en UNE requête (évite le N+1 du listing)."""
+    if not conv_ids:
+        return {}
+    result = await db.execute(
+        select(ConversationParticipant).where(
+            ConversationParticipant.conversation_id.in_(conv_ids),
+            ConversationParticipant.company_id == company_id,
+        )
+    )
+    out: dict[uuid.UUID, list[ConversationParticipant]] = {}
+    for p in result.scalars().all():
+        out.setdefault(p.conversation_id, []).append(p)
+    return out
+
+
 async def add_participant(
     db: AsyncSession,
     company_id: uuid.UUID,
