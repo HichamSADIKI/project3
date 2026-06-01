@@ -96,6 +96,8 @@ services:
     volumes:
       - ./apps/api/app:/app/app
       - ./apps/api/scripts:/app/scripts
+      # Lecture seule des enregistrements Asterisk pour l'upload MinIO (PDPL).
+      - asterisk_recordings:/var/spool/asterisk/monitor:ro
     networks:
       - backend
     depends_on:
@@ -173,6 +175,28 @@ services:
     networks:
       - backend
 
+  # ── Asterisk (téléphonie WebRTC — dev) ───────────────────────────────
+  asterisk:
+    build:
+      context: ./infra/asterisk
+    env_file: .env
+    environment:
+      AMI_PASSWORD: ${AMI_PASSWORD}
+      ASTERISK_TLS_CN: ${ASTERISK_TLS_CN:-asterisk.sgi.local}
+    ports:
+      - "8088:8088"                    # ws  — signalisation SIP
+      - "8089:8089"                    # wss — signalisation WebRTC (softphone)
+      - "10000-10100:10000-10100/udp"  # RTP — média
+    # AMI (5038) volontairement NON publié : joignable seulement via le réseau
+    # `backend` par l'API (asterisk:5038).
+    volumes:
+      # Enregistrements PDPL écrits par MixMonitor (RECORDING_DIR du dialplan).
+      # Volume NOMMÉ (jamais anonyme) : partagé avec le worker d'upload MinIO.
+      - asterisk_recordings:/var/spool/asterisk/monitor
+    networks:
+      - backend
+    restart: unless-stopped
+
   # ── Nginx ─────────────────────────────────────────────────────────────
   nginx:
     image: nginx:1.27-alpine
@@ -210,3 +234,4 @@ volumes:
   minio_data:
   certbot_www:
   certbot_certs:
+  asterisk_recordings:   # enregistrements PDPL (Asterisk MixMonitor → worker MinIO)
