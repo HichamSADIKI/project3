@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from celery import shared_task
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.database import sync_session_maker  # session synchrone pour Celery
 from app.models.maintenance import MaintenanceTicket
@@ -106,16 +106,29 @@ def generate_preventive_tickets(self):
                 .all()
             )
 
-            for plan in plans:
-                # Référence unique par tenant + année.
-                year = now.year
-                count = db.execute(
-                    select(MaintenanceTicket.id).where(
-                        MaintenanceTicket.company_id == plan.company_id,
-                        MaintenanceTicket.deleted_at.is_(None),
+            # Nombre de tickets existants par société pour l'année courante, en UNE
+            # requête groupée (évite un N+1 + un chargement de tous les ID par plan).
+            # Numérotation par tenant + année, alignée sur l'endpoint create_ticket.
+            year = now.year
+            existing_counts: dict[uuid.UUID, int] = dict(
+                db.execute(
+                    select(
+                        MaintenanceTicket.company_id,
+                        func.count(MaintenanceTicket.id),
                     )
+                    .where(
+                        MaintenanceTicket.deleted_at.is_(None),
+                        func.extract("year", MaintenanceTicket.created_at) == year,
+                    )
+                    .group_by(MaintenanceTicket.company_id)
                 ).all()
-                seq = len(count) + 1
+            )
+
+            for plan in plans:
+                # Référence unique par tenant + année : on incrémente le compteur
+                # local (pas de re-requête) au fil des tickets créés dans ce run.
+                seq = existing_counts.get(plan.company_id, 0) + 1
+                existing_counts[plan.company_id] = seq
                 ref = generate_reference(year, seq)
 
                 ticket = MaintenanceTicket(
