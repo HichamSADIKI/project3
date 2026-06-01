@@ -149,6 +149,30 @@ export type Translations = {
   pt_rent: string; pt_charges: string; pt_deposit: string; pt_deposit_return: string; pt_owner_payout: string; pt_other: string;
   pay_pending: string; pay_paid: string; pay_overdue: string; pay_cancelled: string;
   payments_overdue_count: string; empty_payments: string; pay_collect: string;
+  // Lot 3 — comms
+  cm_direct: string; cm_group: string; cm_ticket: string; cm_contract: string;
+  cm_empty_conversations: string; cm_no_subject: string; cm_select_conversation: string;
+  cm_live: string; cm_offline: string; cm_empty_messages: string; cm_system: string;
+  cm_voice_note: string; cm_ai_prefix: string; cm_write_message: string; cm_send: string;
+  // Lot 3 — documents
+  dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
+  dt_invoice: string; dt_statement: string; dt_id: string; dt_passport: string; dt_other: string;
+  ds_draft: string; ds_active: string; ds_signed: string; ds_archived: string;
+  doc_title_required: string; count_documents: string; col_entity: string; col_version: string;
+  empty_documents: string; document_new: string; field_title: string; field_entity_type: string; field_entity_id: string;
+  // Lot 3 — owner-portal
+  op_draft: string; op_sent: string; op_choose_owner: string; op_select_prompt: string;
+  op_statements_label: string; op_last_net_payout: string;
+  col_period: string; col_revenue: string; col_expenses: string; col_net_payout: string; op_empty_statements: string;
+  // Lot 3 — workflows
+  wf_in_progress: string; wf_approved: string; wf_rejected: string; wf_cancelled: string;
+  wf_quote_prefix: string; wf_ticket_prefix: string; wf_contract_prefix: string; wf_in_progress_count: string;
+  col_instance: string; col_linked_object: string; col_steps: string; empty_workflows: string;
+  wf_approve: string; wf_reject: string;
+  // Lot 3 — branches
+  col_code: string; col_contact: string; branch_new: string; empty_branches: string;
+  br_active: string; br_inactive: string; branches_active_count: string; field_phone: string; field_email: string;
+  name_required: string;
 };
 
 const ar: Translations = {
@@ -291,6 +315,30 @@ const ar: Translations = {
   pt_rent: "إيجار", pt_charges: "رسوم", pt_deposit: "تأمين", pt_deposit_return: "إعادة التأمين", pt_owner_payout: "دفع للمالك", pt_other: "أخرى",
   pay_pending: "قيد الانتظار", pay_paid: "مدفوع", pay_overdue: "متأخر", pay_cancelled: "ملغى",
   payments_overdue_count: "متأخر", empty_payments: "لا طلبات دفع.", pay_collect: "تحصيل",
+  // Lot 3 — comms
+  cm_direct: "مباشر", cm_group: "مجموعة", cm_ticket: "تذكرة", cm_contract: "عقد",
+  cm_empty_conversations: "لا محادثات.", cm_no_subject: "(بدون موضوع)", cm_select_conversation: "اختر محادثة.",
+  cm_live: "مباشر", cm_offline: "غير متصل", cm_empty_messages: "لا رسائل.", cm_system: "النظام",
+  cm_voice_note: "🎙️ رسالة صوتية", cm_ai_prefix: "ذكاء اصطناعي:", cm_write_message: "اكتب رسالة…", cm_send: "إرسال",
+  // Lot 3 — documents
+  dt_contract: "عقد", dt_mandate: "تفويض", dt_ejari: "إيجاري", dt_dld: "دائرة الأراضي", dt_insurance: "تأمين",
+  dt_invoice: "فاتورة", dt_statement: "كشف", dt_id: "هوية", dt_passport: "جواز سفر", dt_other: "أخرى",
+  ds_draft: "مسودة", ds_active: "نشط", ds_signed: "موقّع", ds_archived: "مؤرشف",
+  doc_title_required: "العنوان مطلوب.", count_documents: "مستند", col_entity: "الكيان", col_version: "الإصدار",
+  empty_documents: "لا مستندات.", document_new: "مستند جديد", field_title: "العنوان", field_entity_type: "نوع الكيان المرتبط (اختياري)", field_entity_id: "معرّف الكيان المرتبط (اختياري)",
+  // Lot 3 — owner-portal
+  op_draft: "مسودة", op_sent: "مُرسل", op_choose_owner: "— اختر مالكًا —", op_select_prompt: "اختر مالكًا لعرض كشوفه.",
+  op_statements_label: "كشوف", op_last_net_payout: "آخر صافي دفع",
+  col_period: "الفترة", col_revenue: "الإيرادات", col_expenses: "المصروفات", col_net_payout: "صافي الدفع", op_empty_statements: "لا كشوف.",
+  // Lot 3 — workflows
+  wf_in_progress: "قيد التنفيذ", wf_approved: "موافق عليه", wf_rejected: "مرفوض", wf_cancelled: "ملغى",
+  wf_quote_prefix: "عرض سعر", wf_ticket_prefix: "تذكرة", wf_contract_prefix: "عقد", wf_in_progress_count: "قيد التنفيذ",
+  col_instance: "النسخة", col_linked_object: "العنصر المرتبط", col_steps: "الخطوات", empty_workflows: "لا نسخ سير عمل.",
+  wf_approve: "موافقة", wf_reject: "رفض",
+  // Lot 3 — branches
+  col_code: "الرمز", col_contact: "جهة الاتصال", branch_new: "فرع جديد", empty_branches: "لا فروع.",
+  br_active: "نشط", br_inactive: "غير نشط", branches_active_count: "نشط", field_phone: "الهاتف", field_email: "البريد الإلكتروني",
+  name_required: "الاسم مطلوب.",
 };
 
 const en: Translations = {
@@ -433,6 +481,30 @@ const en: Translations = {
   pt_rent: "Rent", pt_charges: "Charges", pt_deposit: "Deposit", pt_deposit_return: "Deposit return", pt_owner_payout: "Owner payout", pt_other: "Other",
   pay_pending: "Pending", pay_paid: "Paid", pay_overdue: "Overdue", pay_cancelled: "Cancelled",
   payments_overdue_count: "overdue", empty_payments: "No payment requests.", pay_collect: "Collect",
+  // Lot 3 — comms
+  cm_direct: "Direct", cm_group: "Group", cm_ticket: "Ticket", cm_contract: "Contract",
+  cm_empty_conversations: "No conversations.", cm_no_subject: "(no subject)", cm_select_conversation: "Select a conversation.",
+  cm_live: "Live", cm_offline: "Offline", cm_empty_messages: "No messages.", cm_system: "system",
+  cm_voice_note: "🎙️ voice note", cm_ai_prefix: "AI:", cm_write_message: "Write a message…", cm_send: "Send",
+  // Lot 3 — documents
+  dt_contract: "Contract", dt_mandate: "Mandate", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Insurance",
+  dt_invoice: "Invoice", dt_statement: "Statement", dt_id: "ID", dt_passport: "Passport", dt_other: "Other",
+  ds_draft: "Draft", ds_active: "Active", ds_signed: "Signed", ds_archived: "Archived",
+  doc_title_required: "Title is required.", count_documents: "document(s)", col_entity: "Entity", col_version: "Version",
+  empty_documents: "No documents.", document_new: "New document", field_title: "Title", field_entity_type: "Linked entity type (optional)", field_entity_id: "Linked entity UUID (optional)",
+  // Lot 3 — owner-portal
+  op_draft: "Draft", op_sent: "Sent", op_choose_owner: "— Choose an owner —", op_select_prompt: "Select an owner to view their statements.",
+  op_statements_label: "Statements", op_last_net_payout: "Last net payout",
+  col_period: "Period", col_revenue: "Revenue", col_expenses: "Expenses", col_net_payout: "Net payout", op_empty_statements: "No statements.",
+  // Lot 3 — workflows
+  wf_in_progress: "In progress", wf_approved: "Approved", wf_rejected: "Rejected", wf_cancelled: "Cancelled",
+  wf_quote_prefix: "Quote", wf_ticket_prefix: "Ticket", wf_contract_prefix: "Contract", wf_in_progress_count: "in progress",
+  col_instance: "Instance", col_linked_object: "Linked object", col_steps: "Steps", empty_workflows: "No workflow instances.",
+  wf_approve: "Approve", wf_reject: "Reject",
+  // Lot 3 — branches
+  col_code: "Code", col_contact: "Contact", branch_new: "New branch", empty_branches: "No branches.",
+  br_active: "Active", br_inactive: "Inactive", branches_active_count: "active", field_phone: "Phone", field_email: "Email",
+  name_required: "Name is required.",
 };
 
 const fr: Translations = {
@@ -575,6 +647,30 @@ const fr: Translations = {
   pt_rent: "Loyer", pt_charges: "Charges", pt_deposit: "Caution", pt_deposit_return: "Restitution", pt_owner_payout: "Payout propriétaire", pt_other: "Autre",
   pay_pending: "En attente", pay_paid: "Payé", pay_overdue: "En retard", pay_cancelled: "Annulé",
   payments_overdue_count: "en retard", empty_payments: "Aucune demande de paiement.", pay_collect: "Encaisser",
+  // Lot 3 — comms
+  cm_direct: "Direct", cm_group: "Groupe", cm_ticket: "Ticket", cm_contract: "Contrat",
+  cm_empty_conversations: "Aucune conversation.", cm_no_subject: "(sans objet)", cm_select_conversation: "Sélectionnez une conversation.",
+  cm_live: "Temps réel", cm_offline: "Hors-ligne", cm_empty_messages: "Aucun message.", cm_system: "système",
+  cm_voice_note: "🎙️ note vocale", cm_ai_prefix: "IA :", cm_write_message: "Écrire un message…", cm_send: "Envoyer",
+  // Lot 3 — documents
+  dt_contract: "Contrat", dt_mandate: "Mandat", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Assurance",
+  dt_invoice: "Facture", dt_statement: "Relevé", dt_id: "Pièce ID", dt_passport: "Passeport", dt_other: "Autre",
+  ds_draft: "Brouillon", ds_active: "Actif", ds_signed: "Signé", ds_archived: "Archivé",
+  doc_title_required: "Le titre est obligatoire.", count_documents: "document(s)", col_entity: "Entité", col_version: "Version",
+  empty_documents: "Aucun document.", document_new: "Nouveau document", field_title: "Titre", field_entity_type: "Type d'entité liée (optionnel)", field_entity_id: "UUID entité liée (optionnel)",
+  // Lot 3 — owner-portal
+  op_draft: "Brouillon", op_sent: "Envoyé", op_choose_owner: "— Choisir un propriétaire —", op_select_prompt: "Sélectionnez un propriétaire pour voir ses relevés.",
+  op_statements_label: "Relevés", op_last_net_payout: "Dernier payout net",
+  col_period: "Période", col_revenue: "Revenus", col_expenses: "Dépenses", col_net_payout: "Payout net", op_empty_statements: "Aucun relevé.",
+  // Lot 3 — workflows
+  wf_in_progress: "En cours", wf_approved: "Approuvé", wf_rejected: "Rejeté", wf_cancelled: "Annulé",
+  wf_quote_prefix: "Devis", wf_ticket_prefix: "Ticket", wf_contract_prefix: "Contrat", wf_in_progress_count: "en cours",
+  col_instance: "Instance", col_linked_object: "Objet lié", col_steps: "Étapes", empty_workflows: "Aucune instance de workflow.",
+  wf_approve: "Approuver", wf_reject: "Rejeter",
+  // Lot 3 — branches
+  col_code: "Code", col_contact: "Contact", branch_new: "Nouvelle succursale", empty_branches: "Aucune succursale.",
+  br_active: "Active", br_inactive: "Inactive", branches_active_count: "active(s)", field_phone: "Téléphone", field_email: "Email",
+  name_required: "Le nom est obligatoire.",
 };
 
 export const T: Record<Lang, Translations> = { ar, en, fr };

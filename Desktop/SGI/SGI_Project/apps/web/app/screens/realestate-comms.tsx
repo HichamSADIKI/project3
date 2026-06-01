@@ -2,7 +2,8 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Topbar, IcChat } from "@/components/sgi-ui";
-import { useT } from "@/components/language-provider";
+import { useT, useLang } from "@/components/language-provider";
+import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson, extractError } from "@/lib/api-client";
 
@@ -11,7 +12,8 @@ import { getJson, postJson, extractError } from "@/lib/api-client";
 // messages (message.created) en direct. Le token WS vient de /api/admin/comms/
 // ws-token (le cookie httpOnly est illisible par JS — cf. décision sécu).
 
-const TYPE_LABEL: Record<string, string> = { direct: "Direct", group: "Groupe", ticket: "Ticket", contract: "Contrat" };
+const typeLabel = (t: Translations, k: string): string =>
+  ({ direct: t.cm_direct, group: t.cm_group, ticket: t.cm_ticket, contract: t.cm_contract })[k] ?? k;
 
 /** Base WS du backend : NEXT_PUBLIC_WS_URL (ex. ws://localhost:8000) sinon même
  * origine (nginx proxifie /api/v1 vers l'API). */
@@ -27,6 +29,7 @@ type Message = { id: string; sender_user_id: string | null; kind: string; body: 
 
 export function ScreenRealEstateComms() {
   const t = useT();
+  const { lang } = useLang();
   const { items: conversations, loading, error } = useApiList<Conversation>("/api/admin/comms/conversations?limit=100");
   const [selId, setSelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -107,15 +110,15 @@ export function ScreenRealEstateComms() {
             <span className="font-display" style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>{t.nav_comms}</span>
             <span style={{ fontSize: 11, color: "var(--ink-4)", marginInlineStart: "auto" }}>{loading ? "…" : conversations.length}</span>
           </div>
-          {error && <div style={{ padding: "10px 18px", color: "var(--rose)", fontSize: 12 }}>Erreur : {error}</div>}
-          {!loading && conversations.length === 0 && !error && <div style={{ padding: "16px 18px", color: "var(--ink-4)", fontSize: 13 }}>Aucune conversation.</div>}
+          {error && <div style={{ padding: "10px 18px", color: "var(--rose)", fontSize: 12 }}>{t.error_label} : {error}</div>}
+          {!loading && conversations.length === 0 && !error && <div style={{ padding: "16px 18px", color: "var(--ink-4)", fontSize: 13 }}>{t.cm_empty_conversations}</div>}
           {conversations.map(c => (
             <div key={c.id} onClick={() => setSelId(c.id)} style={{ padding: "12px 18px", borderTop: "1px solid var(--line-soft)", cursor: "pointer", background: selId === c.id ? "var(--gold-ghost)" : "transparent", borderInlineStart: selId === c.id ? "3px solid var(--gold)" : "3px solid transparent" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject || "(sans objet)"}</span>
-                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--ink-4)", background: "var(--line-soft)", borderRadius: 999, padding: "1px 7px" }}>{TYPE_LABEL[c.type] ?? c.type}</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.subject || t.cm_no_subject}</span>
+                <span style={{ fontSize: 10, fontWeight: 600, color: "var(--ink-4)", background: "var(--line-soft)", borderRadius: 999, padding: "1px 7px" }}>{typeLabel(t, c.type)}</span>
               </div>
-              <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleString("fr") : "—"}</div>
+              <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>{c.last_message_at ? new Date(c.last_message_at).toLocaleString(lang) : "—"}</div>
             </div>
           ))}
         </div>
@@ -123,38 +126,38 @@ export function ScreenRealEstateComms() {
         {/* Fil de messages */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
           {!selId ? (
-            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 13 }}>Sélectionnez une conversation.</div>
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-4)", fontSize: 13 }}>{t.cm_select_conversation}</div>
           ) : (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 7, padding: "10px 26px", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)" }}>
                 <span style={{ width: 8, height: 8, borderRadius: 999, background: live ? "var(--emerald)" : "var(--ink-4)" }} />
-                <span style={{ fontSize: 11.5, color: live ? "var(--emerald)" : "var(--ink-4)", fontWeight: 600 }}>{live ? "Temps réel" : "Hors-ligne"}</span>
+                <span style={{ fontSize: 11.5, color: live ? "var(--emerald)" : "var(--ink-4)", fontWeight: 600 }}>{live ? t.cm_live : t.cm_offline}</span>
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "20px 26px", display: "flex", flexDirection: "column", gap: 12 }}>
-                {msgLoading && <div style={{ color: "var(--ink-4)", fontSize: 12 }}>Chargement…</div>}
-                {!msgLoading && messages.length === 0 && <div style={{ color: "var(--ink-4)", fontSize: 12 }}>Aucun message.</div>}
+                {msgLoading && <div style={{ color: "var(--ink-4)", fontSize: 12 }}>{t.loading}</div>}
+                {!msgLoading && messages.length === 0 && <div style={{ color: "var(--ink-4)", fontSize: 12 }}>{t.cm_empty_messages}</div>}
                 {messages.map(m => (
                   <div key={m.id} style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                    <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 2 }}>{(m.sender_user_id ?? "système").slice(0, 8)} · {new Date(m.created_at).toLocaleTimeString("fr")}</div>
+                    <div style={{ fontSize: 10.5, color: "var(--ink-4)", marginBottom: 2 }}>{(m.sender_user_id ?? t.cm_system).slice(0, 8)} · {new Date(m.created_at).toLocaleTimeString(lang)}</div>
                     <div style={{ maxWidth: "70%", padding: "9px 13px", borderRadius: 12, fontSize: 13, background: "var(--bg-paper)", color: "var(--ink)", border: "1px solid var(--line-soft)" }}>
-                      {m.body || (m.kind === "voice" ? "🎙️ note vocale" : "—")}
-                      {m.transcript && <div style={{ fontSize: 11, fontStyle: "italic", color: "var(--ink-4)", marginTop: 4 }}>IA : {m.transcript}</div>}
+                      {m.body || (m.kind === "voice" ? t.cm_voice_note : "—")}
+                      {m.transcript && <div style={{ fontSize: 11, fontStyle: "italic", color: "var(--ink-4)", marginTop: 4 }}>{t.cm_ai_prefix} {m.transcript}</div>}
                     </div>
                   </div>
                 ))}
               </div>
               <div style={{ borderTop: "1px solid var(--line-soft)", padding: "12px 20px", background: "var(--bg-paper)" }}>
-                {sendError && <div style={{ color: "var(--rose)", fontSize: 12, marginBottom: 6 }}>Erreur : {sendError}</div>}
+                {sendError && <div style={{ color: "var(--rose)", fontSize: 12, marginBottom: 6 }}>{t.error_label} : {sendError}</div>}
                 <div style={{ display: "flex", gap: 10 }}>
                   <input
                     value={draft}
                     onChange={e => setDraft(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") send(); }}
-                    placeholder="Écrire un message…"
+                    placeholder={t.cm_write_message}
                     style={{ flex: 1, padding: "9px 12px", border: "1px solid var(--line)", borderRadius: 999, background: "var(--bg-cream)", fontSize: 13, color: "var(--ink)" }}
                   />
                   <button onClick={send} disabled={sending || !draft.trim()} style={{ padding: "9px 18px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: 999, fontWeight: 600, fontSize: 13, cursor: sending ? "default" : "pointer", opacity: sending || !draft.trim() ? 0.6 : 1 }}>
-                    {sending ? "…" : "Envoyer"}
+                    {sending ? "…" : t.cm_send}
                   </button>
                 </div>
               </div>
