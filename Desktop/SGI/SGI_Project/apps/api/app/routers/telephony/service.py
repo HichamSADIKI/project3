@@ -17,6 +17,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.routers.telephony.models import AgentState, Call
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -388,7 +389,10 @@ async def apply_ami_cdr(
         from_number=caller,
         to_number=extension,
         agent_extension=extension,
-        recording_consent=True,  # l'annonce PDPL est jouée par le dialplan
+        # PDPL fail-closed : pas de consentement présumé sans signal explicite
+        # (cf. TELEPHONY_ASSUME_RECORDING_CONSENT). Sans consentement, le worker
+        # n'uploade pas l'enregistrement et l'URL n'est jamais exposée.
+        recording_consent=settings.TELEPHONY_ASSUME_RECORDING_CONSENT,
     )
 
     target = _ami_target_status(
@@ -450,7 +454,13 @@ async def set_agent_status(
             state.extension = extension
         state.last_changed_at = now
         state.updated_at = now
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        # Extension déjà attribuée à un autre agent du tenant
+        # (uq_agent_states_extension) → 409 plutôt que 500.
+        await db.rollback()
+        raise ValueError("extension_taken") from exc
     await db.refresh(state)
     return state
 

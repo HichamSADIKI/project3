@@ -123,10 +123,19 @@ export class SipClient {
     const wsUri = config.wsUri ?? DEFAULT_WS;
     const domain = config.domain ?? deriveDomain(wsUri);
 
-    const JsSIP = (await import("jssip")) as unknown as JsSipModule;
-    const socket = new JsSIP.WebSocketInterface(wsUri);
-
     this.events.onRegistrationState?.("connecting");
+
+    let JsSIP: JsSipModule;
+    try {
+      JsSIP = (await import("jssip")) as unknown as JsSipModule;
+    } catch (err) {
+      // Le bundle JsSIP n'a pas pu être chargé (réseau, build) : on remonte
+      // l'échec à l'UI au lieu de rester bloqué en « connecting ».
+      const reason = err instanceof Error ? err.message : "jssip_load_failed";
+      this.events.onRegistrationState?.("registration_failed", reason);
+      return;
+    }
+    const socket = new JsSIP.WebSocketInterface(wsUri);
 
     const ua = new JsSIP.UA({
       sockets: [socket],

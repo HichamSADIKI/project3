@@ -47,6 +47,13 @@ class Settings(BaseSettings):
     # d'upload, et durée de rétention PDPL (purge au-delà → MinIO + recording_url).
     RECORDING_MONITOR_DIR: str = "/var/spool/asterisk/monitor"
     RECORDING_RETENTION_DAYS: int = 365
+    # PDPL fail-closed : un CDR créé par l'AMI n'est PAS présumé consenti.
+    # L'annonce de consentement est jouée par le dialplan, mais l'API ne reçoit
+    # aujourd'hui aucun signal le confirmant → par défaut consent=False (pas
+    # d'upload/exposition d'enregistrement). Mettre =true en dev pour activer
+    # l'enregistrement automatique des appels AMI. Mécanisme propre à venir :
+    # UserEvent Asterisk portant le consentement effectif.
+    TELEPHONY_ASSUME_RECORDING_CONSENT: bool = False
 
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30

@@ -202,6 +202,48 @@ async def test_ami_cdr_idempotent_no_duplicate(db_session, seed_company) -> None
     assert total == 1
 
 
+async def test_ami_cdr_consent_fail_closed_by_default(
+    db_session, seed_company, monkeypatch
+) -> None:
+    """PDPL : un CDR créé par l'AMI n'est pas présumé consenti par défaut."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "TELEPHONY_ASSUME_RECORDING_CONSENT", False)
+    c = await service.apply_ami_cdr(
+        db_session, seed_company.id, _ami_event("Newchannel", "link-consent-off")
+    )
+    assert c.recording_consent is False
+
+    monkeypatch.setattr(settings, "TELEPHONY_ASSUME_RECORDING_CONSENT", True)
+    c2 = await service.apply_ami_cdr(
+        db_session, seed_company.id, _ami_event("Newchannel", "link-consent-on")
+    )
+    assert c2.recording_consent is True
+
+
+async def test_set_agent_status_extension_conflict_raises(db_session, seed_admin) -> None:
+    """Deux agents du même tenant ne peuvent pas réclamer la même extension → 409."""
+    import uuid as _u
+
+    from app.core.auth import hash_password
+    from app.models.user import User as _User
+    from app.models.user import UserRole, UserStatus
+
+    admin, _ = seed_admin
+    cid = admin.company_id
+    await service.set_agent_status(db_session, cid, admin.id, "available", extension="6007")
+
+    u2 = _User(
+        id=_u.uuid4(), company_id=cid, email=f"a2-{_u.uuid4().hex[:6]}@t.test",
+        hashed_password=hash_password("x"), full_name="U2",
+        role=UserRole.ADMIN.value, status=UserStatus.ACTIVE.value, is_active=True,
+    )
+    db_session.add(u2)
+    await db_session.commit()
+    with pytest.raises(ValueError, match="extension_taken"):
+        await service.set_agent_status(db_session, cid, u2.id, "available", extension="6007")
+
+
 async def test_ami_cdr_internal_when_caller_is_known_extension(
     db_session, seed_admin
 ) -> None:

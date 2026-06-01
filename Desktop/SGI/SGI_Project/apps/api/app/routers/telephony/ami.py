@@ -129,7 +129,30 @@ class AMIClient:
                 "Events": "on",
             }
         )
+        # Valider la réponse de login : sur secret invalide, Asterisk répond
+        # `Response: Error` puis ferme — sans ce contrôle on logguerait à tort
+        # « connecté » et on bouclerait en reconnexion silencieuse.
+        resp = await self._read_packet()
+        if resp.get("Response") != "Success":
+            raise RuntimeError(
+                f"login AMI refusé: {resp.get('Message', 'réponse inattendue')}"
+            )
         logger.info("AMI connecté %s:%s", settings.AMI_HOST, settings.AMI_PORT)
+
+    async def _read_packet(self) -> dict[str, str]:
+        """Lit un paquet AMI (lignes jusqu'à une ligne vide). {} si flux fermé."""
+        assert self._reader is not None
+        buffer: list[str] = []
+        while True:
+            line = await self._reader.readline()
+            if not line:
+                return {}
+            decoded = line.decode("utf-8", errors="replace")
+            if decoded in ("\r\n", "\n"):
+                if buffer:
+                    return parse_ami_packet("".join(buffer))
+                continue
+            buffer.append(decoded)
 
     async def _send_action(self, fields: dict[str, str]) -> None:
         if self._writer is None:
