@@ -225,17 +225,18 @@ async def test_recording_forbidden_for_non_owner_agent(
     )
     cid = created.json()["data"]["id"]
 
-    # L'appel appartient à l'agent A (posé directement en base, GUC tenant requis par RLS).
+    # L'appel appartient à l'agent A (= l'admin, un user réel : agent_user_id a une FK
+    # vers users). GUC tenant requis par RLS pour l'écriture directe.
     await db_session.execute(
         sql_text("SELECT set_config('app.current_company_id', :cid, false)"),
         {"cid": str(admin.company_id)},
     )
     call = await service.get_call(db_session, admin.company_id, uuid.UUID(cid))
     assert call is not None
-    call.agent_user_id = uuid.uuid4()
+    call.agent_user_id = admin.id
     await db_session.commit()
 
-    # L'agent B (même tenant, autre user_id) ne doit PAS pouvoir y accéder.
+    # L'agent B (même tenant, autre user_id que l'admin) ne doit PAS pouvoir y accéder.
     other_agent = _agent_token(admin.company_id, uuid.uuid4())
     resp = await client.get(
         f"/api/v1/telephony/calls/{cid}/recording",
