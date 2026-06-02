@@ -17,6 +17,7 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import Select, and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.models.property import Property
 from app.routers.acquisitions.models import BuyerMandate, PurchaseOffer
 
@@ -160,6 +161,13 @@ async def next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     module et triable)."""
     year = datetime.now(UTC).year
     prefix = f"ACQ-{year:04d}-%"
+    # Verrou consultatif transactionnel (libéré au COMMIT) : sérialise les
+    # créations concurrentes du même tenant/année → le COUNT+INSERT n'est plus
+    # sujet à la course (plus de collision de référence ni d'IntegrityError 500).
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+        {"k": f"ACQ:{company_id}:{year}"},
+    )
     mandates = (
         await db.execute(
             select(func.count())
@@ -202,25 +210,25 @@ async def create_mandate(
     signed_at: datetime | None = None,
     expires_at: datetime | None = None,
 ) -> BuyerMandate:
-    mandate = BuyerMandate(
-        company_id=company_id,
-        reference=await next_reference(db, company_id),
-        buyer_client_id=buyer_client_id,
-        status="active",
-        budget_min=budget_min,
-        budget_max=budget_max,
-        property_type=property_type,
-        bedrooms_min=bedrooms_min,
-        preferred_location=_make_point(latitude, longitude),
-        search_radius_m=search_radius_m,
-        notes=notes,
-        signed_at=signed_at,
-        expires_at=expires_at,
+    return await commit_with_reference_retry(
+        db,
+        lambda: next_reference(db, company_id),
+        lambda reference: BuyerMandate(
+            company_id=company_id,
+            reference=reference,
+            buyer_client_id=buyer_client_id,
+            status="active",
+            budget_min=budget_min,
+            budget_max=budget_max,
+            property_type=property_type,
+            bedrooms_min=bedrooms_min,
+            preferred_location=_make_point(latitude, longitude),
+            search_radius_m=search_radius_m,
+            notes=notes,
+            signed_at=signed_at,
+            expires_at=expires_at,
+        ),
     )
-    db.add(mandate)
-    await db.commit()
-    await db.refresh(mandate)
-    return mandate
 
 
 async def get_mandate(
@@ -294,19 +302,19 @@ async def create_offer(
     amount: Decimal,
     notes: str | None = None,
 ) -> PurchaseOffer:
-    offer = PurchaseOffer(
-        company_id=company_id,
-        reference=await next_reference(db, company_id),
-        mandate_id=mandate_id,
-        property_id=property_id,
-        amount=amount,
-        status="draft",
-        notes=notes,
+    return await commit_with_reference_retry(
+        db,
+        lambda: next_reference(db, company_id),
+        lambda reference: PurchaseOffer(
+            company_id=company_id,
+            reference=reference,
+            mandate_id=mandate_id,
+            property_id=property_id,
+            amount=amount,
+            status="draft",
+            notes=notes,
+        ),
     )
-    db.add(offer)
-    await db.commit()
-    await db.refresh(offer)
-    return offer
 
 
 async def get_offer(

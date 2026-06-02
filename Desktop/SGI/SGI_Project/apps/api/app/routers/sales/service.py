@@ -12,9 +12,10 @@ from datetime import UTC, datetime
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.references import commit_with_reference_retry
 from app.routers.sales.models import (
     SaleListing,
     SaleMandate,
@@ -101,6 +102,13 @@ async def next_reference(db: AsyncSession, company_id: uuid.UUID, model: type[An
     d'unicité étant `(company_id, reference)`, chaque table a son propre compteur.
     """
     year = datetime.now(UTC).year
+    # Verrou consultatif transactionnel (libéré au COMMIT) : sérialise les
+    # créations concurrentes du même tenant/année/table → COUNT+INSERT race-free
+    # (clé par table car chaque entité a son propre compteur SALE-YYYY-NNNNNN).
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+        {"k": f"SALE:{model.__tablename__}:{company_id}:{year}"},
+    )
     result = await db.execute(
         select(func.count())
         .select_from(model)
@@ -125,20 +133,20 @@ async def create_mandate(
     commission_rate: Decimal = Decimal("2.00"),
     asking_price: Decimal | None = None,
 ) -> SaleMandate:
-    mandate = SaleMandate(
-        company_id=company_id,
-        reference=await next_reference(db, company_id, SaleMandate),
-        seller_client_id=seller_client_id,
-        property_id=property_id,
-        mandate_type=mandate_type,
-        commission_rate=commission_rate,
-        asking_price=asking_price,
-        status="active",
+    return await commit_with_reference_retry(
+        db,
+        lambda: next_reference(db, company_id, SaleMandate),
+        lambda reference: SaleMandate(
+            company_id=company_id,
+            reference=reference,
+            seller_client_id=seller_client_id,
+            property_id=property_id,
+            mandate_type=mandate_type,
+            commission_rate=commission_rate,
+            asking_price=asking_price,
+            status="active",
+        ),
     )
-    db.add(mandate)
-    await db.commit()
-    await db.refresh(mandate)
-    return mandate
 
 
 async def get_mandate(
