@@ -11,6 +11,7 @@ from app.core.database import create_db_pool
 from app.middleware.audit import AuditMiddleware
 from app.middleware.tenant import TenantMiddleware
 from app.routers import (
+    acquisitions,
     ai_services,
     auth,
     buildings,
@@ -25,6 +26,7 @@ from app.routers import (
     golden_visa,
     inbox,
     inspections,
+    leasing,
     maintenance,
     notifications,
     owner_portal,
@@ -37,6 +39,7 @@ from app.routers import (
     realestate_core,
     rentals,
     reporting,
+    sales,
     scraping,
     technicians,
     telephony,
@@ -209,6 +212,12 @@ app.include_router(inbox.router, prefix="/api/v1")
 app.include_router(ticketing.router, prefix="/api/v1")
 # AI Copilot — assistance agent (inbox + tickets), sans persistance
 app.include_router(copilot.router, prefix="/api/v1")
+# Immobilier — Achat : mandats acquéreur + offres + matching PostGIS (migration 0033)
+app.include_router(acquisitions.router, prefix="/api/v1")
+# Immobilier — Vente : mandat → annonce → offre → transaction + commission (migration 0034)
+app.include_router(sales.router, prefix="/api/v1")
+# Immobilier — Location : annonces + candidatures locataires (migration 0035)
+app.include_router(leasing.router, prefix="/api/v1")
 # Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
 app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
 
