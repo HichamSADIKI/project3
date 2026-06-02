@@ -18,7 +18,22 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import encode_jwt, hash_password
+from app.models.client import Client
 from app.models.user import User, UserRole, UserStatus
+
+
+async def _seed_client(db: AsyncSession, company_id: uuid.UUID) -> uuid.UUID:
+    """Crée un Client du tenant — `requester_client_id` a une FK vers `clients`."""
+    c = Client(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="individual",
+        first_name="Demandeur",
+        last_name="Test",
+    )
+    db.add(c)
+    await db.commit()
+    return c.id
 
 
 async def _seed_agent(db: AsyncSession, company_id: uuid.UUID) -> uuid.UUID:
@@ -351,6 +366,83 @@ async def test_assign_cross_tenant_agent_rejected(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 400
+
+
+async def test_create_with_valid_requester_client(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Un client demandeur du MÊME tenant est accepté (Loi 1 OK)."""
+    admin, token = seed_admin
+    client_id = await _seed_client(db_session, admin.company_id)
+    resp = await client.post(
+        "/api/v1/tickets",
+        json={"subject": "Demande client", "requester_client_id": str(client_id)},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert resp.json()["data"]["requester_client_id"] == str(client_id)
+
+
+async def test_create_with_cross_tenant_requester_client_rejected(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[object, str],
+    db_session: AsyncSession,
+) -> None:
+    """Loi 1 : référencer un client d'un AUTRE tenant → 400, pas de fuite cross-tenant."""
+    admin, token = seed_admin
+    other_company, _ = second_admin
+    foreign_client = await _seed_client(db_session, other_company.id)  # type: ignore[attr-defined]
+    resp = await client.post(
+        "/api/v1/tickets",
+        json={"subject": "Tentative cross-tenant", "requester_client_id": str(foreign_client)},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "client_not_in_company"
+
+
+async def test_assign_sets_first_response_at(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    """L'assignation open→in_progress horodate la première réponse SLA."""
+    admin, token = seed_admin
+    headers = {"Authorization": f"Bearer {token}"}
+    ticket_id = await _create_ticket(client, token)
+    resp = await client.post(
+        f"/api/v1/tickets/{ticket_id}/assign",
+        json={"agent_user_id": str(admin.id)},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["first_response_at"] is not None
+
+
+async def test_agent_cannot_steal_ticket_assigned_to_other(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Anti-vol : un agent ne peut pas s'accaparer un ticket déjà attribué à un autre (409)."""
+    admin, token = seed_admin
+    cid = admin.company_id
+    headers = {"Authorization": f"Bearer {token}"}
+    agent_a = await _seed_agent(db_session, cid)
+    agent_b = await _seed_agent(db_session, cid)
+    ticket_id = await _create_ticket(client, token)
+
+    # L'admin attribue le ticket à l'agent A.
+    await client.post(
+        f"/api/v1/tickets/{ticket_id}/assign",
+        json={"agent_user_id": str(agent_a)},
+        headers=headers,
+    )
+    # L'agent B (qui voit le ticket via son ID deviné) tente de se l'auto-attribuer.
+    resp = await client.post(
+        f"/api/v1/tickets/{ticket_id}/assign",
+        json={},
+        headers={"Authorization": f"Bearer {_agent_token(cid, agent_b)}"},
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "ticket_already_assigned"
 
 
 async def test_client_role_forbidden_on_write(

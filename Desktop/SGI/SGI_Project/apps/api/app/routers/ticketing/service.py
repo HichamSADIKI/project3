@@ -245,10 +245,15 @@ async def assign_ticket(
     ticket = await get_ticket(db, company_id, ticket_id)
     if ticket is None:
         return None
+    now = datetime.now(UTC)
     ticket.assigned_agent_id = agent_user_id
     if ticket.status == "open":
         ticket.status = "in_progress"
-    ticket.updated_at = datetime.now(UTC)
+        # Cohérent avec transition_ticket : l'assignation open→in_progress est la
+        # première réponse → horodater le SLA de première réponse (sinon NULL à vie).
+        if ticket.first_response_at is None:
+            ticket.first_response_at = now
+    ticket.updated_at = now
     await _add_event(
         db,
         company_id,
