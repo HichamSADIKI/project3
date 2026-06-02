@@ -399,3 +399,56 @@ async def test_client_role_forbidden_on_write(
         headers=bad,
     )
     assert resp.status_code == 403
+
+
+# ── Assign : self-assign agent + anti cross-tenant (review follow-up) ────────
+
+
+async def test_agent_self_assign_without_body(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """« M'assigner » : un agent s'auto-attribue sans corps (agent_user_id omis)."""
+    admin, _ = seed_admin
+    cid = admin.company_id
+    agent_id = await _seed_agent(db_session, cid)
+    conv_id = await _seed_conversation(db_session, cid)
+    resp = await client.post(
+        f"/api/v1/inbox/conversations/{conv_id}/assign",
+        json={},
+        headers={"Authorization": f"Bearer {_agent_token(cid, agent_id)}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["assigned_agent_id"] == str(agent_id)
+
+
+async def test_agent_cannot_assign_to_other(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Un simple agent ne peut pas attribuer à quelqu'un d'autre (403)."""
+    admin, _ = seed_admin
+    cid = admin.company_id
+    agent_id = await _seed_agent(db_session, cid)
+    other_id = await _seed_agent(db_session, cid)
+    conv_id = await _seed_conversation(db_session, cid)
+    resp = await client.post(
+        f"/api/v1/inbox/conversations/{conv_id}/assign",
+        json={"agent_user_id": str(other_id)},
+        headers={"Authorization": f"Bearer {_agent_token(cid, agent_id)}"},
+    )
+    assert resp.status_code == 403
+
+
+async def test_assign_cross_tenant_agent_rejected(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin, db_session: AsyncSession
+) -> None:
+    """Attribuer à un agent d'un AUTRE tenant → 400 (Loi 1)."""
+    admin, token = seed_admin
+    other_company, _ = second_admin
+    foreign_agent = await _seed_agent(db_session, other_company.id)
+    conv_id = await _seed_conversation(db_session, admin.company_id)
+    resp = await client.post(
+        f"/api/v1/inbox/conversations/{conv_id}/assign",
+        json={"agent_user_id": str(foreign_agent)},
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
