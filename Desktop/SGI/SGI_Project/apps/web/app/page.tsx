@@ -26,6 +26,7 @@ import { ScreenRealEstateCheques } from "./screens/realestate-cheques";
 import { MaintenanceScreen } from "./screens/maintenance";
 import { ScreenRealEstateComms } from "./screens/realestate-comms";
 import { ScreenRealEstateInbox } from "./screens/realestate-inbox";
+import { ScreenTicketing } from "./screens/ticketing";
 import { ScreenRealEstateWorkflows } from "./screens/realestate-workflows";
 import { ScreenBanques } from "./screens/banques";
 import { ScreenConsultants } from "./screens/consultants";
@@ -67,7 +68,7 @@ type ScreenKey =
   | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
-  | "finance" | "marketing" | "report" | "parametres"
+  | "finance" | "marketing" | "report" | "parametres" | "ticketing"
   | "clients" | "personne" | "societe"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
 
@@ -96,6 +97,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_maintenance": (_) => <MaintenanceScreen />,
   "realestate_comms": (_) => <ScreenRealEstateComms />,
   "realestate_inbox": (_) => <ScreenRealEstateInbox />,
+  "ticketing": (_) => <ScreenTicketing />,
   "realestate_workflows": (_) => <ScreenRealEstateWorkflows />,
   "realestate_owners": (_) => <ScreenRealEstateOwners />,
   "realestate_owner_portal": (_) => <ScreenRealEstateOwnerPortal />,

@@ -127,9 +127,9 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
 export type NavKey =
-  | "dash" | "crm" | "orders"
+  | "dash" | "crm" | "orders" | "ticketing"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -152,6 +152,7 @@ type NavEntry =
 
 const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
+  { type: "item",  key: "ticketing",   icon: <IcReport /> },
   { type: "group", id: "fournisseurs", groupKey: "fournisseurs", icon: <IcDoc />,
     children: [
       { key: "fournisseurs_fiches",     icon: <IcDoc /> },
@@ -178,6 +179,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_maintenance", icon: <IcClock /> },
       { key: "realestate_comms", icon: <IcChat /> },
       { key: "realestate_inbox", icon: <IcMail /> },
+      { key: "realestate_tickets", icon: <IcReport /> },
       { key: "realestate_workflows", icon: <IcAudit /> },
       { key: "realestate_branches", icon: <IcPin /> },
       { key: "realestate_documents", icon: <IcDoc /> },
@@ -342,10 +344,10 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
-      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
+      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders, ticketing: t.nav_ticketing,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate,
-      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_workflows: t.nav_workflows,
+      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,

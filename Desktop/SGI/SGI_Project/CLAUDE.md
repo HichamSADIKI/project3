@@ -177,7 +177,7 @@ Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 - *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
 - *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
 
-Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0031_omnichannel_inbox`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0032_service_tickets`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
 
 Le coût bcrypt est réglable via `BCRYPT_ROUNDS` (`app/core/config.py`, défaut 12). La suite de tests le baisse à 4 (≈ −13 % de temps) — ne jamais hasher en prod avec un coût aussi bas.
 
@@ -209,7 +209,7 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`.
 
 > `tenant_kyc` and `contract_renewal_signature` (migrations 0022–0024) are **not** standalone router dirs — they are sub-routes mounted under `tenants`/`contracts`. Don't look for `tenant_kyc/` or `contract_renewal_signature/` directories.
 
@@ -316,14 +316,23 @@ Module `inbox` (`/api/v1/inbox`) : boîte de réception unifiée des fils extern
 - **IA asynchrone** (`app/tasks/inbox.py`, queue `exports`) : `summarize_conversation` et `suggest_tags` (Gemini si clé, sinon repli heuristique pur ; résultat dans `channel_metadata['ai_summary' | 'ai_suggested_tags']` — `suggest_tags` ne crée aucun lien, l'agent valide). Déclenchées à la demande (`.delay(...)`).
 - **Frontend** (`apps/web`) : screen **Inbox** (`app/screens/realestate-inbox.tsx`, `ScreenRealEstateInbox`, nav `realestate_inbox` icône `IcMail`) — layout 3 colonnes (liste / fil / panneau agent), CSS strictement logique (Loi 3), WS sur `/api/v1/inbox/ws` filtré client-side par `conversation_id`. Proxies sous `app/api/admin/inbox/**` (`proxy()` + `ws-token`). Libellés `inbox_*` / `nav_inbox` (AR/EN/FR) dans `lib/i18n.ts`.
 
+### Ticketing SLA — service desk client (migration 0032)
+
+Module `ticketing` (`/api/v1/tickets`) : service desk client avec SLA et escalade. Pattern router/schemas/service/test, filtre `company_id` (Loi 1), helpers purs testés. Tables (migration `0032_service_tickets`, RLS) : `service_tickets`, `service_ticket_events` (timeline append-only).
+
+- **Helpers purs** (`service.py`) : `generate_reference` (`TCK-YYYY-NNNNNN`, triable), `is_valid_transition` (machine à états `open → in_progress → pending → resolved → closed`, réouverture depuis terminal), `SLA_MINUTES` par priorité (`urgent`=60, `high`=240, `medium`=1440, `low`=2880), `compute_sla_due`, `is_sla_breached`, `escalation_level_for` (0=dans les temps, 1=dépassé, 2=retard ≥24 h). **Fonctions DB** : `create_ticket`, `get_ticket`, `list_tickets`, `transition_ticket` (ValueError sur transition invalide), `assign_ticket` (auto `open→in_progress`), `add_comment`, `list_events`.
+- **REST** (toutes enveloppes `{success,data,meta}`, rôles `admin/manager/agent`) : `GET /tickets` (pagination + filtres status/priority/assigned_agent_id ; un simple **agent** ne voit que SES tickets assignés — anti-BOLA, 404 jamais 403), `GET /tickets/{id}` (ticket + timeline), `POST /tickets`, `POST …/assign` (auto-attribution si `agent_user_id` omis ; agent ne peut que s'auto-assigner, 403 sinon ; agent cible hors tenant → 400), `POST …/transition` (409 sur transition invalide), `POST …/comments` (201).
+- **Escalade SLA** (`app/tasks/ticketing.py`, queue `reminders`, beat horaire `ticketing-sla-check`) : `check_ticket_sla` scanne **cross-tenant** (rôle privilégié `sync_session_maker`) les tickets non terminés en breach ; si `escalation_level_for` dépasse le niveau courant, met à jour le ticket, ajoute un event `escalated` (timeline) et crée une notification in-app `ticket_sla_breach` (destinataire = agent assigné, sinon fallback managers/admins actifs du tenant ; dédup par `(company, type, recipient, ticket_id, level)`). Retry borné (5 min ×3), ne bloque jamais le beat.
+- **Frontend** (`apps/web`) : screen **Tickets** (`app/screens/realestate-tickets.tsx`, `ScreenRealEstateTickets`, nav `realestate_tickets` icône `IcReport`) — Kanban 5 colonnes par statut, drag&drop → `POST /transition` (machine à états miroir côté UI, le backend reste l'autorité 409), badge priorité + indicateur SLA dépassé, panneau détail (transitions, attribution, timeline, commentaire). CSS strictement logique (Loi 3), chiffres latins. Proxies sous `app/api/admin/tickets/**`. Libellés `ticket_*` / `nav_tickets` (AR/EN/FR) dans `lib/i18n.ts`.
+
 ## API Wiring
 
 - Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
 - **Middleware order matters** (last added = first executed): `CORSMiddleware` → `TenantMiddleware` → `AuditMiddleware` → `GZipMiddleware`. `TenantMiddleware` ([app/middleware/tenant.py](apps/api/app/middleware/tenant.py)) decodes the JWT and `SET LOCAL app.current_company_id` per request — this is the runtime enforcement of Law 1. Do not reorder.
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
-- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`.
+- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`, `telephony`, `inbox`, `ticketing` (escalade SLA tickets, queue `reminders`, beat horaire).
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
-- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0029. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
+- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0032. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
 - **Production RLS activation runbook**: [DEPLOYMENT.md](DEPLOYMENT.md) — the one-step gotcha for going live (set `APP_DB_PASSWORD` so the API uses `sgi_app` and Law 1 RLS is actually enforced).
 
 ## CRM Business Rules
