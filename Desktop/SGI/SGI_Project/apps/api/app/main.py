@@ -201,6 +201,8 @@ app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(telephony.router, prefix="/api/v1")
 # Omnichannel Inbox — fils externes (WhatsApp/email/webchat) (migration 0031)
 app.include_router(inbox.router, prefix="/api/v1")
+# Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
+app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -78,7 +78,9 @@ class InboxConversationTag(Base, TenantMixin):
     tag_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("inbox_tags.id", ondelete="CASCADE"), primary_key=True
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
 
 
 class InboxNote(Base, TimestampMixin, TenantMixin):
