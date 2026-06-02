@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.auth import decode_jwt
 from app.core.database import get_db
 from app.core.deps import get_db_session
+from app.models.user import User
 from app.routers.inbox import service
 from app.routers.inbox.models import (
     InboxConversation,
@@ -243,7 +244,7 @@ async def post_message_endpoint(
 @router.post(
     "/conversations/{conv_id}/assign",
     response_model=ConversationItemOut,
-    dependencies=[Depends(_require_roles("admin", "manager"))],
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
 )
 async def assign_conversation_endpoint(
     conv_id: uuid.UUID,
@@ -251,21 +252,34 @@ async def assign_conversation_endpoint(
     request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> ConversationItemOut:
-    """Attribue la conversation à un agent (réservé admin/manager)."""
+    """Attribue la conversation à un agent.
+
+    - `agent_user_id` omis → auto-attribution à l'appelant (« M'assigner »),
+      autorisée à tout rôle write (dont agent).
+    - Attribuer à QUELQU'UN D'AUTRE est réservé aux superviseurs (admin/manager) ;
+      un simple agent ne peut que s'auto-attribuer (403 sinon).
+    - L'agent cible doit appartenir au même tenant (Loi 1).
+    """
     company_id = _get_company_id(request)
-    # Agent cible : body.agent_user_id, ou l'agent courant (JWT) si absent → « m'attribuer ».
-    agent_id = body.agent_user_id
-    if agent_id is None:
-        raw_uid = getattr(request.state, "user_id", None)
-        if not raw_uid:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED, detail="user_context_missing"
-            )
-        agent_id = uuid.UUID(raw_uid)
+    requester_id = _get_user_id(request)
+    role = _get_role(request)
+    target_id = body.agent_user_id or requester_id
+
+    if role == "agent" and target_id != requester_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="agents_can_only_self_assign"
+        )
     # 404 d'abord si le fil n'appartient pas au tenant (Loi 1).
     if await service.get_conversation(db, company_id, conv_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conversation_not_found")
-    conv = await service.assign_conversation(db, company_id, conv_id, agent_id)
+    # L'agent cible doit exister dans CE tenant (anti cross-tenant, Loi 1).
+    target = (
+        await db.execute(select(User).where(User.id == target_id, User.company_id == company_id))
+    ).scalar_one_or_none()
+    if target is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="agent_not_in_company")
+
+    conv = await service.assign_conversation(db, company_id, conv_id, target_id)
     if conv is None:  # pragma: no cover - garde-fou course
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conversation_not_found")
     await publish_inbox_event(
@@ -274,11 +288,11 @@ async def assign_conversation_endpoint(
             "type": "conversation.assigned",
             "data": {
                 "conversation_id": str(conv.id),
-                "assigned_agent_id": str(agent_id),
+                "assigned_agent_id": str(target_id),
                 "status": conv.status,
             },
         },
-        target_agent_id=agent_id,
+        target_agent_id=target_id,
     )
     return ConversationItemOut(data=ConversationOut.model_validate(conv))
 
