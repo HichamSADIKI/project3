@@ -14,6 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
+from app.models.client import Client
 from app.models.user import User
 from app.routers.ticketing import service
 from app.routers.ticketing.models import ServiceTicket
@@ -155,6 +156,23 @@ async def create_ticket_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> TicketItemOut:
     company_id = _get_company_id(request)
+    # Loi 1 : le client demandeur (optionnel) DOIT appartenir au tenant. La FK
+    # vers clients.id contourne la RLS (vérif côté propriétaire de la table) — on
+    # valide donc explicitement, comme l'endpoint /assign le fait pour l'agent.
+    if body.requester_client_id is not None:
+        exists = (
+            await db.execute(
+                select(Client.id).where(
+                    Client.id == body.requester_client_id,
+                    Client.company_id == company_id,
+                    Client.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+        if exists is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="client_not_in_company"
+            )
     ticket = await service.create_ticket(
         db,
         company_id,
@@ -195,11 +213,28 @@ async def assign_ticket_endpoint(
             status_code=status.HTTP_403_FORBIDDEN, detail="agents_can_only_self_assign"
         )
     # 404 d'abord si le ticket n'appartient pas au tenant (Loi 1).
-    if await service.get_ticket(db, company_id, ticket_id) is None:
+    ticket = await service.get_ticket(db, company_id, ticket_id)
+    if ticket is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="ticket_not_found")
-    # L'agent cible doit exister dans CE tenant (anti cross-tenant, Loi 1).
+    # Anti-vol : un simple agent ne peut pas s'accaparer un ticket déjà attribué
+    # à un autre agent (collision de workflow) ; seuls les superviseurs réattribuent.
+    if (
+        _get_role(request) == "agent"
+        and ticket.assigned_agent_id is not None
+        and ticket.assigned_agent_id != requester_id
+    ):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="ticket_already_assigned")
+    # L'agent cible doit exister, être actif et non supprimé dans CE tenant
+    # (anti cross-tenant Loi 1 + on n'attribue pas à un compte désactivé).
     target = (
-        await db.execute(select(User).where(User.id == agent_id, User.company_id == company_id))
+        await db.execute(
+            select(User).where(
+                User.id == agent_id,
+                User.company_id == company_id,
+                User.is_active.is_(True),
+                User.deleted_at.is_(None),
+            )
+        )
     ).scalar_one_or_none()
     if target is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="agent_not_in_company")
