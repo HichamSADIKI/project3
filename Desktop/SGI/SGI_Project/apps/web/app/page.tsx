@@ -12,6 +12,9 @@ import { ScreenTourisme } from "./screens/tourisme";
 import { ScreenSante } from "./screens/sante";
 import { ScreenAssurance } from "./screens/assurance";
 import { ScreenRealEstate } from "./screens/real-estate";
+import { ScreenRealEstateAchat } from "./screens/realestate-achat";
+import { ScreenRealEstateVente } from "./screens/realestate-vente";
+import { ScreenRealEstateLocation } from "./screens/realestate-location";
 import { ScreenRealEstateBranches } from "./screens/realestate-branches";
 import { ScreenRealEstateSettings } from "./screens/realestate-settings";
 import { ScreenRealEstateDocuments } from "./screens/realestate-documents";
@@ -61,7 +64,7 @@ import { SoftphoneDock } from "@/components/softphone/softphone-dock";
 
 type ScreenKey =
   | "dash" | "crm" | "orders"
-  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
+  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
   | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "tourisme_news" | "sante_news" | "assurance_news"
@@ -88,6 +91,9 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} />,
   "orders":      (_)  => <ScreenOrders />,
   "realestate":  (_)  => <ScreenRealEstate />,
+  "realestate_achat": (_) => <ScreenRealEstateAchat />,
+  "realestate_vente": (_) => <ScreenRealEstateVente />,
+  "realestate_location": (_) => <ScreenRealEstateLocation />,
   "realestate_buildings": (_) => <ScreenRealEstateBuildings />,
   "realestate_units": (_) => <ScreenRealEstateUnits />,
   "realestate_tenants": (_) => <ScreenRealEstateTenants />,

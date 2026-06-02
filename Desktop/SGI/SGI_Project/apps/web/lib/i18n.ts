@@ -27,6 +27,11 @@ export type Translations = {
   nav_owners: string;
   nav_owner_portal: string;
   nav_contracts_re: string;
+  nav_achat: string; nav_vente: string; nav_location: string;
+  re_mandates: string; re_offers: string; re_listings: string; re_applications: string; re_transactions: string; re_matches: string;
+  re_budget: string; re_commission: string; re_asking_price: string; re_list_price: string; re_final_price: string; re_monthly_rent: string; re_match_score: string; re_amount: string;
+  re_new_mandate: string; re_new_offer: string; re_new_listing: string; re_new_application: string; re_run_match: string; re_no_matches: string;
+  st_active: string; st_fulfilled: string; st_expired: string; st_cancelled: string; st_draft: string; st_submitted: string; st_accepted: string; st_rejected: string; st_withdrawn: string; st_published: string; st_under_offer: string; st_sold: string; st_reserved: string; st_leased: string; st_screening: string; st_approved: string; st_converted: string; st_pending: string; st_completed: string;
   nav_payments: string;
   nav_cheques: string;
   nav_maintenance_re: string;
@@ -251,6 +256,11 @@ const ar: Translations = {
   nav_owners: "الملاك",
   nav_owner_portal: "بوابة المالك",
   nav_contracts_re: "العقود",
+  nav_achat: "الشراء", nav_vente: "البيع", nav_location: "الإيجار",
+  re_mandates: "التفويضات", re_offers: "العروض", re_listings: "الإعلانات", re_applications: "الطلبات", re_transactions: "المعاملات", re_matches: "التطابقات",
+  re_budget: "الميزانية", re_commission: "العمولة", re_asking_price: "السعر المطلوب", re_list_price: "سعر العرض", re_final_price: "السعر النهائي", re_monthly_rent: "الإيجار الشهري", re_match_score: "درجة التطابق", re_amount: "المبلغ",
+  re_new_mandate: "تفويض جديد", re_new_offer: "عرض جديد", re_new_listing: "إعلان جديد", re_new_application: "طلب جديد", re_run_match: "بحث عن تطابقات", re_no_matches: "لا توجد تطابقات",
+  st_active: "نشط", st_fulfilled: "منجز", st_expired: "منتهٍ", st_cancelled: "ملغى", st_draft: "مسودة", st_submitted: "مُقدّم", st_accepted: "مقبول", st_rejected: "مرفوض", st_withdrawn: "مسحوب", st_published: "منشور", st_under_offer: "قيد العرض", st_sold: "مُباع", st_reserved: "محجوز", st_leased: "مؤجَّر", st_screening: "قيد الفحص", st_approved: "موافَق عليه", st_converted: "محوَّل", st_pending: "قيد الانتظار", st_completed: "مكتمل",
   nav_payments: "المدفوعات",
   nav_cheques: "الشيكات",
   nav_maintenance_re: "الصيانة",
@@ -467,6 +477,11 @@ const en: Translations = {
   nav_owners: "Owners",
   nav_owner_portal: "Owner Portal",
   nav_contracts_re: "Contracts",
+  nav_achat: "Buy", nav_vente: "Sell", nav_location: "Rent",
+  re_mandates: "Mandates", re_offers: "Offers", re_listings: "Listings", re_applications: "Applications", re_transactions: "Transactions", re_matches: "Matches",
+  re_budget: "Budget", re_commission: "Commission", re_asking_price: "Asking price", re_list_price: "List price", re_final_price: "Final price", re_monthly_rent: "Monthly rent", re_match_score: "Match score", re_amount: "Amount",
+  re_new_mandate: "New mandate", re_new_offer: "New offer", re_new_listing: "New listing", re_new_application: "New application", re_run_match: "Find matches", re_no_matches: "No matches",
+  st_active: "Active", st_fulfilled: "Fulfilled", st_expired: "Expired", st_cancelled: "Cancelled", st_draft: "Draft", st_submitted: "Submitted", st_accepted: "Accepted", st_rejected: "Rejected", st_withdrawn: "Withdrawn", st_published: "Published", st_under_offer: "Under offer", st_sold: "Sold", st_reserved: "Reserved", st_leased: "Leased", st_screening: "Screening", st_approved: "Approved", st_converted: "Converted", st_pending: "Pending", st_completed: "Completed",
   nav_payments: "Payments",
   nav_cheques: "Cheques",
   nav_maintenance_re: "Maintenance",
@@ -683,6 +698,11 @@ const fr: Translations = {
   nav_owners: "Propriétaires",
   nav_owner_portal: "Portail Propriétaire",
   nav_contracts_re: "Contrats",
+  nav_achat: "Achat", nav_vente: "Vente", nav_location: "Location",
+  re_mandates: "Mandats", re_offers: "Offres", re_listings: "Annonces", re_applications: "Candidatures", re_transactions: "Transactions", re_matches: "Rapprochements",
+  re_budget: "Budget", re_commission: "Commission", re_asking_price: "Prix demandé", re_list_price: "Prix affiché", re_final_price: "Prix final", re_monthly_rent: "Loyer mensuel", re_match_score: "Score", re_amount: "Montant",
+  re_new_mandate: "Nouveau mandat", re_new_offer: "Nouvelle offre", re_new_listing: "Nouvelle annonce", re_new_application: "Nouvelle candidature", re_run_match: "Rechercher", re_no_matches: "Aucun rapprochement",
+  st_active: "Actif", st_fulfilled: "Honoré", st_expired: "Expiré", st_cancelled: "Annulé", st_draft: "Brouillon", st_submitted: "Soumise", st_accepted: "Acceptée", st_rejected: "Refusée", st_withdrawn: "Retirée", st_published: "Publiée", st_under_offer: "Sous offre", st_sold: "Vendu", st_reserved: "Réservé", st_leased: "Loué", st_screening: "Étude", st_approved: "Approuvée", st_converted: "Convertie", st_pending: "En attente", st_completed: "Terminée",
   nav_payments: "Paiements",
   nav_cheques: "Chèques",
   nav_maintenance_re: "Maintenance",
