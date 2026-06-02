@@ -40,6 +40,7 @@ from app.routers import (
     technicians,
     telephony,
     tenants,
+    ticketing,
     units,
     vendors,
     workflows,
@@ -119,6 +120,7 @@ TAGS_METADATA = [
     {"name": "communication", "description": "Conversations + WebSocket."},
     {"name": "telephony", "description": "Centre de contact Asterisk WebRTC : appels, agents."},
     {"name": "inbox", "description": "Inbox omnicanal (WhatsApp/email/webchat)."},
+    {"name": "ticketing", "description": "Service desk : tickets, SLA, escalade."},
     {"name": "client_portal", "description": "Portail client (self-service)."},
     {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
     {"name": "ai_services", "description": "Services IA (Gemini)."},
@@ -201,6 +203,8 @@ app.include_router(notifications.router, prefix="/api/v1")
 app.include_router(telephony.router, prefix="/api/v1")
 # Omnichannel Inbox — fils externes (WhatsApp/email/webchat) (migration 0031)
 app.include_router(inbox.router, prefix="/api/v1")
+# Ticketing SLA — service desk client (migration 0032)
+app.include_router(ticketing.router, prefix="/api/v1")
 # Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
 app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
 
