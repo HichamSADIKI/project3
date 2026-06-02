@@ -177,7 +177,7 @@ Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 - *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
 - *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
 
-Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0032_service_tickets`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0035_leasing`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
 
 Le coût bcrypt est réglable via `BCRYPT_ROUNDS` (`app/core/config.py`, défaut 12). La suite de tests le baisse à 4 (≈ −13 % de temps) — ne jamais hasher en prod avec un coût aussi bas.
 
@@ -209,7 +209,7 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `copilot`, `acquisitions`, `sales`, `leasing`.
 
 > `tenant_kyc` and `contract_renewal_signature` (migrations 0022–0024) are **not** standalone router dirs — they are sub-routes mounted under `tenants`/`contracts`. Don't look for `tenant_kyc/` or `contract_renewal_signature/` directories.
 
@@ -298,6 +298,8 @@ Tâches Celery beat ajoutées (queue `reminders`) qui alimentent `notifications`
 
 Module `telephony` (`/api/v1/telephony`) : centre de contact temps réel branché sur **Asterisk** (WebRTC/PJSIP). Suit le pattern router/schemas/service/test, filtre par `company_id` (Loi 1), helpers purs testés.
 
+> **Asterisk 11 / chan_sip** (branche `feat/asterisk11-ami`) : SGI peut piloter un Asterisk 11 réel en click-to-call + journalisation AMI (l'agent parle sur son poste SIP, SGI trace). `TELEPHONY_CHANNEL_TECH` (`PJSIP`|`SIP`) et `TELEPHONY_ORIGINATE_CONTEXT` rendent l'`Originate` configurable ; `ami.py` gère aussi l'événement legacy `Dial` (SubEvent Begin/End) d'Asterisk 11 qui n'a pas `DialBegin`/`DialEnd`. Runbook : [infra/asterisk/ASTERISK11_INTEGRATION.md](infra/asterisk/ASTERISK11_INTEGRATION.md).
+
 - **Infra dev** : `infra/asterisk/` (Dockerfile + config pjsip/http/manager/extensions/rtp/queues). WSS sur **8089** (signalisation softphone), AMI interne sur **5038** (non publié — joignable seulement via le réseau `backend`). Agents test 6001/6002, echo test 600 (non enregistré). Var `AMI_PASSWORD` (durcissement : en prod, `AMI_PASSWORD` vide → listener AMI **non démarré** ; en dev `DEBUG=true` un warning suffit). `NEXT_PUBLIC_SIP_WS_URL=wss://localhost:8089/ws`, `NEXT_PUBLIC_WS_URL` (events backend, optionnel).
 - **Backend** : `models.py` (`calls` + `agent_states`, RLS) · `service.py` (machines à états appel/agent, `generate_reference` `CALL-YYYY-NNNNNN`, `find_clients_by_phone` pour le screen pop) · `ami.py` (pont AMI → WebSocket, listener gardé, reconnexion silencieuse, lecture cross-tenant privilégiée) · `ws.py` (bus Valkey `voice:{cid}:ext:{ext}`, fan-out multi-réplicas) · `recording.py` (enregistrement PDPL, voir plus bas).
 - **Routes** : `GET /calls` · `POST /calls` · `GET /calls/{id}` · `POST /calls/{id}/transition` · `POST /calls/click-to-call` (Originate AMI) · `GET /agents` · `GET /agents/me` · `POST /agents/me/status` · `GET /lookup` (screen pop) · `WS /ws?token=&extension=` · `GET /calls/{id}/recording`. Les 4 GET et les actions d'écriture exigent `_require_roles("admin","manager","agent")`.
@@ -325,6 +327,24 @@ Module `ticketing` (`/api/v1/tickets`) : service desk client avec SLA et escalad
 - **Escalade SLA** (`app/tasks/ticketing.py`, queue `reminders`, beat horaire `ticketing-sla-check`) : `check_ticket_sla` scanne **cross-tenant** (rôle privilégié `sync_session_maker`) les tickets non terminés en breach ; si `escalation_level_for` dépasse le niveau courant, met à jour le ticket, ajoute un event `escalated` (timeline) et crée une notification in-app `ticket_sla_breach` (destinataire = agent assigné, sinon fallback managers/admins actifs du tenant ; dédup par `(company, type, recipient, ticket_id, level)`). Retry borné (5 min ×3), ne bloque jamais le beat.
 - **Frontend** (`apps/web`) : screen **Tickets** (`app/screens/realestate-tickets.tsx`, `ScreenRealEstateTickets`, nav `realestate_tickets` icône `IcReport`) — Kanban 5 colonnes par statut, drag&drop → `POST /transition` (machine à états miroir côté UI, le backend reste l'autorité 409), badge priorité + indicateur SLA dépassé, panneau détail (transitions, attribution, timeline, commentaire). CSS strictement logique (Loi 3), chiffres latins. Proxies sous `app/api/admin/tickets/**`. Libellés `ticket_*` / `nav_tickets` (AR/EN/FR) dans `lib/i18n.ts`.
 
+### AI Copilot — assistance agent (PR #85)
+
+Module `copilot` (`/api/v1/copilot`) : assistant IA pour les agents sur l'inbox et les tickets — **sans persistance** (pas de table, pas de migration). Endpoint unique `POST /copilot/assist`. Pattern router/schemas/service/test, gardé par rôle.
+
+- **Helpers purs** (`service.py`) : `detect_sentiment`, `detect_intent`, `next_best_actions` (NBA selon intent+sentiment), `heuristic_reply` (réponse suggérée, locale `fr`/`ar`/`en`), `heuristic_summary` (résumé de fil). Repli **heuristique pur** quand la clé Gemini est absente ; `_combine_engines` trace quel moteur (gemini/heuristic) a produit réponse vs résumé. Deux fichiers de test : `test_copilot.py` (helpers purs) + `test_copilot_api.py` (endpoint).
+
+### Immobilier — Achat / Vente / Location (migrations 0033–0035)
+
+Trois modules transactionnels du chantier Immobilier, même pattern router/schemas/service/test, filtre `company_id` (Loi 1), helpers purs testés, références `XXX-YYYY-NNNNNN` triables, enveloppes `{success,data,meta}`, rôles `admin/manager/agent`.
+
+| Module / Migration | Route prefix | Entités + machines à états (helpers `is_valid_*_transition`) |
+|---|---|---|
+| `acquisitions` (0033) | `/acquisitions` | Mandats acquéreur + offres. `match_score` PostGIS (`GET /mandates/{id}/matches`) score les biens vs critères mandat (Loi 2 : `::geography`). Transitions mandat & offre. |
+| `sales` (0034) | `/sales` | Pipeline vente complet : mandat → annonce (`listings`) → offre → transaction. `compute_commission(final_price, rate)`. 4 machines à états (mandate/listing/offer/transaction). |
+| `leasing` (0035) | `/leasing` | Annonces de location (`listings`) + candidatures locataires (`applications`). Transitions listing & application. |
+
+Chaque entité expose `GET` (liste paginée + filtres), `GET /{id}`, `POST` (création), `POST /{id}/transition` (409 sur transition invalide). Wirés dans `main.py` après `copilot`.
+
 ## API Wiring
 
 - Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
@@ -332,7 +352,7 @@ Module `ticketing` (`/api/v1/tickets`) : service desk client avec SLA et escalad
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
 - Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`, `telephony`, `inbox`, `ticketing` (escalade SLA tickets, queue `reminders`, beat horaire).
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
-- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0032. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
+- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0035. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
 - **Production RLS activation runbook**: [DEPLOYMENT.md](DEPLOYMENT.md) — the one-step gotcha for going live (set `APP_DB_PASSWORD` so the API uses `sgi_app` and Law 1 RLS is actually enforced).
 
 ## CRM Business Rules
