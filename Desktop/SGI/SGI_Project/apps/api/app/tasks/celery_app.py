@@ -16,6 +16,7 @@ celery_app = Celery(
         "app.tasks.audit",
         "app.tasks.telephony",
         "app.tasks.inbox",
+        "app.tasks.ticketing",
     ],
 )
 
@@ -35,6 +36,8 @@ celery_app.conf.update(
         # par défaut « celery » que le worker n'écoute pas → jamais exécutées.
         "app.tasks.maintenance.*": {"queue": "reminders"},
         "app.tasks.workflows.*": {"queue": "reminders"},
+        # ── Ticketing SLA (escalade horaire) ─────────────────────────────
+        "app.tasks.ticketing.*": {"queue": "reminders"},
         "app.tasks.comms.notify_mentions": {"queue": "notifications"},
         "app.tasks.comms.transcribe_voice_note": {"queue": "exports"},
         "app.tasks.audit.*": {"queue": "reminders"},
@@ -74,6 +77,11 @@ celery_app.conf.update(
         # ── Workflow SLA (toutes les heures) ─────────────────────────────
         "workflow-sla-check": {
             "task": "app.tasks.workflows.check_workflow_sla",
+            "schedule": 3600.0,
+        },
+        # ── Ticketing SLA (toutes les heures) ────────────────────────────
+        "ticketing-sla-check": {
+            "task": "app.tasks.ticketing.check_ticket_sla",
             "schedule": 3600.0,
         },
         # ── Téléphonie ───────────────────────────────────────────────────

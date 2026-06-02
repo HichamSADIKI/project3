@@ -181,6 +181,21 @@ export type Translations = {
   inbox_tags_label: string; inbox_add_tag: string; inbox_notes_label: string; inbox_add_note: string;
   inbox_write_note: string; inbox_empty_notes: string; inbox_empty_tags: string; inbox_reference: string;
   inbox_all_channels: string; inbox_all_statuses: string; inbox_filter: string;
+  // Ticketing SLA (service desk)
+  nav_tickets: string;
+  ticket_title: string; ticket_detail: string; ticket_new: string; ticket_create: string;
+  ticket_subject: string; ticket_description: string;
+  ticket_st_open: string; ticket_st_in_progress: string; ticket_st_pending: string;
+  ticket_st_resolved: string; ticket_st_closed: string;
+  ticket_pr_low: string; ticket_pr_medium: string; ticket_pr_high: string; ticket_pr_urgent: string;
+  ticket_all_priorities: string; ticket_filter_agent: string;
+  ticket_status_label: string; ticket_assign: string; ticket_assign_me: string;
+  ticket_assigned_to: string; ticket_agent_id_ph: string;
+  ticket_sla_breached: string; ticket_sla_due: string;
+  ticket_timeline: string; ticket_empty_timeline: string; ticket_empty_column: string;
+  ticket_comment_label: string; ticket_write_comment: string; ticket_add_comment: string;
+  ticket_ev_created: string; ticket_ev_assigned: string; ticket_ev_status_changed: string;
+  ticket_ev_commented: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
   dt_invoice: string; dt_statement: string; dt_id: string; dt_passport: string; dt_other: string;
@@ -372,6 +387,20 @@ const ar: Translations = {
   inbox_tags_label: "الوسوم", inbox_add_tag: "إضافة وسم", inbox_notes_label: "ملاحظات داخلية", inbox_add_note: "إضافة ملاحظة",
   inbox_write_note: "اكتب ملاحظة داخلية…", inbox_empty_notes: "لا ملاحظات.", inbox_empty_tags: "لا وسوم.", inbox_reference: "المرجع",
   inbox_all_channels: "كل القنوات", inbox_all_statuses: "كل الحالات", inbox_filter: "تصفية",
+  nav_tickets: "التذاكر",
+  ticket_title: "تذاكر الدعم", ticket_detail: "تفاصيل التذكرة", ticket_new: "تذكرة جديدة", ticket_create: "إنشاء",
+  ticket_subject: "الموضوع", ticket_description: "الوصف",
+  ticket_st_open: "مفتوحة", ticket_st_in_progress: "قيد المعالجة", ticket_st_pending: "معلّقة",
+  ticket_st_resolved: "تمّ الحل", ticket_st_closed: "مغلقة",
+  ticket_pr_low: "منخفضة", ticket_pr_medium: "متوسطة", ticket_pr_high: "عالية", ticket_pr_urgent: "عاجلة",
+  ticket_all_priorities: "كل الأولويات", ticket_filter_agent: "تصفية حسب الوكيل",
+  ticket_status_label: "الحالة", ticket_assign: "إسناد", ticket_assign_me: "إسناد إليّ",
+  ticket_assigned_to: "مُسندة إلى", ticket_agent_id_ph: "معرّف الوكيل",
+  ticket_sla_breached: "تجاوز مدة الخدمة", ticket_sla_due: "موعد استحقاق الخدمة",
+  ticket_timeline: "السجل الزمني", ticket_empty_timeline: "لا أحداث.", ticket_empty_column: "لا تذاكر.",
+  ticket_comment_label: "تعليق", ticket_write_comment: "اكتب تعليقًا…", ticket_add_comment: "إضافة تعليق",
+  ticket_ev_created: "تمّ الإنشاء", ticket_ev_assigned: "تمّ الإسناد", ticket_ev_status_changed: "تغيّرت الحالة",
+  ticket_ev_commented: "تعليق",
   // Lot 3 — documents
   dt_contract: "عقد", dt_mandate: "تفويض", dt_ejari: "إيجاري", dt_dld: "دائرة الأراضي", dt_insurance: "تأمين",
   dt_invoice: "فاتورة", dt_statement: "كشف", dt_id: "هوية", dt_passport: "جواز سفر", dt_other: "أخرى",
@@ -563,6 +592,20 @@ const en: Translations = {
   inbox_tags_label: "Tags", inbox_add_tag: "Add tag", inbox_notes_label: "Internal notes", inbox_add_note: "Add note",
   inbox_write_note: "Write an internal note…", inbox_empty_notes: "No notes.", inbox_empty_tags: "No tags.", inbox_reference: "Reference",
   inbox_all_channels: "All channels", inbox_all_statuses: "All statuses", inbox_filter: "Filter",
+  nav_tickets: "Tickets",
+  ticket_title: "Support tickets", ticket_detail: "Ticket detail", ticket_new: "New ticket", ticket_create: "Create",
+  ticket_subject: "Subject", ticket_description: "Description",
+  ticket_st_open: "Open", ticket_st_in_progress: "In progress", ticket_st_pending: "Pending",
+  ticket_st_resolved: "Resolved", ticket_st_closed: "Closed",
+  ticket_pr_low: "Low", ticket_pr_medium: "Medium", ticket_pr_high: "High", ticket_pr_urgent: "Urgent",
+  ticket_all_priorities: "All priorities", ticket_filter_agent: "Filter by agent",
+  ticket_status_label: "Status", ticket_assign: "Assign", ticket_assign_me: "Assign to me",
+  ticket_assigned_to: "Assigned to", ticket_agent_id_ph: "Agent ID",
+  ticket_sla_breached: "SLA breached", ticket_sla_due: "SLA due",
+  ticket_timeline: "Timeline", ticket_empty_timeline: "No events.", ticket_empty_column: "No tickets.",
+  ticket_comment_label: "Comment", ticket_write_comment: "Write a comment…", ticket_add_comment: "Add comment",
+  ticket_ev_created: "Created", ticket_ev_assigned: "Assigned", ticket_ev_status_changed: "Status changed",
+  ticket_ev_commented: "Comment",
   // Lot 3 — documents
   dt_contract: "Contract", dt_mandate: "Mandate", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Insurance",
   dt_invoice: "Invoice", dt_statement: "Statement", dt_id: "ID", dt_passport: "Passport", dt_other: "Other",
@@ -754,6 +797,20 @@ const fr: Translations = {
   inbox_tags_label: "Étiquettes", inbox_add_tag: "Ajouter une étiquette", inbox_notes_label: "Notes internes", inbox_add_note: "Ajouter une note",
   inbox_write_note: "Écrire une note interne…", inbox_empty_notes: "Aucune note.", inbox_empty_tags: "Aucune étiquette.", inbox_reference: "Référence",
   inbox_all_channels: "Tous les canaux", inbox_all_statuses: "Tous les statuts", inbox_filter: "Filtrer",
+  nav_tickets: "Tickets",
+  ticket_title: "Tickets de support", ticket_detail: "Détail du ticket", ticket_new: "Nouveau ticket", ticket_create: "Créer",
+  ticket_subject: "Sujet", ticket_description: "Description",
+  ticket_st_open: "Ouvert", ticket_st_in_progress: "En cours", ticket_st_pending: "En attente",
+  ticket_st_resolved: "Résolu", ticket_st_closed: "Fermé",
+  ticket_pr_low: "Faible", ticket_pr_medium: "Moyenne", ticket_pr_high: "Haute", ticket_pr_urgent: "Urgente",
+  ticket_all_priorities: "Toutes les priorités", ticket_filter_agent: "Filtrer par agent",
+  ticket_status_label: "Statut", ticket_assign: "Assigner", ticket_assign_me: "M'assigner",
+  ticket_assigned_to: "Assigné à", ticket_agent_id_ph: "ID agent",
+  ticket_sla_breached: "SLA dépassé", ticket_sla_due: "Échéance SLA",
+  ticket_timeline: "Historique", ticket_empty_timeline: "Aucun événement.", ticket_empty_column: "Aucun ticket.",
+  ticket_comment_label: "Commentaire", ticket_write_comment: "Écrire un commentaire…", ticket_add_comment: "Ajouter un commentaire",
+  ticket_ev_created: "Créé", ticket_ev_assigned: "Assigné", ticket_ev_status_changed: "Statut modifié",
+  ticket_ev_commented: "Commentaire",
   // Lot 3 — documents
   dt_contract: "Contrat", dt_mandate: "Mandat", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Assurance",
   dt_invoice: "Facture", dt_statement: "Relevé", dt_id: "Pièce ID", dt_passport: "Passeport", dt_other: "Autre",
