@@ -36,7 +36,8 @@ class Notification(Base, TimestampMixin, TenantMixin):
         index=True,
     )
 
-    # statement_ready | payout_sent | mandate_expiring | kyc_verified | other
+    # statement_ready | payout_sent | mandate_expiring | kyc_verified |
+    # ticket_sla_breach | other
     type: Mapped[str] = mapped_column(String(40), nullable=False)
     # in_app | email | whatsapp | push
     channel: Mapped[str] = mapped_column(String(20), nullable=False, default="in_app")
