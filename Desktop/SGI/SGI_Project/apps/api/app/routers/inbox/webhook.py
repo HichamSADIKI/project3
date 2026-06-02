@@ -346,13 +346,28 @@ async def receive_whatsapp_webhook(
         await db.execute(_SET_TENANT, {"cid": str(company_id)})
         await db.commit()
 
-        conversation, _ = await service.get_or_create_conversation(
+        conversation, conv_created = await service.get_or_create_conversation(
             db,
             company_id,
             channel=_WHATSAPP_CHANNEL,
             external_thread_id=parsed["from"],
             contact_display=parsed.get("contact_name") or parsed["from"],
         )
+        if conv_created:
+            # Nouveau fil → les superviseurs en écoute doivent le voir apparaître.
+            await _publish_realtime(
+                company_id,
+                conversation.id,
+                {
+                    "type": "conversation.created",
+                    "data": {
+                        "conversation_id": str(conversation.id),
+                        "channel": _WHATSAPP_CHANNEL,
+                        "reference": conversation.reference,
+                        "contact_display": conversation.contact_display,
+                    },
+                },
+            )
         message, created = await service.add_message(
             db,
             company_id,

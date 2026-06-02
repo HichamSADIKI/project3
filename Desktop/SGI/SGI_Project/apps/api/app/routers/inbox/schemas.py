@@ -62,9 +62,11 @@ class TagCreate(BaseModel):
 
 
 class TagAttach(BaseModel):
-    """Attache un tag existant à une conversation."""
+    """Attache un tag à une conversation : par id (tag existant) OU par nom
+    (créé-ou-récupéré côté tenant). Au moins l'un des deux est requis."""
 
-    tag_id: uuid.UUID
+    tag_id: uuid.UUID | None = None
+    name: str | None = Field(None, min_length=1, max_length=50)
 
 
 # ── Conversations ──────────────────────────────────────────────────────────
@@ -97,7 +99,8 @@ class ConversationDetail(ConversationOut):
 
 
 class AssignBody(BaseModel):
-    agent_user_id: uuid.UUID
+    # Optionnel : omis = auto-attribution à l'agent appelant ("M'assigner").
+    agent_user_id: uuid.UUID | None = None
 
 
 class StatusBody(BaseModel):

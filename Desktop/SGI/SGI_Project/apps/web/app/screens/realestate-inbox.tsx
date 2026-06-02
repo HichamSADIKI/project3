@@ -11,12 +11,12 @@ import { getJson, postJson, extractError } from "@/lib/api-client";
 // Câblé sur le module Omnichannel Inbox (Ph0-1 + endpoints métier) :
 //   GET    /api/admin/inbox/conversations            (liste paginée)
 //   GET    /api/admin/inbox/conversations/{id}        (détail)
-//   GET    /api/admin/inbox/conversations/{id}/messages (fil REST — socle)
+//   (le détail ci-dessus embarque messages + notes + tags)
 //   POST   /api/admin/inbox/conversations/{id}/messages (réponse sortante)
 //   POST   /api/admin/inbox/conversations/{id}/assign   (attribution agent)
 //   POST   /api/admin/inbox/conversations/{id}/status   (transition statut)
-//   GET/POST /api/admin/inbox/conversations/{id}/notes  (notes internes)
-//   GET/POST /api/admin/inbox/conversations/{id}/tags   (étiquettes)
+//   POST   /api/admin/inbox/conversations/{id}/notes   (note interne)
+//   POST   /api/admin/inbox/conversations/{id}/tags    (étiquette par id ou nom)
 // Le temps réel arrive par WebSocket (event message.created) ; le fil REST sert
 // de socle et de fallback. Le token WS vient de /api/admin/inbox/ws-token (le
 // cookie httpOnly est illisible par JS — même décision sécu que comms/telephony).
@@ -47,6 +47,9 @@ type Message = {
 
 type Note = { id: string; agent_user_id: string | null; body: string | null; created_at: string };
 type Tag = { id: string; name: string; color: string | null };
+// Le détail backend (GET /conversations/{id}) embarque messages/notes/tags :
+// on s'en sert plutôt que des GET séparés (qui n'existent pas → 405).
+type ConversationDetail = Conversation & { messages: Message[]; notes: Note[]; tags: Tag[] };
 
 const channelIcon = (ch: Channel): React.ReactNode => {
   switch (ch) {
@@ -135,39 +138,29 @@ export function ScreenRealEstateInbox(): React.ReactNode {
   const [panelBusy, setPanelBusy] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
 
+  // Un seul GET détail : il embarque conversation + messages + notes + tags.
   const loadDetail = useCallback((convId: string) => {
-    getJson<{ data: Conversation }>(`/api/admin/inbox/conversations/${convId}`)
-      .then((r) => setSelConv(r.data ?? null))
-      .catch(() => setSelConv(null));
-  }, []);
-
-  const loadMessages = useCallback((convId: string) => {
     setMsgLoading(true);
-    getJson<{ data: Message[] }>(`/api/admin/inbox/conversations/${convId}/messages?limit=200`)
-      .then((r) => setMessages(r.data ?? []))
-      .catch(() => setMessages([]))
+    getJson<{ data: ConversationDetail }>(`/api/admin/inbox/conversations/${convId}`)
+      .then((r) => {
+        setSelConv(r.data ?? null);
+        setMessages(r.data?.messages ?? []);
+        setNotes(r.data?.notes ?? []);
+        setTags(r.data?.tags ?? []);
+      })
+      .catch(() => {
+        setSelConv(null);
+        setMessages([]);
+        setNotes([]);
+        setTags([]);
+      })
       .finally(() => setMsgLoading(false));
-  }, []);
-
-  const loadNotes = useCallback((convId: string) => {
-    getJson<{ data: Note[] }>(`/api/admin/inbox/conversations/${convId}/notes`)
-      .then((r) => setNotes(r.data ?? []))
-      .catch(() => setNotes([]));
-  }, []);
-
-  const loadTags = useCallback((convId: string) => {
-    getJson<{ data: Tag[] }>(`/api/admin/inbox/conversations/${convId}/tags`)
-      .then((r) => setTags(r.data ?? []))
-      .catch(() => setTags([]));
   }, []);
 
   useEffect(() => {
     if (!selId) return;
     loadDetail(selId);
-    loadMessages(selId);
-    loadNotes(selId);
-    loadTags(selId);
-  }, [selId, loadDetail, loadMessages, loadNotes, loadTags]);
+  }, [selId, loadDetail]);
 
   // WebSocket temps réel, ré-établie à chaque changement de conversation.
   useEffect(() => {
@@ -198,7 +191,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
             // pas l'objet Message complet : on recharge le fil via REST.
             const convId = evt?.data?.conversation_id as string | undefined;
             if (evt.type === "message.created" && convId === selId) {
-              loadMessages(selId);
+              loadDetail(selId);
             }
           } catch {
             /* ping/pong & frames non-JSON ignorés */
@@ -218,7 +211,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
       }
       wsRef.current = null;
     };
-  }, [selId, loadMessages]);
+  }, [selId, loadDetail]);
 
   async function send(): Promise<void> {
     if (!selId || !draft.trim()) return;
@@ -236,7 +229,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
       setDraft("");
       // Recharge le fil immédiatement (l'event WS sortant arrivera aussi mais
       // l'agent voit sa réponse sans délai).
-      loadMessages(selId);
+      loadDetail(selId);
     } catch {
       setSendError("send_failed");
     } finally {
@@ -297,7 +290,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
         return;
       }
       setNoteDraft("");
-      loadNotes(selId);
+      loadDetail(selId);
     } catch {
       setPanelError("note_failed");
     } finally {
@@ -318,7 +311,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
         return;
       }
       setTagDraft("");
-      loadTags(selId);
+      loadDetail(selId);
     } catch {
       setPanelError("tag_failed");
     } finally {
