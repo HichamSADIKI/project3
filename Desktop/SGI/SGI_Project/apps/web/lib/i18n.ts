@@ -31,6 +31,7 @@ export type Translations = {
   nav_cheques: string;
   nav_maintenance_re: string;
   nav_comms: string;
+  nav_inbox: string;
   nav_workflows: string;
   nav_branches: string;
   nav_documents: string;
@@ -169,6 +170,17 @@ export type Translations = {
   cm_empty_conversations: string; cm_no_subject: string; cm_select_conversation: string;
   cm_live: string; cm_offline: string; cm_empty_messages: string; cm_system: string;
   cm_voice_note: string; cm_ai_prefix: string; cm_write_message: string; cm_send: string;
+  // Omnichannel Inbox
+  inbox_title: string; inbox_ch_whatsapp: string; inbox_ch_email: string; inbox_ch_webchat: string;
+  inbox_ch_facebook: string; inbox_ch_instagram: string;
+  inbox_st_new: string; inbox_st_assigned: string; inbox_st_pending: string; inbox_st_resolved: string; inbox_st_closed: string;
+  inbox_empty_conversations: string; inbox_select_conversation: string; inbox_empty_messages: string;
+  inbox_no_subject: string; inbox_unknown_contact: string; inbox_in: string; inbox_out: string;
+  inbox_live: string; inbox_offline: string; inbox_send: string; inbox_write_reply: string;
+  inbox_agent_panel: string; inbox_assign: string; inbox_assign_me: string; inbox_status_label: string;
+  inbox_tags_label: string; inbox_add_tag: string; inbox_notes_label: string; inbox_add_note: string;
+  inbox_write_note: string; inbox_empty_notes: string; inbox_empty_tags: string; inbox_reference: string;
+  inbox_all_channels: string; inbox_all_statuses: string; inbox_filter: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
   dt_invoice: string; dt_statement: string; dt_id: string; dt_passport: string; dt_other: string;
@@ -218,6 +230,7 @@ const ar: Translations = {
   nav_cheques: "الشيكات",
   nav_maintenance_re: "الصيانة",
   nav_comms: "التواصل",
+  nav_inbox: "صندوق موحّد",
   nav_workflows: "عمليات الموافقة",
   nav_branches: "الفروع",
   nav_documents: "المستندات",
@@ -349,6 +362,16 @@ const ar: Translations = {
   cm_empty_conversations: "لا محادثات.", cm_no_subject: "(بدون موضوع)", cm_select_conversation: "اختر محادثة.",
   cm_live: "مباشر", cm_offline: "غير متصل", cm_empty_messages: "لا رسائل.", cm_system: "النظام",
   cm_voice_note: "🎙️ رسالة صوتية", cm_ai_prefix: "ذكاء اصطناعي:", cm_write_message: "اكتب رسالة…", cm_send: "إرسال",
+  inbox_title: "الصندوق الموحّد", inbox_ch_whatsapp: "واتساب", inbox_ch_email: "بريد", inbox_ch_webchat: "دردشة الويب",
+  inbox_ch_facebook: "فيسبوك", inbox_ch_instagram: "إنستغرام",
+  inbox_st_new: "جديد", inbox_st_assigned: "مُسند", inbox_st_pending: "معلّق", inbox_st_resolved: "تمّ الحل", inbox_st_closed: "مغلق",
+  inbox_empty_conversations: "لا محادثات.", inbox_select_conversation: "اختر محادثة.", inbox_empty_messages: "لا رسائل.",
+  inbox_no_subject: "(بدون موضوع)", inbox_unknown_contact: "جهة غير معروفة", inbox_in: "وارد", inbox_out: "صادر",
+  inbox_live: "مباشر", inbox_offline: "غير متصل", inbox_send: "إرسال", inbox_write_reply: "اكتب ردًّا…",
+  inbox_agent_panel: "لوحة الوكيل", inbox_assign: "إسناد", inbox_assign_me: "إسناد إليّ", inbox_status_label: "الحالة",
+  inbox_tags_label: "الوسوم", inbox_add_tag: "إضافة وسم", inbox_notes_label: "ملاحظات داخلية", inbox_add_note: "إضافة ملاحظة",
+  inbox_write_note: "اكتب ملاحظة داخلية…", inbox_empty_notes: "لا ملاحظات.", inbox_empty_tags: "لا وسوم.", inbox_reference: "المرجع",
+  inbox_all_channels: "كل القنوات", inbox_all_statuses: "كل الحالات", inbox_filter: "تصفية",
   // Lot 3 — documents
   dt_contract: "عقد", dt_mandate: "تفويض", dt_ejari: "إيجاري", dt_dld: "دائرة الأراضي", dt_insurance: "تأمين",
   dt_invoice: "فاتورة", dt_statement: "كشف", dt_id: "هوية", dt_passport: "جواز سفر", dt_other: "أخرى",
@@ -398,6 +421,7 @@ const en: Translations = {
   nav_cheques: "Cheques",
   nav_maintenance_re: "Maintenance",
   nav_comms: "Communication",
+  nav_inbox: "Omnichannel Inbox",
   nav_workflows: "Validations",
   nav_branches: "Branches",
   nav_documents: "Documents",
@@ -529,6 +553,16 @@ const en: Translations = {
   cm_empty_conversations: "No conversations.", cm_no_subject: "(no subject)", cm_select_conversation: "Select a conversation.",
   cm_live: "Live", cm_offline: "Offline", cm_empty_messages: "No messages.", cm_system: "system",
   cm_voice_note: "🎙️ voice note", cm_ai_prefix: "AI:", cm_write_message: "Write a message…", cm_send: "Send",
+  inbox_title: "Omnichannel Inbox", inbox_ch_whatsapp: "WhatsApp", inbox_ch_email: "Email", inbox_ch_webchat: "Web chat",
+  inbox_ch_facebook: "Facebook", inbox_ch_instagram: "Instagram",
+  inbox_st_new: "New", inbox_st_assigned: "Assigned", inbox_st_pending: "Pending", inbox_st_resolved: "Resolved", inbox_st_closed: "Closed",
+  inbox_empty_conversations: "No conversations.", inbox_select_conversation: "Select a conversation.", inbox_empty_messages: "No messages.",
+  inbox_no_subject: "(no subject)", inbox_unknown_contact: "Unknown contact", inbox_in: "In", inbox_out: "Out",
+  inbox_live: "Live", inbox_offline: "Offline", inbox_send: "Send", inbox_write_reply: "Write a reply…",
+  inbox_agent_panel: "Agent panel", inbox_assign: "Assign", inbox_assign_me: "Assign to me", inbox_status_label: "Status",
+  inbox_tags_label: "Tags", inbox_add_tag: "Add tag", inbox_notes_label: "Internal notes", inbox_add_note: "Add note",
+  inbox_write_note: "Write an internal note…", inbox_empty_notes: "No notes.", inbox_empty_tags: "No tags.", inbox_reference: "Reference",
+  inbox_all_channels: "All channels", inbox_all_statuses: "All statuses", inbox_filter: "Filter",
   // Lot 3 — documents
   dt_contract: "Contract", dt_mandate: "Mandate", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Insurance",
   dt_invoice: "Invoice", dt_statement: "Statement", dt_id: "ID", dt_passport: "Passport", dt_other: "Other",
@@ -578,6 +612,7 @@ const fr: Translations = {
   nav_cheques: "Chèques",
   nav_maintenance_re: "Maintenance",
   nav_comms: "Communication",
+  nav_inbox: "Boîte omnicanale",
   nav_workflows: "Validations",
   nav_branches: "Succursales",
   nav_documents: "Documents",
@@ -709,6 +744,16 @@ const fr: Translations = {
   cm_empty_conversations: "Aucune conversation.", cm_no_subject: "(sans objet)", cm_select_conversation: "Sélectionnez une conversation.",
   cm_live: "Temps réel", cm_offline: "Hors-ligne", cm_empty_messages: "Aucun message.", cm_system: "système",
   cm_voice_note: "🎙️ note vocale", cm_ai_prefix: "IA :", cm_write_message: "Écrire un message…", cm_send: "Envoyer",
+  inbox_title: "Boîte omnicanale", inbox_ch_whatsapp: "WhatsApp", inbox_ch_email: "E-mail", inbox_ch_webchat: "Chat web",
+  inbox_ch_facebook: "Facebook", inbox_ch_instagram: "Instagram",
+  inbox_st_new: "Nouveau", inbox_st_assigned: "Assigné", inbox_st_pending: "En attente", inbox_st_resolved: "Résolu", inbox_st_closed: "Fermé",
+  inbox_empty_conversations: "Aucune conversation.", inbox_select_conversation: "Sélectionnez une conversation.", inbox_empty_messages: "Aucun message.",
+  inbox_no_subject: "(sans objet)", inbox_unknown_contact: "Contact inconnu", inbox_in: "Entrant", inbox_out: "Sortant",
+  inbox_live: "Temps réel", inbox_offline: "Hors-ligne", inbox_send: "Envoyer", inbox_write_reply: "Écrire une réponse…",
+  inbox_agent_panel: "Panneau agent", inbox_assign: "Assigner", inbox_assign_me: "M'assigner", inbox_status_label: "Statut",
+  inbox_tags_label: "Étiquettes", inbox_add_tag: "Ajouter une étiquette", inbox_notes_label: "Notes internes", inbox_add_note: "Ajouter une note",
+  inbox_write_note: "Écrire une note interne…", inbox_empty_notes: "Aucune note.", inbox_empty_tags: "Aucune étiquette.", inbox_reference: "Référence",
+  inbox_all_channels: "Tous les canaux", inbox_all_statuses: "Tous les statuts", inbox_filter: "Filtrer",
   // Lot 3 — documents
   dt_contract: "Contrat", dt_mandate: "Mandat", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Assurance",
   dt_invoice: "Facture", dt_statement: "Relevé", dt_id: "Pièce ID", dt_passport: "Passeport", dt_other: "Autre",

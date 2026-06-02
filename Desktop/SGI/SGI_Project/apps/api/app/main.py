@@ -22,6 +22,7 @@ from app.routers import (
     documents,
     finance,
     golden_visa,
+    inbox,
     inspections,
     maintenance,
     notifications,
@@ -117,6 +118,7 @@ TAGS_METADATA = [
     {"name": "workflows", "description": "Moteur de workflows générique."},
     {"name": "communication", "description": "Conversations + WebSocket."},
     {"name": "telephony", "description": "Centre de contact Asterisk WebRTC : appels, agents."},
+    {"name": "inbox", "description": "Inbox omnicanal (WhatsApp/email/webchat)."},
     {"name": "client_portal", "description": "Portail client (self-service)."},
     {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
     {"name": "ai_services", "description": "Services IA (Gemini)."},
@@ -197,6 +199,10 @@ app.include_router(owner_statements.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
 # Téléphonie — centre de contact Asterisk WebRTC (migration 0028)
 app.include_router(telephony.router, prefix="/api/v1")
+# Omnichannel Inbox — fils externes (WhatsApp/email/webchat) (migration 0031)
+app.include_router(inbox.router, prefix="/api/v1")
+# Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
+app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])
