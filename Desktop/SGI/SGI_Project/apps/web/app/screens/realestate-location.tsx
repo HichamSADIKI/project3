@@ -64,10 +64,12 @@ const toNum = (v: string | null): number | null => (v == null || v === "" ? null
 // Transitions valides par statut (machine à états backend).
 const LISTING_NEXT: Record<string, string[]> = {
   draft: ["published", "withdrawn"],
-  published: ["reserved", "withdrawn"],
+  // Aligné sur le backend (_LISTING_TRANSITIONS) : location directe depuis
+  // published, et une annonce retirée peut être republiée.
+  published: ["reserved", "leased", "withdrawn"],
   reserved: ["leased", "published", "withdrawn"],
   leased: [],
-  withdrawn: [],
+  withdrawn: ["published"],
 };
 const APPLICATION_NEXT: Record<string, string[]> = {
   submitted: ["screening", "rejected"],
