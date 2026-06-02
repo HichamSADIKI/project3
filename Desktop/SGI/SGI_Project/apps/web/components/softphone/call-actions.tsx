@@ -5,8 +5,9 @@
  * planifier un rappel. Orchestre des endpoints existants via la couche proxy
  * (`/api/admin/**`) — aucune logique métier nouvelle côté backend.
  *
- * - Logger au CRM : crée un lead (source="call") puis y ajoute une activité
- *   `call` (réutilise crm.add_activity). Nécessite un client identifié.
+ * - Logger au CRM : rattache l'appel au lead existant du client (ou en crée un,
+ *   source="call") puis y ajoute une activité `call` (réutilise crm.add_activity).
+ *   Nécessite un client identifié.
  * - Créer un ticket : POST /tickets (requester_client_id = client de l'appel).
  * - Planifier un rappel : activité CRM `call` horodatée (`scheduled_at`).
  *
@@ -16,7 +17,7 @@
 import React, { useState } from "react";
 
 import { useT } from "@/components/language-provider";
-import { postJson, extractError } from "@/lib/api-client";
+import { getJson, postJson, extractError } from "@/lib/api-client";
 
 type ActionState = "idle" | "busy" | "done" | "error";
 
@@ -29,11 +30,23 @@ interface CallActionsProps {
   notes: string;
 }
 
-/** Crée un lead à partir de l'appel et renvoie son id (ou null). */
-async function createLead(
+/**
+ * Résout le lead du client : réutilise le lead existant le plus récent s'il y
+ * en a un (évite les doublons à chaque appel), sinon en crée un (source=call).
+ */
+async function ensureLead(
   clientId: string,
   notes: string,
 ): Promise<string | null> {
+  try {
+    const existing = await getJson<{ data: { id: string }[] }>(
+      `/api/admin/crm/leads?client_id=${encodeURIComponent(clientId)}&limit=1`,
+    );
+    const found = existing.data?.[0]?.id;
+    if (found) return found;
+  } catch {
+    /* pas de lead existant → on en crée un */
+  }
   const res = await postJson("/api/admin/crm/leads", {
     client_id: clientId,
     source: "call",
@@ -73,7 +86,7 @@ export function CallActions({ clientId, subject, notes }: CallActionsProps) {
     if (!clientId) return;
     setCrm("busy");
     setErr(null);
-    const leadId = await createLead(clientId, notes);
+    const leadId = await ensureLead(clientId, notes);
     if (!leadId) {
       setCrm("error");
       return;
@@ -103,7 +116,7 @@ export function CallActions({ clientId, subject, notes }: CallActionsProps) {
     if (!clientId || !cbAt) return;
     setCb("busy");
     setErr(null);
-    const leadId = await createLead(clientId, notes);
+    const leadId = await ensureLead(clientId, notes);
     if (!leadId) {
       setCb("error");
       return;
