@@ -20,6 +20,14 @@ def test_detect_sentiment() -> None:
     assert service.detect_sentiment("thanks, great service") == "positive"
 
 
+def test_detect_sentiment_no_substring_false_positive() -> None:
+    """Régression : « content » ⊂ « mécontent », « satisfait » ⊂ « insatisfait »
+    ne doivent PAS annuler/inverser le sentiment (matching par mot, pas sous-chaîne)."""
+    assert service.detect_sentiment("je suis mécontent") == "negative"
+    assert service.detect_sentiment("client insatisfait du service") == "negative"
+    assert service.detect_sentiment("I am dissatisfied") == "negative"
+
+
 def test_detect_intent() -> None:
     assert service.detect_intent("Je veux acheter une villa") == "buy"
     assert service.detect_intent("Je cherche une location") == "rent"
@@ -27,6 +35,13 @@ def test_detect_intent() -> None:
     assert service.detect_intent("J'ai un problème, je fais une réclamation") == "complaint"
     assert service.detect_intent("Question sur mon paiement / facture") == "payment"
     assert service.detect_intent("Bonjour") == "info"
+
+
+def test_detect_intent_rent_not_payment_multilang() -> None:
+    """Régression : une demande de location EN/AR ne doit pas être classée `payment`
+    (les mots « rent »/« إيجار » ne sont plus dans le set payment)."""
+    assert service.detect_intent("I want to rent an apartment") == "rent"
+    assert service.detect_intent("أريد إيجار شقة") == "rent"
 
 
 def test_next_best_actions() -> None:

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import { useT, useLang } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
-import { postJson, extractError } from "@/lib/api-client";
+import { postJson } from "@/lib/api-client";
 
 // Panneau « AI Copilot » réutilisable (inbox + tickets). Câblé sur le module
 // AI Copilot via le proxy :
@@ -25,7 +25,7 @@ type NextBestAction =
 type CopilotSuggestion = {
   context_type: "inbox" | "ticket";
   context_id: string;
-  channel: string | null;
+  channel: string;
   summary: string;
   suggested_reply: string;
   sentiment: Sentiment | string;
@@ -110,13 +110,29 @@ export function CopilotPanel({
   const { lang } = useLang();
 
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(false);
   const [result, setResult] = useState<CopilotSuggestion | null>(null);
   const [inserted, setInserted] = useState(false);
 
+  // Compteur de requête : invalide toute réponse en vol quand le contexte change
+  // ou qu'un nouvel appel démarre (évite d'afficher/insérer la suggestion d'un
+  // autre fil — fuite de contenu inter-conversations).
+  const reqRef = useRef(0);
+
+  // Changement de contexte (autre conversation / ticket) → on repart à blanc et
+  // on invalide la requête éventuellement en cours.
+  useEffect(() => {
+    reqRef.current += 1;
+    setResult(null);
+    setError(false);
+    setInserted(false);
+    setLoading(false);
+  }, [contextId]);
+
   async function assist(): Promise<void> {
+    const reqId = (reqRef.current += 1);
     setLoading(true);
-    setError(null);
+    setError(false);
     setInserted(false);
     try {
       const res = await postJson("/api/admin/copilot/assist", {
@@ -124,18 +140,22 @@ export function CopilotPanel({
         context_id: contextId,
         locale: lang,
       });
+      if (reqId !== reqRef.current) return; // réponse obsolète (contexte changé)
       if (!res.ok) {
-        setError(await extractError(res, "copilot_error"));
+        setError(true);
         setResult(null);
         return;
       }
       const body = (await res.json()) as { data?: CopilotSuggestion };
+      if (reqId !== reqRef.current) return;
       setResult(body.data ?? null);
     } catch {
-      setError("copilot_error");
-      setResult(null);
+      if (reqId === reqRef.current) {
+        setError(true);
+        setResult(null);
+      }
     } finally {
-      setLoading(false);
+      if (reqId === reqRef.current) setLoading(false);
     }
   }
 
@@ -180,11 +200,7 @@ export function CopilotPanel({
         </button>
       </div>
 
-      {error && (
-        <div style={{ color: "var(--rose)", fontSize: 12 }}>
-          {t.copilot_error} : {error}
-        </div>
-      )}
+      {error && <div style={{ color: "var(--rose)", fontSize: 12 }}>{t.copilot_error}</div>}
 
       {result && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -299,9 +315,10 @@ export function CopilotPanel({
             </div>
           )}
 
-          {/* Moteur */}
+          {/* Moteur (provenance localisée : IA vs repli heuristique) */}
           <div style={{ fontSize: 10.5, color: "var(--ink-4)" }}>
-            {t.copilot_engine} : {result.engine}
+            {t.copilot_engine} :{" "}
+            {result.engine === "fallback" ? t.copilot_engine_fallback : t.copilot_engine_ai}
           </div>
         </div>
       )}

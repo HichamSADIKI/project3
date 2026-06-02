@@ -17,7 +17,6 @@ celery_app = Celery(
         "app.tasks.telephony",
         "app.tasks.inbox",
         "app.tasks.ticketing",
-        "app.tasks.copilot",
     ],
 )
 
@@ -48,8 +47,6 @@ celery_app.conf.update(
         # ── Inbox omnicanal (IA asynchrone, déclenchée à la demande) ───────
         "app.tasks.inbox.summarize_conversation": {"queue": "exports"},
         "app.tasks.inbox.suggest_tags": {"queue": "exports"},
-        # ── AI Copilot (assistance agent asynchrone + push WS) ─────────────
-        "app.tasks.copilot.assist_async": {"queue": "exports"},
     },
     beat_schedule={
         "crm-followup-check": {

@@ -27,14 +27,3 @@ class AssistData(BaseModel):
 class AssistOut(BaseModel):
     success: bool = True
     data: AssistData
-
-
-class AssistQueuedData(BaseModel):
-    status: Literal["queued"] = "queued"
-    context_type: Literal["inbox", "ticket"]
-    context_id: uuid.UUID
-
-
-class AssistQueuedOut(BaseModel):
-    success: bool = True
-    data: AssistQueuedData

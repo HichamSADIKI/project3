@@ -105,30 +105,6 @@ async def test_assist_unknown_returns_404(
     assert resp.status_code == 404
 
 
-async def test_assist_push_returns_202(
-    client: AsyncClient, seed_admin: tuple[User, str], monkeypatch
-) -> None:
-    """`?push=true` enqueue la tâche et renvoie 202 (broker mocké)."""
-    _, token = seed_admin
-    ticket_id = await _create_ticket(client, token)
-
-    calls: list[tuple] = []
-
-    class _FakeTask:
-        def delay(self, *args, **kwargs) -> None:
-            calls.append((args, kwargs))
-
-    monkeypatch.setattr("app.tasks.copilot.assist_async", _FakeTask())
-    resp = await client.post(
-        "/api/v1/copilot/assist?push=true",
-        json={"context_type": "ticket", "context_id": ticket_id},
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert resp.status_code == 200  # enveloppe AssistQueuedOut (success)
-    assert resp.json()["data"]["status"] == "queued"
-    assert len(calls) == 1
-
-
 async def test_assist_client_role_forbidden(
     client: AsyncClient, seed_admin: tuple[User, str]
 ) -> None:

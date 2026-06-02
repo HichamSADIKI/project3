@@ -200,6 +200,7 @@ export type Translations = {
   copilot_assist: string; copilot_insert: string; copilot_inserted: string; copilot_error: string;
   copilot_summary: string; copilot_reply: string; copilot_sentiment: string; copilot_intent: string;
   copilot_nba: string; copilot_engine: string;
+  copilot_engine_ai: string; copilot_engine_fallback: string;
   copilot_sentiment_positive: string; copilot_sentiment_neutral: string; copilot_sentiment_negative: string;
   copilot_intent_buy: string; copilot_intent_rent: string; copilot_intent_complaint: string;
   copilot_intent_visit: string; copilot_intent_payment: string; copilot_intent_info: string;
@@ -415,6 +416,7 @@ const ar: Translations = {
   copilot_error: "تعذّر الحصول على المساعدة",
   copilot_summary: "ملخّص", copilot_reply: "ردّ مقترح", copilot_sentiment: "المشاعر", copilot_intent: "النيّة",
   copilot_nba: "إجراءات مقترحة", copilot_engine: "المحرّك",
+  copilot_engine_ai: "ذكاء اصطناعي", copilot_engine_fallback: "تلقائي",
   copilot_sentiment_positive: "إيجابي", copilot_sentiment_neutral: "محايد", copilot_sentiment_negative: "سلبي",
   copilot_intent_buy: "شراء", copilot_intent_rent: "إيجار", copilot_intent_complaint: "شكوى",
   copilot_intent_visit: "زيارة", copilot_intent_payment: "دفع", copilot_intent_info: "استفسار",
@@ -630,6 +632,7 @@ const en: Translations = {
   copilot_error: "Could not get assistance",
   copilot_summary: "Summary", copilot_reply: "Suggested reply", copilot_sentiment: "Sentiment", copilot_intent: "Intent",
   copilot_nba: "Suggested actions", copilot_engine: "Engine",
+  copilot_engine_ai: "AI", copilot_engine_fallback: "Automatic",
   copilot_sentiment_positive: "Positive", copilot_sentiment_neutral: "Neutral", copilot_sentiment_negative: "Negative",
   copilot_intent_buy: "Buy", copilot_intent_rent: "Rent", copilot_intent_complaint: "Complaint",
   copilot_intent_visit: "Visit", copilot_intent_payment: "Payment", copilot_intent_info: "Info",
@@ -845,6 +848,7 @@ const fr: Translations = {
   copilot_error: "Assistance indisponible",
   copilot_summary: "Résumé", copilot_reply: "Réponse suggérée", copilot_sentiment: "Sentiment", copilot_intent: "Intention",
   copilot_nba: "Actions suggérées", copilot_engine: "Moteur",
+  copilot_engine_ai: "IA", copilot_engine_fallback: "Automatique",
   copilot_sentiment_positive: "Positif", copilot_sentiment_neutral: "Neutre", copilot_sentiment_negative: "Négatif",
   copilot_intent_buy: "Achat", copilot_intent_rent: "Location", copilot_intent_complaint: "Réclamation",
   copilot_intent_visit: "Visite", copilot_intent_payment: "Paiement", copilot_intent_info: "Information",

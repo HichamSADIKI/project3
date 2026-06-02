@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any, Literal
 
@@ -69,6 +70,8 @@ _NEGATIVE_WORDS: frozenset[str] = frozenset(
         "leak",
         "angry",
         "refund",
+        "dissatisfied",
+        "insatisfait",
         # AR
         "مشكلة",
         "عطل",
@@ -124,22 +127,22 @@ _INTENT_KEYWORDS: dict[str, frozenset[str]] = {
             "عطل",
         }
     ),
+    # NB : pas de « rent »/« إيجار »/« loyer » ici — ce sont des marqueurs de
+    # location (intent `rent`), pas de paiement ; les y mettre faisait classer
+    # toute demande de location EN/AR en `payment` (payment itéré avant rent).
     "payment": frozenset(
         {
             "paiement",
             "payer",
             "facture",
-            "loyer",
             "chèque",
             "virement",
             "payment",
             "invoice",
-            "rent",
             "cheque",
             "transfer",
             "دفع",
             "فاتورة",
-            "إيجار",
             "شيك",
         }
     ),
@@ -165,11 +168,30 @@ _INTENT_KEYWORDS: dict[str, frozenset[str]] = {
 }
 
 
+# Tokenisation Unicode (lettres uniquement) pour un matching par MOT et non par
+# sous-chaîne — sinon « content » matcherait dans « mécontent » et « satisfait »
+# dans « insatisfait », inversant le sentiment des réclamations.
+_WORD_RE = re.compile(r"[^\W\d_]+", re.UNICODE)
+
+
+def _matches(low: str, tokens: set[str], word: str) -> bool:
+    """Un mot-clé simple matche un TOKEN entier ; une locution (espace/trait
+    d'union) reste cherchée en sous-chaîne (ex. « thank you », « rendez-vous »)."""
+    if _WORD_RE.fullmatch(word):
+        return word in tokens
+    return word in low
+
+
+def _count_hits(low: str, tokens: set[str], words: frozenset[str]) -> int:
+    return sum(1 for w in words if _matches(low, tokens, w))
+
+
 def detect_sentiment(text: str) -> Sentiment:
     """Sentiment grossier par mots-clés (repli sans IA). Négatif l'emporte."""
     low = (text or "").lower()
-    neg = sum(1 for w in _NEGATIVE_WORDS if w in low)
-    pos = sum(1 for w in _POSITIVE_WORDS if w in low)
+    tokens = set(_WORD_RE.findall(low))
+    neg = _count_hits(low, tokens, _NEGATIVE_WORDS)
+    pos = _count_hits(low, tokens, _POSITIVE_WORDS)
     if neg > pos:
         return "negative"
     if pos > neg:
@@ -180,8 +202,9 @@ def detect_sentiment(text: str) -> Sentiment:
 def detect_intent(text: str) -> str:
     """Intention dominante par mots-clés. Défaut `info` si rien ne matche."""
     low = (text or "").lower()
+    tokens = set(_WORD_RE.findall(low))
     for intent, words in _INTENT_KEYWORDS.items():
-        if any(w in low for w in words):
+        if any(_matches(low, tokens, w) for w in words):
             return intent
     return "info"
 
@@ -328,20 +351,23 @@ async def gather_inbox_context(
     )
     messages = list(reversed(rows))
     lines: list[str] = []
-    last_client_text = ""
+    client_parts: list[str] = []
     for m in messages:
         who = "Client" if m.direction == "inbound" else "Agent"
         body = (m.body or "").strip()
         if body:
             lines.append(f"{who}: {body}")
             if m.direction == "inbound":
-                last_client_text = body
+                client_parts.append(body)
     thread_text = "\n".join(lines)[:_MAX_CONTEXT_CHARS]
+    # client_text = TOUT le texte client du fil (pas seulement le dernier) — le
+    # sentiment/l'intention d'un fil multi-messages ne doit pas dépendre du seul
+    # dernier message (souvent un « merci » ou « ok »).
     return {
         "channel": conv.channel,
         "subject": conv.subject,
         "thread_text": thread_text,
-        "last_client_text": last_client_text,
+        "client_text": " ".join(client_parts)[:_MAX_CONTEXT_CHARS],
         "message_count": len(messages),
     }
 
@@ -390,13 +416,13 @@ async def gather_ticket_context(
         if ev.body:
             lines.append(f"Commentaire: {ev.body.strip()}")
     thread_text = "\n".join(lines)[:_MAX_CONTEXT_CHARS]
-    # Le « dernier message client » d'un ticket = sa description (point de départ).
-    last_client_text = (ticket.description or ticket.subject or "").strip()
+    # Texte client d'un ticket = sujet + description (point de départ de la demande).
+    client_text = f"{ticket.subject} {ticket.description or ''}".strip()
     return {
         "channel": "ticket",
         "subject": ticket.subject,
         "thread_text": thread_text,
-        "last_client_text": last_client_text,
+        "client_text": client_text,
         "message_count": len(rows) + 1,
         "priority": ticket.priority,
         "status": ticket.status,
@@ -416,6 +442,17 @@ _SUMMARY_SYSTEM = (
     "Summarize the following customer conversation in 2-3 neutral sentences, "
     "in the SAME language as the conversation. Output only the summary."
 )
+
+
+def _combine_engines(reply_engine: str, summary_engine: str) -> str:
+    """Provenance honnête sur les DEUX générations (brouillon + résumé).
+
+    `fallback` si les deux sont en repli, le nom du modèle si les deux viennent
+    de Gemini, `mixed` si l'un a réussi et l'autre est tombé en repli.
+    """
+    if reply_engine == summary_engine:
+        return reply_engine
+    return "mixed"
 
 
 async def assist(
@@ -441,9 +478,9 @@ async def assist(
     if ctx is None:
         return None
 
-    last_client = ctx["last_client_text"]
-    sentiment = detect_sentiment(last_client)
-    intent = detect_intent(last_client)
+    client_text = ctx["client_text"]
+    sentiment = detect_sentiment(client_text)
+    intent = detect_intent(client_text)
     actions = next_best_actions(intent, sentiment)
 
     # Brouillon de réponse — Gemini sinon repli.
@@ -465,7 +502,13 @@ async def assist(
         locale=locale,
         temperature=0.2,
     )
-    summary = summary_gen["text"] or heuristic_summary(ctx["thread_text"], ctx["message_count"])
+    if summary_gen["text"]:
+        summary, summary_engine = summary_gen["text"], summary_gen["engine"]
+    else:
+        summary, summary_engine = (
+            heuristic_summary(ctx["thread_text"], ctx["message_count"]),
+            "fallback",
+        )
 
     return {
         "context_type": context_type,
@@ -476,5 +519,7 @@ async def assist(
         "sentiment": sentiment,
         "intent": intent,
         "next_best_actions": actions,
-        "engine": reply_engine,
+        # engine honnête : reflète brouillon ET résumé (mixed si l'un des deux
+        # est tombé en repli alors que l'autre venait de Gemini).
+        "engine": _combine_engines(reply_engine, summary_engine),
     }
