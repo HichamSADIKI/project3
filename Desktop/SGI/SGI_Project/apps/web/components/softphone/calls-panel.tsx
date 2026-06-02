@@ -96,6 +96,8 @@ export function CallsPanel() {
     if (!target.trim()) return;
     setDialing(true);
     setDialError(null);
+    // Numéro brut : aucun client lié (évite d'hériter d'un client précédent).
+    sp.setPendingClient(null);
     try {
       const res = await postJson("/api/admin/telephony/calls/click-to-call", {
         to_number: target.trim(),

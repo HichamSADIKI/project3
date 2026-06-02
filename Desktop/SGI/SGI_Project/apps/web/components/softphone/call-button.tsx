@@ -46,6 +46,9 @@ export function CallButton({
   async function call() {
     setBusy(true);
     setErr(null);
+    // Mémorise le client visé pour que le wrap-up puisse lier l'appel au CRM
+    // (les appels sortants n'ont pas de screen pop entrant).
+    sp.setPendingClient(clientId ?? null);
     try {
       const res = await postJson("/api/admin/telephony/calls/click-to-call", {
         to_number: phone,

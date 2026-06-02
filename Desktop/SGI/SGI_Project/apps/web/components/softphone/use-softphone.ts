@@ -57,6 +57,13 @@ export interface SoftphoneController {
   currentCallId: string | null;
   /** Dernier numéro composé (redial). */
   lastDialed: string | null;
+  /**
+   * Client visé par un click-to-call sortant (transmis par le `CallButton`),
+   * afin que le wrap-up puisse lier l'appel au CRM même sans screen pop entrant.
+   */
+  pendingClientId: string | null;
+  /** Mémorise le client d'un appel sortant (null = numéro brut). */
+  setPendingClient: (clientId: string | null) => void;
   /** Connecte le softphone (extension + secret saisis par l'agent). */
   connect: (config: SipConnectConfig) => Promise<void>;
   disconnect: () => Promise<void>;
@@ -85,6 +92,7 @@ export function useSoftphone(): SoftphoneController {
   const [extension, setExtension] = useState<string | null>(null);
   const [currentCallId, setCurrentCallId] = useState<string | null>(null);
   const [lastDialed, setLastDialed] = useState<string | null>(null);
+  const [pendingClientId, setPendingClient] = useState<string | null>(null);
 
   const clientRef = useRef<SipClient | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -222,6 +230,7 @@ export function useSoftphone(): SoftphoneController {
     setCall(null);
     setScreenPop(null);
     setCurrentCallId(null);
+    setPendingClient(null);
   }, []);
 
   // Statut agent best-effort : on ignore les 409 (transitions invalides) pour
@@ -271,6 +280,8 @@ export function useSoftphone(): SoftphoneController {
     extension,
     currentCallId,
     lastDialed,
+    pendingClientId,
+    setPendingClient,
     connect,
     disconnect,
     dial,

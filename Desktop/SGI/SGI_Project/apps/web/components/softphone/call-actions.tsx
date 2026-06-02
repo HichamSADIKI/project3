@@ -164,7 +164,7 @@ export function CallActions({ clientId, subject, notes }: CallActionsProps) {
           )}
           title={t.tel_schedule_callback}
         >
-          {label(t.tel_redial, cb, t)}
+          {label(t.tel_schedule_callback, cb, t)}
         </button>
       </div>
 

@@ -14,7 +14,7 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { IcPhone, IcClose } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
-import { postJson } from "@/lib/api-client";
+import { postJson, extractError } from "@/lib/api-client";
 import type { SipCallSnapshot } from "@/lib/sip-client";
 
 import { CallActions } from "./call-actions";
@@ -60,10 +60,12 @@ export function SoftphoneDock({
   const [notes, setNotes] = useState("");
   const [disposition, setDisposition] = useState("");
   const [wrapUp, setWrapUp] = useState<{
+    callId: string | null;
     remote: string;
     clientId: string | null;
   } | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const prevCallRef = useRef<SipCallSnapshot | null>(null);
 
   const dispositions = DISPOSITION_CODES.map((code) => ({
@@ -71,11 +73,13 @@ export function SoftphoneDock({
     label: t[`tel_disp_${code}` as keyof typeof t] as string,
   }));
 
-  // Client lié à l'appel : screen pop (entrant) ou snapshot de wrap-up.
+  // Client lié à l'appel : screen pop (entrant), client click-to-call (sortant),
+  // ou snapshot de wrap-up.
   const activeClientId =
     (sp.screenPop && sp.screenPop.length > 0
       ? sp.screenPop[0].client_id
       : null) ??
+    sp.pendingClientId ??
     wrapUp?.clientId ??
     null;
 
@@ -118,9 +122,14 @@ export function SoftphoneDock({
       void sp.setStatus("busy");
     }
     if (sp.call?.state === "ended" && !wrapUp) {
+      // Fige l'id du CDR ET le client au moment du raccrochage : un nouvel
+      // appel entrant remet `currentCallId` à null, on ne doit pas perdre la
+      // cible des notes (sinon la disposition serait silencieusement écrite
+      // nulle part).
       setWrapUp({
+        callId: sp.currentCallId,
         remote: sp.call.remoteIdentity,
-        clientId: sp.screenPop?.[0]?.client_id ?? null,
+        clientId: sp.screenPop?.[0]?.client_id ?? sp.pendingClientId ?? null,
       });
       void sp.setStatus("wrap_up");
     }
@@ -149,22 +158,34 @@ export function SoftphoneDock({
     return () => window.removeEventListener("keydown", onKey);
   }, [sp]);
 
-  // Enregistre les notes/disposition sur le CDR puis repasse l'agent disponible.
+  // Enregistre les notes/disposition sur le CDR (figé à l'entrée en wrap-up)
+  // puis repasse l'agent disponible. En cas d'échec, on NE ferme PAS le panneau
+  // et on affiche l'erreur — sinon la disposition serait perdue silencieusement.
   async function saveWrapUp() {
-    const callId = sp.currentCallId;
+    const callId = wrapUp?.callId ?? null;
     const composed = composedNotes();
+    setSaveError(null);
     if (callId && composed) {
       setSaving(true);
       try {
-        await postJson(`/api/admin/telephony/calls/${callId}/notes`, {
-          notes: composed,
-        });
+        const res = await postJson(
+          `/api/admin/telephony/calls/${callId}/notes`,
+          { notes: composed },
+        );
+        if (!res.ok) {
+          setSaveError(await extractError(res, "save_failed"));
+          setSaving(false);
+          return;
+        }
       } catch {
-        /* best-effort */
+        setSaveError("save_failed");
+        setSaving(false);
+        return;
       }
       setSaving(false);
     }
     await sp.setStatus("available");
+    sp.setPendingClient(null);
     setWrapUp(null);
     setNotes("");
     setDisposition("");
@@ -587,6 +608,11 @@ export function SoftphoneDock({
                 </div>
               </div>
               {wrapForm}
+              {saveError && (
+                <div style={{ fontSize: 11, color: "var(--rose)" }}>
+                  {t.tel_action_failed} : {saveError}
+                </div>
+              )}
               <button
                 onClick={() => void saveWrapUp()}
                 disabled={saving}
