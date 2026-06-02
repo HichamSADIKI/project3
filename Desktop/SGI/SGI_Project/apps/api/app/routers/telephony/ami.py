@@ -28,10 +28,13 @@ from app.routers.telephony.ws import publish_voice_event
 
 logger = logging.getLogger(__name__)
 
-# Events AMI qu'on relaie (on ignore le bruit).
-_RELEVANT_EVENTS = {"Newchannel", "Newstate", "DialBegin", "DialEnd", "Hangup"}
+# Events AMI qu'on relaie (on ignore le bruit). `DialBegin`/`DialEnd` existent
+# sur Asterisk ≥12 (PJSIP/dev) ; Asterisk 11 (chan_sip) émet à la place un seul
+# event `Dial` portant `SubEvent: Begin|End` — on gère les deux familles.
+_RELEVANT_EVENTS = {"Newchannel", "Newstate", "DialBegin", "DialEnd", "Dial", "Hangup"}
 
-# Mapping AMI event → type d'event WebSocket métier.
+# Mapping AMI event → type d'event WebSocket métier (le legacy `Dial` est traité
+# à part selon son SubEvent dans normalize_ami_event).
 _EVENT_TYPE_MAP = {
     "Newchannel": "call.ringing",
     "DialBegin": "call.ringing",
@@ -72,15 +75,28 @@ def normalize_ami_event(packet: dict[str, str]) -> dict[str, Any] | None:
     if event not in _RELEVANT_EVENTS:
         return None
 
+    # Asterisk 11 (chan_sip) : event unique `Dial` + `SubEvent: Begin|End`.
+    # Begin → sonnerie ; End → décroché si DialStatus=ANSWER, sinon fin d'appel.
+    if event == "Dial":
+        sub = packet.get("SubEvent")
+        if sub == "Begin":
+            event_type = "call.ringing"
+        elif sub == "End":
+            event_type = "call.answered" if packet.get("DialStatus") == "ANSWER" else "call.ended"
+        else:
+            return None
+    else:
+        event_type = _EVENT_TYPE_MAP.get(event, "call.state")
+
     # Extension agent concernée : selon l'event, Exten, ConnectedLineNum,
-    # ou dérivée du nom de channel PJSIP/<ext>-xxxx.
+    # ou dérivée du nom de channel <Tech>/<ext>-xxxx (PJSIP ou SIP).
     extension = (
         packet.get("Exten")
         or packet.get("ConnectedLineNum")
         or _extension_from_channel(packet.get("Channel", ""))
     )
     return {
-        "type": _EVENT_TYPE_MAP.get(event, "call.state"),
+        "type": event_type,
         "extension": extension or None,
         "data": {
             "ami_event": event,
@@ -97,7 +113,7 @@ def normalize_ami_event(packet: dict[str, str]) -> dict[str, Any] | None:
 
 
 def _extension_from_channel(channel: str) -> str | None:
-    """`PJSIP/6001-00000003` → `6001`."""
+    """`PJSIP/6001-00000003` ou `SIP/1012-00000003` → `6001` / `1012`."""
     if not channel or "/" not in channel:
         return None
     tail = channel.split("/", 1)[1]
@@ -170,21 +186,26 @@ class AMIClient:
         extension: str,
         to_number: str,
         *,
-        context: str = "internal",
+        context: str | None = None,
         caller_id: str | None = None,
         channel_id: str | None = None,
     ) -> None:
         """Click-to-call : fait sonner l'extension de l'agent puis compose le numéro.
 
+        Le canal est construit selon `TELEPHONY_CHANNEL_TECH` (`PJSIP/<ext>` sur
+        Asterisk ≥12, `SIP/<ext>` sur Asterisk 11 / chan_sip) et le contexte
+        depuis `TELEPHONY_ORIGINATE_CONTEXT` (sauf override explicite).
+
         `channel_id` (optionnel) force l'UNIQUEID du canal Asterisk via le
-        paramètre `ChannelId` de l'action Originate (Asterisk ≥14). On le
-        renseigne pour que l'enregistrement (`<UNIQUEID>.wav`) soit rapprochable
-        du CDR applicatif (`Call.channel_id`).
+        paramètre `ChannelId` de l'action Originate (Asterisk ≥14 ; ignoré par
+        Asterisk 11 qui assigne son propre UNIQUEID). On le renseigne pour que
+        l'enregistrement (`<UNIQUEID>.wav`) soit rapprochable du CDR applicatif.
         """
+        tech = (settings.TELEPHONY_CHANNEL_TECH or "PJSIP").strip().upper()
         action = {
             "Action": "Originate",
-            "Channel": f"PJSIP/{extension}",
-            "Context": context,
+            "Channel": f"{tech}/{extension}",
+            "Context": context or settings.TELEPHONY_ORIGINATE_CONTEXT,
             "Exten": to_number,
             "Priority": "1",
             "CallerID": caller_id or to_number,

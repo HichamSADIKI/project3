@@ -103,8 +103,53 @@ def test_parse_ami_packet_ignores_garbage() -> None:
 
 def test_extension_from_channel() -> None:
     assert ami._extension_from_channel("PJSIP/6001-00000003") == "6001"
+    # Asterisk 11 / chan_sip : canal `SIP/<ext>-...`
+    assert ami._extension_from_channel("SIP/1012-00000003") == "1012"
     assert ami._extension_from_channel("") is None
     assert ami._extension_from_channel("invalid") is None
+
+
+def test_normalize_ami_event_legacy_dial() -> None:
+    """Asterisk 11 (chan_sip) émet `Dial` + SubEvent au lieu de DialBegin/DialEnd."""
+    begin = ami.normalize_ami_event(
+        {"Event": "Dial", "SubEvent": "Begin", "Channel": "SIP/1012-00000001"}
+    )
+    assert begin is not None
+    assert begin["type"] == "call.ringing"
+    assert begin["extension"] == "1012"
+
+    answered = ami.normalize_ami_event(
+        {"Event": "Dial", "SubEvent": "End", "DialStatus": "ANSWER", "Channel": "SIP/1012-1"}
+    )
+    assert answered is not None and answered["type"] == "call.answered"
+
+    busy = ami.normalize_ami_event(
+        {"Event": "Dial", "SubEvent": "End", "DialStatus": "BUSY", "Channel": "SIP/1012-1"}
+    )
+    assert busy is not None and busy["type"] == "call.ended"
+
+
+async def test_originate_uses_configured_channel_tech(monkeypatch) -> None:
+    """En mode Asterisk 11, l'Originate doit cibler `SIP/<ext>`, pas `PJSIP/`."""
+    monkeypatch.setattr(ami.settings, "TELEPHONY_CHANNEL_TECH", "sip")  # casse libre
+    monkeypatch.setattr(ami.settings, "TELEPHONY_ORIGINATE_CONTEXT", "from-internal")
+
+    sent: list[bytes] = []
+
+    class _FakeWriter:
+        def write(self, data: bytes) -> None:
+            sent.append(data)
+
+        async def drain(self) -> None:
+            pass
+
+    client = ami.AMIClient()
+    client._writer = _FakeWriter()  # type: ignore[assignment]
+    await client.originate("1012", "971501112233")
+    payload = b"".join(sent).decode()
+    assert "Channel: SIP/1012\r\n" in payload
+    assert "Context: from-internal\r\n" in payload
+    assert "Exten: 971501112233\r\n" in payload
 
 
 def test_normalize_ami_event_relevant() -> None:

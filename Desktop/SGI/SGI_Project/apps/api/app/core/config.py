@@ -43,6 +43,14 @@ class Settings(BaseSettings):
     AMI_USER: str = "sgi-api"
     AMI_PASSWORD: str = ""
     TELEPHONY_AMI_ENABLED: bool = True
+    # Technologie de canal pour l'Originate (click-to-call) et le parsing des
+    # noms de canaux AMI. "PJSIP" pour Asterisk ≥12 (dev dockerisé), "SIP" pour
+    # un Asterisk 11 (chan_sip) → canal `SIP/1012`. Insensible à la casse.
+    TELEPHONY_CHANNEL_TECH: str = "PJSIP"
+    # Contexte du dialplan utilisé par l'Originate pour router le numéro composé.
+    # En dev : "internal". Sur un Asterisk réel, mettre le contexte qui sait
+    # joindre l'extérieur/le trunk (souvent "from-internal").
+    TELEPHONY_ORIGINATE_CONTEXT: str = "internal"
     # Enregistrements : répertoire local du volume Asterisk lu par le worker
     # d'upload, et durée de rétention PDPL (purge au-delà → MinIO + recording_url).
     RECORDING_MONITOR_DIR: str = "/var/spool/asterisk/monitor"
