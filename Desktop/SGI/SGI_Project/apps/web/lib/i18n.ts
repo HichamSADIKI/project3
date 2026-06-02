@@ -215,6 +215,14 @@ export type Translations = {
   col_code: string; col_contact: string; branch_new: string; empty_branches: string;
   br_active: string; br_inactive: string; branches_active_count: string; field_phone: string; field_email: string;
   name_required: string;
+  // Ticketing SLA
+  nav_ticketing: string; tk_title: string; tk_empty: string; tk_select: string; tk_new: string;
+  tks_open: string; tks_in_progress: string; tks_pending: string; tks_resolved: string; tks_closed: string;
+  tkp_low: string; tkp_medium: string; tkp_high: string; tkp_urgent: string;
+  tk_sla: string; tk_sla_breached: string; tk_escalation: string; tk_timeline: string; tk_empty_events: string;
+  tk_comment_placeholder: string; tk_comment_add: string; tk_assign_me: string; tk_filter_all: string;
+  tk_field_subject: string; tk_field_description: string; tk_field_category: string; tk_field_priority: string;
+  tk_subject_required: string;
 };
 
 const ar: Translations = {
@@ -420,6 +428,14 @@ const ar: Translations = {
   col_code: "الرمز", col_contact: "جهة الاتصال", branch_new: "فرع جديد", empty_branches: "لا فروع.",
   br_active: "نشط", br_inactive: "غير نشط", branches_active_count: "نشط", field_phone: "الهاتف", field_email: "البريد الإلكتروني",
   name_required: "الاسم مطلوب.",
+  // Ticketing SLA
+  nav_ticketing: "التذاكر", tk_title: "مكتب الخدمة (SLA)", tk_empty: "لا تذاكر.", tk_select: "اختر تذكرة.", tk_new: "تذكرة جديدة",
+  tks_open: "مفتوحة", tks_in_progress: "قيد المعالجة", tks_pending: "في الانتظار", tks_resolved: "تم الحل", tks_closed: "مغلقة",
+  tkp_low: "منخفضة", tkp_medium: "متوسطة", tkp_high: "عالية", tkp_urgent: "عاجلة",
+  tk_sla: "موعد SLA", tk_sla_breached: "SLA متجاوز", tk_escalation: "تصعيد", tk_timeline: "السجل الزمني", tk_empty_events: "لا أحداث.",
+  tk_comment_placeholder: "أضف تعليقًا…", tk_comment_add: "تعليق", tk_assign_me: "أسندها لي", tk_filter_all: "الكل",
+  tk_field_subject: "الموضوع", tk_field_description: "الوصف", tk_field_category: "الفئة", tk_field_priority: "الأولوية",
+  tk_subject_required: "الموضوع مطلوب.",
 };
 
 const en: Translations = {
@@ -625,6 +641,14 @@ const en: Translations = {
   col_code: "Code", col_contact: "Contact", branch_new: "New branch", empty_branches: "No branches.",
   br_active: "Active", br_inactive: "Inactive", branches_active_count: "active", field_phone: "Phone", field_email: "Email",
   name_required: "Name is required.",
+  // Ticketing SLA
+  nav_ticketing: "Tickets", tk_title: "Service desk (SLA)", tk_empty: "No tickets.", tk_select: "Select a ticket.", tk_new: "New ticket",
+  tks_open: "Open", tks_in_progress: "In progress", tks_pending: "Pending", tks_resolved: "Resolved", tks_closed: "Closed",
+  tkp_low: "Low", tkp_medium: "Medium", tkp_high: "High", tkp_urgent: "Urgent",
+  tk_sla: "SLA due", tk_sla_breached: "SLA breached", tk_escalation: "Escalation", tk_timeline: "Timeline", tk_empty_events: "No events.",
+  tk_comment_placeholder: "Add a comment…", tk_comment_add: "Comment", tk_assign_me: "Assign to me", tk_filter_all: "All",
+  tk_field_subject: "Subject", tk_field_description: "Description", tk_field_category: "Category", tk_field_priority: "Priority",
+  tk_subject_required: "Subject is required.",
 };
 
 const fr: Translations = {
@@ -830,6 +854,14 @@ const fr: Translations = {
   col_code: "Code", col_contact: "Contact", branch_new: "Nouvelle succursale", empty_branches: "Aucune succursale.",
   br_active: "Active", br_inactive: "Inactive", branches_active_count: "active(s)", field_phone: "Téléphone", field_email: "Email",
   name_required: "Le nom est obligatoire.",
+  // Ticketing SLA
+  nav_ticketing: "Tickets", tk_title: "Service desk (SLA)", tk_empty: "Aucun ticket.", tk_select: "Sélectionnez un ticket.", tk_new: "Nouveau ticket",
+  tks_open: "Ouvert", tks_in_progress: "En cours", tks_pending: "En attente", tks_resolved: "Résolu", tks_closed: "Clôturé",
+  tkp_low: "Basse", tkp_medium: "Moyenne", tkp_high: "Haute", tkp_urgent: "Urgente",
+  tk_sla: "Échéance SLA", tk_sla_breached: "SLA dépassé", tk_escalation: "Escalade", tk_timeline: "Historique", tk_empty_events: "Aucun événement.",
+  tk_comment_placeholder: "Ajouter un commentaire…", tk_comment_add: "Commenter", tk_assign_me: "M'assigner", tk_filter_all: "Tous",
+  tk_field_subject: "Sujet", tk_field_description: "Description", tk_field_category: "Catégorie", tk_field_priority: "Priorité",
+  tk_subject_required: "Le sujet est obligatoire.",
 };
 
 export const T: Record<Lang, Translations> = { ar, en, fr };
