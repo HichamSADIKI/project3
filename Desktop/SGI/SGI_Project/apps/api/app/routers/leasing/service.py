@@ -11,7 +11,7 @@ import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.routers.leasing.models import RentalApplication, RentalListing
@@ -81,6 +81,12 @@ def is_valid_application_transition(current: str, target: str) -> bool:
 
 async def _next_listing_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     year = datetime.now(UTC).year
+    # Verrou consultatif transactionnel (libéré au COMMIT) : sérialise les
+    # créations concurrentes → COUNT+INSERT race-free (plus de collision de réf.).
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+        {"k": f"LEAS:rental_listings:{company_id}:{year}"},
+    )
     result = await db.execute(
         select(func.count())
         .select_from(RentalListing)
@@ -94,6 +100,12 @@ async def _next_listing_reference(db: AsyncSession, company_id: uuid.UUID) -> st
 
 async def _next_application_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     year = datetime.now(UTC).year
+    # Verrou consultatif transactionnel (libéré au COMMIT) : sérialise les
+    # créations concurrentes → COUNT+INSERT race-free (plus de collision de réf.).
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+        {"k": f"LEAS:rental_applications:{company_id}:{year}"},
+    )
     result = await db.execute(
         select(func.count())
         .select_from(RentalApplication)

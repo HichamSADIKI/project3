@@ -10,7 +10,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.routers.ticketing.models import ServiceTicket, ServiceTicketEvent
@@ -89,6 +89,13 @@ def escalation_level_for(sla_due_at: datetime | None, now: datetime) -> int:
 
 async def next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
     year = datetime.now(UTC).year
+    # Verrou consultatif transactionnel (libéré au COMMIT) : sérialise les
+    # créations concurrentes du même tenant/année → COUNT+INSERT race-free
+    # (plus de collision de référence ni d'IntegrityError 500 transitoire).
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+        {"k": f"TCK:{company_id}:{year}"},
+    )
     result = await db.execute(
         select(func.count())
         .select_from(ServiceTicket)
