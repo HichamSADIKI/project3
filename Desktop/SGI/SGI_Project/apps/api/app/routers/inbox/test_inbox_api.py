@@ -399,3 +399,50 @@ async def test_client_role_forbidden_on_write(
         headers=bad,
     )
     assert resp.status_code == 403
+
+
+async def test_agent_self_assign_without_body(client: AsyncClient, seed_admin, db_session) -> None:
+    """« M'assigner » : un agent s'auto-attribue sans corps (agent_user_id omis)."""
+    admin, _ = seed_admin
+    cid = admin.company_id
+    agent_id = await _seed_agent(db_session, cid)
+    conv_id = await _seed_conversation(db_session, cid)
+    resp = await client.post(
+        f"/api/v1/inbox/conversations/{conv_id}/assign",
+        json={},
+        headers={"Authorization": f"Bearer {_agent_token(cid, agent_id)}"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["assigned_agent_id"] == str(agent_id)
+
+
+async def test_agent_cannot_assign_to_other(client: AsyncClient, seed_admin, db_session) -> None:
+    """Un simple agent ne peut pas attribuer à quelqu'un d'autre (403)."""
+    admin, _ = seed_admin
+    cid = admin.company_id
+    agent_id = await _seed_agent(db_session, cid)
+    other_id = await _seed_agent(db_session, cid)
+    conv_id = await _seed_conversation(db_session, cid)
+    resp = await client.post(
+        f"/api/v1/inbox/conversations/{conv_id}/assign",
+        json={"agent_user_id": str(other_id)},
+        headers={"Authorization": f"Bearer {_agent_token(cid, agent_id)}"},
+    )
+    assert resp.status_code == 403
+
+
+async def test_attach_tag_by_name_creates_tag(client: AsyncClient, seed_admin, db_session) -> None:
+    """Attache par nom (saisie libre front) → tag créé-ou-récupéré puis attaché."""
+    admin, token = seed_admin
+    cid = admin.company_id
+    conv_id = await _seed_conversation(db_session, cid)
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = await client.post(
+        f"/api/v1/inbox/conversations/{conv_id}/tags",
+        json={"name": "VIP"},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    # Le tag existe maintenant dans le catalogue du tenant.
+    listed = await client.get("/api/v1/inbox/tags", headers=headers)
+    assert any(t["name"] == "VIP" for t in listed.json()["data"])
