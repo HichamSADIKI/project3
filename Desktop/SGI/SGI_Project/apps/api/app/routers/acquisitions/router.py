@@ -78,9 +78,7 @@ async def _assert_client_in_company(
         )
     ).scalar_one_or_none()
     if exists is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="client_not_in_company"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="client_not_in_company")
 
 
 async def _assert_property_in_company(

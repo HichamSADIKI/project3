@@ -38,9 +38,7 @@ class TestComputeCommission:
 
     def test_fractional_rate(self) -> None:
         # 1 000 000 × 2.5 % = 25 000
-        assert service.compute_commission(Decimal("1000000"), Decimal("2.5")) == Decimal(
-            "25000.00"
-        )
+        assert service.compute_commission(Decimal("1000000"), Decimal("2.5")) == Decimal("25000.00")
 
     def test_zero_rate(self) -> None:
         assert service.compute_commission(Decimal("1000000"), Decimal("0")) == Decimal("0.00")
@@ -169,9 +167,7 @@ async def test_create_mandate_reference_and_status(
 
 
 @pytest.mark.asyncio
-async def test_mandate_cross_tenant_none(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_mandate_cross_tenant_none(db_session: AsyncSession, seed_company: Company) -> None:
     cid = seed_company.id
     seller = await _seed_client(db_session, cid)
     m = await service.create_mandate(db_session, cid, seller_client_id=seller)
@@ -179,9 +175,7 @@ async def test_mandate_cross_tenant_none(
 
 
 @pytest.mark.asyncio
-async def test_full_pipeline_service(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_full_pipeline_service(db_session: AsyncSession, seed_company: Company) -> None:
     cid = seed_company.id
     seller = await _seed_client(db_session, cid)
     buyer = await _seed_client(db_session, cid)
@@ -214,9 +208,7 @@ async def test_full_pipeline_service(
 
 
 @pytest.mark.asyncio
-async def test_invalid_transition_raises(
-    db_session: AsyncSession, seed_company: Company
-) -> None:
+async def test_invalid_transition_raises(db_session: AsyncSession, seed_company: Company) -> None:
     cid = seed_company.id
     seller = await _seed_client(db_session, cid)
     m = await service.create_mandate(db_session, cid, seller_client_id=seller)
@@ -253,9 +245,7 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _create_client_http(
-    db_session: AsyncSession, company_id: uuid.UUID
-) -> uuid.UUID:
+async def _create_client_http(db_session: AsyncSession, company_id: uuid.UUID) -> uuid.UUID:
     return await _seed_client(db_session, company_id)
 
 
@@ -371,9 +361,7 @@ async def test_http_tenant_isolation(
 
 
 @pytest.mark.asyncio
-async def test_http_404_anti_bola(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_http_404_anti_bola(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
     r = await client.get(f"/api/v1/sales/mandates/{uuid.uuid4()}", headers=_auth(token))
     assert r.status_code == 404

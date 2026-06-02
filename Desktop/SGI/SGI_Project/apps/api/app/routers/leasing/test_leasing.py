@@ -328,9 +328,7 @@ async def test_create_application_rejects_foreign_client(
     assert r.json()["detail"] == "client_not_in_company"
 
 
-async def test_list_filters_by_status(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_list_filters_by_status(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
     l1 = await _create_listing(client, token)
     await _create_listing(client, token)

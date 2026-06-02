@@ -66,8 +66,13 @@ def test_is_valid_mandate_transition_invalid_and_terminal() -> None:
 def test_match_score_perfect_in_range() -> None:
     # Prix dans la fourchette + type ok + chambres ok → 100.
     score = service.match_score(
-        Decimal("1000000"), Decimal("2000000"), "apartment", 2,
-        Decimal("1500000"), "apartment", 3,
+        Decimal("1000000"),
+        Decimal("2000000"),
+        "apartment",
+        2,
+        Decimal("1500000"),
+        "apartment",
+        3,
     )
     assert score == 100
 
@@ -79,8 +84,13 @@ def test_match_score_no_criteria_is_neutral_max() -> None:
 
 def test_match_score_type_mismatch_loses_25() -> None:
     score = service.match_score(
-        Decimal("1000000"), Decimal("2000000"), "villa", None,
-        Decimal("1500000"), "apartment", None,
+        Decimal("1000000"),
+        Decimal("2000000"),
+        "villa",
+        None,
+        Decimal("1500000"),
+        "apartment",
+        None,
     )
     # 60 (prix ok) + 0 (type ko) + 15 (chambres neutres) = 75.
     assert score == 75
@@ -88,8 +98,13 @@ def test_match_score_type_mismatch_loses_25() -> None:
 
 def test_match_score_bedrooms_insufficient_loses_15() -> None:
     score = service.match_score(
-        None, None, None, 3,
-        Decimal("1000000"), None, 1,
+        None,
+        None,
+        None,
+        3,
+        Decimal("1000000"),
+        None,
+        1,
     )
     # 60 (prix neutre) + 25 (type neutre) + 0 (chambres ko) = 85.
     assert score == 85
@@ -101,22 +116,37 @@ def test_match_score_bedrooms_insufficient_loses_15() -> None:
 def test_match_score_price_out_of_range_degrades() -> None:
     # Prix au-dessus du max : pénalité dégressive, pas de division par zéro.
     over = service.match_score(
-        None, Decimal("1000000"), None, None,
-        Decimal("1500000"), None, None,
+        None,
+        Decimal("1000000"),
+        None,
+        None,
+        Decimal("1500000"),
+        None,
+        None,
     )
     # gap=500k / ref=1M = 0.5 → price_score = 60*0.5 = 30 ; +25 +15 = 70.
     assert over == 70
     # Très au-dessus → composante prix nulle, mais score borné >= 0.
     far = service.match_score(
-        None, Decimal("1000000"), None, None,
-        Decimal("5000000"), None, None,
+        None,
+        Decimal("1000000"),
+        None,
+        None,
+        Decimal("5000000"),
+        None,
+        None,
     )
     # gap=4M/1M=4 → price_score=0 ; +25 +15 = 40.
     assert far == 40
     # Sous le minimum.
     under = service.match_score(
-        Decimal("1000000"), None, None, None,
-        Decimal("500000"), None, None,
+        Decimal("1000000"),
+        None,
+        None,
+        None,
+        Decimal("500000"),
+        None,
+        None,
     )
     # gap=500k/1M=0.5 → 30 ; +25 +15 = 70.
     assert under == 70
@@ -124,16 +154,22 @@ def test_match_score_price_out_of_range_degrades() -> None:
 
 def test_match_score_missing_price_is_neutral() -> None:
     # Prix du bien manquant → critère prix neutre (60).
-    assert service.match_score(
-        Decimal("1000000"), Decimal("2000000"), None, None, None, None, None
-    ) == 100
+    assert (
+        service.match_score(Decimal("1000000"), Decimal("2000000"), None, None, None, None, None)
+        == 100
+    )
 
 
 def test_match_score_bounds() -> None:
     # Jamais hors [0, 100].
     s = service.match_score(
-        Decimal("1000000"), Decimal("1000001"), "villa", 10,
-        Decimal("10000000"), "apartment", 0,
+        Decimal("1000000"),
+        Decimal("1000001"),
+        "villa",
+        10,
+        Decimal("10000000"),
+        "apartment",
+        0,
     )
     assert 0 <= s <= 100
 
@@ -158,9 +194,7 @@ async def _create_client(client: AsyncClient, headers: dict[str, str]) -> str:
     return resp.json()["data"]["id"]
 
 
-async def _create_property(
-    client: AsyncClient, headers: dict[str, str], **overrides
-) -> str:
+async def _create_property(client: AsyncClient, headers: dict[str, str], **overrides) -> str:
     """Crée un bien dans le tenant et renvoie son id."""
     payload = {
         "type": "apartment",
@@ -180,9 +214,7 @@ async def test_health_is_public(client: AsyncClient) -> None:
     assert resp.json()["module"] == "acquisitions"
 
 
-async def test_mandate_create_get_list(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_mandate_create_get_list(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
     headers = _headers(token)
     buyer_id = await _create_client(client, headers)
@@ -388,20 +420,14 @@ async def test_tenant_isolation(
     assert mandate_id not in {m["id"] for m in listed_b.json()["data"]}
 
     # Accès direct → 404 (anti-BOLA : ne révèle pas l'existence, jamais 403).
-    got_b = await client.get(
-        f"/api/v1/acquisitions/mandates/{mandate_id}", headers=headers_b
-    )
+    got_b = await client.get(f"/api/v1/acquisitions/mandates/{mandate_id}", headers=headers_b)
     assert got_b.status_code == 404, got_b.text
 
 
-async def test_bola_unknown_offer_404(
-    client: AsyncClient, seed_admin: tuple[User, str]
-) -> None:
+async def test_bola_unknown_offer_404(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
     _admin, token = seed_admin
     headers = _headers(token)
-    resp = await client.get(
-        f"/api/v1/acquisitions/offers/{uuid.uuid4()}", headers=headers
-    )
+    resp = await client.get(f"/api/v1/acquisitions/offers/{uuid.uuid4()}", headers=headers)
     assert resp.status_code == 404, resp.text
 
 
@@ -430,9 +456,7 @@ async def test_matches_endpoint_scores_properties(
         )
     ).json()["data"]["id"]
 
-    resp = await client.get(
-        f"/api/v1/acquisitions/mandates/{mandate_id}/matches", headers=headers
-    )
+    resp = await client.get(f"/api/v1/acquisitions/mandates/{mandate_id}/matches", headers=headers)
     assert resp.status_code == 200, resp.text
     data = resp.json()["data"]
     # Le filtre prix exclut le bien à 9M → un seul match.
