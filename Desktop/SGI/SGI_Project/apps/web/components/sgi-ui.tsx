@@ -127,7 +127,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
 export type NavKey =
-  | "dash" | "crm" | "orders"
+  | "dash" | "crm" | "orders" | "ticketing"
   | "clients" | "personne" | "societe"
   | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
@@ -152,6 +152,7 @@ type NavEntry =
 
 const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
+  { type: "item",  key: "ticketing",   icon: <IcReport /> },
   { type: "group", id: "fournisseurs", groupKey: "fournisseurs", icon: <IcDoc />,
     children: [
       { key: "fournisseurs_fiches",     icon: <IcDoc /> },
@@ -342,7 +343,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
   const navLabel = (key: NavKey): string => {
     const map: Record<NavKey, string> = {
-      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
+      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders, ticketing: t.nav_ticketing,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate,
       realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_workflows: t.nav_workflows,
