@@ -762,3 +762,56 @@ async def extract_trade_licence(document_bytes: bytes, content_type: str) -> dic
     svt = parsed.get("suggested_vendor_type")
     out["suggested_vendor_type"] = svt if svt in VENDOR_TYPES else "other"
     return out
+
+
+# ── Génération de texte libre (copilot agent) ─────────────────────────────
+
+
+async def generate_text(
+    prompt: str,
+    *,
+    system_instruction: str | None = None,
+    locale: Locale = "fr",
+    temperature: float = 0.3,
+    max_chars: int = 2000,
+) -> dict[str, Any]:
+    """Complétion de texte libre via Gemini (rédaction assistée, copilot agent).
+
+    Best-effort, ne lève JAMAIS : sans clé ou sur erreur API, retourne
+    ``{"text": "", "engine": "unavailable"}`` — l'appelant fournit alors son
+    propre repli (brouillon heuristique). Le texte renvoyé est tronqué à
+    ``max_chars`` pour borner la sortie.
+    """
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return {"text": "", "engine": "unavailable"}
+
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        logger.info("GEMINI_API_KEY absent — generate_text indisponible")
+        return {"text": "", "engine": "unavailable"}
+
+    payload: dict[str, Any] = {
+        "contents": [
+            {"role": "user", "parts": [{"text": f"Locale={locale}\n\n{prompt}"}]},
+        ],
+        "generationConfig": {"temperature": temperature},
+    }
+    if system_instruction:
+        payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(
+                f"{GEMINI_URL}?key={api_key}",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        raw = data["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception as exc:  # noqa: BLE001 — fail-safe explicite
+        logger.warning("generate_text Gemini error: %s — repli appelant", exc)
+        return {"text": "", "engine": "unavailable"}
+
+    return {"text": (raw or "").strip()[:max_chars], "engine": GEMINI_MODEL}

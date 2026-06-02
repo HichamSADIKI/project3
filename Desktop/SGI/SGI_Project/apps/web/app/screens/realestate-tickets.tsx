@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import { Topbar, IcReport, IcClock } from "@/components/sgi-ui";
 import { useT, useLang } from "@/components/language-provider";
+import { CopilotPanel } from "@/components/copilot-panel";
 import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson, extractError } from "@/lib/api-client";
@@ -791,6 +792,13 @@ export function ScreenRealEstateTickets(): React.ReactNode {
                     ))}
                   </div>
                 </div>
+
+                {/* AI Copilot — injecte la suggestion dans la zone de commentaire. */}
+                <CopilotPanel
+                  contextType="ticket"
+                  contextId={detail.id}
+                  onInsertReply={(text) => setCommentDraft(text)}
+                />
 
                 {/* Commentaire */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
