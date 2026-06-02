@@ -62,9 +62,10 @@ class TagCreate(BaseModel):
 
 
 class TagAttach(BaseModel):
-    """Attache un tag existant à une conversation."""
+    """Attache un tag à une conversation, par id (existant) OU par nom (créé si besoin)."""
 
-    tag_id: uuid.UUID
+    tag_id: uuid.UUID | None = None
+    name: str | None = Field(None, min_length=1, max_length=50)
 
 
 # ── Conversations ──────────────────────────────────────────────────────────
@@ -97,7 +98,8 @@ class ConversationDetail(ConversationOut):
 
 
 class AssignBody(BaseModel):
-    agent_user_id: uuid.UUID
+    # Optionnel : si absent → auto-attribution à l'agent courant (issu du JWT).
+    agent_user_id: uuid.UUID | None = None
 
 
 class StatusBody(BaseModel):

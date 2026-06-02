@@ -253,10 +253,19 @@ async def assign_conversation_endpoint(
 ) -> ConversationItemOut:
     """Attribue la conversation à un agent (réservé admin/manager)."""
     company_id = _get_company_id(request)
+    # Agent cible : body.agent_user_id, ou l'agent courant (JWT) si absent → « m'attribuer ».
+    agent_id = body.agent_user_id
+    if agent_id is None:
+        raw_uid = getattr(request.state, "user_id", None)
+        if not raw_uid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="user_context_missing"
+            )
+        agent_id = uuid.UUID(raw_uid)
     # 404 d'abord si le fil n'appartient pas au tenant (Loi 1).
     if await service.get_conversation(db, company_id, conv_id) is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conversation_not_found")
-    conv = await service.assign_conversation(db, company_id, conv_id, body.agent_user_id)
+    conv = await service.assign_conversation(db, company_id, conv_id, agent_id)
     if conv is None:  # pragma: no cover - garde-fou course
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conversation_not_found")
     await publish_inbox_event(
@@ -265,11 +274,11 @@ async def assign_conversation_endpoint(
             "type": "conversation.assigned",
             "data": {
                 "conversation_id": str(conv.id),
-                "assigned_agent_id": str(body.agent_user_id),
+                "assigned_agent_id": str(agent_id),
                 "status": conv.status,
             },
         },
-        target_agent_id=body.agent_user_id,
+        target_agent_id=agent_id,
     )
     return ConversationItemOut(data=ConversationOut.model_validate(conv))
 
@@ -392,16 +401,35 @@ async def attach_tag_endpoint(
     company_id = _get_company_id(request)
     conv = await _load_visible_conversation(db, request, company_id, conv_id)
 
-    tag = (
-        await db.execute(
-            select(InboxTag).where(
-                InboxTag.id == body.tag_id,
-                InboxTag.company_id == company_id,
+    # Tag par id (existant) OU par nom (créé à la volée si absent — create-or-attach).
+    if body.tag_id is not None:
+        tag = (
+            await db.execute(
+                select(InboxTag).where(
+                    InboxTag.id == body.tag_id,
+                    InboxTag.company_id == company_id,
+                )
             )
+        ).scalar_one_or_none()
+        if tag is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tag_not_found")
+    elif body.name:
+        tag = (
+            await db.execute(
+                select(InboxTag).where(
+                    InboxTag.name == body.name,
+                    InboxTag.company_id == company_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if tag is None:
+            tag = InboxTag(company_id=company_id, name=body.name)
+            db.add(tag)
+            await db.flush()
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="tag_id_or_name_required"
         )
-    ).scalar_one_or_none()
-    if tag is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="tag_not_found")
 
     existing = (
         await db.execute(
