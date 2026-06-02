@@ -196,6 +196,15 @@ export type Translations = {
   ticket_comment_label: string; ticket_write_comment: string; ticket_add_comment: string;
   ticket_ev_created: string; ticket_ev_assigned: string; ticket_ev_status_changed: string;
   ticket_ev_commented: string;
+  // AI Copilot
+  copilot_assist: string; copilot_insert: string; copilot_inserted: string; copilot_error: string;
+  copilot_summary: string; copilot_reply: string; copilot_sentiment: string; copilot_intent: string;
+  copilot_nba: string; copilot_engine: string;
+  copilot_sentiment_positive: string; copilot_sentiment_neutral: string; copilot_sentiment_negative: string;
+  copilot_intent_buy: string; copilot_intent_rent: string; copilot_intent_complaint: string;
+  copilot_intent_visit: string; copilot_intent_payment: string; copilot_intent_info: string;
+  copilot_action_schedule_visit: string; copilot_action_send_listing: string; copilot_action_escalate: string;
+  copilot_action_request_payment: string; copilot_action_share_info: string; copilot_action_follow_up: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
   dt_invoice: string; dt_statement: string; dt_id: string; dt_passport: string; dt_other: string;
@@ -401,6 +410,16 @@ const ar: Translations = {
   ticket_comment_label: "تعليق", ticket_write_comment: "اكتب تعليقًا…", ticket_add_comment: "إضافة تعليق",
   ticket_ev_created: "تمّ الإنشاء", ticket_ev_assigned: "تمّ الإسناد", ticket_ev_status_changed: "تغيّرت الحالة",
   ticket_ev_commented: "تعليق",
+  // AI Copilot
+  copilot_assist: "مساعدة بالذكاء الاصطناعي", copilot_insert: "إدراج", copilot_inserted: "تمّ الإدراج",
+  copilot_error: "تعذّر الحصول على المساعدة",
+  copilot_summary: "ملخّص", copilot_reply: "ردّ مقترح", copilot_sentiment: "المشاعر", copilot_intent: "النيّة",
+  copilot_nba: "إجراءات مقترحة", copilot_engine: "المحرّك",
+  copilot_sentiment_positive: "إيجابي", copilot_sentiment_neutral: "محايد", copilot_sentiment_negative: "سلبي",
+  copilot_intent_buy: "شراء", copilot_intent_rent: "إيجار", copilot_intent_complaint: "شكوى",
+  copilot_intent_visit: "زيارة", copilot_intent_payment: "دفع", copilot_intent_info: "استفسار",
+  copilot_action_schedule_visit: "جدولة زيارة", copilot_action_send_listing: "إرسال عقار", copilot_action_escalate: "تصعيد",
+  copilot_action_request_payment: "طلب دفعة", copilot_action_share_info: "مشاركة معلومات", copilot_action_follow_up: "متابعة",
   // Lot 3 — documents
   dt_contract: "عقد", dt_mandate: "تفويض", dt_ejari: "إيجاري", dt_dld: "دائرة الأراضي", dt_insurance: "تأمين",
   dt_invoice: "فاتورة", dt_statement: "كشف", dt_id: "هوية", dt_passport: "جواز سفر", dt_other: "أخرى",
@@ -606,6 +625,16 @@ const en: Translations = {
   ticket_comment_label: "Comment", ticket_write_comment: "Write a comment…", ticket_add_comment: "Add comment",
   ticket_ev_created: "Created", ticket_ev_assigned: "Assigned", ticket_ev_status_changed: "Status changed",
   ticket_ev_commented: "Comment",
+  // AI Copilot
+  copilot_assist: "AI assist", copilot_insert: "Insert", copilot_inserted: "Inserted",
+  copilot_error: "Could not get assistance",
+  copilot_summary: "Summary", copilot_reply: "Suggested reply", copilot_sentiment: "Sentiment", copilot_intent: "Intent",
+  copilot_nba: "Suggested actions", copilot_engine: "Engine",
+  copilot_sentiment_positive: "Positive", copilot_sentiment_neutral: "Neutral", copilot_sentiment_negative: "Negative",
+  copilot_intent_buy: "Buy", copilot_intent_rent: "Rent", copilot_intent_complaint: "Complaint",
+  copilot_intent_visit: "Visit", copilot_intent_payment: "Payment", copilot_intent_info: "Info",
+  copilot_action_schedule_visit: "Schedule visit", copilot_action_send_listing: "Send listing", copilot_action_escalate: "Escalate",
+  copilot_action_request_payment: "Request payment", copilot_action_share_info: "Share info", copilot_action_follow_up: "Follow up",
   // Lot 3 — documents
   dt_contract: "Contract", dt_mandate: "Mandate", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Insurance",
   dt_invoice: "Invoice", dt_statement: "Statement", dt_id: "ID", dt_passport: "Passport", dt_other: "Other",
@@ -811,6 +840,16 @@ const fr: Translations = {
   ticket_comment_label: "Commentaire", ticket_write_comment: "Écrire un commentaire…", ticket_add_comment: "Ajouter un commentaire",
   ticket_ev_created: "Créé", ticket_ev_assigned: "Assigné", ticket_ev_status_changed: "Statut modifié",
   ticket_ev_commented: "Commentaire",
+  // AI Copilot
+  copilot_assist: "Assister par IA", copilot_insert: "Insérer", copilot_inserted: "Inséré",
+  copilot_error: "Assistance indisponible",
+  copilot_summary: "Résumé", copilot_reply: "Réponse suggérée", copilot_sentiment: "Sentiment", copilot_intent: "Intention",
+  copilot_nba: "Actions suggérées", copilot_engine: "Moteur",
+  copilot_sentiment_positive: "Positif", copilot_sentiment_neutral: "Neutre", copilot_sentiment_negative: "Négatif",
+  copilot_intent_buy: "Achat", copilot_intent_rent: "Location", copilot_intent_complaint: "Réclamation",
+  copilot_intent_visit: "Visite", copilot_intent_payment: "Paiement", copilot_intent_info: "Information",
+  copilot_action_schedule_visit: "Planifier une visite", copilot_action_send_listing: "Envoyer un bien", copilot_action_escalate: "Escalader",
+  copilot_action_request_payment: "Demander un paiement", copilot_action_share_info: "Partager une info", copilot_action_follow_up: "Relancer",
   // Lot 3 — documents
   dt_contract: "Contrat", dt_mandate: "Mandat", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Assurance",
   dt_invoice: "Facture", dt_statement: "Relevé", dt_id: "Pièce ID", dt_passport: "Passeport", dt_other: "Autre",

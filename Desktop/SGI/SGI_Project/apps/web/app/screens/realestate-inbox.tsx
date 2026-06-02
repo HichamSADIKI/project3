@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { Topbar, IcChat, IcMail, IcPhone } from "@/components/sgi-ui";
 import { useT, useLang } from "@/components/language-provider";
+import { CopilotPanel } from "@/components/copilot-panel";
 import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson, extractError } from "@/lib/api-client";
@@ -620,6 +621,13 @@ export function ScreenRealEstateInbox(): React.ReactNode {
             <div className="font-display" style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
               {t.inbox_agent_panel}
             </div>
+
+            {/* AI Copilot — injecte le brouillon dans la zone de composition. */}
+            <CopilotPanel
+              contextType="inbox"
+              contextId={selId}
+              onInsertReply={(text) => setDraft(text)}
+            />
 
             {panelError && (
               <div style={{ color: "var(--rose)", fontSize: 12 }}>
