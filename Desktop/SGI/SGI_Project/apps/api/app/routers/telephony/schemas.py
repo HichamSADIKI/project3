@@ -25,6 +25,12 @@ class CallTransition(BaseModel):
     hangup_cause: str | None = Field(None, max_length=50)
 
 
+class CallNotesUpdate(BaseModel):
+    """Mise à jour des notes de wrap-up (la disposition est encodée en 1re ligne)."""
+
+    notes: str | None = None
+
+
 class ClickToCall(BaseModel):
     """Originate : l'agent (extension) appelle un numéro / un client."""
 

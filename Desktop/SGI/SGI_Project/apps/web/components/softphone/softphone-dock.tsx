@@ -14,11 +14,25 @@ import React, { useEffect, useRef, useState } from "react";
 
 import { IcPhone, IcClose } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
+import { postJson } from "@/lib/api-client";
+import type { SipCallSnapshot } from "@/lib/sip-client";
 
+import { CallActions } from "./call-actions";
 import { useSoftphoneContext } from "./softphone-provider";
 import { fetchMyExtension } from "./use-softphone";
 
 const DTMF_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "*", "0", "#"];
+
+/** Codes de disposition (stables, indépendants de la locale) → libellé i18n. */
+const DISPOSITION_CODES = [
+  "interested",
+  "callback",
+  "not_interested",
+  "no_answer",
+  "wrong_number",
+  "voicemail",
+  "completed",
+] as const;
 
 /** Durée mm:ss depuis un epoch ms (chiffres latins). */
 function elapsed(since: number): string {
@@ -28,7 +42,11 @@ function elapsed(since: number): string {
   return `${m}:${r.toString().padStart(2, "0")}`;
 }
 
-export function SoftphoneDock() {
+export function SoftphoneDock({
+  onOpenClient,
+}: {
+  onOpenClient?: (name: string) => void;
+}) {
   const t = useT();
   const sp = useSoftphoneContext();
   const [open, setOpen] = useState(false);
@@ -37,6 +55,37 @@ export function SoftphoneDock() {
   const [showKeypad, setShowKeypad] = useState(false);
   const [, forceTick] = useState(0);
   const audioCheckRef = useRef(false);
+
+  // Workspace appel : notes live + disposition + wrap-up après raccrochage.
+  const [notes, setNotes] = useState("");
+  const [disposition, setDisposition] = useState("");
+  const [wrapUp, setWrapUp] = useState<{
+    remote: string;
+    clientId: string | null;
+  } | null>(null);
+  const [saving, setSaving] = useState(false);
+  const prevCallRef = useRef<SipCallSnapshot | null>(null);
+
+  const dispositions = DISPOSITION_CODES.map((code) => ({
+    code,
+    label: t[`tel_disp_${code}` as keyof typeof t] as string,
+  }));
+
+  // Client lié à l'appel : screen pop (entrant) ou snapshot de wrap-up.
+  const activeClientId =
+    (sp.screenPop && sp.screenPop.length > 0
+      ? sp.screenPop[0].client_id
+      : null) ??
+    wrapUp?.clientId ??
+    null;
+
+  const subject = sp.call?.remoteIdentity ?? wrapUp?.remote ?? "—";
+
+  /** Notes composées : 1re ligne `Résultat: <code>` (marqueur stable) + texte. */
+  function composedNotes(): string {
+    const marker = disposition ? `Résultat: ${disposition}\n` : "";
+    return `${marker}${notes}`.trim();
+  }
 
   // Pré-remplit l'extension depuis l'agent_state (si l'agent en a une).
   useEffect(() => {
@@ -54,13 +103,132 @@ export function SoftphoneDock() {
     return () => window.clearInterval(id);
   }, [sp.call?.state]);
 
-  // Ouvre le dock automatiquement sur un appel entrant ou un screen pop.
+  // Ouvre le dock automatiquement sur un appel entrant, un screen pop, ou un
+  // wrap-up à traiter.
   useEffect(() => {
-    if (sp.call?.state === "ringing" || sp.screenPop) setOpen(true);
-  }, [sp.call?.state, sp.screenPop]);
+    if (sp.call?.state === "ringing" || sp.screenPop || wrapUp) setOpen(true);
+  }, [sp.call?.state, sp.screenPop, wrapUp]);
+
+  // Statut agent automatique + entrée en wrap-up autour d'un appel.
+  // - décroché → busy ; - terminé (snapshot transitoire "ended") → wrap_up.
+  useEffect(() => {
+    const prev = prevCallRef.current;
+    prevCallRef.current = sp.call ?? null;
+    if (sp.call?.state === "answered" && prev?.state !== "answered") {
+      void sp.setStatus("busy");
+    }
+    if (sp.call?.state === "ended" && !wrapUp) {
+      setWrapUp({
+        remote: sp.call.remoteIdentity,
+        clientId: sp.screenPop?.[0]?.client_id ?? null,
+      });
+      void sp.setStatus("wrap_up");
+    }
+  }, [sp.call, sp.screenPop, sp, wrapUp]);
+
+  // Raccourcis clavier (Alt+…), désactivés quand le focus est dans un champ.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!e.altKey) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      const k = e.key.toLowerCase();
+      const st = sp.call?.state;
+      if (k === "a" && st === "ringing" && sp.call?.direction === "inbound") {
+        e.preventDefault();
+        sp.answer();
+      } else if (k === "h" && sp.call) {
+        e.preventDefault();
+        sp.hangup();
+      } else if (k === "m" && (st === "answered" || st === "held")) {
+        e.preventDefault();
+        sp.toggleMute();
+      }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [sp]);
+
+  // Enregistre les notes/disposition sur le CDR puis repasse l'agent disponible.
+  async function saveWrapUp() {
+    const callId = sp.currentCallId;
+    const composed = composedNotes();
+    if (callId && composed) {
+      setSaving(true);
+      try {
+        await postJson(`/api/admin/telephony/calls/${callId}/notes`, {
+          notes: composed,
+        });
+      } catch {
+        /* best-effort */
+      }
+      setSaving(false);
+    }
+    await sp.setStatus("available");
+    setWrapUp(null);
+    setNotes("");
+    setDisposition("");
+  }
 
   const registered = sp.registration === "registered";
   const call = sp.call;
+
+  // Bloc commun (appel actif + wrap-up) : disposition · notes · actions 1 clic.
+  const wrapForm = (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
+        borderTop: "1px solid var(--line-soft)",
+        paddingTop: 10,
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          color: "var(--ink-4)",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        {t.tel_disposition}
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {dispositions.map((d) => (
+          <button
+            key={d.code}
+            onClick={() => setDisposition(d.code === disposition ? "" : d.code)}
+            style={chip(d.code === disposition)}
+          >
+            {d.label}
+          </button>
+        ))}
+      </div>
+      <textarea
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        placeholder={t.tel_notes}
+        rows={2}
+        style={{
+          width: "100%",
+          resize: "vertical",
+          padding: "7px 9px",
+          border: "1px solid var(--line)",
+          borderRadius: 8,
+          background: "var(--bg-cream)",
+          fontSize: 12.5,
+          color: "var(--ink)",
+          fontFamily: "inherit",
+        }}
+      />
+      <CallActions
+        clientId={activeClientId}
+        subject={subject}
+        notes={composedNotes()}
+      />
+    </div>
+  );
 
   const regColor =
     sp.registration === "registered"
@@ -155,19 +323,48 @@ export function SoftphoneDock() {
             <span style={{ color: "var(--gold)" }}>
               <IcPhone />
             </span>
-            <span className="font-display" style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
+            <span
+              className="font-display"
+              style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}
+            >
               {t.tel_softphone}
             </span>
-            <span style={{ display: "flex", alignItems: "center", gap: 6, marginInlineStart: "auto" }}>
-              <span style={{ width: 8, height: 8, borderRadius: 999, background: regColor }} />
-              <span style={{ fontSize: 11, color: regColor, fontWeight: 600 }}>{regLabel}</span>
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                marginInlineStart: "auto",
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: 999,
+                  background: regColor,
+                }}
+              />
+              <span style={{ fontSize: 11, color: regColor, fontWeight: 600 }}>
+                {regLabel}
+              </span>
             </span>
           </div>
 
           {/* Connexion */}
           {!registered && !call && (
-            <form onSubmit={handleConnect} style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-              <label style={{ fontSize: 11, color: "var(--ink-4)" }}>{t.tel_extension}</label>
+            <form
+              onSubmit={handleConnect}
+              style={{
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 10,
+              }}
+            >
+              <label style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                {t.tel_extension}
+              </label>
               <input
                 value={ext}
                 onChange={(e) => setExt(e.target.value)}
@@ -175,7 +372,9 @@ export function SoftphoneDock() {
                 style={inputStyle}
                 placeholder="6001"
               />
-              <label style={{ fontSize: 11, color: "var(--ink-4)" }}>{t.tel_secret}</label>
+              <label style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                {t.tel_secret}
+              </label>
               <input
                 value={secret}
                 onChange={(e) => setSecret(e.target.value)}
@@ -183,26 +382,63 @@ export function SoftphoneDock() {
                 autoComplete="off"
                 style={inputStyle}
               />
-              {sp.registration === "registration_failed" && sp.registrationReason && (
-                <div style={{ fontSize: 11, color: "var(--rose)" }}>{sp.registrationReason}</div>
-              )}
-              <button type="submit" disabled={!ext.trim() || !secret} style={primaryBtn(!ext.trim() || !secret)}>
-                {sp.registration === "connecting" ? t.tel_connecting : t.tel_connect}
+              {sp.registration === "registration_failed" &&
+                sp.registrationReason && (
+                  <div style={{ fontSize: 11, color: "var(--rose)" }}>
+                    {sp.registrationReason}
+                  </div>
+                )}
+              <button
+                type="submit"
+                disabled={!ext.trim() || !secret}
+                style={primaryBtn(!ext.trim() || !secret)}
+              >
+                {sp.registration === "connecting"
+                  ? t.tel_connecting
+                  : t.tel_connect}
               </button>
             </form>
           )}
 
           {/* Appel courant */}
           {call && (
-            <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div
+              style={{
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 11, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                  {call.direction === "inbound" ? t.tel_incoming : t.tel_outgoing}
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink-4)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {call.direction === "inbound"
+                    ? t.tel_incoming
+                    : t.tel_outgoing}
                 </div>
-                <div className="font-display" style={{ fontSize: 22, fontWeight: 700, color: "var(--ink)", direction: "ltr" }}>
-                  {call.remoteIdentity === "inconnu" ? t.tel_unknown_caller : call.remoteIdentity}
+                <div
+                  className="font-display"
+                  style={{
+                    fontSize: 22,
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    direction: "ltr",
+                  }}
+                >
+                  {call.remoteIdentity === "inconnu"
+                    ? t.tel_unknown_caller
+                    : call.remoteIdentity}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}>
+                <div
+                  style={{ fontSize: 12, color: "var(--ink-4)", marginTop: 2 }}
+                >
                   {call.state === "answered" && call.answeredAt
                     ? elapsed(call.answeredAt)
                     : call.state === "held"
@@ -214,72 +450,280 @@ export function SoftphoneDock() {
               </div>
 
               {/* Boutons d'appel */}
-              <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
+              <div
+                style={{ display: "flex", justifyContent: "center", gap: 10 }}
+              >
                 {call.state === "ringing" && call.direction === "inbound" && (
-                  <button onClick={sp.answer} style={roundBtn("var(--emerald)")} title={t.tel_answer}>
+                  <button
+                    onClick={sp.answer}
+                    style={roundBtn("var(--emerald)")}
+                    title={t.tel_answer}
+                  >
                     <IcPhone />
                   </button>
                 )}
                 {(call.state === "answered" || call.state === "held") && (
                   <>
-                    <button onClick={sp.toggleMute} style={roundBtn(call.muted ? "var(--rose)" : "var(--line)")} title={call.muted ? t.tel_unmute : t.tel_mute}>
-                      <span style={{ fontSize: 12, color: "var(--ink)" }}>{call.muted ? "🔇" : "🎤"}</span>
+                    <button
+                      onClick={sp.toggleMute}
+                      style={roundBtn(
+                        call.muted ? "var(--rose)" : "var(--line)",
+                      )}
+                      title={call.muted ? t.tel_unmute : t.tel_mute}
+                    >
+                      <span style={{ fontSize: 12, color: "var(--ink)" }}>
+                        {call.muted ? "🔇" : "🎤"}
+                      </span>
                     </button>
-                    <button onClick={sp.toggleHold} style={roundBtn(call.onHold ? "var(--gold)" : "var(--line)")} title={call.onHold ? t.tel_resume : t.tel_hold}>
-                      <span style={{ fontSize: 12, color: "var(--ink)" }}>{call.onHold ? "▶" : "⏸"}</span>
+                    <button
+                      onClick={sp.toggleHold}
+                      style={roundBtn(
+                        call.onHold ? "var(--gold)" : "var(--line)",
+                      )}
+                      title={call.onHold ? t.tel_resume : t.tel_hold}
+                    >
+                      <span style={{ fontSize: 12, color: "var(--ink)" }}>
+                        {call.onHold ? "▶" : "⏸"}
+                      </span>
                     </button>
-                    <button onClick={() => setShowKeypad((k) => !k)} style={roundBtn("var(--line)")} title={t.tel_keypad}>
-                      <span style={{ fontSize: 12, color: "var(--ink)" }}>⌨</span>
+                    <button
+                      onClick={() => setShowKeypad((k) => !k)}
+                      style={roundBtn("var(--line)")}
+                      title={t.tel_keypad}
+                    >
+                      <span style={{ fontSize: 12, color: "var(--ink)" }}>
+                        ⌨
+                      </span>
                     </button>
                   </>
                 )}
-                <button onClick={sp.hangup} style={roundBtn("var(--rose)")} title={t.tel_hangup}>
-                  <span style={{ transform: "rotate(135deg)", display: "inline-flex", color: "#fff" }}>
+                <button
+                  onClick={sp.hangup}
+                  style={roundBtn("var(--rose)")}
+                  title={t.tel_hangup}
+                >
+                  <span
+                    style={{
+                      transform: "rotate(135deg)",
+                      display: "inline-flex",
+                      color: "#fff",
+                    }}
+                  >
                     <IcPhone />
                   </span>
                 </button>
               </div>
 
               {/* DTMF keypad */}
-              {showKeypad && (call.state === "answered") && (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+              {showKeypad && call.state === "answered" && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, 1fr)",
+                    gap: 6,
+                  }}
+                >
                   {DTMF_KEYS.map((k) => (
-                    <button key={k} onClick={() => sp.sendDtmf(k)} style={keypadBtn}>
+                    <button
+                      key={k}
+                      onClick={() => sp.sendDtmf(k)}
+                      style={keypadBtn}
+                    >
                       {k}
                     </button>
                   ))}
                 </div>
               )}
+
+              {/* Workspace : disposition · notes · actions (dès le décroché) */}
+              {(call.state === "answered" || call.state === "held") && wrapForm}
+
+              <div
+                style={{
+                  fontSize: 10,
+                  color: "var(--ink-4)",
+                  textAlign: "center",
+                  direction: "ltr",
+                }}
+              >
+                {t.tel_shortcuts_hint}
+              </div>
+            </div>
+          )}
+
+          {/* Wrap-up : reste affiché après le raccrochage pour qualifier l'appel */}
+          {!call && wrapUp && (
+            <div
+              style={{
+                padding: 16,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink-4)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  {t.tel_status_wrap_up}
+                </div>
+                <div
+                  className="font-display"
+                  style={{
+                    fontSize: 18,
+                    fontWeight: 700,
+                    color: "var(--ink)",
+                    direction: "ltr",
+                  }}
+                >
+                  {wrapUp.remote === "inconnu"
+                    ? t.tel_unknown_caller
+                    : wrapUp.remote}
+                </div>
+              </div>
+              {wrapForm}
+              <button
+                onClick={() => void saveWrapUp()}
+                disabled={saving}
+                style={primaryBtn(saving)}
+              >
+                {saving ? "…" : t.tel_save}
+              </button>
             </div>
           )}
 
           {/* Screen pop */}
           {(sp.screenPop || sp.screenPopLoading) && (
-            <div style={{ borderTop: "1px solid var(--line-soft)", padding: "12px 16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: 0.5 }}>
+            <div
+              style={{
+                borderTop: "1px solid var(--line-soft)",
+                padding: "12px 16px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  marginBottom: 8,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "var(--ink-4)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.5,
+                  }}
+                >
                   {t.tel_screen_pop}
                 </span>
-                <button onClick={sp.dismissScreenPop} style={{ marginInlineStart: "auto", background: "none", border: "none", cursor: "pointer", color: "var(--ink-4)" }} aria-label="close">
+                <button
+                  onClick={sp.dismissScreenPop}
+                  style={{
+                    marginInlineStart: "auto",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--ink-4)",
+                  }}
+                  aria-label="close"
+                >
                   <IcClose />
                 </button>
               </div>
-              {sp.screenPopLoading && <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{t.tel_searching}</div>}
+              {sp.screenPopLoading && (
+                <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                  {t.tel_searching}
+                </div>
+              )}
               {!sp.screenPopLoading && sp.screenPop?.length === 0 && (
-                <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{t.tel_no_match}</div>
+                <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                  {t.tel_no_match}
+                </div>
               )}
               {sp.screenPop?.map((m) => (
-                <div key={m.client_id} style={{ padding: "8px 10px", borderRadius: 10, background: "var(--bg-cream)", marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{m.display_name}</div>
-                  <div style={{ fontSize: 11.5, color: "var(--ink-4)", direction: "ltr" }}>{m.phone ?? "—"}</div>
+                <div
+                  key={m.client_id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 10px",
+                    borderRadius: 10,
+                    background: "var(--bg-cream)",
+                    marginBottom: 6,
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "var(--ink)",
+                      }}
+                    >
+                      {m.display_name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 11.5,
+                        color: "var(--ink-4)",
+                        direction: "ltr",
+                      }}
+                    >
+                      {m.phone ?? "—"}
+                    </div>
+                  </div>
+                  {onOpenClient && (
+                    <button
+                      onClick={() => onOpenClient(m.display_name)}
+                      style={{
+                        background: "none",
+                        border: "1px solid var(--line)",
+                        borderRadius: 8,
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        color: "var(--ink-4)",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={t.tel_open_client}
+                    >
+                      {t.tel_open_client}
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Déconnexion */}
-          {registered && !call && (
-            <div style={{ padding: "0 16px 16px" }}>
+          {/* Rappeler le dernier numéro (redial) + déconnexion */}
+          {registered && !call && !wrapUp && (
+            <div
+              style={{
+                padding: "0 16px 16px",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+              }}
+            >
+              {sp.lastDialed && (
+                <button
+                  onClick={() => sp.redial()}
+                  style={primaryBtn(false)}
+                  title={`${t.tel_redial} ${sp.lastDialed}`}
+                >
+                  {t.tel_redial} ·{" "}
+                  <span style={{ direction: "ltr" }}>{sp.lastDialed}</span>
+                </button>
+              )}
               <button onClick={() => void sp.disconnect()} style={secondaryBtn}>
                 {t.tel_disconnect}
               </button>
@@ -338,6 +782,19 @@ function roundBtn(bg: string): React.CSSProperties {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+  };
+}
+
+function chip(active: boolean): React.CSSProperties {
+  return {
+    padding: "4px 9px",
+    border: `1px solid ${active ? "var(--gold)" : "var(--line)"}`,
+    borderRadius: 999,
+    background: active ? "var(--gold)" : "var(--bg-cream)",
+    color: active ? "#1A1610" : "var(--ink-4)",
+    fontSize: 11.5,
+    fontWeight: 600,
+    cursor: "pointer",
   };
 }
 

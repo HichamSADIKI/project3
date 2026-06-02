@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Topbar, Ic, IcPhone, IcMail, IcArrowUp, ConfirmModal } from "@/components/sgi-ui";
 import { DealWizard, type ConfirmedDeal } from "@/components/deal-wizard";
+import { CallButton } from "@/components/softphone/call-button";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 import { postJson } from "@/lib/api-client";
@@ -398,6 +399,7 @@ function PersonDetail({ person, onBack, lang, onDealConfirmed }: { person: Perso
               </div>
               {/* Contact action buttons */}
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14 }} onClick={e => e.stopPropagation()}>
+                <CallButton phone={person.phone} compact />
                 <ContactBtn href={`tel:${person.phone}`} bg="#6B7280"><IcPhoneSm /></ContactBtn>
                 <ContactBtn href={`https://wa.me/${waNum(person.phone)}`} bg="#25D366"><IcWA /></ContactBtn>
                 <ContactBtn href={`mailto:${person.email}`} bg="#64748b"><IcMailSm /></ContactBtn>

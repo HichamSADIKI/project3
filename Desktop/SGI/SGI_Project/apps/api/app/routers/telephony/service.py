@@ -274,6 +274,22 @@ async def transition_call(
     return call
 
 
+async def set_call_notes(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    call_id: uuid.UUID,
+    notes: str | None,
+) -> Call | None:
+    """Écrit les notes de wrap-up sur un appel existant (indépendant du statut)."""
+    call = await get_call(db, company_id, call_id)
+    if call is None:
+        return None
+    call.notes = notes
+    await db.commit()
+    await db.refresh(call)
+    return call
+
+
 # ── CDR via AMI — get-or-create idempotent + cycle de vie ─────────────────
 
 

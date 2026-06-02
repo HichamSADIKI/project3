@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useRef } from "react";
 import { Topbar, Eyebrow, Chip, IcFilter, IcPlus, IcCheck, IcClock, IcPhone, IcMail, IcSearch, IcList, IcGrid } from "@/components/sgi-ui";
+import { CallButton } from "@/components/softphone/call-button";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint, type Breakpoint } from "@/lib/hooks";
 
@@ -1003,6 +1004,13 @@ function LeadDetailDrawer({ lead, stage, onClose, onNotesChange, onActivityAdd, 
 
         {/* Body */}
         <div style={{ flex: 1, overflow: "auto", padding: 18, display: "flex", flexDirection: "column", gap: 14 }}>
+
+          {/* Softphone click-to-call (originate Asterisk via le dock partagé) */}
+          {lead.phone && (
+            <div onClick={e => e.stopPropagation()}>
+              <CallButton phone={lead.phone} />
+            </div>
+          )}
 
           {/* Quick contact actions */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8 }}>
