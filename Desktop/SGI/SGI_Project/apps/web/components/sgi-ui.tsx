@@ -92,20 +92,17 @@ export function LogoMark({ size = 36 }: { size?: number }) {
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <div style={{
-      width: size, height: size, borderRadius: 6,
-      background: "#fff", overflow: "hidden",
-      display: "flex", alignItems: "center", justifyContent: "flex-start",
+      width: size, height: size,
+      display: "flex", alignItems: "center", justifyContent: "center",
       flexShrink: 0,
     }}>
       <img
-        src="/logo-infinity-mark.png"
-        alt="Infinity"
+        src="/logo-hp-holding.png"
+        alt="HP Holding"
         style={{
-          height: size * 1.1,
-          width: "auto",
-          objectFit: "cover",
-          objectPosition: "left center",
-          marginInlineStart: -(size * 0.05),
+          height: size,
+          width: size,
+          objectFit: "contain",
         }}
       />
     </div>
@@ -116,8 +113,8 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
   // eslint-disable-next-line @next/next/no-img-element
   return (
     <img
-      src="/logo-infinity-full.png"
-      alt="Infinity International Facilities Management"
+      src="/logo-hp-holding.png"
+      alt="HP Holding"
       style={{
         height: subtitle ? 56 : 38,
         objectFit: "contain",
@@ -167,9 +164,9 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "societe",  icon: <IcSociete /> },
     ],
   },
-  { type: "item",  key: "crm",         icon: <IcCRM />,    badge: 12 },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
+      { key: "crm", icon: <IcCRM />, badge: 12 },
       { key: "realestate_buildings", icon: <IcProp /> },
       { key: "realestate_units", icon: <IcGrid /> },
       { key: "realestate_tenants", icon: <IcPersonne /> },
@@ -421,7 +418,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         )}
         <span style={{
           width: 18, height: 18, display: "grid", placeItems: "center",
-          color: isActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--ink-3)",
+          color: isActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--gold)",
           flexShrink: 0, position: "relative",
           transition: "color 0.15s ease",
         }}>
@@ -505,7 +502,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
           )}
           <span style={{
             width: 18, height: 18, display: "grid", placeItems: "center",
-            color: isGroupActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--ink-3)",
+            color: isGroupActive ? "var(--gold-deep)" : hovered ? "var(--gold-deep)" : "var(--gold)",
             flexShrink: 0,
             transition: "color 0.15s ease",
           }}>
@@ -529,7 +526,9 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         {!col && (
           <div style={{
             overflow: "hidden",
-            maxHeight: isOpen ? 400 : 0,
+            // Hauteur dynamique : ~40px/enfant + marge. Un plafond fixe (400px)
+            // coupait les groupes longs comme Immobilier (14 sous-rubriques).
+            maxHeight: isOpen ? entry.children.length * 40 + 8 : 0,
             transition: "max-height 0.25s ease",
           }}>
             <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
