@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     MEILI_HOST: str = "http://meilisearch:7700"
     MEILI_MASTER_KEY: str
 
+    # ── Watcher de portails immobiliers (couche sources) ──────────────────
+    # Désactivé par défaut : aucun scraping tant que les cibles ne sont pas
+    # validées légalement (robots.txt / CGU — doc P3). Aucune URL en dur.
+    WATCHER_ENABLED: bool = False
+    # JSON : [{"company_id":"<uuid>","source_type":"other","channel":"bayut",
+    #          "urls":["https://..."]}]
+    WATCHER_TARGETS: str = ""
+    # Délai poli (secondes) entre deux fetchs successifs (anti-bot / rate-limit).
+    WATCHER_FETCH_DELAY_S: float = 2.0
+
     MINIO_ENDPOINT: str = "minio:9000"
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str

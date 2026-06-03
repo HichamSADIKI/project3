@@ -122,7 +122,8 @@ module = [
     "app.routers.workflows.service",
     "app.tasks.audit", "app.tasks.celery_app", "app.tasks.comms",
     "app.tasks.exports", "app.tasks.maintenance", "app.tasks.notifications",
-    "app.tasks.reminders", "app.tasks.ticketing", "app.tasks.workflows",
+    "app.tasks.reminders", "app.tasks.ticketing", "app.tasks.watcher",
+    "app.tasks.workflows",
 ]
 
 [tool.pytest.ini_options]
