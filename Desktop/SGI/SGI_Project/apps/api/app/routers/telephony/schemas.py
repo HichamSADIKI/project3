@@ -28,7 +28,7 @@ class CallTransition(BaseModel):
 class CallNotesUpdate(BaseModel):
     """Mise à jour des notes de wrap-up (la disposition est encodée en 1re ligne)."""
 
-    notes: str | None = None
+    notes: str | None = Field(None, max_length=5000)
 
 
 class ClickToCall(BaseModel):

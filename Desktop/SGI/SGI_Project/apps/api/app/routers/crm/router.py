@@ -73,6 +73,7 @@ async def list_leads(
     client_id: uuid.UUID | None = Query(None, description="Filtre par client (party)"),
     q: str | None = Query(None, description="Recherche texte libre"),
     db: AsyncSession = Depends(get_db_session),
+    _: None = Depends(require_role("admin", "manager", "agent")),
 ):
     """Liste paginée des leads du tenant, triés par score décroissant.
 

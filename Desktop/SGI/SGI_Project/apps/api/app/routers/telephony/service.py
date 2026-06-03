@@ -284,7 +284,9 @@ async def set_call_notes(
     call = await get_call(db, company_id, call_id)
     if call is None:
         return None
-    call.notes = notes
+    # Garde : un corps sans notes (NULL) ne doit PAS effacer des notes existantes.
+    if notes is not None:
+        call.notes = notes
     await db.commit()
     await db.refresh(call)
     return call

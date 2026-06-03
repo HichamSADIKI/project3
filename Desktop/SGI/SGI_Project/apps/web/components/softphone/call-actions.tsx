@@ -38,14 +38,20 @@ async function ensureLead(
   clientId: string,
   notes: string,
 ): Promise<string | null> {
+  // Lookup : NE PAS avaler les erreurs réseau — sinon on crée un doublon à chaque
+  // incident transitoire. On ne crée que si le lookup réussit ET ne renvoie aucun
+  // lead réutilisable (un lead terminal won/lost ne doit pas être ré-alimenté).
+  let existing: { data: { id: string; status?: string }[] };
   try {
-    const existing = await getJson<{ data: { id: string }[] }>(
+    existing = await getJson<{ data: { id: string; status?: string }[] }>(
       `/api/admin/crm/leads?client_id=${encodeURIComponent(clientId)}&limit=1`,
     );
-    const found = existing.data?.[0]?.id;
-    if (found) return found;
   } catch {
-    /* pas de lead existant → on en crée un */
+    return null;
+  }
+  const found = existing.data?.[0];
+  if (found?.id && found.status !== "won" && found.status !== "lost") {
+    return found.id;
   }
   const res = await postJson("/api/admin/crm/leads", {
     client_id: clientId,
