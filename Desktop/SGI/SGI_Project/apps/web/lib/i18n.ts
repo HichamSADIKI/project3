@@ -97,6 +97,11 @@ export type Translations = {
   tel_status_wrap_up: string; tel_status_paused: string; tel_status_offline: string;
   tel_call_log: string; tel_direction: string; tel_inbound: string; tel_outbound: string;
   tel_internal: string; tel_duration: string; tel_dial: string; tel_dial_ph: string;
+  tel_dial_failed: string;
+  tel_ami_ext_label: string; tel_ami_connect: string; tel_ami_disconnect: string;
+  tel_ami_connected: string; tel_ami_disconnected: string; tel_ami_hint: string;
+  tel_ami_connect_failed: string; tel_ami_offline: string; tel_ami_incoming: string;
+  tel_ami_unknown_caller: string; tel_ami_no_calls: string;
   tel_no_calls: string; tel_unknown_caller: string;
   loading: string; error_label: string;
 
@@ -328,6 +333,13 @@ const ar: Translations = {
   tel_status_wrap_up: "إنهاء", tel_status_paused: "متوقف مؤقتاً", tel_status_offline: "غير متصل",
   tel_call_log: "سجل المكالمات", tel_direction: "الاتجاه", tel_inbound: "واردة", tel_outbound: "صادرة",
   tel_internal: "داخلية", tel_duration: "المدة", tel_dial: "اتصال", tel_dial_ph: "أدخل الرقم…",
+  tel_dial_failed: "فشل الاتصال",
+  tel_ami_ext_label: "تحويلتي", tel_ami_connect: "اتصال", tel_ami_disconnect: "قطع الاتصال",
+  tel_ami_connected: "متصل", tel_ami_disconnected: "غير متصل",
+  tel_ami_hint: "تتحدث على هاتفك ؛ يقوم SGI بتشغيل المكالمات وتسجيلها.",
+  tel_ami_connect_failed: "تعذّر الاتصال بالمقسم", tel_ami_offline: "خادم Asterisk (AMI) غير متاح",
+  tel_ami_incoming: "مكالمة واردة", tel_ami_unknown_caller: "متصل غير معروف",
+  tel_ami_no_calls: "لا مكالمات",
   tel_no_calls: "لا توجد مكالمات.", tel_unknown_caller: "متصل مجهول",
   loading: "جارٍ التحميل…", error_label: "خطأ",
 
@@ -549,6 +561,13 @@ const en: Translations = {
   tel_status_wrap_up: "Wrap-up", tel_status_paused: "Paused", tel_status_offline: "Offline",
   tel_call_log: "Call log", tel_direction: "Direction", tel_inbound: "Inbound", tel_outbound: "Outbound",
   tel_internal: "Internal", tel_duration: "Duration", tel_dial: "Dial", tel_dial_ph: "Enter a number…",
+  tel_dial_failed: "Call failed",
+  tel_ami_ext_label: "My extension", tel_ami_connect: "Connect", tel_ami_disconnect: "Disconnect",
+  tel_ami_connected: "Connected", tel_ami_disconnected: "Disconnected",
+  tel_ami_hint: "You talk on your phone; SGI places and logs the calls.",
+  tel_ami_connect_failed: "Could not connect to the PBX", tel_ami_offline: "Asterisk (AMI) unreachable",
+  tel_ami_incoming: "Incoming call", tel_ami_unknown_caller: "Unknown caller",
+  tel_ami_no_calls: "No calls",
   tel_no_calls: "No calls.", tel_unknown_caller: "Unknown caller",
   loading: "Loading…", error_label: "Error",
 
@@ -770,6 +789,13 @@ const fr: Translations = {
   tel_status_wrap_up: "Clôture", tel_status_paused: "En pause", tel_status_offline: "Hors-ligne",
   tel_call_log: "Journal d'appels", tel_direction: "Sens", tel_inbound: "Entrant", tel_outbound: "Sortant",
   tel_internal: "Interne", tel_duration: "Durée", tel_dial: "Appeler", tel_dial_ph: "Saisir un numéro…",
+  tel_dial_failed: "Échec de l'appel",
+  tel_ami_ext_label: "Mon extension", tel_ami_connect: "Se connecter", tel_ami_disconnect: "Se déconnecter",
+  tel_ami_connected: "Connecté", tel_ami_disconnected: "Déconnecté",
+  tel_ami_hint: "Vous parlez sur votre téléphone ; SGI déclenche et trace les appels.",
+  tel_ami_connect_failed: "Connexion au standard impossible", tel_ami_offline: "Asterisk (AMI) injoignable",
+  tel_ami_incoming: "Appel entrant", tel_ami_unknown_caller: "Appelant inconnu",
+  tel_ami_no_calls: "Aucun appel",
   tel_no_calls: "Aucun appel.", tel_unknown_caller: "Appelant inconnu",
   loading: "Chargement…", error_label: "Erreur",
 

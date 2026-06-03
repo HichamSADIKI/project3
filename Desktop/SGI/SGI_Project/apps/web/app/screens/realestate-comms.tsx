@@ -8,6 +8,7 @@ import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson, extractError } from "@/lib/api-client";
 import { IcPhone } from "@/components/sgi-ui";
 import { CallsPanel } from "@/components/softphone/calls-panel";
+import { AmiCallPanel } from "@/components/softphone/ami-call-panel";
 
 // Câblé sur /api/admin/comms/conversations (liste) + .../{id}/messages (fil REST)
 // + WebSocket temps réel. Le fil REST sert de socle ; la WS pousse les nouveaux
@@ -32,6 +33,8 @@ type Message = { id: string; sender_user_id: string | null; kind: string; body: 
 export function ScreenRealEstateComms() {
   const t = useT();
   const [tab, setTab] = useState<"messages" | "calls">("messages");
+  // Softphone WebRTC (Asterisk >=12) vs mode AMI (téléphone externe, Asterisk 11).
+  const [callMode, setCallMode] = useState<"softphone" | "ami">("softphone");
   const { lang } = useLang();
   const { items: conversations, loading, error } = useApiList<Conversation>("/api/admin/comms/conversations?limit=100");
   const [selId, setSelId] = useState<string | null>(null);
@@ -132,8 +135,45 @@ export function ScreenRealEstateComms() {
       </div>
 
       {tab === "calls" ? (
-        <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-          <CallsPanel />
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+          {/* Sélecteur de mode : softphone navigateur (WebRTC) vs mode AMI
+              (téléphone externe, requis pour Asterisk 11 / chan_sip). */}
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              padding: "8px 26px",
+              borderBottom: "1px solid var(--line-soft)",
+              background: "var(--bg-paper)",
+            }}
+          >
+            {(
+              [
+                ["softphone", "Softphone (WebRTC)"],
+                ["ami", "Mode AMI (Asterisk 11)"],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setCallMode(key)}
+                style={{
+                  padding: "5px 12px",
+                  borderRadius: 999,
+                  border: "1px solid var(--line)",
+                  background: callMode === key ? "var(--gold)" : "var(--bg-cream)",
+                  color: callMode === key ? "#1A1610" : "var(--ink-4)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+            {callMode === "ami" ? <AmiCallPanel /> : <CallsPanel />}
+          </div>
         </div>
       ) : (
       <div style={{ flex: 1, display: "flex", minHeight: 0, background: "var(--bg-cream)" }}>
