@@ -3,9 +3,11 @@
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
+from struct import unpack
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from geoalchemy2.elements import WKBElement
+from pydantic import BaseModel, Field, field_validator
 
 BuildingType = Literal[
     "residential_tower", "villa_compound", "mixed_use", "commercial", "warehouse"
@@ -88,6 +90,7 @@ class BuildingOut(BaseModel):
     name_en: str | None
     name_fr: str | None
     building_type: str
+    location: GeoPoint | None = None
     address_en: str | None
     address_ar: str | None
     district: str | None
@@ -109,6 +112,23 @@ class BuildingOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @field_validator("location", mode="before")
+    @classmethod
+    def _geom_to_point(cls, v: object) -> object:
+        """Convertit la géométrie PostGIS (WKBElement) en {lat, lng}.
+
+        Décode l'(E)WKB d'un POINT à la main (struct) pour éviter la dépendance
+        optionnelle Shapely. Laisse passer un dict / GeoPoint déjà sérialisé.
+        """
+        if not isinstance(v, WKBElement):
+            return v
+        raw = bytes.fromhex(v.data) if isinstance(v.data, str) else bytes(v.data)
+        endian = "<" if raw[0] == 1 else ">"
+        gtype = unpack(endian + "I", raw[1:5])[0]
+        offset = 9 if gtype & 0x20000000 else 5  # +4 octets de SRID si flag EWKB
+        x, y = unpack(endian + "dd", raw[offset : offset + 16])
+        return {"lat": y, "lng": x}
 
 
 class BuildingListOut(BaseModel):
