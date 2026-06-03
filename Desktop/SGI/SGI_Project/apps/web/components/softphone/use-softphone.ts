@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getJson } from "@/lib/api-client";
+import { getJson, postJson } from "@/lib/api-client";
 import {
   SipClient,
   type SipCallSnapshot,
@@ -49,30 +49,55 @@ export interface SoftphoneController {
   screenPopLoading: boolean;
   serverLive: boolean;
   extension: string | null;
+  /**
+   * Id du CDR de l'appel courant (corrélé au journal une fois l'appel décroché).
+   * Permet d'attacher notes / disposition et les actions « 1 clic ». Null tant
+   * que l'appel n'a pas été rapproché du journal.
+   */
+  currentCallId: string | null;
+  /** Dernier numéro composé (redial). */
+  lastDialed: string | null;
+  /**
+   * Client visé par un click-to-call sortant (transmis par le `CallButton`),
+   * afin que le wrap-up puisse lier l'appel au CRM même sans screen pop entrant.
+   */
+  pendingClientId: string | null;
+  /** Mémorise le client d'un appel sortant (null = numéro brut). */
+  setPendingClient: (clientId: string | null) => void;
   /** Connecte le softphone (extension + secret saisis par l'agent). */
   connect: (config: SipConnectConfig) => Promise<void>;
   disconnect: () => Promise<void>;
   dial: (target: string) => void;
+  redial: () => void;
   answer: () => void;
   hangup: () => void;
   toggleMute: () => void;
   toggleHold: () => void;
   sendDtmf: (tone: string) => void;
   dismissScreenPop: () => void;
+  /** Statut agent (best-effort, 409 ignorés) — sert au flux wrap_up→available. */
+  setStatus: (status: string) => Promise<void>;
 }
 
 export function useSoftphone(): SoftphoneController {
-  const [registration, setRegistration] = useState<SipRegistrationState>("disconnected");
-  const [registrationReason, setRegistrationReason] = useState<string | null>(null);
+  const [registration, setRegistration] =
+    useState<SipRegistrationState>("disconnected");
+  const [registrationReason, setRegistrationReason] = useState<string | null>(
+    null,
+  );
   const [call, setCall] = useState<SipCallSnapshot | null>(null);
   const [screenPop, setScreenPop] = useState<ScreenPopMatch[] | null>(null);
   const [screenPopLoading, setScreenPopLoading] = useState(false);
   const [serverLive, setServerLive] = useState(false);
   const [extension, setExtension] = useState<string | null>(null);
+  const [currentCallId, setCurrentCallId] = useState<string | null>(null);
+  const [lastDialed, setLastDialed] = useState<string | null>(null);
+  const [pendingClientId, setPendingClient] = useState<string | null>(null);
 
   const clientRef = useRef<SipClient | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
+  const prevCallStateRef = useRef<string | null>(null);
 
   // Élément <audio> caché pour le flux distant (créé une fois).
   useEffect(() => {
@@ -98,6 +123,28 @@ export function useSoftphone(): SoftphoneController {
       .then((r) => setScreenPop(r.data ?? []))
       .catch(() => setScreenPop([]))
       .finally(() => setScreenPopLoading(false));
+  }, []);
+
+  // Corrèle l'appel SIP courant à son CDR dans le journal. Le CDR est créé
+  // côté serveur (originate synchrone, ou listener AMI pour les autres flux) :
+  // on lit le plus récent appel de l'agent (anti-BOLA → c'est forcément le
+  // sien). Petites relances car le CDR AMI peut accuser un court décalage.
+  const captureCurrentCall = useCallback(async () => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const r = await getJson<{ data: { id: string }[] }>(
+          "/api/admin/telephony/calls?limit=1",
+        );
+        const id = r.data?.[0]?.id;
+        if (id) {
+          setCurrentCallId(id);
+          return;
+        }
+      } catch {
+        /* réessaye */
+      }
+      await new Promise((res) => window.setTimeout(res, 700));
+    }
   }, []);
 
   // Ouvre la WS serveur (events d'appel temps réel : doublons le SIP, sert de
@@ -144,7 +191,19 @@ export function useSoftphone(): SoftphoneController {
             setRegistration(state);
             setRegistrationReason(reason ?? null);
           },
-          onCallState: (snap) => setCall(snap),
+          onCallState: (snap) => {
+            setCall(snap);
+            const prev = prevCallStateRef.current;
+            prevCallStateRef.current = snap?.state ?? null;
+            // Nouvel appel : on repart d'un CDR vierge.
+            if (snap?.state === "ringing" || snap?.state === "outgoing") {
+              setCurrentCallId(null);
+            }
+            // Front montant « décroché » → rapproche le CDR du journal.
+            if (snap?.state === "answered" && prev !== "answered") {
+              void captureCurrentCall();
+            }
+          },
           onIncoming: (remote) => runScreenPop(remote),
         },
         audioRef.current,
@@ -154,7 +213,7 @@ export function useSoftphone(): SoftphoneController {
       await client.connect(config);
       void openServerWs(config.extension);
     },
-    [runScreenPop, openServerWs],
+    [runScreenPop, openServerWs, captureCurrentCall],
   );
 
   const disconnect = useCallback(async () => {
@@ -170,6 +229,18 @@ export function useSoftphone(): SoftphoneController {
     setExtension(null);
     setCall(null);
     setScreenPop(null);
+    setCurrentCallId(null);
+    setPendingClient(null);
+  }, []);
+
+  // Statut agent best-effort : on ignore les 409 (transitions invalides) pour
+  // ne pas bloquer le flux auto busy→wrap_up→available autour d'un appel.
+  const setStatus = useCallback(async (next: string) => {
+    try {
+      await postJson("/api/admin/telephony/agents/me/status", { status: next });
+    } catch {
+      /* best-effort */
+    }
   }, []);
 
   // Nettoyage au démontage.
@@ -180,12 +251,23 @@ export function useSoftphone(): SoftphoneController {
     };
   }, []);
 
-  const dial = useCallback((target: string) => clientRef.current?.call(target), []);
+  const dial = useCallback((target: string) => {
+    setLastDialed(target);
+    clientRef.current?.call(target);
+  }, []);
+  const redial = useCallback(() => {
+    if (lastDialed) {
+      clientRef.current?.call(lastDialed);
+    }
+  }, [lastDialed]);
   const answer = useCallback(() => clientRef.current?.answer(), []);
   const hangup = useCallback(() => clientRef.current?.hangup(), []);
   const toggleMute = useCallback(() => clientRef.current?.toggleMute(), []);
   const toggleHold = useCallback(() => clientRef.current?.toggleHold(), []);
-  const sendDtmf = useCallback((tone: string) => clientRef.current?.sendDtmf(tone), []);
+  const sendDtmf = useCallback(
+    (tone: string) => clientRef.current?.sendDtmf(tone),
+    [],
+  );
   const dismissScreenPop = useCallback(() => setScreenPop(null), []);
 
   return {
@@ -196,22 +278,30 @@ export function useSoftphone(): SoftphoneController {
     screenPopLoading,
     serverLive,
     extension,
+    currentCallId,
+    lastDialed,
+    pendingClientId,
+    setPendingClient,
     connect,
     disconnect,
     dial,
+    redial,
     answer,
     hangup,
     toggleMute,
     toggleHold,
     sendDtmf,
     dismissScreenPop,
+    setStatus,
   };
 }
 
 /** Récupère l'extension pré-enregistrée de l'agent (agent_state), si présente. */
 export async function fetchMyExtension(): Promise<AgentState | null> {
   try {
-    const r = await getJson<{ data: AgentState }>("/api/admin/telephony/agents/me");
+    const r = await getJson<{ data: AgentState }>(
+      "/api/admin/telephony/agents/me",
+    );
     return r.data ?? null;
   } catch {
     return null;

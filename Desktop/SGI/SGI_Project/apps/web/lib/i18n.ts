@@ -105,6 +105,13 @@ export type Translations = {
   tel_ami_connect_failed: string; tel_ami_offline: string; tel_ami_incoming: string;
   tel_ami_unknown_caller: string; tel_ami_no_calls: string;
   tel_no_calls: string; tel_unknown_caller: string;
+  tel_notes: string; tel_disposition: string;
+  tel_disp_interested: string; tel_disp_callback: string; tel_disp_not_interested: string;
+  tel_disp_no_answer: string; tel_disp_wrong_number: string; tel_disp_voicemail: string;
+  tel_disp_completed: string;
+  tel_log_crm: string; tel_create_ticket: string; tel_schedule_callback: string;
+  tel_redial: string; tel_call: string; tel_open_client: string; tel_save: string;
+  tel_action_done: string; tel_action_failed: string; tel_shortcuts_hint: string;
   loading: string; error_label: string;
 
   // Real Estate Settings screen
@@ -346,6 +353,13 @@ const ar: Translations = {
   tel_ami_incoming: "مكالمة واردة", tel_ami_unknown_caller: "متصل غير معروف",
   tel_ami_no_calls: "لا مكالمات",
   tel_no_calls: "لا توجد مكالمات.", tel_unknown_caller: "متصل مجهول",
+  tel_notes: "ملاحظات", tel_disposition: "النتيجة",
+  tel_disp_interested: "مهتم", tel_disp_callback: "طلب معاودة الاتصال", tel_disp_not_interested: "غير مهتم",
+  tel_disp_no_answer: "لا يوجد رد", tel_disp_wrong_number: "رقم خاطئ", tel_disp_voicemail: "بريد صوتي",
+  tel_disp_completed: "مكتمل",
+  tel_log_crm: "تسجيل في CRM", tel_create_ticket: "إنشاء تذكرة", tel_schedule_callback: "جدولة معاودة اتصال",
+  tel_redial: "إعادة الاتصال", tel_call: "اتصال", tel_open_client: "فتح بطاقة العميل", tel_save: "حفظ",
+  tel_action_done: "تم", tel_action_failed: "فشل", tel_shortcuts_hint: "Alt+A رد · Alt+H إنهاء · Alt+M كتم",
   loading: "جارٍ التحميل…", error_label: "خطأ",
 
   set_sec_vat: "الضريبة والعملة", set_sec_loc: "الموقع",
@@ -577,6 +591,13 @@ const en: Translations = {
   tel_ami_incoming: "Incoming call", tel_ami_unknown_caller: "Unknown caller",
   tel_ami_no_calls: "No calls",
   tel_no_calls: "No calls.", tel_unknown_caller: "Unknown caller",
+  tel_notes: "Notes", tel_disposition: "Outcome",
+  tel_disp_interested: "Interested", tel_disp_callback: "Callback", tel_disp_not_interested: "Not interested",
+  tel_disp_no_answer: "No answer", tel_disp_wrong_number: "Wrong number", tel_disp_voicemail: "Voicemail",
+  tel_disp_completed: "Completed",
+  tel_log_crm: "Log to CRM", tel_create_ticket: "Create ticket", tel_schedule_callback: "Schedule callback",
+  tel_redial: "Redial", tel_call: "Call", tel_open_client: "Open client", tel_save: "Save",
+  tel_action_done: "Done", tel_action_failed: "Failed", tel_shortcuts_hint: "Alt+A answer · Alt+H hang up · Alt+M mute",
   loading: "Loading…", error_label: "Error",
 
   set_sec_vat: "VAT & Currency", set_sec_loc: "Localization",
@@ -808,6 +829,13 @@ const fr: Translations = {
   tel_ami_incoming: "Appel entrant", tel_ami_unknown_caller: "Appelant inconnu",
   tel_ami_no_calls: "Aucun appel",
   tel_no_calls: "Aucun appel.", tel_unknown_caller: "Appelant inconnu",
+  tel_notes: "Notes", tel_disposition: "Résultat",
+  tel_disp_interested: "Intéressé", tel_disp_callback: "Rappel demandé", tel_disp_not_interested: "Pas intéressé",
+  tel_disp_no_answer: "Pas de réponse", tel_disp_wrong_number: "Faux numéro", tel_disp_voicemail: "Messagerie",
+  tel_disp_completed: "Terminé",
+  tel_log_crm: "Logger au CRM", tel_create_ticket: "Créer un ticket", tel_schedule_callback: "Planifier un rappel",
+  tel_redial: "Rappeler", tel_call: "Appeler", tel_open_client: "Ouvrir la fiche", tel_save: "Enregistrer",
+  tel_action_done: "Fait", tel_action_failed: "Échec", tel_shortcuts_hint: "Alt+A répondre · Alt+H raccrocher · Alt+M muet",
   loading: "Chargement…", error_label: "Erreur",
 
   set_sec_vat: "TVA & Devise", set_sec_loc: "Localisation",

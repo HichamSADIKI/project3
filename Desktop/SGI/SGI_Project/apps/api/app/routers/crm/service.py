@@ -110,6 +110,7 @@ async def list_leads(
     agent_id: uuid.UUID | None = None,
     q: str | None = None,
     category: str | None = None,
+    client_id: uuid.UUID | None = None,
 ) -> tuple[list[CRMLead], int]:
     """Retourne (items, total) filtrés par company_id."""
     filters = [
@@ -122,6 +123,8 @@ async def list_leads(
         filters.append(CRMLead.category == category)
     if agent_id:
         filters.append(CRMLead.agent_id == agent_id)
+    if client_id:
+        filters.append(CRMLead.client_id == client_id)
     if q:
         filters.append(
             or_(

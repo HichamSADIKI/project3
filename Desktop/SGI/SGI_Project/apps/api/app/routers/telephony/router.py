@@ -30,6 +30,7 @@ from app.routers.telephony.schemas import (
     CallCreate,
     CallDetailOut,
     CallListOut,
+    CallNotesUpdate,
     CallOut,
     CallTransition,
     ClickToCall,
@@ -191,6 +192,35 @@ async def transition_call_endpoint(
     if not call:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call_not_found")
     return CallDetailOut(data=_call_out(call))
+
+
+@router.post(
+    "/calls/{call_id}/notes",
+    response_model=CallDetailOut,
+    dependencies=[Depends(_require_roles("admin", "manager", "agent"))],
+)
+async def set_call_notes_endpoint(
+    call_id: uuid.UUID,
+    body: CallNotesUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> CallDetailOut:
+    """Notes de wrap-up sur un appel existant (indépendant du statut).
+
+    Distinct de la transition : l'AMI auto-transitionne l'appel vers `completed`
+    au hangup, donc on ne peut pas surcharger /transition pour poser les notes.
+    """
+    company_id = _get_company_id(request)
+    call = await service.get_call(db, company_id, call_id)
+    if not call:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call_not_found")
+    # Anti-BOLA horizontal : un agent ne peut écrire que sur SES appels.
+    # 404 (jamais 403) pour ne pas divulguer l'existence (cohérent module).
+    if _get_role(request) == "agent" and call.agent_user_id != _get_user_id(request):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="call_not_found")
+    updated = await service.set_call_notes(db, company_id, call_id, body.notes)
+    assert updated is not None
+    return CallDetailOut(data=_call_out(updated))
 
 
 @router.post(

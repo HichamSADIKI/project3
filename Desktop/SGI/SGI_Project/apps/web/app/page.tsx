@@ -216,7 +216,7 @@ export default function App() {
           onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
         />
         {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
-        <SoftphoneDock />
+        <SoftphoneDock onOpenClient={handleNavigateToClient} />
       </div>
     </SoftphoneProvider>
   );

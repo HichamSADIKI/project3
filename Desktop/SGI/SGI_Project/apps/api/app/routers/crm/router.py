@@ -70,14 +70,17 @@ async def list_leads(
     status: str | None = Query(None, description="Filtre par statut"),
     category: str | None = Query(None, description="Filtre par catégorie/secteur"),
     agent_id: uuid.UUID | None = Query(None, description="Filtre par agent"),
+    client_id: uuid.UUID | None = Query(None, description="Filtre par client (party)"),
     q: str | None = Query(None, description="Recherche texte libre"),
     db: AsyncSession = Depends(get_db_session),
+    _: None = Depends(require_role("admin", "manager", "agent")),
 ):
     """Liste paginée des leads du tenant, triés par score décroissant.
 
     `category` filtre le secteur (realestate, tourisme, sante, …) — c'est ce
     qui alimente le CRM par secteur du back-office avec les deals soumis
-    depuis le portail client.
+    depuis le portail client. `client_id` restreint aux leads d'un client donné
+    (utilisé par le call center pour rattacher l'appel au lead existant).
     """
     company_id = await _get_company_id(db)
     items, total = await service.list_leads(
@@ -88,6 +91,7 @@ async def list_leads(
         status=status,
         category=category,
         agent_id=agent_id,
+        client_id=client_id,
         q=q,
     )
     pages = (total + limit - 1) // limit

@@ -195,6 +195,21 @@ async def test_list_leads_filter_and_isolation(
     assert n_new == 2
 
 
+async def test_list_leads_filter_by_client_id(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    """Le filtre client_id ne renvoie que les leads du client (call center)."""
+    admin, _ = seed_admin
+    cid = str(admin.company_id)
+    target = await _lead(db_session, admin)  # lead du client A
+    await _lead(db_session, admin)  # lead d'un autre client
+
+    items, total = await list_leads(db_session, cid, client_id=target.client_id)
+    assert total == 1
+    assert items[0].id == target.id
+    assert items[0].client_id == target.client_id
+
+
 async def test_update_lead_recomputes_score(
     db_session: AsyncSession, seed_admin: tuple[User, str]
 ) -> None:

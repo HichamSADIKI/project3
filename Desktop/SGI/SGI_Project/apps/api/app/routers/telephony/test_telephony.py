@@ -528,6 +528,45 @@ async def test_call_transition_invalid_returns_409(
     assert resp.status_code == 409
 
 
+async def test_set_call_notes_persists_and_isolated(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[object, str],
+) -> None:
+    """Notes de wrap-up : écriture indépendante du statut, persistées + Loi 1."""
+    _, token = seed_admin
+    _, other_token = second_admin
+    headers = {"Authorization": f"Bearer {token}"}
+    created = await client.post(
+        "/api/v1/telephony/calls",
+        json={"direction": "outbound", "to_number": "971501112233"},
+        headers=headers,
+    )
+    cid = created.json()["data"]["id"]
+
+    notes = "Résultat: interested\nClient veut visiter"
+    resp = await client.post(
+        f"/api/v1/telephony/calls/{cid}/notes",
+        json={"notes": notes},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    assert resp.json()["data"]["notes"] == notes
+
+    # Persistance confirmée via GET.
+    got = await client.get(f"/api/v1/telephony/calls/{cid}", headers=headers)
+    assert got.status_code == 200
+    assert got.json()["data"]["notes"] == notes
+
+    # Loi 1 : un 2ᵉ tenant ne peut pas écrire de notes sur cet appel → 404.
+    other = await client.post(
+        f"/api/v1/telephony/calls/{cid}/notes",
+        json={"notes": "fuite"},
+        headers={"Authorization": f"Bearer {other_token}"},
+    )
+    assert other.status_code == 404
+
+
 async def test_agent_status_set_and_transition(
     client: AsyncClient, seed_admin: tuple[User, str]
 ) -> None:
