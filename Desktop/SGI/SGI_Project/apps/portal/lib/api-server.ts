@@ -51,3 +51,34 @@ export async function apiServer<T>(
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
 }
+
+/**
+ * Appel PUBLIC (vitrine immobilière) — SANS cookie ni Authorization.
+ *
+ * Fetch direct vers le backend FastAPI (endpoints `/api/v1/public/*` montés
+ * sans JWT, le tenant est résolu côté backend via `PUBLIC_SITE_COMPANY_SLUG`).
+ * Mise en cache ISR (`next.revalidate`) car le contenu public est lisible et
+ * peu volatil. Ne lit JAMAIS `next/headers` → importable depuis n'importe quel
+ * Server Component sans le rendre dynamique.
+ *
+ * @returns la réponse JSON typée, ou `null` en cas d'erreur réseau / non-2xx
+ *          (la vitrine reste affichable même si le backend est indisponible —
+ *          fail-safe : pas de fuite, pas de 500 propagé à l'utilisateur).
+ */
+export async function apiServerPublic<T>(
+  path: string,
+  init?: { revalidate?: number },
+): Promise<T | null> {
+  const revalidate = init?.revalidate ?? 300;
+  try {
+    const res = await fetch(`${BACKEND_URL}${path}`, {
+      headers: { "Content-Type": "application/json" },
+      next: { revalidate },
+    });
+    if (!res.ok) return null;
+    if (res.status === 204) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}

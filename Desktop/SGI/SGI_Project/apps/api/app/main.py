@@ -39,6 +39,7 @@ from app.routers import (
     payments,
     pdc,
     properties,
+    public_site,
     realestate_core,
     rentals,
     reporting,
@@ -231,6 +232,8 @@ app.include_router(leasing.router, prefix="/api/v1")
 app.include_router(marketing.router, prefix="/api/v1")
 # Immobilier — Sources : ingestion multi-source idempotente → leads (migration 0039)
 app.include_router(sources.router, prefix="/api/v1")
+# Vitrine immobilière publique (sans auth JWT — site public, mono-agence) (migrations 0040/0041)
+app.include_router(public_site.router, prefix="/api/v1")
 app.include_router(iam.router, prefix="/api/v1")
 # Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
 app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")

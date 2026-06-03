@@ -1,0 +1,146 @@
+{
+  "nav": {
+    "properties": "العقارات",
+    "home": "الرئيسية"
+  },
+  "home": {
+    "heroTitle": "اعثر على عنوانك القادم في الإمارات",
+    "heroSubtitle": "شقق وفلل ومكاتب مختارة للبيع والإيجار في دبي وأبوظبي.",
+    "searchCta": "ابحث عن عقار",
+    "featuredTitle": "عقارات مميزة",
+    "featuredSubtitle": "مجموعة مختارة من محفظتنا.",
+    "urgentTitle": "فرص عاجلة",
+    "urgentSubtitle": "عروض لفترة محدودة — سارع باغتنامها.",
+    "viewAll": "عرض كل العقارات ←",
+    "stats": {
+      "forSale": "للبيع",
+      "forRent": "للإيجار",
+      "cities": "المدن",
+      "listings": "عروض نشطة"
+    }
+  },
+  "search": {
+    "title": "بحث",
+    "keyword": "المدينة أو المنطقة",
+    "keywordPlaceholder": "مثال: مرسى دبي",
+    "deal": "نوع العرض",
+    "dealAny": "بيع وإيجار",
+    "dealSale": "للبيع",
+    "dealRent": "للإيجار",
+    "unitType": "نوع العقار",
+    "unitTypeAny": "كل الأنواع",
+    "bedrooms": "غرف النوم",
+    "bedroomsAny": "الكل",
+    "priceMin": "أدنى سعر (درهم)",
+    "priceMax": "أعلى سعر (درهم)",
+    "submit": "بحث",
+    "reset": "إعادة ضبط",
+    "sort": "ترتيب حسب",
+    "sortNewest": "الأحدث",
+    "sortPriceAsc": "السعر: من الأقل للأعلى",
+    "sortPriceDesc": "السعر: من الأعلى للأقل"
+  },
+  "filters": {
+    "title": "عوامل التصفية",
+    "apply": "تطبيق",
+    "results": "تم العثور على {{count}} عقار"
+  },
+  "card": {
+    "forSale": "للبيع",
+    "forRent": "للإيجار",
+    "urgent": "عاجل",
+    "featured": "مميز",
+    "perYear": "/سنة",
+    "perMonth": "/شهر",
+    "beds": "{{count}} غرفة",
+    "baths": "{{count}} حمام",
+    "area": "{{area}} قدم²",
+    "viewDetails": "عرض التفاصيل",
+    "priceOnRequest": "السعر عند الطلب"
+  },
+  "detail": {
+    "overview": "نظرة عامة",
+    "features": "المواصفات والخصائص",
+    "description": "الوصف",
+    "location": "الموقع",
+    "similar": "عقارات مشابهة",
+    "reference": "المرجع",
+    "type": "النوع",
+    "deal": "العرض",
+    "bedrooms": "غرف النوم",
+    "bathrooms": "الحمامات",
+    "area": "المساحة",
+    "areaUnit": "قدم²",
+    "parking": "مواقف",
+    "furnished": "مفروش",
+    "floor": "الطابق",
+    "city": "المدينة",
+    "emirate": "الإمارة",
+    "district": "الحي",
+    "view": "الإطلالة",
+    "completion": "الإنجاز",
+    "yearBuilt": "سنة البناء",
+    "balcony": "شرفة",
+    "maidRoom": "غرفة خادمة",
+    "studyRoom": "غرفة مكتب",
+    "petsAllowed": "يُسمح بالحيوانات الأليفة",
+    "amenities": "المرافق",
+    "developer": "المطور",
+    "availableFrom": "متاح اعتباراً من",
+    "yes": "نعم",
+    "no": "لا",
+    "notAvailable": "—",
+    "spots": "{{count}} موقف",
+    "backToList": "← العودة إلى كل العقارات"
+  },
+  "contact": {
+    "title": "هل أنت مهتم بهذا العقار؟",
+    "subtitle": "اترك بياناتك وسيتواصل معك وكيلنا.",
+    "name": "الاسم الكامل",
+    "namePlaceholder": "اسمك",
+    "email": "البريد الإلكتروني",
+    "emailPlaceholder": "you@example.com",
+    "phone": "الهاتف",
+    "phonePlaceholder": "+971 50 000 0000",
+    "message": "الرسالة",
+    "messagePlaceholder": "أرغب في معرفة المزيد عن هذا العقار…",
+    "submit": "طلب معاينة",
+    "submitting": "جارٍ الإرسال…",
+    "success": "شكراً لك! سيتواصل فريقنا معك قريباً.",
+    "error": "تعذّر إرسال طلبك. يرجى المحاولة مرة أخرى.",
+    "validation": "يرجى إدخال اسمك ورقم هاتف أو بريد إلكتروني.",
+    "whatsapp": "واتساب",
+    "call": "اتصال",
+    "agent": "وكيلك"
+  },
+  "badges": {
+    "sale": "للبيع",
+    "rent": "للإيجار",
+    "urgent": "عاجل",
+    "featured": "مميز"
+  },
+  "empty": {
+    "title": "لم يتم العثور على عقارات",
+    "subtitle": "حاول تعديل عوامل التصفية أو معايير البحث.",
+    "reset": "مسح عوامل التصفية"
+  },
+  "pagination": {
+    "previous": "السابق",
+    "next": "التالي",
+    "page": "صفحة {{page}}"
+  },
+  "view": {
+    "list": "قائمة",
+    "map": "خريطة"
+  },
+  "agents": {
+    "title": "وكلاؤنا",
+    "subtitle": "فريق من الخبراء في خدمتك.",
+    "empty": "لا يوجد وكلاء.",
+    "viewProfile": "عرض الملف",
+    "whatsapp": "واتساب",
+    "call": "اتصال",
+    "email": "البريد",
+    "listings": "عقارات الوكالة"
+  }
+}

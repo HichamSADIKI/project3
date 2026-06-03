@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -57,6 +57,10 @@ class SaleListing(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     list_price: Mapped[Decimal] = mapped_column(Numeric(15, 2), nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Vitrine publique (migration 0038). slug unique par tenant (index partiel).
+    slug: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_urgent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class SaleOffer(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):

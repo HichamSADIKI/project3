@@ -20,12 +20,21 @@ class ListingOut(BaseModel):
     monthly_rent: Decimal
     annual_rent: Decimal | None
     status: str
+    is_featured: bool = False
+    is_urgent: bool = False
     available_from: date | None
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ListingFlagsUpdate(BaseModel):
+    """Mise à jour partielle des flags vitrine (Featured / Urgent)."""
+
+    is_featured: bool | None = None
+    is_urgent: bool | None = None
 
 
 class ListingCreate(BaseModel):

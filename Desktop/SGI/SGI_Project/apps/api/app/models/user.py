@@ -54,3 +54,10 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     # MFA TOTP — secret chiffré (Fernet). NULL = MFA non activé.
     mfa_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    # Profil public agent (vitrine) — tous nullables (migration 0039).
+    phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    whatsapp: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    photo_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    title: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    bio: Mapped[str | None] = mapped_column(Text, nullable=True)

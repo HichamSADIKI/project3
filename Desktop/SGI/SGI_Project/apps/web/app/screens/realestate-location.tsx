@@ -8,6 +8,7 @@ import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { ListingFlagToggle } from "@/components/listing-flag-toggle";
 
 // Câblé sur /api/admin/leasing/{listings,applications} → /api/v1/leasing/*.
 
@@ -49,6 +50,7 @@ const badge = (t: Translations, s: string) => {
 type Listing = {
   id: string; reference: string; unit_id: string | null;
   monthly_rent: string; annual_rent: string | null; status: string;
+  is_featured?: boolean; is_urgent?: boolean;
 };
 type Application = {
   id: string; reference: string; listing_id: string;
@@ -165,12 +167,13 @@ function ListingsTab({ t }: { t: Translations }) {
               <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_unit_number}</th>
               <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.re_monthly_rent}</th>
               <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_status}</th>
+              <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.re_showcase}</th>
               <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.col_action}</th>
             </tr>
           </thead>
           <tbody>
             {!loading && items.length === 0 && !error && (
-              <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
+              <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
             )}
             {items.map(x => {
               const next = LISTING_NEXT[x.status] ?? [];
@@ -180,6 +183,12 @@ function ListingsTab({ t }: { t: Translations }) {
                   <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{x.unit_id ? trunc(x.unit_id) : "—"}</td>
                   <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", fontWeight: 600, color: "var(--ink)" }}>{aed(Number(x.monthly_rent))}</td>
                   <td style={{ padding: "13px 16px" }}>{badge(t, x.status)}</td>
+                  <td style={{ padding: "13px 16px" }}>
+                    <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+                      <ListingFlagToggle basePath="/api/admin/leasing/listings" id={x.id} flag="is_featured" value={!!x.is_featured} label={t.st_featured} activeColor="var(--gold-deep)" activeBg="rgba(212,160,55,0.14)" />
+                      <ListingFlagToggle basePath="/api/admin/leasing/listings" id={x.id} flag="is_urgent" value={!!x.is_urgent} label={t.st_urgent} activeColor="var(--rose)" activeBg="var(--rose-soft)" />
+                    </span>
+                  </td>
                   <td style={{ padding: "13px 16px", textAlign: "end" }}>
                     {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                       <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>

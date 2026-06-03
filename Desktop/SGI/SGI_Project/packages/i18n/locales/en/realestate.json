@@ -1,0 +1,146 @@
+{
+  "nav": {
+    "properties": "Properties",
+    "home": "Home"
+  },
+  "home": {
+    "heroTitle": "Find your next address in the UAE",
+    "heroSubtitle": "Curated apartments, villas and offices for sale and rent across Dubai and Abu Dhabi.",
+    "searchCta": "Search properties",
+    "featuredTitle": "Featured properties",
+    "featuredSubtitle": "Hand-picked listings from our portfolio.",
+    "urgentTitle": "Urgent opportunities",
+    "urgentSubtitle": "Limited-time listings — act fast.",
+    "viewAll": "View all properties →",
+    "stats": {
+      "forSale": "For sale",
+      "forRent": "For rent",
+      "cities": "Cities",
+      "listings": "Active listings"
+    }
+  },
+  "search": {
+    "title": "Search",
+    "keyword": "City or area",
+    "keywordPlaceholder": "e.g. Dubai Marina",
+    "deal": "Type",
+    "dealAny": "Sale & rent",
+    "dealSale": "For sale",
+    "dealRent": "For rent",
+    "unitType": "Property type",
+    "unitTypeAny": "Any type",
+    "bedrooms": "Bedrooms",
+    "bedroomsAny": "Any",
+    "priceMin": "Min price (AED)",
+    "priceMax": "Max price (AED)",
+    "submit": "Search",
+    "reset": "Reset",
+    "sort": "Sort by",
+    "sortNewest": "Newest",
+    "sortPriceAsc": "Price: low to high",
+    "sortPriceDesc": "Price: high to low"
+  },
+  "filters": {
+    "title": "Filters",
+    "apply": "Apply filters",
+    "results": "{{count}} properties found"
+  },
+  "card": {
+    "forSale": "For Sale",
+    "forRent": "For Rent",
+    "urgent": "Urgent",
+    "featured": "Featured",
+    "perYear": "/year",
+    "perMonth": "/month",
+    "beds": "{{count}} bd",
+    "baths": "{{count}} ba",
+    "area": "{{area}} sqft",
+    "viewDetails": "View details",
+    "priceOnRequest": "Price on request"
+  },
+  "detail": {
+    "overview": "Overview",
+    "features": "Features & specifications",
+    "description": "Description",
+    "location": "Location",
+    "similar": "Similar properties",
+    "reference": "Reference",
+    "type": "Type",
+    "deal": "Listing",
+    "bedrooms": "Bedrooms",
+    "bathrooms": "Bathrooms",
+    "area": "Area",
+    "areaUnit": "sqft",
+    "parking": "Parking",
+    "furnished": "Furnished",
+    "floor": "Floor",
+    "city": "City",
+    "emirate": "Emirate",
+    "district": "District",
+    "view": "View",
+    "completion": "Completion",
+    "yearBuilt": "Year built",
+    "balcony": "Balcony",
+    "maidRoom": "Maid's room",
+    "studyRoom": "Study room",
+    "petsAllowed": "Pets allowed",
+    "amenities": "Amenities",
+    "developer": "Developer",
+    "availableFrom": "Available from",
+    "yes": "Yes",
+    "no": "No",
+    "notAvailable": "—",
+    "spots": "{{count}} spots",
+    "backToList": "← Back to all properties"
+  },
+  "contact": {
+    "title": "Interested in this property?",
+    "subtitle": "Leave your details and our agent will contact you.",
+    "name": "Full name",
+    "namePlaceholder": "Your name",
+    "email": "Email",
+    "emailPlaceholder": "you@example.com",
+    "phone": "Phone",
+    "phonePlaceholder": "+971 50 000 0000",
+    "message": "Message",
+    "messagePlaceholder": "I would like to know more about this property…",
+    "submit": "Request a viewing",
+    "submitting": "Sending…",
+    "success": "Thank you! Our team will contact you shortly.",
+    "error": "We could not send your request. Please try again.",
+    "validation": "Please provide your name and a phone or email.",
+    "whatsapp": "WhatsApp",
+    "call": "Call",
+    "agent": "Your agent"
+  },
+  "badges": {
+    "sale": "For Sale",
+    "rent": "For Rent",
+    "urgent": "Urgent",
+    "featured": "Featured"
+  },
+  "empty": {
+    "title": "No properties found",
+    "subtitle": "Try adjusting your filters or search criteria.",
+    "reset": "Clear filters"
+  },
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {{page}}"
+  },
+  "view": {
+    "list": "List",
+    "map": "Map"
+  },
+  "agents": {
+    "title": "Our agents",
+    "subtitle": "A team of experts at your service.",
+    "empty": "No agents.",
+    "viewProfile": "View profile",
+    "whatsapp": "WhatsApp",
+    "call": "Call",
+    "email": "Email",
+    "listings": "Agency listings"
+  }
+}

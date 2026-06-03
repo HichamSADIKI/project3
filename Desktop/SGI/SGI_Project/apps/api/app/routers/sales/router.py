@@ -19,6 +19,7 @@ from app.models.property import Property
 from app.routers.sales import service
 from app.routers.sales.schemas import (
     ListingCreate,
+    ListingFlagsUpdate,
     ListingItemOut,
     ListingListOut,
     ListingOut,
@@ -262,6 +263,27 @@ async def get_listing_endpoint(
 ) -> ListingItemOut:
     company_id = _get_company_id(request)
     listing = await service.get_listing(db, company_id, listing_id)
+    if listing is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="listing_not_found")
+    return ListingItemOut(data=ListingOut.model_validate(listing))
+
+
+@router.patch(
+    "/listings/{listing_id}",
+    response_model=ListingItemOut,
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
+)
+async def update_listing_flags_endpoint(
+    listing_id: uuid.UUID,
+    body: ListingFlagsUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> ListingItemOut:
+    """Toggles vitrine (Featured / Urgent) — backoffice uniquement."""
+    company_id = _get_company_id(request)
+    listing = await service.set_listing_flags(
+        db, company_id, listing_id, is_featured=body.is_featured, is_urgent=body.is_urgent
+    )
     if listing is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="listing_not_found")
     return ListingItemOut(data=ListingOut.model_validate(listing))
