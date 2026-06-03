@@ -330,6 +330,15 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   // On tablet, default to collapsed
   const [collapsed, setCollapsed] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
+  // Rubriques (sections) repliables à l'intérieur d'un groupe (ex. Immobilier).
+  const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
+  const toggleSection = (sec: string) =>
+    setOpenSections(prev => {
+      const next = new Set(prev);
+      if (next.has(sec)) next.delete(sec);
+      else next.add(sec);
+      return next;
+    });
   const [mobileOpen, setMobileOpen] = useState(false);
   const [status, setStatus] = useState<UserStatus>("online");
   const [showStatus, setShowStatus] = useState(false);
@@ -343,13 +352,15 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     else if (bp === "desktop") setCollapsed(false);
   }, [isTab, bp]);
 
-  /* Auto-open the group that contains the active child */
+  /* Auto-open the group — and its section — that contains the active child */
   useEffect(() => {
     for (const entry of NAV_ENTRIES) {
-      if (entry.type === "group" && entry.children.some(c => c.key === active)) {
-        setOpenGroup(entry.id);
-        return;
-      }
+      if (entry.type !== "group") continue;
+      const child = entry.children.find(c => c.key === active);
+      if (!child) continue;
+      setOpenGroup(entry.id);
+      if (child.section) setOpenSections(prev => new Set(prev).add(child.section!));
+      return;
     }
   }, [active]);
 
@@ -551,45 +562,61 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         </div>
 
         {/* Children — smooth max-height animation */}
-        {!col && (
-          <div style={{
-            overflow: "hidden",
-            // Hauteur dynamique : ~40px/enfant + marge, + ~44px par sous-titre de
-            // thème (intertitre + séparateur + air pour distinguer les blocs).
-            maxHeight: isOpen
-              ? entry.children.length * 40
-                + new Set(entry.children.map(c => c.section).filter(Boolean)).size * 44
-                + 12
-              : 0,
-            transition: "max-height 0.25s ease",
-          }}>
-            <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
-              {(() => {
-                let prevSection: string | undefined;
-                let firstSection = true;
-                const rows: React.ReactNode[] = [];
-                for (const child of entry.children) {
-                  if (child.section && child.section !== prevSection) {
-                    prevSection = child.section;
-                    const isFirst = firstSection;
-                    firstSection = false;
-                    rows.push(
+        {!col && (() => {
+          // Regroupe les enfants consécutifs par rubrique (section). Un groupe sans
+          // section (Clients, Fournisseurs…) → un seul bloc, rendu à plat.
+          const blocks: { section: string | null; items: NavItem[] }[] = [];
+          for (const child of entry.children) {
+            const sec = child.section ?? null;
+            const last = blocks[blocks.length - 1];
+            if (last && last.section === sec) last.items.push(child);
+            else blocks.push({ section: sec, items: [child] });
+          }
+          // Hauteur du groupe ouvert : pire cas, toutes les rubriques dépliées.
+          const outerMax = entry.children.length * 40 + blocks.length * 40 + 12;
+          return (
+            <div style={{
+              overflow: "hidden",
+              maxHeight: isOpen ? outerMax : 0,
+              transition: "max-height 0.25s ease",
+            }}>
+              <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
+                {blocks.map((block, i) => {
+                  // Bloc sans rubrique : items à plat (comportement des autres groupes).
+                  if (!block.section) {
+                    return block.items.map(child => (
+                      <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />
+                    ));
+                  }
+                  const isFirst = i === 0;
+                  const secOpen = openSections.has(block.section);
+                  const sectionLabel = navSectionLabel(block.section);
+                  return (
+                    <div key={`sec-${block.section}`}>
+                      {/* En-tête de rubrique cliquable (repliable) */}
                       <div
-                        key={`sec-${child.section}`}
+                        role="button"
+                        tabIndex={0}
+                        aria-expanded={secOpen}
+                        aria-label={sectionLabel}
+                        onClick={() => toggleSection(block.section!)}
+                        onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSection(block.section!); } }}
                         style={{
                           display: "flex",
                           alignItems: "center",
                           gap: 7,
+                          cursor: "pointer",
                           padding: isFirst ? "6px 12px 4px" : "10px 12px 4px",
                           marginTop: isFirst ? 0 : 8,
                           borderTop: isFirst ? "none" : "1px solid var(--line-soft)",
                         }}
                       >
-                        {/* Tiret doré : repère visuel discret en tête de section */}
+                        {/* Tiret doré : repère visuel discret en tête de rubrique */}
                         <span style={{ width: 10, height: 2, borderRadius: 2, background: "var(--gold)", opacity: 0.7, flexShrink: 0 }} />
                         <span
                           className={lang === "ar" ? "font-ar" : undefined}
                           style={{
+                            flex: 1, minWidth: 0,
                             fontSize: 10,
                             fontWeight: 700,
                             letterSpacing: "0.07em",
@@ -597,20 +624,29 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                             color: "var(--ink-4)",
                           }}
                         >
-                          {navSectionLabel(child.section)}
+                          {sectionLabel}
                         </span>
-                      </div>,
-                    );
-                  }
-                  rows.push(
-                    <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />,
+                        <span style={{ color: "var(--ink-4)", transition: "transform 0.22s ease", display: "block", transform: secOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                          <IcChevD />
+                        </span>
+                      </div>
+                      {/* Items de la rubrique — repli animé */}
+                      <div style={{
+                        overflow: "hidden",
+                        maxHeight: secOpen ? block.items.length * 40 + 4 : 0,
+                        transition: "max-height 0.22s ease",
+                      }}>
+                        {block.items.map(child => (
+                          <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />
+                        ))}
+                      </div>
+                    </div>
                   );
-                }
-                return rows;
-              })()}
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     );
   }
