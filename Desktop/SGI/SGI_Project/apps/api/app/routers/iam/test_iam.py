@@ -390,3 +390,90 @@ async def test_agent_cannot_manage_access(
     # L'agent n'a pas settings.access → 403 sur la gestion des accès.
     r = await client.get(f"{_H}/groups", headers=_auth(agent_token))
     assert r.status_code == 403
+
+
+async def test_me_permissions_nav_visibility(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{_H}/me/permissions", headers=_auth(token))
+    assert r.status_code == 200
+    j = r.json()
+    nav_known = set(j["nav_known"])
+    nav_allowed = set(j["nav_allowed"])
+    # nav_keys modélisés au catalogue.
+    assert "realestate_buildings" in nav_known
+    assert "iam" in nav_known
+    # L'admin voit tout (y compris la gestion des accès).
+    assert "realestate_buildings" in nav_allowed
+    assert "iam" in nav_allowed
+
+
+async def test_group_membership_changes_effective(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    # Groupe avec un allow PLUS SPÉCIFIQUE que le deny baseline de l'agent sur finance.
+    rg = await client.post(
+        f"{_H}/groups", headers=_auth(token), json={"slug": "compta", "name_fr": "Comptabilité"}
+    )
+    group_id = rg.json()["data"]["id"]
+    await client.put(
+        f"{_H}/grants",
+        headers=_auth(token),
+        json={
+            "subject_type": "group",
+            "subject_id": group_id,
+            "items": [{"node_key": "finance.overview", "effect": "allow"}],
+        },
+    )
+    ru = await client.post(
+        f"{_H}/users",
+        headers=_auth(token),
+        json={
+            "email": f"agent3-{uuid.uuid4().hex[:8]}@infinity.ae",
+            "full_name": "Agent Z",
+            "password": "AgentPass!23",
+            "role": "agent",
+        },
+    )
+    user_id = ru.json()["data"]["id"]
+    # Avant : l'agent (baseline) n'a pas accès à la finance.
+    before = await client.get(f"{_H}/users/{user_id}/effective", headers=_auth(token))
+    assert "finance.overview.read" not in set(before.json()["allowed"])
+    # On l'ajoute au groupe → le grant de groupe (plus spécifique) ouvre finance.overview.
+    rm = await client.post(
+        f"{_H}/groups/{group_id}/members", headers=_auth(token), json={"user_id": user_id}
+    )
+    assert rm.status_code == 204
+    after = await client.get(f"{_H}/users/{user_id}/effective", headers=_auth(token))
+    assert "finance.overview.read" in set(after.json()["allowed"])
+
+
+async def test_manager_cannot_manage_access(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    ru = await client.post(
+        f"{_H}/users",
+        headers=_auth(token),
+        json={
+            "email": f"mgr-{uuid.uuid4().hex[:8]}@infinity.ae",
+            "full_name": "Manager M",
+            "password": "MgrPass!23",
+            "role": "manager",
+        },
+    )
+    user_id = ru.json()["data"]["id"]
+    mgr_token = encode_jwt(
+        {
+            "sub": user_id,
+            "company_id": str(_admin.company_id),
+            "role": "manager",
+            "status": "active",
+            "email": "mgr@infinity.ae",
+        }
+    )
+    # Le manager a le métier mais PAS settings.access (réservé admin) → 403.
+    r = await client.get(f"{_H}/groups", headers=_auth(mgr_token))
+    assert r.status_code == 403
