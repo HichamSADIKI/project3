@@ -232,6 +232,29 @@ async def test_ami_cdr_inbound_unanswered_is_missed(db_session, seed_company) ->
     assert c.status == "missed"
 
 
+async def test_ami_cdr_inbound_attributed_to_extension_agent(db_session, seed_admin) -> None:
+    """L'appel entrant AMI est rattaché à l'agent propriétaire de l'extension
+    (agent_user_id) → sinon il reste invisible au filtre anti-BOLA de l'agent et
+    les notes de wrap-up ne peuvent pas lui être rattachées."""
+    admin, _ = seed_admin
+    cid = admin.company_id
+    await service.set_agent_status(db_session, cid, admin.id, "available", extension="6001")
+    call = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Newchannel", "link-attr-agent", ext="6001")
+    )
+    assert call.agent_extension == "6001"
+    assert call.agent_user_id == admin.id
+
+
+async def test_ami_cdr_inbound_unknown_extension_has_no_agent(db_session, seed_company) -> None:
+    """Une extension sans agent_state (queue, poste non agent) → agent_user_id None."""
+    cid = seed_company.id
+    call = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Newchannel", "link-no-agent", ext="9999")
+    )
+    assert call.agent_user_id is None
+
+
 async def test_ami_cdr_idempotent_no_duplicate(db_session, seed_company) -> None:
     """Deux réplicas reçoivent le même Newchannel → une seule ligne."""
     cid = seed_company.id

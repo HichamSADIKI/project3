@@ -312,6 +312,7 @@ async def get_or_create_call_by_channel(
         from_number=defaults.get("from_number"),
         to_number=defaults.get("to_number"),
         agent_extension=defaults.get("agent_extension"),
+        agent_user_id=defaults.get("agent_user_id"),
         recording_consent=defaults.get("recording_consent", False),
         started_at=defaults.get("started_at") or datetime.now(UTC),
     )
@@ -375,6 +376,22 @@ async def apply_ami_cdr(
     }
     direction = infer_call_direction(caller, internal_exts)
 
+    # Rattache le CDR à l'agent propriétaire de l'extension (appels entrants/
+    # internes créés par l'AMI). Sans ça, agent_user_id reste NULL → l'appel est
+    # invisible au filtre anti-BOLA de l'agent (il ne voit que SES appels) et les
+    # notes de wrap-up ne peuvent pas lui être rattachées. Unicité garantie par
+    # uq_agent_states_extension (company_id, extension) → au plus un agent.
+    agent_user_id: uuid.UUID | None = None
+    if extension:
+        agent_user_id = (
+            await db.execute(
+                select(AgentState.user_id).where(
+                    AgentState.company_id == company_id,
+                    AgentState.extension == extension,
+                )
+            )
+        ).scalar_one_or_none()
+
     call, _created = await get_or_create_call_by_channel(
         db,
         company_id,
@@ -383,6 +400,7 @@ async def apply_ami_cdr(
         from_number=caller,
         to_number=extension,
         agent_extension=extension,
+        agent_user_id=agent_user_id,
         # PDPL fail-closed : pas de consentement présumé sans signal explicite
         # (cf. TELEPHONY_ASSUME_RECORDING_CONSENT). Sans consentement, le worker
         # n'uploade pas l'enregistrement et l'URL n'est jamais exposée.
