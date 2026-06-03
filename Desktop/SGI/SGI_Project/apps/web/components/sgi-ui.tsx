@@ -167,11 +167,7 @@ const NAV_ENTRIES: NavEntry[] = [
   },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
-      // 🏢 BIENS — le patrimoine géré
-      { key: "realestate_buildings", icon: <IcProp />, section: "biens" },
-      { key: "realestate_units", icon: <IcGrid />, section: "biens" },
-      { key: "realestate_branches", icon: <IcPin />, section: "biens" },
-      // 💼 COMMERCIAL — pipeline, transactions, encaissements
+      // 💼 COMMERCIAL — pipeline, transactions, encaissements (1er : usage quotidien)
       { key: "crm", icon: <IcCRM />, badge: 12, section: "commercial" },
       { key: "realestate_process", icon: <IcTrend />, section: "commercial" },
       { key: "realestate_achat", icon: <IcFinance />, section: "commercial" },
@@ -181,7 +177,11 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_contracts", icon: <IcContract />, section: "commercial" },
       { key: "realestate_payments", icon: <IcFinance />, section: "commercial" },
       { key: "realestate_cheques", icon: <IcReport />, section: "commercial" },
-      // 👥 PERSONNES — toutes les parties prenantes
+      // 🏢 BIENS — le patrimoine géré
+      { key: "realestate_buildings", icon: <IcProp />, section: "biens" },
+      { key: "realestate_units", icon: <IcGrid />, section: "biens" },
+      { key: "realestate_branches", icon: <IcPin />, section: "biens" },
+      // 👥 CONTACTS — toutes les parties prenantes
       { key: "realestate_owners", icon: <IcClients />, section: "personnes" },
       { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "personnes" },
       { key: "realestate_tenants", icon: <IcPersonne />, section: "personnes" },
@@ -404,8 +404,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   // Icône par pôle (4 pôles Immobilier) — repère visuel fort et lisible.
   const navSectionIcon = (section: string): React.ReactElement => {
     const map: Record<string, React.ReactElement> = {
-      biens: <IcProp />,
       commercial: <IcFinance />,
+      biens: <IcProp />,
       personnes: <IcClients />,
       operations: <IcSettings />,
     };
@@ -608,6 +608,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                         onClick={() => toggleSection(block.section!)}
                         onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleSection(block.section!); } }}
                         style={{
+                          position: "relative",
                           display: "flex",
                           alignItems: "center",
                           gap: 9,
@@ -619,6 +620,10 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                           transition: "background 0.15s ease",
                         }}
                       >
+                        {/* Barre d'accent dorée : pôle ouvert = « vous êtes ici » */}
+                        {secOpen && (
+                          <span style={{ position: "absolute", insetInlineStart: 0, top: "50%", transform: "translateY(-50%)", width: 3, height: "64%", background: "var(--gold)", borderRadius: 2 }} />
+                        )}
                         {/* Icône du pôle : repère visuel fort et lisible */}
                         <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: "var(--gold)", flexShrink: 0 }}>
                           {navSectionIcon(block.section)}
@@ -627,12 +632,16 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                           className={lang === "ar" ? "font-ar" : "font-display"}
                           style={{
                             flex: 1, minWidth: 0,
-                            fontSize: 12.5,
+                            fontSize: 13,
                             fontWeight: 600,
                             color: secOpen ? "var(--gold-deep)" : "var(--ink-2)",
                           }}
                         >
                           {sectionLabel}
+                        </span>
+                        {/* Pastille de comptage : volume du pôle */}
+                        <span className="tnum" style={{ fontSize: 10.5, fontWeight: 600, color: secOpen ? "var(--gold-deep)" : "var(--ink-4)", background: secOpen ? "transparent" : "var(--line-soft)", borderRadius: 999, padding: "1px 7px", flexShrink: 0 }}>
+                          {block.items.length}
                         </span>
                         <span style={{ color: "var(--ink-4)", transition: "transform 0.22s ease", display: "block", transform: secOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
                           <IcChevD />
