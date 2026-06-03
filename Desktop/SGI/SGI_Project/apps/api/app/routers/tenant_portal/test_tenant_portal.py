@@ -377,9 +377,7 @@ async def test_cross_tenant_payment_invisible(
 ) -> None:
     """Le paiement d'une AUTRE société n'est jamais visible/payable (RLS Loi 1)."""
     other_company, _admin_token = second_admin
-    victim = await _make_client(
-        db_session, other_company, f"x-{uuid.uuid4().hex[:8]}@sgi.test"
-    )
+    victim = await _make_client(db_session, other_company, f"x-{uuid.uuid4().hex[:8]}@sgi.test")
     pr = await _make_payment_request(db_session, other_company, victim.id, "pending", "4000")
 
     _user, _tenant, token = await _linked_tenant(db_session, seed_company)

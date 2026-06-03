@@ -270,9 +270,7 @@ async def tenant_ticket_comment(
     uid, cid, email = _ctx(request)
     tenant_id = await _tenant_client_id(db, email, cid)
     await _owned_ticket(db, cid, tenant_id, ticket_id)
-    event = await ticketing_service.add_comment(
-        db, cid, ticket_id, payload.body, actor_user_id=uid
-    )
+    event = await ticketing_service.add_comment(db, cid, ticket_id, payload.body, actor_user_id=uid)
     if event is None:
         raise HTTPException(status_code=404, detail="ticket_not_found")
     return _event_dict(event)
