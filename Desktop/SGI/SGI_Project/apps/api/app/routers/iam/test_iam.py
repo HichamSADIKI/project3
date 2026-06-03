@@ -10,6 +10,12 @@ Couche 2 — endpoints d'intégration (ajoutés en Phase 3, nécessitent Postgre
 
 from __future__ import annotations
 
+import uuid
+
+from httpx import AsyncClient
+
+from app.core.auth import encode_jwt
+from app.models.user import User
 from app.routers.iam import catalogue
 from app.routers.iam.service import (
     Grant,
@@ -225,3 +231,162 @@ def test_default_role_grants_agent_cannot_delete_nor_access_settings():
     assert not can(eff, "realestate.contracts.delete")  # suppression déniée
     assert not can(eff, "settings.access")  # gestion des accès interdite
     assert not can(eff, "finance.overview")  # finance hors périmètre agent
+
+
+# ═════════════════════════════════════════════════════════════════════════════════
+# Couche 2 — endpoints d'intégration (nécessitent Postgres : lancer en conteneur).
+# ═════════════════════════════════════════════════════════════════════════════════
+
+_H = "/api/v1/iam"
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_health_is_public(client: AsyncClient) -> None:
+    r = await client.get(f"{_H}/health")
+    assert r.status_code == 200
+
+
+async def test_admin_me_permissions_has_settings_access(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{_H}/me/permissions", headers=_auth(token))
+    assert r.status_code == 200
+    allowed = set(r.json()["allowed"])
+    # Le bootstrap paresseux a rattaché l'admin au groupe système → tout autorisé.
+    assert "settings.access.read" in allowed
+    assert "realestate.payments.delete" in allowed
+
+
+async def test_catalogue_returns_system_tree(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{_H}/catalogue", headers=_auth(token))
+    assert r.status_code == 200
+    keys = {n["key"] for n in r.json()["data"]}
+    assert "settings.access" in keys
+    assert "realestate.contracts.delete" in keys
+
+
+async def test_group_and_unit_crud(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _admin, token = seed_admin
+    rg = await client.post(
+        f"{_H}/groups", headers=_auth(token), json={"slug": "compta", "name_fr": "Comptabilité"}
+    )
+    assert rg.status_code == 201
+    group_id = rg.json()["data"]["id"]
+    ru = await client.post(
+        f"{_H}/units",
+        headers=_auth(token),
+        json={"group_id": group_id, "name_fr": "Caissière"},
+    )
+    assert ru.status_code == 201
+    # La liste des groupes contient le nouveau + les groupes système.
+    rl = await client.get(f"{_H}/groups", headers=_auth(token))
+    slugs = {g["slug"] for g in rl.json()["data"]}
+    assert "compta" in slugs and "sys-admin" in slugs
+
+
+async def test_unit_parent_group_must_be_in_tenant(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.post(
+        f"{_H}/units",
+        headers=_auth(token),
+        json={"group_id": str(uuid.uuid4()), "name_fr": "X"},
+    )
+    assert r.status_code == 400
+
+
+async def test_user_grant_overrides_effective(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    # Crée un agent (reçoit le socle sys-agent → realestate autorisé).
+    ru = await client.post(
+        f"{_H}/users",
+        headers=_auth(token),
+        json={
+            "email": f"agent-{uuid.uuid4().hex[:8]}@infinity.ae",
+            "full_name": "Agent X",
+            "password": "AgentPass!23",
+            "role": "agent",
+        },
+    )
+    assert ru.status_code == 201
+    user_id = ru.json()["data"]["id"]
+    # Baseline : l'agent peut créer un contrat.
+    eff0 = await client.get(f"{_H}/users/{user_id}/effective", headers=_auth(token))
+    assert "realestate.contracts.create" in set(eff0.json()["allowed"])
+    # Override utilisateur : deny sur la page contrats → la création est coupée.
+    rp = await client.put(
+        f"{_H}/grants",
+        headers=_auth(token),
+        json={
+            "subject_type": "user",
+            "subject_id": user_id,
+            "items": [{"node_key": "realestate.contracts", "effect": "deny"}],
+        },
+    )
+    assert rp.status_code == 200
+    eff1 = await client.get(f"{_H}/users/{user_id}/effective", headers=_auth(token))
+    allowed = set(eff1.json()["allowed"])
+    assert "realestate.contracts.create" not in allowed
+    assert "realestate.payments.create" in allowed  # autre branche intacte
+
+
+async def test_multi_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[object, str]
+) -> None:
+    _admin, token = seed_admin
+    _company2, token2 = second_admin
+    rg = await client.post(
+        f"{_H}/groups", headers=_auth(token), json={"slug": "secret", "name_fr": "Secret"}
+    )
+    group_id = rg.json()["data"]["id"]
+    # Le 2ᵉ tenant ne voit pas le groupe de l'autre.
+    rl = await client.get(f"{_H}/groups", headers=_auth(token2))
+    ids = {g["id"] for g in rl.json()["data"]}
+    assert group_id not in ids
+    # Et ne peut pas poser de grants dessus (cross-tenant → 400).
+    rp = await client.put(
+        f"{_H}/grants",
+        headers=_auth(token2),
+        json={"subject_type": "group", "subject_id": group_id, "items": []},
+    )
+    assert rp.status_code == 400
+
+
+async def test_agent_cannot_manage_access(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    ru = await client.post(
+        f"{_H}/users",
+        headers=_auth(token),
+        json={
+            "email": f"agent2-{uuid.uuid4().hex[:8]}@infinity.ae",
+            "full_name": "Agent Y",
+            "password": "AgentPass!23",
+            "role": "agent",
+        },
+    )
+    user_id = ru.json()["data"]["id"]
+    company_id = _admin.company_id
+    agent_token = encode_jwt(
+        {
+            "sub": user_id,
+            "company_id": str(company_id),
+            "role": "agent",
+            "status": "active",
+            "email": "agent@sgi.test",
+        }
+    )
+    # L'agent n'a pas settings.access → 403 sur la gestion des accès.
+    r = await client.get(f"{_H}/groups", headers=_auth(agent_token))
+    assert r.status_code == 403
