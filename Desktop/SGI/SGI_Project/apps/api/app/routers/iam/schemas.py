@@ -172,6 +172,17 @@ class EffectiveOut(BaseModel):
     allowed: list[str]
 
 
+class MePermissionsOut(BaseModel):
+    """Permissions de l'utilisateur courant — payload d'hydratation du frontend."""
+
+    success: bool = True
+    allowed: list[str]  # clés de nœuds autorisées (gating champ via <Can>)
+    nav_known: list[str]  # nav_keys modélisés au catalogue (donc à gater)
+    nav_allowed: list[str]  # nav_keys autorisés
+    screen_known: list[str]
+    screen_allowed: list[str]
+
+
 # ── Utilisateurs (CRUD staff interne) ────────────────────────────────────────────
 
 

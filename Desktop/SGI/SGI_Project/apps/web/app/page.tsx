@@ -23,6 +23,7 @@ import { ScreenRealEstateUnits } from "./screens/realestate-units";
 import { ScreenRealEstateTenants } from "./screens/realestate-tenants";
 import { ScreenRealEstateContracts } from "./screens/realestate-contracts";
 import { ScreenRealEstateOwners } from "./screens/realestate-owners";
+import { ScreenRealEstateDevelopers } from "./screens/realestate-developers";
 import { ScreenRealEstateOwnerPortal } from "./screens/realestate-owner-portal";
 import { ScreenRealEstatePayments } from "./screens/realestate-payments";
 import { ScreenRealEstateCheques } from "./screens/realestate-cheques";
@@ -59,12 +60,13 @@ import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
 import { SoftphoneProvider } from "@/components/softphone/softphone-provider";
 import { SoftphoneDock } from "@/components/softphone/softphone-dock";
+import { PermissionsProvider, useNavGate } from "@/lib/permissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ScreenKey =
   | "dash" | "crm" | "orders"
-  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
+  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
   | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "tourisme_news" | "sante_news" | "assurance_news"
@@ -107,6 +109,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_workflows": (_) => <ScreenRealEstateWorkflows />,
   "realestate_owners": (_) => <ScreenRealEstateOwners />,
   "realestate_owner_portal": (_) => <ScreenRealEstateOwnerPortal />,
+  "realestate_developers": (_) => <ScreenRealEstateDevelopers />,
   "realestate_branches": (_) => <ScreenRealEstateBranches />,
   "realestate_settings": (_) => <ScreenRealEstateSettings />,
   "realestate_documents": (_) => <ScreenRealEstateDocuments />,
@@ -173,6 +176,25 @@ function renderScreen(screen: string, handlers: ScreenProps): React.ReactNode {
   return factory(handlers);
 }
 
+// Gating IAM d'un écran : si l'écran (sa clé de nav) est connu du catalogue et
+// non autorisé, on affiche un message d'accès refusé. La sécurité réelle reste
+// côté backend (403) ; ceci évite juste d'afficher une page interdite.
+function GatedScreen({ screen, children }: { screen: string; children: React.ReactNode }): React.ReactNode {
+  const navGate = useNavGate();
+  if (navGate(screen)) return children;
+  return (
+    <div style={{ flex: 1, display: "grid", placeItems: "center", padding: "2rem" }}>
+      <div style={{ textAlign: "center", color: "var(--ink-4)", maxWidth: 360 }}>
+        <div style={{ fontSize: 40, marginBottom: 8 }}>🔒</div>
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--ink)" }}>403</div>
+        <div style={{ fontSize: 13, marginTop: 4 }}>
+          Accès non autorisé · غير مصرح · Access denied
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -199,25 +221,29 @@ export default function App() {
   if (screen === "portal") return <ScreenPortal />;
 
   return (
-    <SoftphoneProvider>
-      <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}>
-        <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-          {renderScreen(screen, {
-            onNavigateToClient: handleNavigateToClient,
-            onDealConfirmed:    handleDealConfirmed,
-            onNavigate:         setScreen,
-            initialSearch:      clientSearch,
-            confirmedDeals:     confirmedDeals,
-          })}
+    <PermissionsProvider>
+      <SoftphoneProvider>
+        <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}>
+          <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+            <GatedScreen screen={screen}>
+              {renderScreen(screen, {
+                onNavigateToClient: handleNavigateToClient,
+                onDealConfirmed:    handleDealConfirmed,
+                onNavigate:         setScreen,
+                initialSearch:      clientSearch,
+                confirmedDeals:     confirmedDeals,
+              })}
+            </GatedScreen>
+          </div>
+          <GlobalSearch
+            onNavigate={setScreen}
+            onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
+          />
+          {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
+          <SoftphoneDock onOpenClient={handleNavigateToClient} />
         </div>
-        <GlobalSearch
-          onNavigate={setScreen}
-          onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
-        />
-        {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
-        <SoftphoneDock onOpenClient={handleNavigateToClient} />
-      </div>
-    </SoftphoneProvider>
+      </SoftphoneProvider>
+    </PermissionsProvider>
   );
 }

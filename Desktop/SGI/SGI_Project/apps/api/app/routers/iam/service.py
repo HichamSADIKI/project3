@@ -196,6 +196,39 @@ async def load_nodes(db: AsyncSession, company_id: uuid.UUID) -> list[Permission
     return list(rows)
 
 
+def page_visibility(
+    nodes: list[PermissionNode], effective: dict[str, Effective]
+) -> dict[str, list[str]]:
+    """Visibilité nav/écran pour le frontend, déduite des nœuds `page`.
+
+    Renvoie les nav_keys/screen_keys *connus* (présents au catalogue, donc à gater)
+    et ceux *autorisés* (page allow). Le frontend laisse visibles les entrées de nav
+    inconnues (non encore modélisées) et masque les connues non autorisées.
+    """
+    nav_known: set[str] = set()
+    nav_allowed: set[str] = set()
+    screen_known: set[str] = set()
+    screen_allowed: set[str] = set()
+    for n in nodes:
+        if n.type != "page":
+            continue
+        allowed = can(effective, n.key)
+        if n.nav_key:
+            nav_known.add(n.nav_key)
+            if allowed:
+                nav_allowed.add(n.nav_key)
+        if n.screen_key:
+            screen_known.add(n.screen_key)
+            if allowed:
+                screen_allowed.add(n.screen_key)
+    return {
+        "nav_known": sorted(nav_known),
+        "nav_allowed": sorted(nav_allowed),
+        "screen_known": sorted(screen_known),
+        "screen_allowed": sorted(screen_allowed),
+    }
+
+
 def _refs_and_maps(
     nodes: list[PermissionNode],
 ) -> tuple[list[NodeRef], dict[uuid.UUID, str], dict[str, uuid.UUID]]:

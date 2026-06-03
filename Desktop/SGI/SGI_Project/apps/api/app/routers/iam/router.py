@@ -29,6 +29,7 @@ from app.routers.iam.schemas import (
     GroupOut,
     GroupUpdate,
     MemberBody,
+    MePermissionsOut,
     NodeOut,
     UnitCreate,
     UnitItemOut,
@@ -68,18 +69,20 @@ async def health() -> dict[str, str]:
 # ── Permissions de l'utilisateur courant (hydratation frontend) ──────────────────
 
 
-@router.get("/me/permissions", response_model=EffectiveOut)
+@router.get("/me/permissions", response_model=MePermissionsOut)
 async def my_permissions(
     request: Request, db: AsyncSession = Depends(get_db_session)
-) -> EffectiveOut:
+) -> MePermissionsOut:
     company_id, user_id = _ctx(request)
     effective = await service.get_effective_cached(db, company_id, user_id)
-    return EffectiveOut(
-        data={
-            k: EffectiveEntry(effect=e.effect, source=e.source, via_node=e.via_node)
-            for k, e in effective.items()
-        },
+    nodes = await service.load_nodes(db, company_id)
+    vis = service.page_visibility(nodes, effective)
+    return MePermissionsOut(
         allowed=sorted(service.allowed_keys(effective)),
+        nav_known=vis["nav_known"],
+        nav_allowed=vis["nav_allowed"],
+        screen_known=vis["screen_known"],
+        screen_allowed=vis["screen_allowed"],
     )
 
 
