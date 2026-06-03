@@ -177,13 +177,14 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_vente", icon: <IcContract />, section: "transactions" },
       { key: "realestate_location", icon: <IcProp />, section: "transactions" },
       { key: "realestate_contracts", icon: <IcContract />, section: "transactions" },
-      // TIERS & FINANCE
-      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers_finance" },
-      { key: "realestate_owners", icon: <IcClients />, section: "tiers_finance" },
-      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers_finance" },
-      { key: "realestate_developers", icon: <IcWorkspace />, section: "tiers_finance" },
-      { key: "realestate_payments", icon: <IcFinance />, section: "tiers_finance" },
-      { key: "realestate_cheques", icon: <IcReport />, section: "tiers_finance" },
+      // TIERS (parties prenantes — propriétaire + son portail rapprochés)
+      { key: "realestate_owners", icon: <IcClients />, section: "tiers" },
+      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers" },
+      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers" },
+      { key: "realestate_developers", icon: <IcWorkspace />, section: "tiers" },
+      // FINANCE
+      { key: "realestate_payments", icon: <IcFinance />, section: "finance" },
+      { key: "realestate_cheques", icon: <IcReport />, section: "finance" },
       // EXPLOITATION & RELATION CLIENT
       { key: "realestate_maintenance", icon: <IcClock />, section: "exploitation" },
       { key: "realestate_workflows", icon: <IcAudit />, section: "exploitation" },
@@ -386,7 +387,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     const map: Record<string, string> = {
       patrimoine: t.nav_re_sec_patrimoine,
       transactions: t.nav_re_sec_transactions,
-      tiers_finance: t.nav_re_sec_tiers_finance,
+      tiers: t.nav_re_sec_tiers,
+      finance: t.nav_re_sec_finance,
       exploitation: t.nav_re_sec_exploitation,
       admin: t.nav_re_sec_admin,
     };
@@ -552,35 +554,51 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         {!col && (
           <div style={{
             overflow: "hidden",
-            // Hauteur dynamique : ~40px/enfant + marge, + ~26px par sous-titre de
-            // thème (rubrique Immobilier sectionnée par thème pour la lisibilité).
+            // Hauteur dynamique : ~40px/enfant + marge, + ~44px par sous-titre de
+            // thème (intertitre + séparateur + air pour distinguer les blocs).
             maxHeight: isOpen
               ? entry.children.length * 40
-                + new Set(entry.children.map(c => c.section).filter(Boolean)).size * 26
-                + 8
+                + new Set(entry.children.map(c => c.section).filter(Boolean)).size * 44
+                + 12
               : 0,
             transition: "max-height 0.25s ease",
           }}>
             <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
               {(() => {
                 let prevSection: string | undefined;
+                let firstSection = true;
                 const rows: React.ReactNode[] = [];
                 for (const child of entry.children) {
                   if (child.section && child.section !== prevSection) {
                     prevSection = child.section;
+                    const isFirst = firstSection;
+                    firstSection = false;
                     rows.push(
                       <div
                         key={`sec-${child.section}`}
                         style={{
-                          padding: "8px 12px 2px",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: "0.06em",
-                          textTransform: "uppercase",
-                          color: "var(--ink-4)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 7,
+                          padding: isFirst ? "6px 12px 4px" : "10px 12px 4px",
+                          marginTop: isFirst ? 0 : 8,
+                          borderTop: isFirst ? "none" : "1px solid var(--line-soft)",
                         }}
                       >
-                        {navSectionLabel(child.section)}
+                        {/* Tiret doré : repère visuel discret en tête de section */}
+                        <span style={{ width: 10, height: 2, borderRadius: 2, background: "var(--gold)", opacity: 0.7, flexShrink: 0 }} />
+                        <span
+                          className={lang === "ar" ? "font-ar" : undefined}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.07em",
+                            textTransform: "uppercase",
+                            color: "var(--ink-4)",
+                          }}
+                        >
+                          {navSectionLabel(child.section)}
+                        </span>
                       </div>,
                     );
                   }

@@ -10,7 +10,8 @@ export type Translations = {
   // Nav
   nav_dash: string; nav_prop: string; nav_crm: string;
   nav_contract: string; nav_rental: string; nav_realestate: string;
-  nav_re_sec_patrimoine: string; nav_re_sec_transactions: string; nav_re_sec_tiers_finance: string;
+  nav_re_sec_patrimoine: string; nav_re_sec_transactions: string;
+  nav_re_sec_tiers: string; nav_re_sec_finance: string;
   nav_re_sec_exploitation: string; nav_re_sec_admin: string;
   nav_admin: string; nav_tourisme: string; nav_sante: string;
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
@@ -30,6 +31,11 @@ export type Translations = {
   nav_owner_portal: string;
   nav_contracts_re: string;
   nav_achat: string; nav_vente: string; nav_location: string;
+  nav_developers: string; dev_subtitle: string; dev_count: string; dev_empty: string; dev_new: string;
+  dev_col_projects: string; dev_col_units: string; dev_col_city: string; dev_col_status: string;
+  dev_status_active: string; dev_status_inactive: string;
+  dev_field_name: string; dev_field_city: string; dev_field_license: string; dev_field_projects: string;
+  view_list: string; view_map: string; nav_map: string; map_subtitle: string; map_empty: string; map_assets: string;
   re_mandates: string; re_offers: string; re_listings: string; re_applications: string; re_transactions: string; re_matches: string;
   re_budget: string; re_commission: string; re_asking_price: string; re_list_price: string; re_final_price: string; re_monthly_rent: string; re_match_score: string; re_amount: string;
   re_new_mandate: string; re_new_offer: string; re_new_listing: string; re_new_application: string; re_run_match: string; re_no_matches: string;
@@ -254,7 +260,8 @@ const ar: Translations = {
   nav_dash: "لوحة القيادة", nav_prop: "العقارات", nav_crm: "إدارة العملاء",
   nav_contract: "العقود", nav_rental: "الإيجارات", nav_realestate: "العقارات",
   nav_re_sec_patrimoine: "الأصول", nav_re_sec_transactions: "المعاملات والعقود",
-  nav_re_sec_tiers_finance: "الأطراف والمالية", nav_re_sec_exploitation: "التشغيل وخدمة العملاء",
+  nav_re_sec_tiers: "الأطراف", nav_re_sec_finance: "المالية",
+  nav_re_sec_exploitation: "التشغيل وخدمة العملاء",
   nav_re_sec_admin: "الإدارة",
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
@@ -274,6 +281,11 @@ const ar: Translations = {
   nav_owner_portal: "بوابة المالك",
   nav_contracts_re: "العقود",
   nav_achat: "الشراء", nav_vente: "البيع", nav_location: "الإيجار",
+  nav_developers: "Developers", dev_subtitle: "المطوّرون العقاريون ومشاريعهم.", dev_count: "مطوّر", dev_empty: "لا يوجد مطوّرون.", dev_new: "مطوّر جديد",
+  dev_col_projects: "المشاريع", dev_col_units: "الوحدات", dev_col_city: "المدينة", dev_col_status: "الحالة",
+  dev_status_active: "نشط", dev_status_inactive: "غير نشط",
+  dev_field_name: "اسم المطوّر", dev_field_city: "المدينة", dev_field_license: "رقم الرخصة", dev_field_projects: "عدد المشاريع",
+  view_list: "قائمة", view_map: "خريطة", nav_map: "الخريطة", map_subtitle: "كل الأصول المحدّدة جغرافياً.", map_empty: "لا توجد عناصر محدّدة جغرافياً.", map_assets: "أصول على الخريطة",
   re_mandates: "التفويضات", re_offers: "العروض", re_listings: "الإعلانات", re_applications: "الطلبات", re_transactions: "المعاملات", re_matches: "التطابقات",
   re_budget: "الميزانية", re_commission: "العمولة", re_asking_price: "السعر المطلوب", re_list_price: "سعر العرض", re_final_price: "السعر النهائي", re_monthly_rent: "الإيجار الشهري", re_match_score: "درجة التطابق", re_amount: "المبلغ",
   re_new_mandate: "تفويض جديد", re_new_offer: "عرض جديد", re_new_listing: "إعلان جديد", re_new_application: "طلب جديد", re_run_match: "بحث عن تطابقات", re_no_matches: "لا توجد تطابقات",
@@ -492,7 +504,8 @@ const en: Translations = {
   nav_dash: "Dashboard", nav_prop: "Properties", nav_crm: "CRM",
   nav_contract: "Contracts", nav_rental: "Rentals", nav_realestate: "Real Estate",
   nav_re_sec_patrimoine: "Assets", nav_re_sec_transactions: "Transactions & contracts",
-  nav_re_sec_tiers_finance: "Parties & finance", nav_re_sec_exploitation: "Operations & customer service",
+  nav_re_sec_tiers: "Parties", nav_re_sec_finance: "Finance",
+  nav_re_sec_exploitation: "Operations & customer service",
   nav_re_sec_admin: "Administration",
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
@@ -512,6 +525,11 @@ const en: Translations = {
   nav_owner_portal: "Owner Portal",
   nav_contracts_re: "Contracts",
   nav_achat: "Buy", nav_vente: "Sell", nav_location: "Rent",
+  nav_developers: "Developers", dev_subtitle: "Property developers and their projects.", dev_count: "developers", dev_empty: "No developers yet.", dev_new: "New developer",
+  dev_col_projects: "Projects", dev_col_units: "Units", dev_col_city: "City", dev_col_status: "Status",
+  dev_status_active: "Active", dev_status_inactive: "Inactive",
+  dev_field_name: "Developer name", dev_field_city: "City", dev_field_license: "Licence no.", dev_field_projects: "Projects count",
+  view_list: "List", view_map: "Map", nav_map: "Map", map_subtitle: "All geolocated assets.", map_empty: "No geolocated items.", map_assets: "assets on map",
   re_mandates: "Mandates", re_offers: "Offers", re_listings: "Listings", re_applications: "Applications", re_transactions: "Transactions", re_matches: "Matches",
   re_budget: "Budget", re_commission: "Commission", re_asking_price: "Asking price", re_list_price: "List price", re_final_price: "Final price", re_monthly_rent: "Monthly rent", re_match_score: "Match score", re_amount: "Amount",
   re_new_mandate: "New mandate", re_new_offer: "New offer", re_new_listing: "New listing", re_new_application: "New application", re_run_match: "Find matches", re_no_matches: "No matches",
@@ -730,7 +748,8 @@ const fr: Translations = {
   nav_dash: "Tableau de bord", nav_prop: "Propriétés", nav_crm: "CRM",
   nav_contract: "Contrats", nav_rental: "Locations", nav_realestate: "Immobilier",
   nav_re_sec_patrimoine: "Patrimoine", nav_re_sec_transactions: "Transactions & contrats",
-  nav_re_sec_tiers_finance: "Tiers & finance", nav_re_sec_exploitation: "Exploitation & relation client",
+  nav_re_sec_tiers: "Tiers", nav_re_sec_finance: "Finance",
+  nav_re_sec_exploitation: "Exploitation & relation client",
   nav_re_sec_admin: "Administration",
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
@@ -750,6 +769,11 @@ const fr: Translations = {
   nav_owner_portal: "Portail Propriétaire",
   nav_contracts_re: "Contrats",
   nav_achat: "Achat", nav_vente: "Vente", nav_location: "Location",
+  nav_developers: "Developers", dev_subtitle: "Promoteurs immobiliers et leurs projets.", dev_count: "promoteurs", dev_empty: "Aucun promoteur pour le moment.", dev_new: "Nouveau promoteur",
+  dev_col_projects: "Projets", dev_col_units: "Unités", dev_col_city: "Ville", dev_col_status: "Statut",
+  dev_status_active: "Actif", dev_status_inactive: "Inactif",
+  dev_field_name: "Nom du promoteur", dev_field_city: "Ville", dev_field_license: "N° licence", dev_field_projects: "Nb projets",
+  view_list: "Liste", view_map: "Carte", nav_map: "Carte", map_subtitle: "Tous les actifs géolocalisés.", map_empty: "Aucun élément géolocalisé.", map_assets: "actifs sur la carte",
   re_mandates: "Mandats", re_offers: "Offres", re_listings: "Annonces", re_applications: "Candidatures", re_transactions: "Transactions", re_matches: "Rapprochements",
   re_budget: "Budget", re_commission: "Commission", re_asking_price: "Prix demandé", re_list_price: "Prix affiché", re_final_price: "Prix final", re_monthly_rent: "Loyer mensuel", re_match_score: "Score", re_amount: "Montant",
   re_new_mandate: "Nouveau mandat", re_new_offer: "Nouvelle offre", re_new_listing: "Nouvelle annonce", re_new_application: "Nouvelle candidature", re_run_match: "Rechercher", re_no_matches: "Aucun rapprochement",
