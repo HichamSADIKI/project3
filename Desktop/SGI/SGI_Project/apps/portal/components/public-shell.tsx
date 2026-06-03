@@ -12,6 +12,7 @@ export function PublicShell({
 }) {
   const lc: Locale = isValidLocale(locale) ? locale : "fr";
   const t = makeT("common", lc);
+  const tr = makeT("realestate", lc);
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
@@ -30,6 +31,12 @@ export function PublicShell({
           {t("brand.tagline")}
         </Link>
         <nav style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
+          <Link href={`/${lc}/properties`} style={{ fontSize: "0.875rem", color: "var(--ink-2)", fontWeight: 500 }}>
+            {tr("nav.properties")}
+          </Link>
+          <Link href={`/${lc}/agents`} style={{ fontSize: "0.875rem", color: "var(--ink-2)", fontWeight: 500 }}>
+            {tr("agents.title")}
+          </Link>
           <Link
             href={`/${lc}/login`}
             style={{ fontSize: "0.875rem", color: "var(--ink-2)", fontWeight: 500 }}

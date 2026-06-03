@@ -19,6 +19,9 @@ import ownerAr from "../locales/ar/owner.json";
 import tenantFr from "../locales/fr/tenant.json";
 import tenantEn from "../locales/en/tenant.json";
 import tenantAr from "../locales/ar/tenant.json";
+import realestateFr from "../locales/fr/realestate.json";
+import realestateEn from "../locales/en/realestate.json";
+import realestateAr from "../locales/ar/realestate.json";
 
 export const SUPPORTED_LOCALES = ["ar", "en", "fr"] as const;
 export type Locale = (typeof SUPPORTED_LOCALES)[number];
@@ -31,6 +34,7 @@ export const bundles = {
   fournisseur: { ar: fournisseurAr, en: fournisseurEn, fr: fournisseurFr },
   owner: { ar: ownerAr, en: ownerEn, fr: ownerFr },
   tenant: { ar: tenantAr, en: tenantEn, fr: tenantFr },
+  realestate: { ar: realestateAr, en: realestateEn, fr: realestateFr },
 } as const;
 
 export type Namespace = keyof typeof bundles;

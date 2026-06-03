@@ -211,6 +211,28 @@ async def transition_listing(
     return listing
 
 
+async def set_listing_flags(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    listing_id: uuid.UUID,
+    *,
+    is_featured: bool | None = None,
+    is_urgent: bool | None = None,
+) -> RentalListing | None:
+    """Met à jour les flags vitrine (Featured / Urgent). Patch partiel."""
+    listing = await get_listing(db, company_id, listing_id)
+    if listing is None:
+        return None
+    if is_featured is not None:
+        listing.is_featured = is_featured
+    if is_urgent is not None:
+        listing.is_urgent = is_urgent
+    listing.updated_at = datetime.now(UTC)
+    await db.commit()
+    await db.refresh(listing)
+    return listing
+
+
 # ── Candidatures ───────────────────────────────────────────────────────────────
 
 

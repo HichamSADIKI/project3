@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     # Délai poli (secondes) entre deux fetchs successifs (anti-bot / rate-limit).
     WATCHER_FETCH_DELAY_S: float = 2.0
 
+    # Vitrine immobilière publique (mono-agence). Vide = fail-safe : aucune
+    # annonce exposée, aucune fuite tenant (la dép get_public_db renvoie vide).
+    PUBLIC_SITE_COMPANY_SLUG: str = ""
+    PUBLIC_PHOTO_URL_TTL_S: int = 86400
+
     MINIO_ENDPOINT: str = "minio:9000"
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str

@@ -10,7 +10,7 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import DECIMAL, Date, DateTime, ForeignKey, String, Text
+from sqlalchemy import DECIMAL, Boolean, Date, DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,6 +37,10 @@ class RentalListing(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
     available_from: Mapped[date | None] = mapped_column(Date, nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Vitrine publique (migration 0038). slug unique par tenant (index partiel).
+    slug: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_featured: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_urgent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
 
 class RentalApplication(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):

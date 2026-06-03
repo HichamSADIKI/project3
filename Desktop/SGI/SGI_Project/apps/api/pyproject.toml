@@ -116,6 +116,8 @@ module = [
     "app.routers.payments.service",
     "app.routers.pdc.router", "app.routers.pdc.service",
     "app.routers.properties.router", "app.routers.properties.service",
+    "app.routers.public_site.schemas", "app.routers.public_site.search",
+    "app.routers.public_site.service",
     "app.routers.rentals.schemas", "app.routers.rentals.service",
     "app.routers.reporting.router", "app.routers.reporting.service",
     "app.routers.scraping.parsers", "app.routers.scraping.service",

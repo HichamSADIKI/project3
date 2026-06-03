@@ -1,0 +1,146 @@
+{
+  "nav": {
+    "properties": "Biens",
+    "home": "Accueil"
+  },
+  "home": {
+    "heroTitle": "Trouvez votre prochaine adresse aux Émirats",
+    "heroSubtitle": "Appartements, villas et bureaux sélectionnés, à la vente et à la location, à Dubaï et Abou Dabi.",
+    "searchCta": "Rechercher un bien",
+    "featuredTitle": "Biens en vedette",
+    "featuredSubtitle": "Une sélection de notre portefeuille.",
+    "urgentTitle": "Opportunités urgentes",
+    "urgentSubtitle": "Annonces à durée limitée — agissez vite.",
+    "viewAll": "Voir tous les biens →",
+    "stats": {
+      "forSale": "À vendre",
+      "forRent": "À louer",
+      "cities": "Villes",
+      "listings": "Annonces actives"
+    }
+  },
+  "search": {
+    "title": "Recherche",
+    "keyword": "Ville ou quartier",
+    "keywordPlaceholder": "ex. Dubai Marina",
+    "deal": "Transaction",
+    "dealAny": "Vente & location",
+    "dealSale": "À vendre",
+    "dealRent": "À louer",
+    "unitType": "Type de bien",
+    "unitTypeAny": "Tous types",
+    "bedrooms": "Chambres",
+    "bedroomsAny": "Indifférent",
+    "priceMin": "Prix min (AED)",
+    "priceMax": "Prix max (AED)",
+    "submit": "Rechercher",
+    "reset": "Réinitialiser",
+    "sort": "Trier par",
+    "sortNewest": "Plus récents",
+    "sortPriceAsc": "Prix croissant",
+    "sortPriceDesc": "Prix décroissant"
+  },
+  "filters": {
+    "title": "Filtres",
+    "apply": "Appliquer les filtres",
+    "results": "{{count}} biens trouvés"
+  },
+  "card": {
+    "forSale": "À vendre",
+    "forRent": "À louer",
+    "urgent": "Urgent",
+    "featured": "En vedette",
+    "perYear": "/an",
+    "perMonth": "/mois",
+    "beds": "{{count}} ch",
+    "baths": "{{count}} sdb",
+    "area": "{{area}} sqft",
+    "viewDetails": "Voir le détail",
+    "priceOnRequest": "Prix sur demande"
+  },
+  "detail": {
+    "overview": "Aperçu",
+    "features": "Caractéristiques & spécifications",
+    "description": "Description",
+    "location": "Emplacement",
+    "similar": "Biens similaires",
+    "reference": "Référence",
+    "type": "Type",
+    "deal": "Annonce",
+    "bedrooms": "Chambres",
+    "bathrooms": "Salles de bain",
+    "area": "Surface",
+    "areaUnit": "sqft",
+    "parking": "Parking",
+    "furnished": "Meublé",
+    "floor": "Étage",
+    "city": "Ville",
+    "emirate": "Émirat",
+    "district": "Quartier",
+    "view": "Vue",
+    "completion": "Achèvement",
+    "yearBuilt": "Année de construction",
+    "balcony": "Balcon",
+    "maidRoom": "Chambre de bonne",
+    "studyRoom": "Bureau",
+    "petsAllowed": "Animaux autorisés",
+    "amenities": "Équipements",
+    "developer": "Promoteur",
+    "availableFrom": "Disponible à partir du",
+    "yes": "Oui",
+    "no": "Non",
+    "notAvailable": "—",
+    "spots": "{{count}} places",
+    "backToList": "← Retour à tous les biens"
+  },
+  "contact": {
+    "title": "Ce bien vous intéresse ?",
+    "subtitle": "Laissez vos coordonnées, notre agent vous recontactera.",
+    "name": "Nom complet",
+    "namePlaceholder": "Votre nom",
+    "email": "E-mail",
+    "emailPlaceholder": "vous@exemple.com",
+    "phone": "Téléphone",
+    "phonePlaceholder": "+971 50 000 0000",
+    "message": "Message",
+    "messagePlaceholder": "Je souhaite en savoir plus sur ce bien…",
+    "submit": "Demander une visite",
+    "submitting": "Envoi…",
+    "success": "Merci ! Notre équipe vous contactera prochainement.",
+    "error": "Impossible d'envoyer votre demande. Veuillez réessayer.",
+    "validation": "Veuillez indiquer votre nom et un téléphone ou e-mail.",
+    "whatsapp": "WhatsApp",
+    "call": "Appeler",
+    "agent": "Votre agent"
+  },
+  "badges": {
+    "sale": "À vendre",
+    "rent": "À louer",
+    "urgent": "Urgent",
+    "featured": "En vedette"
+  },
+  "empty": {
+    "title": "Aucun bien trouvé",
+    "subtitle": "Essayez d'ajuster vos filtres ou critères de recherche.",
+    "reset": "Effacer les filtres"
+  },
+  "pagination": {
+    "previous": "Précédent",
+    "next": "Suivant",
+    "page": "Page {{page}}"
+  },
+  "view": {
+    "list": "Liste",
+    "map": "Carte"
+  },
+  "agents": {
+    "title": "Nos agents",
+    "subtitle": "Une équipe d'experts à votre service.",
+    "empty": "Aucun agent.",
+    "viewProfile": "Voir le profil",
+    "whatsapp": "WhatsApp",
+    "call": "Appeler",
+    "email": "Email",
+    "listings": "Biens de l'agence"
+  }
+}

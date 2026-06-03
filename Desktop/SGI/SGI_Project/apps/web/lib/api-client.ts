@@ -92,3 +92,23 @@ export async function postJson(url: string, body: unknown): Promise<Response> {
   }
   return res;
 }
+
+/**
+ * PATCH JSON ; même contrat que `postJson` (réponse brute + refresh transparent
+ * single-flight sur 401, rejoué une fois). Pour les mises à jour partielles
+ * (ex. flags vitrine is_featured / is_urgent d'une annonce).
+ */
+export async function patchJson(url: string, body: unknown): Promise<Response> {
+  const doPatch = () =>
+    fetch(url, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  let res = await doPatch();
+  if (res.status === 401) {
+    if (await tryRefresh()) res = await doPatch();
+    if (res.status === 401) handleUnauthenticated();
+  }
+  return res;
+}

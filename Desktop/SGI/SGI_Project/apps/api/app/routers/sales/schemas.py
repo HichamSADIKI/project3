@@ -51,11 +51,20 @@ class ListingOut(BaseModel):
     title_fr: str | None
     list_price: Decimal
     status: str
+    is_featured: bool = False
+    is_urgent: bool = False
     published_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ListingFlagsUpdate(BaseModel):
+    """Mise à jour partielle des flags vitrine (Featured / Urgent)."""
+
+    is_featured: bool | None = None
+    is_urgent: bool | None = None
 
 
 class ListingCreate(BaseModel):

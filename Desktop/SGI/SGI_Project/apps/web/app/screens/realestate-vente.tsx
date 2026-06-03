@@ -8,6 +8,7 @@ import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { ListingFlagToggle } from "@/components/listing-flag-toggle";
 
 // Câblé sur /api/admin/sales/* → /api/v1/sales/* (module Vente : pipeline
 // mandat → annonce → offre → transaction).
@@ -59,6 +60,7 @@ type Listing = {
   id: string; reference: string; mandate_id: string;
   title_ar: string | null; title_en: string | null; title_fr: string | null;
   list_price: number; status: string;
+  is_featured?: boolean; is_urgent?: boolean;
 };
 type Offer = {
   id: string; reference: string; listing_id: string; buyer_client_id: string;
@@ -224,12 +226,13 @@ function ListingsTab({ t }: { t: Translations }) {
               <th style={th}>{t.col_mandate}</th>
               <th style={th}>{t.re_list_price}</th>
               <th style={th}>{t.col_status}</th>
+              <th style={th}>{t.re_showcase}</th>
               <th style={thEnd} />
             </tr>
           </thead>
           <tbody>
             {!loading && items.length === 0 && !error && (
-              <tr><td colSpan={5} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
+              <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
             )}
             {items.map(x => (
               <tr key={x.id} style={trow}>
@@ -237,6 +240,12 @@ function ListingsTab({ t }: { t: Translations }) {
                 <td className="tnum" style={{ ...td, color: "var(--ink-3)" }}>{x.mandate_id.slice(0, 8)}…</td>
                 <td className="tnum" style={td}>{aed(x.list_price)}</td>
                 <td style={td}><StatusBadge t={t} status={x.status} /></td>
+                <td style={td}>
+                  <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
+                    <ListingFlagToggle basePath="/api/admin/sales/listings" id={x.id} flag="is_featured" value={!!x.is_featured} label={t.st_featured} activeColor="var(--gold-deep)" activeBg="rgba(212,160,55,0.14)" />
+                    <ListingFlagToggle basePath="/api/admin/sales/listings" id={x.id} flag="is_urgent" value={!!x.is_urgent} label={t.st_urgent} activeColor="var(--rose)" activeBg="var(--rose-soft)" />
+                  </span>
+                </td>
                 <td style={tdEnd}>
                   {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                     <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
