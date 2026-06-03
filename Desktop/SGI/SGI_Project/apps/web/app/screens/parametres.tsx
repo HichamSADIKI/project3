@@ -4,6 +4,8 @@ import { Topbar } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 import { useTheme, type Palette } from "@/components/theme-provider";
+import { useCanNode } from "@/lib/permissions";
+import { AccessManager } from "./access-manager";
 
 const SECTIONS = [
   {
@@ -64,7 +66,17 @@ export function ScreenParametres() {
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const { theme, palette, toggle, setPalette } = useTheme();
+  const canAccess = useCanNode("settings.access");
   const [activeSection, setActiveSection] = useState("appearance");
+
+  // Section « Accès & Permissions » (IAM) — visible seulement si l'utilisateur a
+  // la permission settings.access (admin par défaut). La sécurité réelle est backend.
+  const sections = canAccess
+    ? [
+        ...SECTIONS,
+        { key: "access", en: "Access & Permissions", ar: "الوصول والصلاحيات", fr: "Accès & Permissions", settings: [] },
+      ]
+    : SECTIONS;
   const [toggles, setToggles] = useState<Record<string, boolean>>({
     email: true, push: true, crm: true, visa: true, "2fa": true, iplog: true,
   });
@@ -74,7 +86,7 @@ export function ScreenParametres() {
   const settingLabel = (s: { label_en: string; label_ar: string; label_fr: string }) =>
     lang === "ar" ? s.label_ar : lang === "fr" ? s.label_fr : s.label_en;
 
-  const section = SECTIONS.find(s => s.key === activeSection)!;
+  const section = sections.find(s => s.key === activeSection)!;
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -83,7 +95,7 @@ export function ScreenParametres() {
 
         {/* Sidebar nav */}
         <div style={{ width: isMob ? "100%" : 200, flexShrink: 0, borderInlineEnd: "1px solid var(--line-soft)", padding: "20px 0", background: "var(--bg-paper)", overflowY: "auto" }}>
-          {SECTIONS.map(s => (
+          {sections.map(s => (
             <button
               key={s.key}
               onClick={() => setActiveSection(s.key)}
@@ -190,8 +202,11 @@ export function ScreenParametres() {
             </div>
           )}
 
+          {/* ── Accès & Permissions (IAM) ── */}
+          {activeSection === "access" && <AccessManager />}
+
           {/* ── Other sections ── */}
-          {activeSection !== "appearance" && (
+          {activeSection !== "appearance" && activeSection !== "access" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 560 }}>
               {section.settings.map(st => (
                 <div key={st.key} style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", padding: "16px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
