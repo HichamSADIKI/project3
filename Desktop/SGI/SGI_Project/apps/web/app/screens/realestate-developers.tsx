@@ -4,58 +4,49 @@ import React, { useState } from "react";
 import { Topbar, IcWorkspace, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { useApiList } from "@/lib/use-api-list";
+import { postJson, extractError } from "@/lib/api-client";
 
 // Sous-catégorie « Developers » (promoteurs immobiliers UAE).
-// ⚠️ Frontend-only pour l'instant : aucune table/route backend. Les données
-// sont mockées localement et le CRUD reste en state — à brancher sur un module
-// `developers` (migration + RLS + router) dans un second temps.
+// Câblé sur /api/admin/developers → /api/v1/developers (migration 0037).
 
 type Developer = {
   id: string;
-  name: string;
-  city: string;
-  licence: string;
-  projects: number;
-  units: number;
-  active: boolean;
+  reference: string;
+  name_en: string;
+  city: string | null;
+  trade_license: string | null;
+  projects_count: number;
+  units_count: number;
+  is_active: boolean;
 };
-
-const SEED: Developer[] = [
-  { id: "dev-emaar",  name: "Emaar Properties", city: "Dubai",     licence: "DLD-1001", projects: 42, units: 18500, active: true },
-  { id: "dev-damac",  name: "DAMAC Properties", city: "Dubai",     licence: "DLD-1002", projects: 35, units: 14200, active: true },
-  { id: "dev-nakheel",name: "Nakheel",          city: "Dubai",     licence: "DLD-1003", projects: 19, units: 9800,  active: true },
-  { id: "dev-sobha",  name: "Sobha Realty",     city: "Dubai",     licence: "DLD-1004", projects: 12, units: 6100,  active: true },
-  { id: "dev-aldar",  name: "Aldar Properties", city: "Abu Dhabi", licence: "ADRA-2001",projects: 28, units: 11700, active: true },
-  { id: "dev-meraas", name: "Meraas",           city: "Dubai",     licence: "DLD-1005", projects: 9,  units: 3400,  active: false },
-];
 
 const intFmt = new Intl.NumberFormat("en-AE");
 
 export function ScreenRealEstateDevelopers() {
   const t = useT();
-  const [items, setItems] = useState<Developer[]>(SEED);
+  const { items, loading, error, reload } = useApiList<Developer>("/api/admin/developers?limit=100");
 
   const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({ name: "", city: "", licence: "", projects: "" });
 
-  function submit() {
+  async function submit() {
     if (!form.name.trim()) { setFormError(t.dev_field_name); return; }
-    setFormError(null);
-    setItems(prev => [
-      {
-        id: `dev-${Date.now()}`,
-        name: form.name.trim(),
-        city: form.city.trim() || "—",
-        licence: form.licence.trim() || "—",
-        projects: form.projects ? Number(form.projects) : 0,
-        units: 0,
-        active: true,
-      },
-      ...prev,
-    ]);
-    setForm({ name: "", city: "", licence: "", projects: "" });
-    setOpen(false);
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/developers", {
+        name_en: form.name.trim(),
+        city: form.city.trim() || null,
+        trade_license: form.licence.trim() || null,
+        projects_count: form.projects ? Number(form.projects) : 0,
+      });
+      if (!res.ok) { setFormError(await extractError(res, "create_failed")); return; }
+      setOpen(false);
+      setForm({ name: "", city: "", licence: "", projects: "" });
+      reload();
+    } catch { setFormError("create_failed"); } finally { setSaving(false); }
   }
 
   return (
@@ -75,6 +66,7 @@ export function ScreenRealEstateDevelopers() {
           </button>
         </div>
 
+        {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.error_label} : {error}</div>}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -88,19 +80,22 @@ export function ScreenRealEstateDevelopers() {
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 && (
+              {loading && (
+                <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>{t.loading}</td></tr>
+              )}
+              {!loading && items.length === 0 && !error && (
                 <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>{t.dev_empty}</td></tr>
               )}
               {items.map(d => (
                 <tr key={d.id} style={{ borderTop: "1px solid var(--line-soft)" }}>
-                  <td style={{ padding: "13px 16px", fontWeight: 600, color: "var(--ink)" }}>{d.name}</td>
-                  <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{d.city}</td>
-                  <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{d.licence}</td>
-                  <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink-2)" }}>{intFmt.format(d.projects)}</td>
-                  <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink-2)" }}>{intFmt.format(d.units)}</td>
+                  <td style={{ padding: "13px 16px", fontWeight: 600, color: "var(--ink)" }}>{d.name_en}</td>
+                  <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{d.city ?? "—"}</td>
+                  <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{d.trade_license ?? "—"}</td>
+                  <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink-2)" }}>{intFmt.format(d.projects_count)}</td>
+                  <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink-2)" }}>{intFmt.format(d.units_count)}</td>
                   <td style={{ padding: "13px 16px" }}>
-                    <span style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, color: d.active ? "var(--emerald)" : "var(--ink-4)", background: d.active ? "rgba(16,185,129,0.12)" : "var(--line-soft)" }}>
-                      {d.active ? t.dev_status_active : t.dev_status_inactive}
+                    <span style={{ fontSize: 11.5, fontWeight: 600, padding: "3px 10px", borderRadius: 999, color: d.is_active ? "var(--emerald)" : "var(--ink-4)", background: d.is_active ? "rgba(16,185,129,0.12)" : "var(--line-soft)" }}>
+                      {d.is_active ? t.dev_status_active : t.dev_status_inactive}
                     </span>
                   </td>
                 </tr>
@@ -110,7 +105,7 @@ export function ScreenRealEstateDevelopers() {
         </div>
       </div>
 
-      <CreateModal title={t.dev_new} open={open} saving={false} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
+      <CreateModal title={t.dev_new} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>
         <Field label={`${t.dev_field_name} *`}><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={fieldInput} placeholder="Emaar Properties" /></Field>
         <Field label={t.dev_field_city}><input value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} style={fieldInput} placeholder="Dubai" /></Field>
         <Field label={t.dev_field_license}><input value={form.licence} onChange={e => setForm({ ...form, licence: e.target.value })} style={fieldInput} placeholder="DLD-1001" /></Field>
