@@ -167,33 +167,31 @@ const NAV_ENTRIES: NavEntry[] = [
   },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
-      // PATRIMOINE
-      { key: "realestate_buildings", icon: <IcProp />, section: "patrimoine" },
-      { key: "realestate_units", icon: <IcGrid />, section: "patrimoine" },
-      { key: "realestate_branches", icon: <IcPin />, section: "patrimoine" },
-      // TRANSACTIONS & CONTRATS
-      { key: "crm", icon: <IcCRM />, badge: 12, section: "transactions" },
-      { key: "realestate_achat", icon: <IcFinance />, section: "transactions" },
-      { key: "realestate_vente", icon: <IcContract />, section: "transactions" },
-      { key: "realestate_location", icon: <IcProp />, section: "transactions" },
-      { key: "realestate_contracts", icon: <IcContract />, section: "transactions" },
-      // TIERS (parties prenantes — propriétaire + son portail rapprochés)
-      { key: "realestate_owners", icon: <IcClients />, section: "tiers" },
-      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers" },
-      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers" },
-      { key: "realestate_developers", icon: <IcWorkspace />, section: "tiers" },
-      // FINANCE
-      { key: "realestate_payments", icon: <IcFinance />, section: "finance" },
-      { key: "realestate_cheques", icon: <IcReport />, section: "finance" },
-      // EXPLOITATION & RELATION CLIENT
-      { key: "realestate_maintenance", icon: <IcClock />, section: "exploitation" },
-      { key: "realestate_workflows", icon: <IcAudit />, section: "exploitation" },
-      { key: "realestate_comms", icon: <IcChat />, section: "exploitation" },
-      { key: "realestate_inbox", icon: <IcMail />, section: "exploitation" },
-      { key: "realestate_tickets", icon: <IcReport />, section: "exploitation" },
-      // ADMINISTRATION
-      { key: "realestate_documents", icon: <IcDoc />, section: "admin" },
-      { key: "realestate_settings", icon: <IcSettings />, section: "admin" },
+      // 🏢 BIENS — le patrimoine géré
+      { key: "realestate_buildings", icon: <IcProp />, section: "biens" },
+      { key: "realestate_units", icon: <IcGrid />, section: "biens" },
+      { key: "realestate_branches", icon: <IcPin />, section: "biens" },
+      // 💼 COMMERCIAL — pipeline, transactions, encaissements
+      { key: "crm", icon: <IcCRM />, badge: 12, section: "commercial" },
+      { key: "realestate_achat", icon: <IcFinance />, section: "commercial" },
+      { key: "realestate_vente", icon: <IcContract />, section: "commercial" },
+      { key: "realestate_location", icon: <IcProp />, section: "commercial" },
+      { key: "realestate_contracts", icon: <IcContract />, section: "commercial" },
+      { key: "realestate_payments", icon: <IcFinance />, section: "commercial" },
+      { key: "realestate_cheques", icon: <IcReport />, section: "commercial" },
+      // 👥 PERSONNES — toutes les parties prenantes
+      { key: "realestate_owners", icon: <IcClients />, section: "personnes" },
+      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "personnes" },
+      { key: "realestate_tenants", icon: <IcPersonne />, section: "personnes" },
+      { key: "realestate_developers", icon: <IcWorkspace />, section: "personnes" },
+      // ⚙️ OPÉRATIONS — exploitation, relation client, admin
+      { key: "realestate_maintenance", icon: <IcClock />, section: "operations" },
+      { key: "realestate_comms", icon: <IcChat />, section: "operations" },
+      { key: "realestate_inbox", icon: <IcMail />, section: "operations" },
+      { key: "realestate_tickets", icon: <IcReport />, section: "operations" },
+      { key: "realestate_workflows", icon: <IcAudit />, section: "operations" },
+      { key: "realestate_documents", icon: <IcDoc />, section: "operations" },
+      { key: "realestate_settings", icon: <IcSettings />, section: "operations" },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
@@ -330,15 +328,11 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   // On tablet, default to collapsed
   const [collapsed, setCollapsed] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
-  // Rubriques (sections) repliables à l'intérieur d'un groupe (ex. Immobilier).
+  // Pôles repliables à l'intérieur d'un groupe (ex. Immobilier) — accordéon
+  // EXCLUSIF : ouvrir un pôle referme les autres (un seul ouvert à la fois).
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
   const toggleSection = (sec: string) =>
-    setOpenSections(prev => {
-      const next = new Set(prev);
-      if (next.has(sec)) next.delete(sec);
-      else next.add(sec);
-      return next;
-    });
+    setOpenSections(prev => (prev.has(sec) ? new Set() : new Set([sec])));
   const [mobileOpen, setMobileOpen] = useState(false);
   const [status, setStatus] = useState<UserStatus>("online");
   const [showStatus, setShowStatus] = useState(false);
@@ -359,7 +353,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       const child = entry.children.find(c => c.key === active);
       if (!child) continue;
       setOpenGroup(entry.id);
-      if (child.section) setOpenSections(prev => new Set(prev).add(child.section!));
+      // Accordéon exclusif : seul le pôle de l'écran actif est ouvert.
+      if (child.section) setOpenSections(new Set([child.section]));
       return;
     }
   }, [active]);
@@ -396,14 +391,23 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   // Libellé d'un sous-thème (sous-titre interne à la rubrique Immobilier).
   const navSectionLabel = (section: string): string => {
     const map: Record<string, string> = {
-      patrimoine: t.nav_re_sec_patrimoine,
-      transactions: t.nav_re_sec_transactions,
-      tiers: t.nav_re_sec_tiers,
-      finance: t.nav_re_sec_finance,
-      exploitation: t.nav_re_sec_exploitation,
-      admin: t.nav_re_sec_admin,
+      biens: t.nav_re_sec_biens,
+      commercial: t.nav_re_sec_commercial,
+      personnes: t.nav_re_sec_personnes,
+      operations: t.nav_re_sec_operations,
     };
     return map[section] ?? section;
+  };
+
+  // Icône par pôle (4 pôles Immobilier) — repère visuel fort et lisible.
+  const navSectionIcon = (section: string): React.ReactElement => {
+    const map: Record<string, React.ReactElement> = {
+      biens: <IcProp />,
+      commercial: <IcFinance />,
+      personnes: <IcClients />,
+      operations: <IcSettings />,
+    };
+    return map[section] ?? <IcGrid />;
   };
 
   const handleNavigate = useCallback((key: string) => {
@@ -604,24 +608,26 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                         style={{
                           display: "flex",
                           alignItems: "center",
-                          gap: 7,
+                          gap: 9,
                           cursor: "pointer",
-                          padding: isFirst ? "6px 12px 4px" : "10px 12px 4px",
-                          marginTop: isFirst ? 0 : 8,
-                          borderTop: isFirst ? "none" : "1px solid var(--line-soft)",
+                          padding: "8px 10px",
+                          marginTop: isFirst ? 2 : 4,
+                          borderRadius: "var(--r)",
+                          background: secOpen ? "var(--gold-ghost)" : "transparent",
+                          transition: "background 0.15s ease",
                         }}
                       >
-                        {/* Tiret doré : repère visuel discret en tête de rubrique */}
-                        <span style={{ width: 10, height: 2, borderRadius: 2, background: "var(--gold)", opacity: 0.7, flexShrink: 0 }} />
+                        {/* Icône du pôle : repère visuel fort et lisible */}
+                        <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: "var(--gold)", flexShrink: 0 }}>
+                          {navSectionIcon(block.section)}
+                        </span>
                         <span
-                          className={lang === "ar" ? "font-ar" : undefined}
+                          className={lang === "ar" ? "font-ar" : "font-display"}
                           style={{
                             flex: 1, minWidth: 0,
-                            fontSize: 10,
-                            fontWeight: 700,
-                            letterSpacing: "0.07em",
-                            textTransform: "uppercase",
-                            color: "var(--ink-4)",
+                            fontSize: 12.5,
+                            fontWeight: 600,
+                            color: secOpen ? "var(--gold-deep)" : "var(--ink-2)",
                           }}
                         >
                           {sectionLabel}
