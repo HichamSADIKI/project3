@@ -17,7 +17,6 @@ from geoalchemy2.elements import WKTElement
 from sqlalchemy import Select, and_, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.references import commit_with_reference_retry
 from app.models.property import Property
 from app.routers.acquisitions.models import BuyerMandate, PurchaseOffer
 
@@ -210,25 +209,25 @@ async def create_mandate(
     signed_at: datetime | None = None,
     expires_at: datetime | None = None,
 ) -> BuyerMandate:
-    return await commit_with_reference_retry(
-        db,
-        lambda: next_reference(db, company_id),
-        lambda reference: BuyerMandate(
-            company_id=company_id,
-            reference=reference,
-            buyer_client_id=buyer_client_id,
-            status="active",
-            budget_min=budget_min,
-            budget_max=budget_max,
-            property_type=property_type,
-            bedrooms_min=bedrooms_min,
-            preferred_location=_make_point(latitude, longitude),
-            search_radius_m=search_radius_m,
-            notes=notes,
-            signed_at=signed_at,
-            expires_at=expires_at,
-        ),
+    mandate = BuyerMandate(
+        company_id=company_id,
+        reference=await next_reference(db, company_id),
+        buyer_client_id=buyer_client_id,
+        status="active",
+        budget_min=budget_min,
+        budget_max=budget_max,
+        property_type=property_type,
+        bedrooms_min=bedrooms_min,
+        preferred_location=_make_point(latitude, longitude),
+        search_radius_m=search_radius_m,
+        notes=notes,
+        signed_at=signed_at,
+        expires_at=expires_at,
     )
+    db.add(mandate)
+    await db.commit()
+    await db.refresh(mandate)
+    return mandate
 
 
 async def get_mandate(
@@ -302,19 +301,19 @@ async def create_offer(
     amount: Decimal,
     notes: str | None = None,
 ) -> PurchaseOffer:
-    return await commit_with_reference_retry(
-        db,
-        lambda: next_reference(db, company_id),
-        lambda reference: PurchaseOffer(
-            company_id=company_id,
-            reference=reference,
-            mandate_id=mandate_id,
-            property_id=property_id,
-            amount=amount,
-            status="draft",
-            notes=notes,
-        ),
+    offer = PurchaseOffer(
+        company_id=company_id,
+        reference=await next_reference(db, company_id),
+        mandate_id=mandate_id,
+        property_id=property_id,
+        amount=amount,
+        status="draft",
+        notes=notes,
     )
+    db.add(offer)
+    await db.commit()
+    await db.refresh(offer)
+    return offer
 
 
 async def get_offer(
