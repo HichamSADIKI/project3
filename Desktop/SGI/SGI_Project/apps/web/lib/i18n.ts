@@ -31,6 +31,25 @@ export type Translations = {
   nav_contracts_re: string;
   nav_achat: string; nav_vente: string; nav_location: string;
   nav_developers: string; dev_subtitle: string; dev_count: string; dev_empty: string; dev_new: string;
+  st_scheduled: string; st_paused: string;
+  nav_re_marketing: string;
+  mkt_campaigns: string; mkt_kpis: string; mkt_name: string; mkt_channel: string;
+  mkt_budget: string; mkt_spend: string; mkt_impressions: string; mkt_clicks: string;
+  mkt_leads: string; mkt_click_rate: string; mkt_starts_on: string; mkt_ends_on: string;
+  mkt_new_campaign: string; mkt_publish: string; mkt_name_required: string; mkt_empty: string;
+  mkt_chan_social_facebook: string; mkt_chan_social_instagram: string; mkt_chan_social_linkedin: string;
+  mkt_chan_portal_bayut: string; mkt_chan_portal_propertyfinder: string; mkt_chan_portal_dubizzle: string;
+  mkt_chan_email: string; mkt_chan_other: string;
+  nav_re_process: string;
+  proc_eyebrow: string; proc_f_leads: string; proc_f_units: string; proc_f_listed: string;
+  proc_f_deals: string; proc_f_payments: string;
+  proc_phase1_sources: string; proc_phase1_sub: string; proc_phase2_acquisition: string; proc_phase2_sub: string;
+  proc_phase3_engine: string; proc_phase3_sub: string; proc_phase4_outputs: string; proc_phase4_sub: string;
+  proc_k_leads: string; proc_k_imports: string; proc_k_duplicates: string; proc_k_rejected: string;
+  proc_k_units: string; proc_k_watcher: string; proc_k_qualified: string; proc_k_sale_listings: string;
+  proc_k_rent_listings: string; proc_k_mk_leads: string; proc_k_impressions: string; proc_k_clicks: string;
+  proc_k_spend: string; proc_k_listed_total: string; proc_k_sales_tx: string; proc_k_lease_apps: string;
+  proc_k_payments: string; proc_k_deals_total: string; proc_module_off: string; load_error: string;
   dev_col_projects: string; dev_col_units: string; dev_col_city: string; dev_col_status: string;
   dev_status_active: string; dev_status_inactive: string;
   dev_field_name: string; dev_field_city: string; dev_field_license: string; dev_field_projects: string;
@@ -279,6 +298,25 @@ const ar: Translations = {
   nav_contracts_re: "العقود",
   nav_achat: "الشراء", nav_vente: "البيع", nav_location: "الإيجار",
   nav_developers: "المطوّرون", dev_subtitle: "المطوّرون العقاريون ومشاريعهم.", dev_count: "مطوّر", dev_empty: "لا يوجد مطوّرون.", dev_new: "مطوّر جديد",
+  st_scheduled: "مجدول", st_paused: "متوقف مؤقتًا",
+  nav_re_marketing: "التسويق العقاري",
+  mkt_campaigns: "الحملات", mkt_kpis: "المؤشرات", mkt_name: "الاسم", mkt_channel: "القناة",
+  mkt_budget: "الميزانية (د.إ)", mkt_spend: "الإنفاق", mkt_impressions: "مرات الظهور", mkt_clicks: "النقرات",
+  mkt_leads: "العملاء المحتملون", mkt_click_rate: "معدل النقر", mkt_starts_on: "تاريخ البدء", mkt_ends_on: "تاريخ الانتهاء",
+  mkt_new_campaign: "حملة جديدة", mkt_publish: "نشر", mkt_name_required: "الاسم مطلوب", mkt_empty: "لا توجد حملات",
+  mkt_chan_social_facebook: "فيسبوك", mkt_chan_social_instagram: "إنستغرام", mkt_chan_social_linkedin: "لينكدإن",
+  mkt_chan_portal_bayut: "بيوت", mkt_chan_portal_propertyfinder: "بروبرتي فايندر", mkt_chan_portal_dubizzle: "دوبيزل",
+  mkt_chan_email: "بريد إلكتروني", mkt_chan_other: "أخرى",
+  nav_re_process: "المسار العقاري",
+  proc_eyebrow: "من البداية للنهاية", proc_f_leads: "العملاء", proc_f_units: "الوحدات", proc_f_listed: "معروضة",
+  proc_f_deals: "صفقات", proc_f_payments: "التحصيل",
+  proc_phase1_sources: "المصادر", proc_phase1_sub: "استقبال العملاء متعدد المصادر", proc_phase2_acquisition: "الاستحواذ والمراقب", proc_phase2_sub: "المخزون والمراقبة المجدولة",
+  proc_phase3_engine: "المحرك المركزي", proc_phase3_sub: "التأهيل والتسويق والنشر", proc_phase4_outputs: "المخرجات", proc_phase4_sub: "المبيعات والإيجارات والتحصيل",
+  proc_k_leads: "عملاء CRM", proc_k_imports: "الواردات", proc_k_duplicates: "مكرر", proc_k_rejected: "مرفوض",
+  proc_k_units: "الوحدات في المخزون", proc_k_watcher: "التقاطات المراقب", proc_k_qualified: "عملاء مؤهلون", proc_k_sale_listings: "إعلانات البيع",
+  proc_k_rent_listings: "إعلانات الإيجار", proc_k_mk_leads: "عملاء التسويق", proc_k_impressions: "الظهور", proc_k_clicks: "النقرات",
+  proc_k_spend: "الإنفاق", proc_k_listed_total: "إجمالي المعروض", proc_k_sales_tx: "صفقات البيع", proc_k_lease_apps: "طلبات الإيجار",
+  proc_k_payments: "طلبات الدفع", proc_k_deals_total: "إجمالي الصفقات", proc_module_off: "الوحدة غير مثبتة", load_error: "فشل التحميل",
   dev_col_projects: "المشاريع", dev_col_units: "الوحدات", dev_col_city: "المدينة", dev_col_status: "الحالة",
   dev_status_active: "نشط", dev_status_inactive: "غير نشط",
   dev_field_name: "اسم المطوّر", dev_field_city: "المدينة", dev_field_license: "رقم الرخصة", dev_field_projects: "عدد المشاريع",
@@ -521,6 +559,25 @@ const en: Translations = {
   nav_contracts_re: "Contracts",
   nav_achat: "Buy", nav_vente: "Sell", nav_location: "Rent",
   nav_developers: "Developers", dev_subtitle: "Property developers and their projects.", dev_count: "developers", dev_empty: "No developers yet.", dev_new: "New developer",
+  st_scheduled: "Scheduled", st_paused: "Paused",
+  nav_re_marketing: "Real estate marketing",
+  mkt_campaigns: "Campaigns", mkt_kpis: "KPIs", mkt_name: "Name", mkt_channel: "Channel",
+  mkt_budget: "Budget (AED)", mkt_spend: "Spend", mkt_impressions: "Impressions", mkt_clicks: "Clicks",
+  mkt_leads: "Leads", mkt_click_rate: "Click rate", mkt_starts_on: "Start date", mkt_ends_on: "End date",
+  mkt_new_campaign: "New campaign", mkt_publish: "Publish", mkt_name_required: "Name is required", mkt_empty: "No campaigns",
+  mkt_chan_social_facebook: "Facebook", mkt_chan_social_instagram: "Instagram", mkt_chan_social_linkedin: "LinkedIn",
+  mkt_chan_portal_bayut: "Bayut", mkt_chan_portal_propertyfinder: "Property Finder", mkt_chan_portal_dubizzle: "Dubizzle",
+  mkt_chan_email: "Email", mkt_chan_other: "Other",
+  nav_re_process: "Process",
+  proc_eyebrow: "End-to-end", proc_f_leads: "Leads", proc_f_units: "Units", proc_f_listed: "Listed",
+  proc_f_deals: "Deals", proc_f_payments: "Collection",
+  proc_phase1_sources: "Sources", proc_phase1_sub: "Multi-source lead ingestion", proc_phase2_acquisition: "Acquisition & Watcher", proc_phase2_sub: "Inventory & scheduled monitoring",
+  proc_phase3_engine: "Central engine", proc_phase3_sub: "Qualification, marketing & publication", proc_phase4_outputs: "Outputs", proc_phase4_sub: "Sales, leases & collection",
+  proc_k_leads: "CRM leads", proc_k_imports: "Imports", proc_k_duplicates: "Duplicates", proc_k_rejected: "Rejected",
+  proc_k_units: "Units in inventory", proc_k_watcher: "Watcher captures", proc_k_qualified: "Qualified leads", proc_k_sale_listings: "Sale listings",
+  proc_k_rent_listings: "Rent listings", proc_k_mk_leads: "Marketing leads", proc_k_impressions: "Impressions", proc_k_clicks: "Clicks",
+  proc_k_spend: "Spend", proc_k_listed_total: "Total listed", proc_k_sales_tx: "Sale deals", proc_k_lease_apps: "Lease applications",
+  proc_k_payments: "Payment requests", proc_k_deals_total: "Total deals", proc_module_off: "Module not installed", load_error: "Loading failed",
   dev_col_projects: "Projects", dev_col_units: "Units", dev_col_city: "City", dev_col_status: "Status",
   dev_status_active: "Active", dev_status_inactive: "Inactive",
   dev_field_name: "Developer name", dev_field_city: "City", dev_field_license: "Licence no.", dev_field_projects: "Projects count",
@@ -763,6 +820,25 @@ const fr: Translations = {
   nav_contracts_re: "Contrats",
   nav_achat: "Achat", nav_vente: "Vente", nav_location: "Location",
   nav_developers: "Promoteurs", dev_subtitle: "Promoteurs immobiliers et leurs projets.", dev_count: "promoteurs", dev_empty: "Aucun promoteur pour le moment.", dev_new: "Nouveau promoteur",
+  st_scheduled: "Planifiée", st_paused: "En pause",
+  nav_re_marketing: "Marketing immobilier",
+  mkt_campaigns: "Campagnes", mkt_kpis: "Indicateurs", mkt_name: "Nom", mkt_channel: "Canal",
+  mkt_budget: "Budget (AED)", mkt_spend: "Dépense", mkt_impressions: "Impressions", mkt_clicks: "Clics",
+  mkt_leads: "Prospects", mkt_click_rate: "Taux de clic", mkt_starts_on: "Date de début", mkt_ends_on: "Date de fin",
+  mkt_new_campaign: "Nouvelle campagne", mkt_publish: "Publier", mkt_name_required: "Le nom est obligatoire", mkt_empty: "Aucune campagne",
+  mkt_chan_social_facebook: "Facebook", mkt_chan_social_instagram: "Instagram", mkt_chan_social_linkedin: "LinkedIn",
+  mkt_chan_portal_bayut: "Bayut", mkt_chan_portal_propertyfinder: "Property Finder", mkt_chan_portal_dubizzle: "Dubizzle",
+  mkt_chan_email: "Email", mkt_chan_other: "Autre",
+  nav_re_process: "Process",
+  proc_eyebrow: "De bout en bout", proc_f_leads: "Leads", proc_f_units: "Unités", proc_f_listed: "Publiés",
+  proc_f_deals: "Deals", proc_f_payments: "Encaissement",
+  proc_phase1_sources: "Sources", proc_phase1_sub: "Ingestion multi-source de leads", proc_phase2_acquisition: "Acquisition & Watcher", proc_phase2_sub: "Inventaire & veille planifiée",
+  proc_phase3_engine: "Moteur central", proc_phase3_sub: "Qualification, marketing & publication", proc_phase4_outputs: "Sorties", proc_phase4_sub: "Ventes, baux & encaissement",
+  proc_k_leads: "Leads CRM", proc_k_imports: "Imports", proc_k_duplicates: "Doublons", proc_k_rejected: "Rejetés",
+  proc_k_units: "Unités en inventaire", proc_k_watcher: "Captures Watcher", proc_k_qualified: "Leads qualifiés", proc_k_sale_listings: "Annonces vente",
+  proc_k_rent_listings: "Annonces location", proc_k_mk_leads: "Leads marketing", proc_k_impressions: "Impressions", proc_k_clicks: "Clics",
+  proc_k_spend: "Dépense", proc_k_listed_total: "Total publiés", proc_k_sales_tx: "Deals vente", proc_k_lease_apps: "Demandes location",
+  proc_k_payments: "Demandes de paiement", proc_k_deals_total: "Total deals", proc_module_off: "Module non installé", load_error: "Échec du chargement",
   dev_col_projects: "Projets", dev_col_units: "Unités", dev_col_city: "Ville", dev_col_status: "Statut",
   dev_status_active: "Actif", dev_status_inactive: "Inactif",
   dev_field_name: "Nom du promoteur", dev_field_city: "Ville", dev_field_license: "N° licence", dev_field_projects: "Nb projets",
