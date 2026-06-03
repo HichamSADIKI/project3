@@ -43,6 +43,7 @@ from app.routers import (
     scraping,
     technicians,
     telephony,
+    tenant_portal,
     tenants,
     ticketing,
     units,
@@ -128,6 +129,7 @@ TAGS_METADATA = [
     {"name": "copilot", "description": "AI Copilot : assistance agent (inbox + tickets)."},
     {"name": "client_portal", "description": "Portail client (self-service)."},
     {"name": "owner_portal", "description": "Portail propriétaire (payouts, relevés)."},
+    {"name": "tenant_portal", "description": "Portail locataire (paiement, tickets, chat)."},
     {"name": "ai_services", "description": "Services IA (Gemini)."},
     {"name": "reporting", "description": "Rapports & exports."},
     {"name": "scraping", "description": "Scraping (Playwright)."},
@@ -195,6 +197,7 @@ app.include_router(inspections.router, prefix="/api/v1")
 # ERP — Paiements + Portail Owner (migration 0019)
 app.include_router(payments.router, prefix="/api/v1")
 app.include_router(owner_portal.router, prefix="/api/v1")
+app.include_router(tenant_portal.router, prefix="/api/v1")
 # ERP — IA avancée (contrats + prédiction maintenance, sans table)
 app.include_router(ai_services.router, prefix="/api/v1")
 # Immobilier Core — succursales (multi-branch) + paramètres UAE (migration 0020)

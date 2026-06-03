@@ -1,0 +1,77 @@
+{
+  "nav": {
+    "dashboard": "Tableau de bord",
+    "payments": "Paiements",
+    "tickets": "Demandes",
+    "chat": "Messagerie"
+  },
+  "dashboard": {
+    "title": "Espace locataire",
+    "subtitle": "Réglez vos loyers, suivez vos demandes et échangez avec l'agence.",
+    "nextPayment": "Prochaine échéance",
+    "pendingPayments": "Paiements en attente",
+    "openTickets": "Demandes ouvertes",
+    "conversations": "Conversations",
+    "noNextPayment": "Aucune échéance",
+    "quickPay": "Voir mes paiements",
+    "quickTickets": "Mes demandes",
+    "quickChat": "Ouvrir la messagerie"
+  },
+  "payments": {
+    "title": "Mes paiements",
+    "subtitle": "Loyers et charges à régler.",
+    "empty": "Aucun paiement enregistré.",
+    "reference": "Référence",
+    "type": "Type",
+    "amount": "Montant",
+    "dueDate": "Échéance",
+    "status": "Statut",
+    "pay": "Payer",
+    "paying": "Paiement…",
+    "payError": "Le paiement a échoué. Réessayez.",
+    "statusLabels": {
+      "pending": "En attente", "paid": "Payé",
+      "overdue": "En retard", "cancelled": "Annulé"
+    },
+    "typeLabels": {
+      "rent": "Loyer", "charges": "Charges", "deposit": "Dépôt",
+      "deposit_return": "Restitution dépôt", "owner_payout": "Versement", "other": "Autre"
+    }
+  },
+  "tickets": {
+    "title": "Mes demandes",
+    "subtitle": "Signalez un problème et suivez son traitement.",
+    "empty": "Aucune demande pour le moment.",
+    "new": "Nouvelle demande",
+    "subject": "Objet",
+    "description": "Description",
+    "priority": "Priorité",
+    "submit": "Envoyer",
+    "submitting": "Envoi…",
+    "createError": "La création a échoué. Réessayez.",
+    "reference": "Référence",
+    "status": "Statut",
+    "createdOn": "Créée le",
+    "comment": "Ajouter un commentaire",
+    "commentPlaceholder": "Votre message…",
+    "send": "Envoyer",
+    "timeline": "Historique",
+    "priorityLabels": {
+      "low": "Basse", "medium": "Moyenne", "high": "Haute", "urgent": "Urgente"
+    },
+    "statusLabels": {
+      "open": "Ouverte", "in_progress": "En cours", "pending": "En attente",
+      "resolved": "Résolue", "closed": "Clôturée"
+    }
+  },
+  "chat": {
+    "title": "Messagerie",
+    "subtitle": "Vos échanges avec l'agence.",
+    "empty": "Aucune conversation.",
+    "selectPrompt": "Sélectionnez une conversation.",
+    "placeholder": "Écrire un message…",
+    "send": "Envoyer",
+    "sending": "Envoi…",
+    "noSubject": "Conversation"
+  }
+}

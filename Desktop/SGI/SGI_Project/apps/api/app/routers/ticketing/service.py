@@ -181,6 +181,7 @@ async def list_tickets(
     status: str | None = None,
     priority: str | None = None,
     assigned_agent_id: uuid.UUID | None = None,
+    requester_client_id: uuid.UUID | None = None,
 ) -> tuple[list[ServiceTicket], int]:
     base = select(ServiceTicket).where(
         ServiceTicket.company_id == company_id,
@@ -192,6 +193,8 @@ async def list_tickets(
         base = base.where(ServiceTicket.priority == priority)
     if assigned_agent_id:
         base = base.where(ServiceTicket.assigned_agent_id == assigned_agent_id)
+    if requester_client_id:
+        base = base.where(ServiceTicket.requester_client_id == requester_client_id)
 
     total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
     offset = (page - 1) * limit

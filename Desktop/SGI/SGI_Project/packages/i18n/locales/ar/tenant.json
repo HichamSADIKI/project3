@@ -1,0 +1,77 @@
+{
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "payments": "المدفوعات",
+    "tickets": "الطلبات",
+    "chat": "المراسلة"
+  },
+  "dashboard": {
+    "title": "مساحة المستأجر",
+    "subtitle": "ادفع إيجارك، تابع طلباتك وتواصل مع الوكالة.",
+    "nextPayment": "الاستحقاق القادم",
+    "pendingPayments": "مدفوعات معلّقة",
+    "openTickets": "طلبات مفتوحة",
+    "conversations": "المحادثات",
+    "noNextPayment": "لا يوجد استحقاق قادم",
+    "quickPay": "عرض مدفوعاتي",
+    "quickTickets": "طلباتي",
+    "quickChat": "فتح المراسلة"
+  },
+  "payments": {
+    "title": "مدفوعاتي",
+    "subtitle": "الإيجارات والرسوم المستحقة.",
+    "empty": "لا توجد مدفوعات مسجّلة.",
+    "reference": "المرجع",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "dueDate": "تاريخ الاستحقاق",
+    "status": "الحالة",
+    "pay": "دفع",
+    "paying": "جارٍ الدفع…",
+    "payError": "فشل الدفع. حاول مرة أخرى.",
+    "statusLabels": {
+      "pending": "معلّق", "paid": "مدفوع",
+      "overdue": "متأخر", "cancelled": "ملغى"
+    },
+    "typeLabels": {
+      "rent": "إيجار", "charges": "رسوم", "deposit": "تأمين",
+      "deposit_return": "إعادة التأمين", "owner_payout": "تحويل", "other": "أخرى"
+    }
+  },
+  "tickets": {
+    "title": "طلباتي",
+    "subtitle": "أبلغ عن مشكلة وتابع معالجتها.",
+    "empty": "لا توجد طلبات بعد.",
+    "new": "طلب جديد",
+    "subject": "الموضوع",
+    "description": "الوصف",
+    "priority": "الأولوية",
+    "submit": "إرسال",
+    "submitting": "جارٍ الإرسال…",
+    "createError": "فشل الإنشاء. حاول مرة أخرى.",
+    "reference": "المرجع",
+    "status": "الحالة",
+    "createdOn": "أُنشئت في",
+    "comment": "إضافة تعليق",
+    "commentPlaceholder": "رسالتك…",
+    "send": "إرسال",
+    "timeline": "السجل",
+    "priorityLabels": {
+      "low": "منخفضة", "medium": "متوسطة", "high": "عالية", "urgent": "عاجلة"
+    },
+    "statusLabels": {
+      "open": "مفتوحة", "in_progress": "قيد المعالجة", "pending": "معلّقة",
+      "resolved": "محلولة", "closed": "مغلقة"
+    }
+  },
+  "chat": {
+    "title": "المراسلة",
+    "subtitle": "محادثاتك مع الوكالة.",
+    "empty": "لا توجد محادثات.",
+    "selectPrompt": "اختر محادثة.",
+    "placeholder": "اكتب رسالة…",
+    "send": "إرسال",
+    "sending": "جارٍ الإرسال…",
+    "noSubject": "محادثة"
+  }
+}
