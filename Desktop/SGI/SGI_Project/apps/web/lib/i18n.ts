@@ -10,6 +10,8 @@ export type Translations = {
   // Nav
   nav_dash: string; nav_prop: string; nav_crm: string;
   nav_contract: string; nav_rental: string; nav_realestate: string;
+  nav_re_sec_patrimoine: string; nav_re_sec_transactions: string; nav_re_sec_tiers_finance: string;
+  nav_re_sec_exploitation: string; nav_re_sec_admin: string;
   nav_admin: string; nav_tourisme: string; nav_sante: string;
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
@@ -27,6 +29,11 @@ export type Translations = {
   nav_owners: string;
   nav_owner_portal: string;
   nav_contracts_re: string;
+  nav_achat: string; nav_vente: string; nav_location: string;
+  re_mandates: string; re_offers: string; re_listings: string; re_applications: string; re_transactions: string; re_matches: string;
+  re_budget: string; re_commission: string; re_asking_price: string; re_list_price: string; re_final_price: string; re_monthly_rent: string; re_match_score: string; re_amount: string;
+  re_new_mandate: string; re_new_offer: string; re_new_listing: string; re_new_application: string; re_run_match: string; re_no_matches: string;
+  st_active: string; st_fulfilled: string; st_expired: string; st_cancelled: string; st_draft: string; st_submitted: string; st_accepted: string; st_rejected: string; st_withdrawn: string; st_published: string; st_under_offer: string; st_sold: string; st_reserved: string; st_leased: string; st_screening: string; st_approved: string; st_converted: string; st_pending: string; st_completed: string;
   nav_payments: string;
   nav_cheques: string;
   nav_maintenance_re: string;
@@ -92,6 +99,11 @@ export type Translations = {
   tel_status_wrap_up: string; tel_status_paused: string; tel_status_offline: string;
   tel_call_log: string; tel_direction: string; tel_inbound: string; tel_outbound: string;
   tel_internal: string; tel_duration: string; tel_dial: string; tel_dial_ph: string;
+  tel_dial_failed: string;
+  tel_ami_ext_label: string; tel_ami_connect: string; tel_ami_disconnect: string;
+  tel_ami_connected: string; tel_ami_disconnected: string; tel_ami_hint: string;
+  tel_ami_connect_failed: string; tel_ami_offline: string; tel_ami_incoming: string;
+  tel_ami_unknown_caller: string; tel_ami_no_calls: string;
   tel_no_calls: string; tel_unknown_caller: string;
   tel_notes: string; tel_disposition: string;
   tel_disp_interested: string; tel_disp_callback: string; tel_disp_not_interested: string;
@@ -241,6 +253,9 @@ const ar: Translations = {
 
   nav_dash: "لوحة القيادة", nav_prop: "العقارات", nav_crm: "إدارة العملاء",
   nav_contract: "العقود", nav_rental: "الإيجارات", nav_realestate: "العقارات",
+  nav_re_sec_patrimoine: "الأصول", nav_re_sec_transactions: "المعاملات والعقود",
+  nav_re_sec_tiers_finance: "الأطراف والمالية", nav_re_sec_exploitation: "التشغيل وخدمة العملاء",
+  nav_re_sec_admin: "الإدارة",
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
@@ -258,6 +273,11 @@ const ar: Translations = {
   nav_owners: "الملاك",
   nav_owner_portal: "بوابة المالك",
   nav_contracts_re: "العقود",
+  nav_achat: "الشراء", nav_vente: "البيع", nav_location: "الإيجار",
+  re_mandates: "التفويضات", re_offers: "العروض", re_listings: "الإعلانات", re_applications: "الطلبات", re_transactions: "المعاملات", re_matches: "التطابقات",
+  re_budget: "الميزانية", re_commission: "العمولة", re_asking_price: "السعر المطلوب", re_list_price: "سعر العرض", re_final_price: "السعر النهائي", re_monthly_rent: "الإيجار الشهري", re_match_score: "درجة التطابق", re_amount: "المبلغ",
+  re_new_mandate: "تفويض جديد", re_new_offer: "عرض جديد", re_new_listing: "إعلان جديد", re_new_application: "طلب جديد", re_run_match: "بحث عن تطابقات", re_no_matches: "لا توجد تطابقات",
+  st_active: "نشط", st_fulfilled: "منجز", st_expired: "منتهٍ", st_cancelled: "ملغى", st_draft: "مسودة", st_submitted: "مُقدّم", st_accepted: "مقبول", st_rejected: "مرفوض", st_withdrawn: "مسحوب", st_published: "منشور", st_under_offer: "قيد العرض", st_sold: "مُباع", st_reserved: "محجوز", st_leased: "مؤجَّر", st_screening: "قيد الفحص", st_approved: "موافَق عليه", st_converted: "محوَّل", st_pending: "قيد الانتظار", st_completed: "مكتمل",
   nav_payments: "المدفوعات",
   nav_cheques: "الشيكات",
   nav_maintenance_re: "الصيانة",
@@ -325,6 +345,13 @@ const ar: Translations = {
   tel_status_wrap_up: "إنهاء", tel_status_paused: "متوقف مؤقتاً", tel_status_offline: "غير متصل",
   tel_call_log: "سجل المكالمات", tel_direction: "الاتجاه", tel_inbound: "واردة", tel_outbound: "صادرة",
   tel_internal: "داخلية", tel_duration: "المدة", tel_dial: "اتصال", tel_dial_ph: "أدخل الرقم…",
+  tel_dial_failed: "فشل الاتصال",
+  tel_ami_ext_label: "تحويلتي", tel_ami_connect: "اتصال", tel_ami_disconnect: "قطع الاتصال",
+  tel_ami_connected: "متصل", tel_ami_disconnected: "غير متصل",
+  tel_ami_hint: "تتحدث على هاتفك ؛ يقوم SGI بتشغيل المكالمات وتسجيلها.",
+  tel_ami_connect_failed: "تعذّر الاتصال بالمقسم", tel_ami_offline: "خادم Asterisk (AMI) غير متاح",
+  tel_ami_incoming: "مكالمة واردة", tel_ami_unknown_caller: "متصل غير معروف",
+  tel_ami_no_calls: "لا مكالمات",
   tel_no_calls: "لا توجد مكالمات.", tel_unknown_caller: "متصل مجهول",
   tel_notes: "ملاحظات", tel_disposition: "النتيجة",
   tel_disp_interested: "مهتم", tel_disp_callback: "طلب معاودة الاتصال", tel_disp_not_interested: "غير مهتم",
@@ -464,6 +491,9 @@ const en: Translations = {
 
   nav_dash: "Dashboard", nav_prop: "Properties", nav_crm: "CRM",
   nav_contract: "Contracts", nav_rental: "Rentals", nav_realestate: "Real Estate",
+  nav_re_sec_patrimoine: "Assets", nav_re_sec_transactions: "Transactions & contracts",
+  nav_re_sec_tiers_finance: "Parties & finance", nav_re_sec_exploitation: "Operations & customer service",
+  nav_re_sec_admin: "Administration",
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
@@ -481,6 +511,11 @@ const en: Translations = {
   nav_owners: "Owners",
   nav_owner_portal: "Owner Portal",
   nav_contracts_re: "Contracts",
+  nav_achat: "Buy", nav_vente: "Sell", nav_location: "Rent",
+  re_mandates: "Mandates", re_offers: "Offers", re_listings: "Listings", re_applications: "Applications", re_transactions: "Transactions", re_matches: "Matches",
+  re_budget: "Budget", re_commission: "Commission", re_asking_price: "Asking price", re_list_price: "List price", re_final_price: "Final price", re_monthly_rent: "Monthly rent", re_match_score: "Match score", re_amount: "Amount",
+  re_new_mandate: "New mandate", re_new_offer: "New offer", re_new_listing: "New listing", re_new_application: "New application", re_run_match: "Find matches", re_no_matches: "No matches",
+  st_active: "Active", st_fulfilled: "Fulfilled", st_expired: "Expired", st_cancelled: "Cancelled", st_draft: "Draft", st_submitted: "Submitted", st_accepted: "Accepted", st_rejected: "Rejected", st_withdrawn: "Withdrawn", st_published: "Published", st_under_offer: "Under offer", st_sold: "Sold", st_reserved: "Reserved", st_leased: "Leased", st_screening: "Screening", st_approved: "Approved", st_converted: "Converted", st_pending: "Pending", st_completed: "Completed",
   nav_payments: "Payments",
   nav_cheques: "Cheques",
   nav_maintenance_re: "Maintenance",
@@ -548,6 +583,13 @@ const en: Translations = {
   tel_status_wrap_up: "Wrap-up", tel_status_paused: "Paused", tel_status_offline: "Offline",
   tel_call_log: "Call log", tel_direction: "Direction", tel_inbound: "Inbound", tel_outbound: "Outbound",
   tel_internal: "Internal", tel_duration: "Duration", tel_dial: "Dial", tel_dial_ph: "Enter a number…",
+  tel_dial_failed: "Call failed",
+  tel_ami_ext_label: "My extension", tel_ami_connect: "Connect", tel_ami_disconnect: "Disconnect",
+  tel_ami_connected: "Connected", tel_ami_disconnected: "Disconnected",
+  tel_ami_hint: "You talk on your phone; SGI places and logs the calls.",
+  tel_ami_connect_failed: "Could not connect to the PBX", tel_ami_offline: "Asterisk (AMI) unreachable",
+  tel_ami_incoming: "Incoming call", tel_ami_unknown_caller: "Unknown caller",
+  tel_ami_no_calls: "No calls",
   tel_no_calls: "No calls.", tel_unknown_caller: "Unknown caller",
   tel_notes: "Notes", tel_disposition: "Outcome",
   tel_disp_interested: "Interested", tel_disp_callback: "Callback", tel_disp_not_interested: "Not interested",
@@ -687,6 +729,9 @@ const fr: Translations = {
 
   nav_dash: "Tableau de bord", nav_prop: "Propriétés", nav_crm: "CRM",
   nav_contract: "Contrats", nav_rental: "Locations", nav_realestate: "Immobilier",
+  nav_re_sec_patrimoine: "Patrimoine", nav_re_sec_transactions: "Transactions & contrats",
+  nav_re_sec_tiers_finance: "Tiers & finance", nav_re_sec_exploitation: "Exploitation & relation client",
+  nav_re_sec_admin: "Administration",
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
@@ -704,6 +749,11 @@ const fr: Translations = {
   nav_owners: "Propriétaires",
   nav_owner_portal: "Portail Propriétaire",
   nav_contracts_re: "Contrats",
+  nav_achat: "Achat", nav_vente: "Vente", nav_location: "Location",
+  re_mandates: "Mandats", re_offers: "Offres", re_listings: "Annonces", re_applications: "Candidatures", re_transactions: "Transactions", re_matches: "Rapprochements",
+  re_budget: "Budget", re_commission: "Commission", re_asking_price: "Prix demandé", re_list_price: "Prix affiché", re_final_price: "Prix final", re_monthly_rent: "Loyer mensuel", re_match_score: "Score", re_amount: "Montant",
+  re_new_mandate: "Nouveau mandat", re_new_offer: "Nouvelle offre", re_new_listing: "Nouvelle annonce", re_new_application: "Nouvelle candidature", re_run_match: "Rechercher", re_no_matches: "Aucun rapprochement",
+  st_active: "Actif", st_fulfilled: "Honoré", st_expired: "Expiré", st_cancelled: "Annulé", st_draft: "Brouillon", st_submitted: "Soumise", st_accepted: "Acceptée", st_rejected: "Refusée", st_withdrawn: "Retirée", st_published: "Publiée", st_under_offer: "Sous offre", st_sold: "Vendu", st_reserved: "Réservé", st_leased: "Loué", st_screening: "Étude", st_approved: "Approuvée", st_converted: "Convertie", st_pending: "En attente", st_completed: "Terminée",
   nav_payments: "Paiements",
   nav_cheques: "Chèques",
   nav_maintenance_re: "Maintenance",
@@ -771,6 +821,13 @@ const fr: Translations = {
   tel_status_wrap_up: "Clôture", tel_status_paused: "En pause", tel_status_offline: "Hors-ligne",
   tel_call_log: "Journal d'appels", tel_direction: "Sens", tel_inbound: "Entrant", tel_outbound: "Sortant",
   tel_internal: "Interne", tel_duration: "Durée", tel_dial: "Appeler", tel_dial_ph: "Saisir un numéro…",
+  tel_dial_failed: "Échec de l'appel",
+  tel_ami_ext_label: "Mon extension", tel_ami_connect: "Se connecter", tel_ami_disconnect: "Se déconnecter",
+  tel_ami_connected: "Connecté", tel_ami_disconnected: "Déconnecté",
+  tel_ami_hint: "Vous parlez sur votre téléphone ; SGI déclenche et trace les appels.",
+  tel_ami_connect_failed: "Connexion au standard impossible", tel_ami_offline: "Asterisk (AMI) injoignable",
+  tel_ami_incoming: "Appel entrant", tel_ami_unknown_caller: "Appelant inconnu",
+  tel_ami_no_calls: "Aucun appel",
   tel_no_calls: "Aucun appel.", tel_unknown_caller: "Appelant inconnu",
   tel_notes: "Notes", tel_disposition: "Résultat",
   tel_disp_interested: "Intéressé", tel_disp_callback: "Rappel demandé", tel_disp_not_interested: "Pas intéressé",

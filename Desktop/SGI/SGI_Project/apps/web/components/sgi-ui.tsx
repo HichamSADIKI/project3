@@ -129,7 +129,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -144,7 +144,7 @@ export type NavKey =
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation"
   | "report" | "parametres";
 
-type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey };
+type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey; section?: string };
 type NavEntry =
   | ({ type: "item"  } & NavItem)
   | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] }
@@ -166,23 +166,31 @@ const NAV_ENTRIES: NavEntry[] = [
   },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
-      { key: "crm", icon: <IcCRM />, badge: 12 },
-      { key: "realestate_buildings", icon: <IcProp /> },
-      { key: "realestate_units", icon: <IcGrid /> },
-      { key: "realestate_tenants", icon: <IcPersonne /> },
-      { key: "realestate_owners", icon: <IcClients /> },
-      { key: "realestate_owner_portal", icon: <IcWorkspace /> },
-      { key: "realestate_contracts", icon: <IcContract /> },
-      { key: "realestate_payments", icon: <IcFinance /> },
-      { key: "realestate_cheques", icon: <IcReport /> },
-      { key: "realestate_maintenance", icon: <IcClock /> },
-      { key: "realestate_comms", icon: <IcChat /> },
-      { key: "realestate_inbox", icon: <IcMail /> },
-      { key: "realestate_tickets", icon: <IcReport /> },
-      { key: "realestate_workflows", icon: <IcAudit /> },
-      { key: "realestate_branches", icon: <IcPin /> },
-      { key: "realestate_documents", icon: <IcDoc /> },
-      { key: "realestate_settings", icon: <IcSettings /> },
+      // PATRIMOINE
+      { key: "realestate_buildings", icon: <IcProp />, section: "patrimoine" },
+      { key: "realestate_units", icon: <IcGrid />, section: "patrimoine" },
+      { key: "realestate_branches", icon: <IcPin />, section: "patrimoine" },
+      // TRANSACTIONS & CONTRATS
+      { key: "crm", icon: <IcCRM />, badge: 12, section: "transactions" },
+      { key: "realestate_achat", icon: <IcFinance />, section: "transactions" },
+      { key: "realestate_vente", icon: <IcContract />, section: "transactions" },
+      { key: "realestate_location", icon: <IcProp />, section: "transactions" },
+      { key: "realestate_contracts", icon: <IcContract />, section: "transactions" },
+      // TIERS & FINANCE
+      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers_finance" },
+      { key: "realestate_owners", icon: <IcClients />, section: "tiers_finance" },
+      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers_finance" },
+      { key: "realestate_payments", icon: <IcFinance />, section: "tiers_finance" },
+      { key: "realestate_cheques", icon: <IcReport />, section: "tiers_finance" },
+      // EXPLOITATION & RELATION CLIENT
+      { key: "realestate_maintenance", icon: <IcClock />, section: "exploitation" },
+      { key: "realestate_workflows", icon: <IcAudit />, section: "exploitation" },
+      { key: "realestate_comms", icon: <IcChat />, section: "exploitation" },
+      { key: "realestate_inbox", icon: <IcMail />, section: "exploitation" },
+      { key: "realestate_tickets", icon: <IcReport />, section: "exploitation" },
+      // ADMINISTRATION
+      { key: "realestate_documents", icon: <IcDoc />, section: "admin" },
+      { key: "realestate_settings", icon: <IcSettings />, section: "admin" },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
@@ -346,6 +354,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate,
+      realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location,
       realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
@@ -367,6 +376,18 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       report: t.nav_report, parametres: t.nav_parametres,
     };
     return map[key];
+  };
+
+  // Libellé d'un sous-thème (sous-titre interne à la rubrique Immobilier).
+  const navSectionLabel = (section: string): string => {
+    const map: Record<string, string> = {
+      patrimoine: t.nav_re_sec_patrimoine,
+      transactions: t.nav_re_sec_transactions,
+      tiers_finance: t.nav_re_sec_tiers_finance,
+      exploitation: t.nav_re_sec_exploitation,
+      admin: t.nav_re_sec_admin,
+    };
+    return map[section] ?? section;
   };
 
   const handleNavigate = useCallback((key: string) => {
@@ -528,15 +549,44 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         {!col && (
           <div style={{
             overflow: "hidden",
-            // Hauteur dynamique : ~40px/enfant + marge. Un plafond fixe (400px)
-            // coupait les groupes longs comme Immobilier (14 sous-rubriques).
-            maxHeight: isOpen ? entry.children.length * 40 + 8 : 0,
+            // Hauteur dynamique : ~40px/enfant + marge, + ~26px par sous-titre de
+            // thème (rubrique Immobilier sectionnée par thème pour la lisibilité).
+            maxHeight: isOpen
+              ? entry.children.length * 40
+                + new Set(entry.children.map(c => c.section).filter(Boolean)).size * 26
+                + 8
+              : 0,
             transition: "max-height 0.25s ease",
           }}>
             <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
-              {entry.children.map(child => (
-                <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />
-              ))}
+              {(() => {
+                let prevSection: string | undefined;
+                const rows: React.ReactNode[] = [];
+                for (const child of entry.children) {
+                  if (child.section && child.section !== prevSection) {
+                    prevSection = child.section;
+                    rows.push(
+                      <div
+                        key={`sec-${child.section}`}
+                        style={{
+                          padding: "8px 12px 2px",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          color: "var(--ink-4)",
+                        }}
+                      >
+                        {navSectionLabel(child.section)}
+                      </div>,
+                    );
+                  }
+                  rows.push(
+                    <NavItemRow key={child.key} icon={child.icon} navKey={child.key} badge={child.badge} isActive={child.key === active} isChild labelOverride={child.labelKey ? navLabel(child.labelKey) : undefined} />,
+                  );
+                }
+                return rows;
+              })()}
             </div>
           </div>
         )}

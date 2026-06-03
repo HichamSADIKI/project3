@@ -9,7 +9,7 @@ Deux couches :
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import func, or_, select
@@ -302,6 +302,42 @@ async def get_call_by_channel(
     return result.scalar_one_or_none()
 
 
+# Préfixe d'UNIQUEID forcé par le click-to-call REST (ChannelId de l'Originate).
+_ORIGINATE_PREFIX = "sgi-"
+
+
+async def find_pending_originated_call(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    agent_extension: str,
+    *,
+    within_seconds: int = 120,
+) -> Call | None:
+    """Retrouve un sortant créé par le click-to-call REST encore non rapproché.
+
+    Sur Asterisk 11, le paramètre ``ChannelId`` de l'Originate est ignoré (≥14
+    requis) : les événements AMI reviennent donc avec l'UNIQUEID d'Asterisk, pas
+    le ``sgi-…`` initial → le CDR REST resterait figé à ``ringing`` et un doublon
+    serait créé. On retrouve ici ce CDR (sortant, ``ringing``, channel ``sgi-…``,
+    récent) pour l'**adopter** au lieu d'en créer un nouveau. ``None`` sinon.
+    """
+    cutoff = datetime.now(UTC) - timedelta(seconds=within_seconds)
+    result = await db.execute(
+        select(Call)
+        .where(
+            Call.company_id == company_id,
+            Call.agent_extension == agent_extension,
+            Call.direction == "outbound",
+            Call.status == "ringing",
+            Call.channel_id.like(f"{_ORIGINATE_PREFIX}%"),
+            Call.created_at >= cutoff,
+        )
+        .order_by(Call.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
 async def get_or_create_call_by_channel(
     db: AsyncSession,
     company_id: uuid.UUID,
@@ -328,6 +364,7 @@ async def get_or_create_call_by_channel(
         from_number=defaults.get("from_number"),
         to_number=defaults.get("to_number"),
         agent_extension=defaults.get("agent_extension"),
+        agent_user_id=defaults.get("agent_user_id"),
         recording_consent=defaults.get("recording_consent", False),
         started_at=defaults.get("started_at") or datetime.now(UTC),
     )
@@ -391,19 +428,55 @@ async def apply_ami_cdr(
     }
     direction = infer_call_direction(caller, internal_exts)
 
-    call, _created = await get_or_create_call_by_channel(
-        db,
-        company_id,
-        channel_id,
-        direction=direction,
-        from_number=caller,
-        to_number=extension,
-        agent_extension=extension,
-        # PDPL fail-closed : pas de consentement présumé sans signal explicite
-        # (cf. TELEPHONY_ASSUME_RECORDING_CONSENT). Sans consentement, le worker
-        # n'uploade pas l'enregistrement et l'URL n'est jamais exposée.
-        recording_consent=settings.TELEPHONY_ASSUME_RECORDING_CONSENT,
-    )
+    # Rattache le CDR à l'agent propriétaire de l'extension (appels entrants/
+    # internes créés par l'AMI). Sans ça, agent_user_id reste NULL → l'appel est
+    # invisible au filtre anti-BOLA de l'agent (il ne voit que SES appels) et les
+    # notes de wrap-up ne peuvent pas lui être rattachées. Unicité garantie par
+    # uq_agent_states_extension (company_id, extension) → au plus un agent.
+    agent_user_id: uuid.UUID | None = None
+    if extension:
+        agent_user_id = (
+            await db.execute(
+                select(AgentState.user_id).where(
+                    AgentState.company_id == company_id,
+                    AgentState.extension == extension,
+                )
+            )
+        ).scalar_one_or_none()
+
+    # Asterisk 11 (chan_sip) : adoption du sortant REST. ChannelId étant ignoré,
+    # le 1er événement de la patte agent (caller == son extension, ou appel
+    # classé interne) arrive avec un nouvel UNIQUEID. Si aucun CDR ne matche ce
+    # channel ET qu'un sortant REST est en attente pour cette extension, on
+    # l'adopte (on le relie au channel AMI réel) au lieu de créer un doublon.
+    # Repli sûr : hors mode SIP, ou si rien à adopter, comportement inchangé.
+    call: Call | None = None
+    v11_mode = (settings.TELEPHONY_CHANNEL_TECH or "PJSIP").strip().upper() == "SIP"
+    is_agent_leg = (caller is not None and caller == extension) or direction == "internal"
+    if v11_mode and extension and is_agent_leg:
+        if await get_call_by_channel(db, company_id, channel_id) is None:
+            pending = await find_pending_originated_call(db, company_id, extension)
+            if pending is not None:
+                pending.channel_id = channel_id  # relie au channel AMI réel
+                await db.commit()
+                await db.refresh(pending)
+                call = pending
+
+    if call is None:
+        call, _created = await get_or_create_call_by_channel(
+            db,
+            company_id,
+            channel_id,
+            direction=direction,
+            from_number=caller,
+            to_number=extension,
+            agent_extension=extension,
+            agent_user_id=agent_user_id,
+            # PDPL fail-closed : pas de consentement présumé sans signal explicite
+            # (cf. TELEPHONY_ASSUME_RECORDING_CONSENT). Sans consentement, le worker
+            # n'uploade pas l'enregistrement et l'URL n'est jamais exposée.
+            recording_consent=settings.TELEPHONY_ASSUME_RECORDING_CONSENT,
+        )
 
     target = _ami_target_status(
         call.status,
