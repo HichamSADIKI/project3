@@ -7,6 +7,8 @@ import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { ReMap, type MapMarker } from "@/components/re-map";
+import { ViewToggle } from "@/components/view-toggle";
 
 // Câblé sur /api/admin/buildings → /api/v1/buildings.
 
@@ -33,12 +35,25 @@ type Building = {
   id: string; reference: string; name_ar: string | null; name_en: string | null;
   name_fr: string | null; building_type: string; emirate: string;
   total_units: number | null; status: string;
+  location: { lat: number; lng: number } | null;
 };
 
 export function ScreenRealEstateBuildings() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Building>("/api/admin/buildings?limit=100");
   const name = (b: Building) => b.name_en || b.name_fr || b.name_ar || b.reference;
+
+  const [view, setView] = useState<"list" | "map">("list");
+  const markers: MapMarker[] = items
+    .filter((b) => b.location)
+    .map((b) => ({
+      id: b.id,
+      lat: b.location!.lat,
+      lng: b.location!.lng,
+      title: name(b),
+      subtitle: b.reference,
+      badge: EMIRATE_LABEL[b.emirate] ?? b.emirate,
+    }));
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -70,11 +85,17 @@ export function ScreenRealEstateBuildings() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${items.length} ${t.count_buildings}`}</div>
             </div>
           </div>
-          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-            <IcPlus /> {t.add}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <ViewToggle view={view} onChange={setView} listLabel={t.view_list} mapLabel={t.view_map} />
+            <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+              <IcPlus /> {t.add}
+            </button>
+          </div>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.error_label} : {error}</div>}
+        {view === "map" ? (
+          <ReMap markers={markers} emptyLabel={t.empty_buildings} />
+        ) : (
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -104,6 +125,7 @@ export function ScreenRealEstateBuildings() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       <CreateModal title={t.bld_new} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>

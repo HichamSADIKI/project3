@@ -23,6 +23,8 @@ import { ScreenRealEstateUnits } from "./screens/realestate-units";
 import { ScreenRealEstateTenants } from "./screens/realestate-tenants";
 import { ScreenRealEstateContracts } from "./screens/realestate-contracts";
 import { ScreenRealEstateOwners } from "./screens/realestate-owners";
+import { ScreenRealEstateDevelopers } from "./screens/realestate-developers";
+import { ScreenRealEstateMap } from "./screens/realestate-map";
 import { ScreenRealEstateOwnerPortal } from "./screens/realestate-owner-portal";
 import { ScreenRealEstatePayments } from "./screens/realestate-payments";
 import { ScreenRealEstateCheques } from "./screens/realestate-cheques";
@@ -64,7 +66,7 @@ import { SoftphoneDock } from "@/components/softphone/softphone-dock";
 
 type ScreenKey =
   | "dash" | "crm" | "orders"
-  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
+  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_map" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
   | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "tourisme_news" | "sante_news" | "assurance_news"
@@ -107,6 +109,8 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_workflows": (_) => <ScreenRealEstateWorkflows />,
   "realestate_owners": (_) => <ScreenRealEstateOwners />,
   "realestate_owner_portal": (_) => <ScreenRealEstateOwnerPortal />,
+  "realestate_developers": (_) => <ScreenRealEstateDevelopers />,
+  "realestate_map": (_) => <ScreenRealEstateMap />,
   "realestate_branches": (_) => <ScreenRealEstateBranches />,
   "realestate_settings": (_) => <ScreenRealEstateSettings />,
   "realestate_documents": (_) => <ScreenRealEstateDocuments />,

@@ -7,12 +7,14 @@ import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { ReMap, type MapMarker } from "@/components/re-map";
+import { ViewToggle } from "@/components/view-toggle";
 
 // Câblé sur /api/admin/units → /api/v1/units.
 
 const UNIT_TYPES = ["studio", "apartment_1br", "apartment_2br", "apartment_3br", "apartment_4br_plus", "penthouse", "duplex", "villa", "townhouse", "office", "shop", "warehouse", "other"];
 
-type BuildingOpt = { id: string; reference: string; name_en: string | null };
+type BuildingOpt = { id: string; reference: string; name_en: string | null; location: { lat: number; lng: number } | null };
 
 const aed = (n: number) =>
   new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
@@ -52,7 +54,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 type Unit = {
   id: string; unit_number: string; unit_type: string; status: string;
-  list_rent_aed: string | null;
+  list_rent_aed: string | null; building_id: string;
 };
 
 export function ScreenRealEstateUnits() {
@@ -60,6 +62,21 @@ export function ScreenRealEstateUnits() {
   const { items, loading, error, reload } = useApiList<Unit>("/api/admin/units?limit=100");
   const { items: buildings } = useApiList<BuildingOpt>("/api/admin/buildings?limit=200");
   const vacant = items.filter(u => u.status === "vacant").length;
+
+  // Jointure client-side : l'unité hérite des coordonnées de son bâtiment.
+  const [view, setView] = useState<"list" | "map">("list");
+  const buildingLoc = new Map(buildings.filter(b => b.location).map(b => [b.id, b.location!] as const));
+  const markers: MapMarker[] = items
+    .map(u => ({ u, loc: buildingLoc.get(u.building_id) }))
+    .filter((x): x is { u: Unit; loc: { lat: number; lng: number } } => !!x.loc)
+    .map(({ u, loc }) => ({
+      id: u.id,
+      lat: loc.lat,
+      lng: loc.lng,
+      title: u.unit_number,
+      subtitle: typeLabel(t, u.unit_type),
+      badge: statusLabel(t, u.status),
+    }));
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -104,12 +121,18 @@ export function ScreenRealEstateUnits() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${items.length} · ${vacant} ${t.units_vacant_count}`}</div>
             </div>
           </div>
-          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
-            <IcPlus /> {t.add}
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <ViewToggle view={view} onChange={setView} listLabel={t.view_list} mapLabel={t.view_map} />
+            <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+              <IcPlus /> {t.add}
+            </button>
+          </div>
         </div>
         {error && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.error_label} : {error}</div>}
         {actionError && <div style={{ padding: "12px 16px", marginBottom: 16, borderRadius: "var(--r)", background: "var(--rose-soft)", color: "var(--rose)", fontSize: 13 }}>{t.unit_status_refused} : {actionError}</div>}
+        {view === "map" ? (
+          <ReMap markers={markers} emptyLabel={t.empty_units} />
+        ) : (
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -157,6 +180,7 @@ export function ScreenRealEstateUnits() {
             </tbody>
           </table>
         </div>
+        )}
       </div>
 
       <CreateModal title={t.unit_new} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={submit}>

@@ -129,7 +129,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_map" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -170,6 +170,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_buildings", icon: <IcProp />, section: "patrimoine" },
       { key: "realestate_units", icon: <IcGrid />, section: "patrimoine" },
       { key: "realestate_branches", icon: <IcPin />, section: "patrimoine" },
+      { key: "realestate_map", icon: <IcPin />, section: "patrimoine" },
       // TRANSACTIONS & CONTRATS
       { key: "crm", icon: <IcCRM />, badge: 12, section: "transactions" },
       { key: "realestate_achat", icon: <IcFinance />, section: "transactions" },
@@ -180,6 +181,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers_finance" },
       { key: "realestate_owners", icon: <IcClients />, section: "tiers_finance" },
       { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers_finance" },
+      { key: "realestate_developers", icon: <IcWorkspace />, section: "tiers_finance" },
       { key: "realestate_payments", icon: <IcFinance />, section: "tiers_finance" },
       { key: "realestate_cheques", icon: <IcReport />, section: "tiers_finance" },
       // EXPLOITATION & RELATION CLIENT
@@ -355,7 +357,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate,
       realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location,
-      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
+      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_map: t.nav_map, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
