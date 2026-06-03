@@ -7,6 +7,7 @@ import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { ReMap, type MapMarker } from "@/components/re-map";
 
 // Câblé sur /api/admin/buildings → /api/v1/buildings.
 
@@ -33,12 +34,25 @@ type Building = {
   id: string; reference: string; name_ar: string | null; name_en: string | null;
   name_fr: string | null; building_type: string; emirate: string;
   total_units: number | null; status: string;
+  location: { lat: number; lng: number } | null;
 };
 
 export function ScreenRealEstateBuildings() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Building>("/api/admin/buildings?limit=100");
   const name = (b: Building) => b.name_en || b.name_fr || b.name_ar || b.reference;
+
+  const [view, setView] = useState<"list" | "map">("list");
+  const markers: MapMarker[] = items
+    .filter((b) => b.location)
+    .map((b) => ({
+      id: b.id,
+      lat: b.location!.lat,
+      lng: b.location!.lng,
+      title: name(b),
+      subtitle: b.reference,
+      badge: EMIRATE_LABEL[b.emirate] ?? b.emirate,
+    }));
 
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
