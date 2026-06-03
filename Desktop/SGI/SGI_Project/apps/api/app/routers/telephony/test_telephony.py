@@ -255,6 +255,90 @@ async def test_ami_cdr_inbound_unknown_extension_has_no_agent(db_session, seed_c
     assert call.agent_user_id is None
 
 
+# ── Corrélation du SORTANT sur Asterisk 11 (ChannelId ignoré) ──────────────
+
+
+async def test_ami_cdr_v11_adopts_pending_originated_outbound(
+    db_session, seed_admin, monkeypatch
+) -> None:
+    """En mode SIP (Asterisk 11), l'événement de la patte agent adopte le CDR
+    sortant créé par le click-to-call REST (channel sgi-…) au lieu d'un doublon."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "TELEPHONY_CHANNEL_TECH", "SIP")
+    admin, _ = seed_admin
+    cid = admin.company_id
+    rest = await service.create_call(
+        db_session,
+        cid,
+        direction="outbound",
+        status="ringing",
+        agent_extension="1012",
+        to_number="971507654321",
+        agent_user_id=admin.id,
+        channel_id="sgi-abcdef",
+    )
+    # Patte agent : UNIQUEID différent, appelant == extension (1012).
+    result = await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Newchannel", "asterisk-uniq-1", ext="1012", caller="1012")
+    )
+    assert result.id == rest.id  # adopté, pas un doublon
+    assert result.channel_id == "asterisk-uniq-1"  # relié au channel AMI réel
+    assert result.direction == "outbound"
+    _, total = await service.list_calls(db_session, cid)
+    assert total == 1
+
+
+async def test_ami_cdr_v11_does_not_adopt_inbound(db_session, seed_admin, monkeypatch) -> None:
+    """Un VRAI entrant (appelant externe) ne doit pas détourner un sortant en attente."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "TELEPHONY_CHANNEL_TECH", "SIP")
+    admin, _ = seed_admin
+    cid = admin.company_id
+    await service.create_call(
+        db_session,
+        cid,
+        direction="outbound",
+        status="ringing",
+        agent_extension="1012",
+        to_number="971507654321",
+        agent_user_id=admin.id,
+        channel_id="sgi-pending",
+    )
+    await service.apply_ami_cdr(
+        db_session,
+        cid,
+        _ami_event("Newchannel", "asterisk-in-1", ext="1012", caller="971500000000"),
+    )
+    _, total = await service.list_calls(db_session, cid)
+    assert total == 2  # l'entrant crée sa propre ligne, le sortant reste intact
+
+
+async def test_ami_cdr_pjsip_mode_no_adoption(db_session, seed_admin, monkeypatch) -> None:
+    """Hors mode SIP (PJSIP/Asterisk >=12), pas d'adoption (ChannelId fonctionne)."""
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "TELEPHONY_CHANNEL_TECH", "PJSIP")
+    admin, _ = seed_admin
+    cid = admin.company_id
+    await service.create_call(
+        db_session,
+        cid,
+        direction="outbound",
+        status="ringing",
+        agent_extension="1012",
+        to_number="971507654321",
+        agent_user_id=admin.id,
+        channel_id="sgi-pjsip",
+    )
+    await service.apply_ami_cdr(
+        db_session, cid, _ami_event("Newchannel", "asterisk-uniq-2", ext="1012", caller="1012")
+    )
+    _, total = await service.list_calls(db_session, cid)
+    assert total == 2  # comportement inchangé
+
+
 async def test_ami_cdr_idempotent_no_duplicate(db_session, seed_company) -> None:
     """Deux réplicas reçoivent le même Newchannel → une seule ligne."""
     cid = seed_company.id
