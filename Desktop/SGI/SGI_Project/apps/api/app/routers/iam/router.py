@@ -420,9 +420,7 @@ async def put_grants_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="subject_not_in_company"
         )
-    items: list[tuple[str, str, str]] = [
-        (it.node_key, it.effect, it.scope) for it in body.items
-    ]
+    items: list[tuple[str, str, str]] = [(it.node_key, it.effect, it.scope) for it in body.items]
     await service.replace_subject_grants(
         db, company_id, body.subject_type, body.subject_id, items, created_by=user_id
     )

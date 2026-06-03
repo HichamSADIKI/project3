@@ -726,9 +726,7 @@ async def create_user(db: AsyncSession, company_id: uuid.UUID, data: dict[str, A
     await ensure_seeded(db, company_id)
     sys_group = (
         await db.execute(
-            select(Group.id).where(
-                Group.company_id == company_id, Group.slug == f"sys-{user.role}"
-            )
+            select(Group.id).where(Group.company_id == company_id, Group.slug == f"sys-{user.role}")
         )
     ).scalar_one_or_none()
     group_ids = list(data.get("group_ids", []))
