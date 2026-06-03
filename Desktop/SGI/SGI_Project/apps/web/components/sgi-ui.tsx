@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
+import { useNavGate } from "@/lib/permissions";
 
 /* ─── Icon wrapper ──────────────────────────────────────────────── */
 export function Ic({ s = 16, children }: { s?: number; children: React.ReactNode }) {
@@ -129,7 +130,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -176,12 +177,14 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_vente", icon: <IcContract />, section: "transactions" },
       { key: "realestate_location", icon: <IcProp />, section: "transactions" },
       { key: "realestate_contracts", icon: <IcContract />, section: "transactions" },
-      // TIERS & FINANCE
-      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers_finance" },
-      { key: "realestate_owners", icon: <IcClients />, section: "tiers_finance" },
-      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers_finance" },
-      { key: "realestate_payments", icon: <IcFinance />, section: "tiers_finance" },
-      { key: "realestate_cheques", icon: <IcReport />, section: "tiers_finance" },
+      // TIERS (parties prenantes — propriétaire + son portail rapprochés)
+      { key: "realestate_owners", icon: <IcClients />, section: "tiers" },
+      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers" },
+      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers" },
+      { key: "realestate_developers", icon: <IcWorkspace />, section: "tiers" },
+      // FINANCE
+      { key: "realestate_payments", icon: <IcFinance />, section: "finance" },
+      { key: "realestate_cheques", icon: <IcReport />, section: "finance" },
       // EXPLOITATION & RELATION CLIENT
       { key: "realestate_maintenance", icon: <IcClock />, section: "exploitation" },
       { key: "realestate_workflows", icon: <IcAudit />, section: "exploitation" },
@@ -320,6 +323,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   const t = useT();
   const { lang } = useLang();
   const bp = useBreakpoint();
+  const navGate = useNavGate();
   const isMob = bp === "mobile";
   const isTab = bp === "tablet";
 
@@ -355,7 +359,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate,
       realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location,
-      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
+      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
       assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
@@ -383,7 +387,8 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     const map: Record<string, string> = {
       patrimoine: t.nav_re_sec_patrimoine,
       transactions: t.nav_re_sec_transactions,
-      tiers_finance: t.nav_re_sec_tiers_finance,
+      tiers: t.nav_re_sec_tiers,
+      finance: t.nav_re_sec_finance,
       exploitation: t.nav_re_sec_exploitation,
       admin: t.nav_re_sec_admin,
     };
@@ -549,35 +554,51 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         {!col && (
           <div style={{
             overflow: "hidden",
-            // Hauteur dynamique : ~40px/enfant + marge, + ~26px par sous-titre de
-            // thème (rubrique Immobilier sectionnée par thème pour la lisibilité).
+            // Hauteur dynamique : ~40px/enfant + marge, + ~44px par sous-titre de
+            // thème (intertitre + séparateur + air pour distinguer les blocs).
             maxHeight: isOpen
               ? entry.children.length * 40
-                + new Set(entry.children.map(c => c.section).filter(Boolean)).size * 26
-                + 8
+                + new Set(entry.children.map(c => c.section).filter(Boolean)).size * 44
+                + 12
               : 0,
             transition: "max-height 0.25s ease",
           }}>
             <div style={{ borderInlineStart: "1px solid var(--line-soft)", marginInlineStart: 18, marginBottom: 2, paddingTop: 2 }}>
               {(() => {
                 let prevSection: string | undefined;
+                let firstSection = true;
                 const rows: React.ReactNode[] = [];
                 for (const child of entry.children) {
                   if (child.section && child.section !== prevSection) {
                     prevSection = child.section;
+                    const isFirst = firstSection;
+                    firstSection = false;
                     rows.push(
                       <div
                         key={`sec-${child.section}`}
                         style={{
-                          padding: "8px 12px 2px",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          letterSpacing: "0.06em",
-                          textTransform: "uppercase",
-                          color: "var(--ink-4)",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 7,
+                          padding: isFirst ? "6px 12px 4px" : "10px 12px 4px",
+                          marginTop: isFirst ? 0 : 8,
+                          borderTop: isFirst ? "none" : "1px solid var(--line-soft)",
                         }}
                       >
-                        {navSectionLabel(child.section)}
+                        {/* Tiret doré : repère visuel discret en tête de section */}
+                        <span style={{ width: 10, height: 2, borderRadius: 2, background: "var(--gold)", opacity: 0.7, flexShrink: 0 }} />
+                        <span
+                          className={lang === "ar" ? "font-ar" : undefined}
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            letterSpacing: "0.07em",
+                            textTransform: "uppercase",
+                            color: "var(--ink-4)",
+                          }}
+                        >
+                          {navSectionLabel(child.section)}
+                        </span>
                       </div>,
                     );
                   }
@@ -605,9 +626,14 @@ export function Sidebar({ active, onNavigate, onLogout }: {
               return <div key={entry.id} style={{ height: 1, background: "var(--line-soft)", margin: "8px 10px" }} />;
             }
             if (entry.type === "item") {
+              // Gating IAM : on masque une entrée connue du catalogue et non autorisée.
+              if (!navGate(entry.key)) return null;
               return <NavItemRow key={entry.key} icon={entry.icon} navKey={entry.key} badge={entry.badge} isActive={entry.key === active} />;
             }
-            return <GroupRow key={entry.id} entry={entry} />;
+            // Groupe : on ne garde que les enfants autorisés ; groupe vide → masqué.
+            const visibleChildren = entry.children.filter(c => navGate(c.key));
+            if (visibleChildren.length === 0) return null;
+            return <GroupRow key={entry.id} entry={{ ...entry, children: visibleChildren }} />;
           })}
         </div>
 

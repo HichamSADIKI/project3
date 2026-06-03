@@ -8,6 +8,7 @@ import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { getJson, postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+import { Can } from "@/lib/permissions";
 
 const cBtn = (color: string, bg: string): React.CSSProperties => ({ border: "none", borderRadius: 8, padding: "5px 9px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: bg, color });
 
@@ -133,7 +134,12 @@ export function ScreenRealEstateContracts() {
                       {c.reference}{c.renewed_from_contract_id && <span style={{ marginInlineStart: 6, fontSize: 10, color: "var(--azure)" }}>↻</span>}
                     </td>
                     <td style={{ padding: "13px 16px", color: "var(--ink-2)" }}>{c.type === "rental" ? t.contract_type_rental : t.contract_type_sale}</td>
-                    <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink)" }}>{aed(Number(c.amount))}</td>
+                    <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", color: "var(--ink)" }}>
+                      {/* Gating de champ (IAM) : le montant est masqué sans la permission. */}
+                      <Can node="realestate.contracts.finance.rent_amount" fallback={<span style={{ color: "var(--ink-4)" }}>•••</span>}>
+                        {aed(Number(c.amount))}
+                      </Can>
+                    </td>
                     <td style={{ padding: "13px 16px" }}>
                       <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontWeight: 600, color: c.signed_at ? "var(--emerald)" : "var(--ink-4)" }}>
                         {c.signed_at ? <><IcCheck /> {t.ct_signed}</> : <><IcClock /> —</>}

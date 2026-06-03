@@ -24,6 +24,7 @@ from app.routers import (
     documents,
     finance,
     golden_visa,
+    iam,
     inbox,
     inspections,
     leasing,
@@ -221,6 +222,7 @@ app.include_router(acquisitions.router, prefix="/api/v1")
 app.include_router(sales.router, prefix="/api/v1")
 # Immobilier — Location : annonces + candidatures locataires (migration 0035)
 app.include_router(leasing.router, prefix="/api/v1")
+app.include_router(iam.router, prefix="/api/v1")
 # Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
 app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
 
