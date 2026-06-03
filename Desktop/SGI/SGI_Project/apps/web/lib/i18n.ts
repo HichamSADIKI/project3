@@ -10,9 +10,8 @@ export type Translations = {
   // Nav
   nav_dash: string; nav_prop: string; nav_crm: string;
   nav_contract: string; nav_rental: string; nav_realestate: string;
-  nav_re_sec_patrimoine: string; nav_re_sec_transactions: string;
-  nav_re_sec_tiers: string; nav_re_sec_finance: string;
-  nav_re_sec_exploitation: string; nav_re_sec_admin: string;
+  nav_re_sec_biens: string; nav_re_sec_commercial: string;
+  nav_re_sec_personnes: string; nav_re_sec_operations: string;
   nav_admin: string; nav_tourisme: string; nav_sante: string;
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
@@ -259,10 +258,8 @@ const ar: Translations = {
 
   nav_dash: "لوحة القيادة", nav_prop: "العقارات", nav_crm: "إدارة العملاء",
   nav_contract: "العقود", nav_rental: "الإيجارات", nav_realestate: "العقارات",
-  nav_re_sec_patrimoine: "الأصول", nav_re_sec_transactions: "المعاملات والعقود",
-  nav_re_sec_tiers: "الأطراف", nav_re_sec_finance: "المالية",
-  nav_re_sec_exploitation: "التشغيل وخدمة العملاء",
-  nav_re_sec_admin: "الإدارة",
+  nav_re_sec_biens: "الممتلكات", nav_re_sec_commercial: "التجاري",
+  nav_re_sec_personnes: "الأطراف", nav_re_sec_operations: "العمليات",
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
@@ -503,10 +500,8 @@ const en: Translations = {
 
   nav_dash: "Dashboard", nav_prop: "Properties", nav_crm: "CRM",
   nav_contract: "Contracts", nav_rental: "Rentals", nav_realestate: "Real Estate",
-  nav_re_sec_patrimoine: "Assets", nav_re_sec_transactions: "Transactions & contracts",
-  nav_re_sec_tiers: "Parties", nav_re_sec_finance: "Finance",
-  nav_re_sec_exploitation: "Operations & customer service",
-  nav_re_sec_admin: "Administration",
+  nav_re_sec_biens: "Properties", nav_re_sec_commercial: "Commercial",
+  nav_re_sec_personnes: "People", nav_re_sec_operations: "Operations",
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
@@ -747,10 +742,8 @@ const fr: Translations = {
 
   nav_dash: "Tableau de bord", nav_prop: "Propriétés", nav_crm: "CRM",
   nav_contract: "Contrats", nav_rental: "Locations", nav_realestate: "Immobilier",
-  nav_re_sec_patrimoine: "Patrimoine", nav_re_sec_transactions: "Transactions & contrats",
-  nav_re_sec_tiers: "Tiers", nav_re_sec_finance: "Finance",
-  nav_re_sec_exploitation: "Exploitation & relation client",
-  nav_re_sec_admin: "Administration",
+  nav_re_sec_biens: "Biens", nav_re_sec_commercial: "Commercial",
+  nav_re_sec_personnes: "Personnes", nav_re_sec_operations: "Opérations",
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
