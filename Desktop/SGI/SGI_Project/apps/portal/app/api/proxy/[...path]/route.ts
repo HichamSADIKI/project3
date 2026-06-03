@@ -13,7 +13,7 @@ const ALLOWED_METHODS = ["GET", "POST", "PATCH", "DELETE"] as const;
 type AllowedMethod = (typeof ALLOWED_METHODS)[number];
 
 // Préfixes autorisés sur le portal public (whitelist stricte).
-const ALLOWED_PREFIXES = ["client/", "fournisseur/", "owner/", "payments/"];
+const ALLOWED_PREFIXES = ["client/", "fournisseur/", "owner/", "payments/", "tenant/"];
 
 async function relay(req: Request, path: string[], method: AllowedMethod) {
   const subpath = path.join("/");

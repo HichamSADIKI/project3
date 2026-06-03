@@ -1,0 +1,77 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "payments": "Payments",
+    "tickets": "Requests",
+    "chat": "Messages"
+  },
+  "dashboard": {
+    "title": "Tenant area",
+    "subtitle": "Pay your rent, track your requests and chat with the agency.",
+    "nextPayment": "Next due",
+    "pendingPayments": "Pending payments",
+    "openTickets": "Open requests",
+    "conversations": "Conversations",
+    "noNextPayment": "No upcoming due",
+    "quickPay": "View my payments",
+    "quickTickets": "My requests",
+    "quickChat": "Open messages"
+  },
+  "payments": {
+    "title": "My payments",
+    "subtitle": "Rent and charges to settle.",
+    "empty": "No payment recorded.",
+    "reference": "Reference",
+    "type": "Type",
+    "amount": "Amount",
+    "dueDate": "Due date",
+    "status": "Status",
+    "pay": "Pay",
+    "paying": "Paying…",
+    "payError": "Payment failed. Please try again.",
+    "statusLabels": {
+      "pending": "Pending", "paid": "Paid",
+      "overdue": "Overdue", "cancelled": "Cancelled"
+    },
+    "typeLabels": {
+      "rent": "Rent", "charges": "Charges", "deposit": "Deposit",
+      "deposit_return": "Deposit return", "owner_payout": "Payout", "other": "Other"
+    }
+  },
+  "tickets": {
+    "title": "My requests",
+    "subtitle": "Report an issue and track its handling.",
+    "empty": "No requests yet.",
+    "new": "New request",
+    "subject": "Subject",
+    "description": "Description",
+    "priority": "Priority",
+    "submit": "Submit",
+    "submitting": "Submitting…",
+    "createError": "Creation failed. Please try again.",
+    "reference": "Reference",
+    "status": "Status",
+    "createdOn": "Created on",
+    "comment": "Add a comment",
+    "commentPlaceholder": "Your message…",
+    "send": "Send",
+    "timeline": "Timeline",
+    "priorityLabels": {
+      "low": "Low", "medium": "Medium", "high": "High", "urgent": "Urgent"
+    },
+    "statusLabels": {
+      "open": "Open", "in_progress": "In progress", "pending": "Pending",
+      "resolved": "Resolved", "closed": "Closed"
+    }
+  },
+  "chat": {
+    "title": "Messages",
+    "subtitle": "Your conversations with the agency.",
+    "empty": "No conversations.",
+    "selectPrompt": "Select a conversation.",
+    "placeholder": "Write a message…",
+    "send": "Send",
+    "sending": "Sending…",
+    "noSubject": "Conversation"
+  }
+}
