@@ -48,6 +48,15 @@ class TestPureHelpers:
         key = service.ffmpeg_output_key(cid, sid)
         assert key == f"scenarios/{cid}/videos/{sid.hex}.mp4"
 
+    def test_owns_ref(self) -> None:
+        cid = uuid.UUID("00000000-0000-4000-8000-000000000002")
+        other = uuid.UUID("00000000-0000-4000-8000-0000000000ff")
+        assert service.owns_ref(cid, f"scenarios/{cid}/photo/a.jpg")
+        # ref d'un autre tenant → refusée (garde-fou Loi 1 stockage)
+        assert not service.owns_ref(cid, f"scenarios/{other}/photo/a.jpg")
+        # autre namespace de bucket (documents, fournisseurs…) → refusée
+        assert not service.owns_ref(cid, f"fournisseurs/{other}/licence.jpg")
+
     def test_build_ffmpeg_command_photos_only(self) -> None:
         cmd = service.build_ffmpeg_command(["/a.jpg", "/b.jpg"], None, "/out.mp4")
         assert cmd[0] == "ffmpeg"
@@ -144,7 +153,8 @@ async def _seed_sale_listing(db: AsyncSession, company_id: uuid.UUID) -> uuid.UU
     return listing.id
 
 
-def _payload(listing_id: uuid.UUID) -> dict:
+def _payload(company_id: uuid.UUID, listing_id: uuid.UUID) -> dict:
+    # Refs MinIO au namespace du tenant (validées par owns_ref à la création).
     return {
         "listing_type": "sale",
         "listing_id": str(listing_id),
@@ -152,7 +162,10 @@ def _payload(listing_id: uuid.UUID) -> dict:
         "voice_mode": "avatar",
         "avatar": "female",
         "script": "Découvrez cette villa.",
-        "photo_refs": ["scenarios/x/photo/a.jpg", "scenarios/x/photo/b.jpg"],
+        "photo_refs": [
+            f"scenarios/{company_id}/photo/a.jpg",
+            f"scenarios/{company_id}/photo/b.jpg",
+        ],
     }
 
 
@@ -178,7 +191,7 @@ async def test_create_unknown_listing_404(
     res = await client.post(
         "/api/v1/scenarios/",
         headers={"Authorization": f"Bearer {token}"},
-        json=_payload(uuid.uuid4()),
+        json=_payload(uuid.uuid4(), uuid.uuid4()),
     )
     assert res.status_code == 404
 
@@ -194,16 +207,16 @@ async def test_create_validation_errors(
     h = {"Authorization": f"Bearer {token}"}
     lid = await _seed_sale_listing(db_session, seed_company.id)
     # avatar mode sans avatar
-    p = _payload(lid)
+    p = _payload(seed_company.id, lid)
     p["avatar"] = None
     assert (await client.post("/api/v1/scenarios/", headers=h, json=p)).status_code == 422
     # recorded sans audio_ref
-    p = _payload(lid)
+    p = _payload(seed_company.id, lid)
     p["voice_mode"] = "recorded"
     p["avatar"] = None
     assert (await client.post("/api/v1/scenarios/", headers=h, json=p)).status_code == 422
     # sans photo
-    p = _payload(lid)
+    p = _payload(seed_company.id, lid)
     p["photo_refs"] = []
     assert (await client.post("/api/v1/scenarios/", headers=h, json=p)).status_code == 422
 
@@ -220,7 +233,7 @@ async def test_create_async_lifecycle(
     lid = await _seed_sale_listing(db_session, seed_company.id)
 
     # create → génération FFmpeg en tâche de fond → statut 'generating'
-    res = await client.post("/api/v1/scenarios/", headers=h, json=_payload(lid))
+    res = await client.post("/api/v1/scenarios/", headers=h, json=_payload(seed_company.id, lid))
     assert res.status_code == 201
     data = res.json()["data"]
     assert data["status"] == "generating"
@@ -273,11 +286,13 @@ async def test_cross_tenant_isolation(
     h1 = {"Authorization": f"Bearer {token1}"}
     h2 = {"Authorization": f"Bearer {token2}"}
     lid = await _seed_sale_listing(db_session, seed_company.id)
-    r1 = await client.post("/api/v1/scenarios/", headers=h1, json=_payload(lid))
+    r1 = await client.post("/api/v1/scenarios/", headers=h1, json=_payload(seed_company.id, lid))
     assert r1.status_code == 201, r1.text
     sid = r1.json()["data"]["id"]
     # Tenant 2 ne peut pas créer sur l'annonce de tenant 1 (404)
-    rcross = await client.post("/api/v1/scenarios/", headers=h2, json=_payload(lid))
+    rcross = await client.post(
+        "/api/v1/scenarios/", headers=h2, json=_payload(seed_company.id, lid)
+    )
     assert rcross.status_code == 404
     # Tenant 2 ne voit aucun scénario de tenant 1
     lst = await client.get(f"/api/v1/scenarios/?listing_type=sale&listing_id={lid}", headers=h2)
@@ -288,3 +303,28 @@ async def test_cross_tenant_isolation(
     assert (await client.post(f"/api/v1/scenarios/{sid}/generate", headers=h2)).status_code == 404
     assert (await client.delete(f"/api/v1/scenarios/{sid}", headers=h2)).status_code == 404
     assert (await client.get(f"/api/v1/scenarios/{sid}", headers=h1)).status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_create_rejects_foreign_ref(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    seed_company: Company,
+) -> None:
+    """Red-Team Loi 1 (stockage) : référencer la clé MinIO d'un autre tenant dans
+    photo_refs/audio_ref → 422 (le fichier d'autrui ne peut pas être encodé)."""
+    _, token = seed_admin
+    h = {"Authorization": f"Bearer {token}"}
+    lid = await _seed_sale_listing(db_session, seed_company.id)
+    other = uuid.uuid4()
+    # photo_ref d'un autre tenant
+    p = _payload(seed_company.id, lid)
+    p["photo_refs"] = [f"scenarios/{other}/photo/stolen.jpg"]
+    assert (await client.post("/api/v1/scenarios/", headers=h, json=p)).status_code == 422
+    # audio_ref hors namespace tenant (autre bucket)
+    p = _payload(seed_company.id, lid)
+    p["voice_mode"] = "recorded"
+    p["avatar"] = None
+    p["audio_ref"] = f"fournisseurs/{other}/licence.webm"
+    assert (await client.post("/api/v1/scenarios/", headers=h, json=p)).status_code == 422
