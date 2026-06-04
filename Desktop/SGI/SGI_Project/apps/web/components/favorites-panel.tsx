@@ -84,6 +84,10 @@ export function FavoritesPanel({ onNavigate }: { onNavigate?: (screen: string) =
           display: "flex",
           flexDirection: "column",
           gap: 12,
+          // Parent = flex column scrollable (dashboard <main>) : sans ceci la
+          // carte est compressée et son header (« Quick access ») rogné par le
+          // overflow:hidden de .sgi-card.
+          flexShrink: 0,
         }}
       >
         {/* Header */}
