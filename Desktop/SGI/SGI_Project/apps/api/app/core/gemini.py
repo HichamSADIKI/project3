@@ -612,9 +612,9 @@ async def parse_client_need(text: str, locale: Locale = "fr") -> dict[str, Any]:
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.post(
-                f"{GEMINI_URL}?key={api_key}",
+                GEMINI_URL,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -737,9 +737,9 @@ async def extract_trade_licence(document_bytes: bytes, content_type: str) -> dic
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
             resp = await client.post(
-                f"{GEMINI_URL}?key={api_key}",
+                GEMINI_URL,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -803,9 +803,9 @@ async def generate_text(
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.post(
-                f"{GEMINI_URL}?key={api_key}",
+                GEMINI_URL,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             )
             resp.raise_for_status()
             data = resp.json()
@@ -866,9 +866,9 @@ async def generate_chat(
     try:
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.post(
-                f"{GEMINI_URL}?key={api_key}",
+                GEMINI_URL,
                 json=payload,
-                headers={"Content-Type": "application/json"},
+                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
             )
             resp.raise_for_status()
             data = resp.json()
