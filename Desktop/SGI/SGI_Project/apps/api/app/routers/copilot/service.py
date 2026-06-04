@@ -999,6 +999,45 @@ def extract_lead_prefill(text: str) -> dict[str, Any] | None:
     return {"screen": "crm", "fields": fields}
 
 
+_CONTRACT_WORDS: frozenset[str] = frozenset(
+    {"contrat", "contrats", "contract", "contracts", "bail", "lease", "عقد", "عقود"}
+)
+_RENTAL_WORDS: frozenset[str] = frozenset(
+    {"location", "louer", "loyer", "bail", "rent", "rental", "lease", "إيجار", "تأجير"}
+)
+_SALE_WORDS: frozenset[str] = frozenset(
+    {"vente", "vendre", "achat", "acheter", "sale", "buy", "purchase", "بيع", "شراء"}
+)
+
+
+def extract_contract_prefill(text: str) -> dict[str, Any] | None:
+    """Si le message exprime une création de contrat, renvoie
+    `{screen: "realestate_contracts", fields: {type, amount?}}`. None sinon.
+
+    `type` = "sale" si vocabulaire de vente, sinon "rental" (défaut). `client_id`
+    et `property_id` (des sélecteurs côté UI) ne sont pas extractibles d'un texte
+    libre → omis. Déterministe (sans IA), testable."""
+    low = (text or "").lower()
+    tokens = set(_WORD_RE.findall(low))
+    create = any(_matches(low, tokens, w) for w in _CREATE_WORDS)
+    is_contract = any(_matches(low, tokens, w) for w in _CONTRACT_WORDS)
+    if not (create and is_contract):
+        return None
+    is_sale = any(_matches(low, tokens, w) for w in _SALE_WORDS)
+    fields: dict[str, Any] = {"type": "sale" if is_sale else "rental"}
+    amount = _extract_budget_aed(low)
+    if amount:
+        fields["amount"] = amount
+    return {"screen": "realestate_contracts", "fields": fields}
+
+
+def extract_prefill(text: str) -> dict[str, Any] | None:
+    """Dispatch des actions guidées de création : contrat puis prospect.
+
+    L'ordre privilégie le contrat (plus spécifique) sur le prospect."""
+    return extract_contract_prefill(text) or extract_lead_prefill(text)
+
+
 async def chat(
     db: AsyncSession,
     company_id: uuid.UUID,
@@ -1040,7 +1079,7 @@ async def chat(
     else:
         reply, engine = heuristic_chat_reply(last_user, loc, snapshot, nav), "fallback"
 
-    prefill = extract_lead_prefill(last_user)
+    prefill = extract_prefill(last_user)
     return {
         "reply": reply,
         "engine": engine,
@@ -1093,7 +1132,7 @@ async def chat_stream(
     )
     snapshot = await gather_tenant_snapshot(db, company_id)
     nav = suggest_navigation(last_user, loc)
-    prefill = extract_lead_prefill(last_user)
+    prefill = extract_prefill(last_user)
     system = _build_chat_system(snapshot, screen)
 
     got_any = False
