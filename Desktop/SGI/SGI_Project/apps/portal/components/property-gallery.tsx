@@ -41,10 +41,9 @@ export function PropertyGallery({
       <div
         style={{
           aspectRatio: "16 / 9",
-          borderRadius: "var(--z-rlg, var(--r-md))",
+          borderRadius: "var(--r-md)",
           overflow: "hidden",
-          background: "var(--z-sand, var(--bg-inset))",
-          boxShadow: "var(--z-shadow-md)",
+          background: "var(--bg-inset)",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -77,11 +76,8 @@ export function PropertyGallery({
                 borderRadius: "var(--r)",
                 overflow: "hidden",
                 cursor: "pointer",
-                border:
-                  i === active
-                    ? "2px solid var(--z-gold-500, var(--gold))"
-                    : "1px solid var(--z-line, var(--line))",
-                background: "var(--z-sand, var(--bg-inset))",
+                border: i === active ? "2px solid var(--gold)" : "1px solid var(--line)",
+                background: "var(--bg-inset)",
               }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}

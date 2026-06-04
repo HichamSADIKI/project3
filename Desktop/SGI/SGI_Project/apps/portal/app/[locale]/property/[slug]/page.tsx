@@ -1,5 +1,4 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isValidLocale, makeT, type Locale } from "@/lib/i18n";
@@ -7,8 +6,6 @@ import { PublicShell } from "@/components/public-shell";
 import { PropertyGallery } from "@/components/property-gallery";
 import { ContactForm } from "@/components/contact-form";
 import { PropertyCard } from "@/components/property-card";
-import { Ic, Svg } from "@/components/zoi/icons";
-import { BookButton } from "@/components/zoi/book-button";
 import { apiServerPublic } from "@/lib/api-server";
 import {
   type PublicEnvelope,
@@ -51,6 +48,15 @@ export async function generateMetadata({
   };
 }
 
+function Spec({ label, value }: { label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "0.125rem", padding: "0.5rem 0" }}>
+      <span style={{ fontSize: "0.72rem", color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
+      <span style={{ fontSize: "0.9rem", color: "var(--ink)", fontWeight: 600 }}>{value}</span>
+    </div>
+  );
+}
+
 export default async function PropertyDetailPage({
   params,
 }: {
@@ -67,276 +73,138 @@ export default async function PropertyDetailPage({
   const isRent = listing.deal === "rent";
   const price = formatAed(listing.price);
   const period =
-    listing.price_period === "month"
-      ? t("card.perMonth")
-      : isRent
-        ? t("card.perYear")
-        : "";
+    listing.price_period === "month" ? t("card.perMonth") : isRent ? t("card.perYear") : "";
   const sqft = formatSqft(listing.area_sqm);
-  const yn = (v: boolean | null | undefined) =>
-    v == null ? t("detail.notAvailable") : v ? t("detail.yes") : t("detail.no");
+  const yn = (v: boolean | null | undefined) => (v == null ? t("detail.notAvailable") : v ? t("detail.yes") : t("detail.no"));
 
   const agent = listing.agent;
   const wa = waMeLink(agent?.whatsapp);
-  const loc =
-    [listing.district, listing.city, listing.emirate]
-      .filter(Boolean)
-      .join(" · ") || "—";
-  const typeKey = listing.unit_type ?? "";
-  const typeLabel =
-    typeKey && t(`portfolio.${typeKey}`) !== `portfolio.${typeKey}`
-      ? t(`portfolio.${typeKey}`)
-      : typeKey;
 
-  // Tuiles « highlight » — uniquement celles renseignées.
-  const highlights: Array<[ReactNode, string, string]> = [];
-  if (listing.bedrooms != null)
-    highlights.push([
-      <Svg d={Ic.bed} w={26} />,
-      formatNumber(listing.bedrooms),
-      t("detail.bedrooms"),
-    ]);
-  if (listing.bathrooms != null)
-    highlights.push([
-      <Svg d={Ic.bath} w={26} />,
-      formatNumber(listing.bathrooms),
-      t("detail.bathrooms"),
-    ]);
-  if (sqft)
-    highlights.push([<Svg d={Ic.area} w={26} />, sqft, t("detail.areaUnit")]);
-  if (typeLabel)
-    highlights.push([
-      <Svg d={Ic.building} w={26} />,
-      typeLabel,
-      t("detail.type"),
-    ]);
-
-  // Caractéristiques complètes — n'affiche que celles renseignées.
+  // Caractéristiques (20+ champs) — n'affiche que celles renseignées.
   const specs: Array<[string, string | null]> = [
     [t("detail.reference"), listing.reference ?? null],
     [t("detail.deal"), isRent ? t("badges.rent") : t("badges.sale")],
-    [
-      t("detail.parking"),
-      listing.parking != null
-        ? t("detail.spots", { count: formatNumber(listing.parking) })
-        : null,
-    ],
-    [
-      t("detail.furnished"),
-      listing.furnished != null ? yn(listing.furnished) : null,
-    ],
-    [
-      t("detail.floor"),
-      listing.floor != null ? formatNumber(listing.floor) : null,
-    ],
+    [t("detail.type"), listing.unit_type ?? null],
+    [t("detail.bedrooms"), listing.bedrooms != null ? formatNumber(listing.bedrooms) : null],
+    [t("detail.bathrooms"), listing.bathrooms != null ? formatNumber(listing.bathrooms) : null],
+    [t("detail.area"), sqft ? `${sqft} ${t("detail.areaUnit")}` : null],
+    [t("detail.parking"), listing.parking != null ? t("detail.spots", { count: formatNumber(listing.parking) }) : null],
+    [t("detail.furnished"), listing.furnished != null ? yn(listing.furnished) : null],
+    [t("detail.floor"), listing.floor != null ? formatNumber(listing.floor) : null],
     [t("detail.view"), listing.view ?? null],
     [t("detail.balcony"), listing.balcony != null ? yn(listing.balcony) : null],
-    [
-      t("detail.maidRoom"),
-      listing.maid_room != null ? yn(listing.maid_room) : null,
-    ],
-    [
-      t("detail.studyRoom"),
-      listing.study_room != null ? yn(listing.study_room) : null,
-    ],
-    [
-      t("detail.petsAllowed"),
-      listing.pets_allowed != null ? yn(listing.pets_allowed) : null,
-    ],
+    [t("detail.maidRoom"), listing.maid_room != null ? yn(listing.maid_room) : null],
+    [t("detail.studyRoom"), listing.study_room != null ? yn(listing.study_room) : null],
+    [t("detail.petsAllowed"), listing.pets_allowed != null ? yn(listing.pets_allowed) : null],
     [t("detail.completion"), listing.completion ?? null],
-    [
-      t("detail.yearBuilt"),
-      listing.year_built != null ? formatNumber(listing.year_built) : null,
-    ],
+    [t("detail.yearBuilt"), listing.year_built != null ? formatNumber(listing.year_built) : null],
     [t("detail.developer"), listing.developer ?? null],
     [t("detail.availableFrom"), listing.available_from ?? null],
     [t("detail.city"), listing.city ?? null],
     [t("detail.district"), listing.district ?? null],
     [t("detail.emirate"), listing.emirate ?? null],
   ];
-  const filledSpecs = specs.filter(([, v]) => v != null) as Array<
-    [string, string]
-  >;
+  const filledSpecs = specs.filter(([, v]) => v != null) as Array<[string, string]>;
   const similar = listing.similar ?? [];
 
   return (
     <PublicShell locale={lc}>
-      <section
-        className="z-container"
-        style={{
-          paddingBlock: "40px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 28,
-        }}
-      >
-        <Link href={`/${lc}/properties`} className="z-back">
+      <section className="sgi-container" style={{ paddingBlock: "var(--page-py)", display: "flex", flexDirection: "column", gap: "var(--section-gap)" }}>
+        <Link href={`/${lc}/properties`} style={{ fontSize: "0.85rem", color: "var(--ink-3)" }}>
           {t("detail.backToList")}
         </Link>
 
-        <div className="z-detail-grid">
+        <div
+          style={{
+            display: "grid",
+            gap: "var(--section-gap)",
+            gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)",
+          }}
+          className="re-detail-grid"
+        >
           {/* Colonne principale */}
-          <div className="z-detail-main">
-            <PropertyGallery
-              photos={listing.photos ?? []}
-              title={listing.title ?? ""}
-            />
+          <div style={{ display: "flex", flexDirection: "column", gap: "var(--section-gap)", minWidth: 0 }}>
+            <PropertyGallery photos={listing.photos ?? []} title={listing.title ?? ""} />
 
             <div>
-              <div
-                style={{
-                  display: "flex",
-                  gap: 8,
-                  flexWrap: "wrap",
-                  marginBottom: 14,
-                }}
-              >
-                <span
-                  className={`z-tag ${isRent ? "z-tag-rent" : "z-tag-sale"}`}
-                >
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBlockEnd: "0.5rem" }}>
+                <span className="sgi-badge" style={{ background: isRent ? "var(--azure-soft)" : "var(--gold-soft)", color: isRent ? "var(--azure)" : "var(--gold-deep)" }}>
                   {isRent ? t("badges.rent") : t("badges.sale")}
                 </span>
-                {typeLabel ? (
-                  <span className="z-tag z-tag-type">{typeLabel}</span>
-                ) : null}
-                {listing.is_urgent ? (
-                  <span
-                    className="z-tag"
-                    style={{ background: "#d6453d", color: "#fff" }}
-                  >
-                    {t("badges.urgent")}
-                  </span>
-                ) : null}
-                {listing.is_featured ? (
-                  <span
-                    className="z-tag"
-                    style={{
-                      background: "var(--z-sand)",
-                      color: "var(--z-green-800)",
-                    }}
-                  >
-                    {t("badges.featured")}
-                  </span>
-                ) : null}
+                {listing.is_urgent ? <span className="sgi-badge sgi-badge-rejected">{t("badges.urgent")}</span> : null}
+                {listing.is_featured ? <span className="sgi-badge sgi-badge-pending">{t("badges.featured")}</span> : null}
               </div>
-              <h1 className="z-detail-title">{listing.title ?? "—"}</h1>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  color: "var(--z-muted)",
-                  fontSize: 15,
-                }}
-              >
-                <Svg d={Ic.pin} w={16} /> {loc}
+              <h1 style={{ margin: "0 0 0.375rem", fontSize: "var(--h1-size)", color: "var(--ink)", lineHeight: 1.2 }}>
+                {listing.title ?? "—"}
+              </h1>
+              <div style={{ fontSize: "0.9rem", color: "var(--ink-3)" }}>
+                {[listing.district, listing.city, listing.emirate].filter(Boolean).join(" · ") || "—"}
+              </div>
+              <div style={{ marginBlockStart: "0.75rem", fontSize: "1.5rem", fontWeight: 700, color: "var(--gold-deep)" }}>
+                {price ? (
+                  <>
+                    {price}
+                    <span style={{ fontSize: "0.95rem", color: "var(--ink-3)", fontWeight: 500 }}>{period}</span>
+                  </>
+                ) : (
+                  <span style={{ fontSize: "1rem", color: "var(--ink-3)" }}>{t("card.priceOnRequest")}</span>
+                )}
               </div>
             </div>
 
-            {highlights.length ? (
-              <div className="z-highlights">
-                {highlights.map(([icon, value, label], i) => (
-                  <div className="z-hl" key={i}>
-                    <span className="z-hl-ic">{icon}</span>
-                    <span className="z-hl-v">{value}</span>
-                    <span className="z-hl-l">{label}</span>
-                  </div>
+            <div className="sgi-card">
+              <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem", color: "var(--ink)" }}>{t("detail.features")}</h2>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 150px), 1fr))",
+                  gap: "0.25rem 1.25rem",
+                }}
+              >
+                {filledSpecs.map(([label, value]) => (
+                  <Spec key={label} label={label} value={value} />
                 ))}
               </div>
-            ) : null}
-
-            {filledSpecs.length ? (
-              <div className="z-panel">
-                <h2>{t("detail.features")}</h2>
-                <div className="z-spec-grid">
-                  {filledSpecs.map(([label, value]) => (
-                    <div className="z-spec-row" key={label}>
-                      <span className="z-sk">{label}</span>
-                      <span className="z-sv">{value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+            </div>
 
             {listing.amenities?.length ? (
-              <div className="z-panel">
-                <h2>{t("detail.amenities")}</h2>
-                <div className="z-chips">
+              <div className="sgi-card">
+                <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem", color: "var(--ink)" }}>{t("detail.amenities")}</h2>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
                   {listing.amenities.map((a, i) => (
-                    <span
-                      key={i}
-                      className="z-chip"
-                      style={{ cursor: "default" }}
-                    >
-                      {a}
-                    </span>
+                    <span key={i} className="sgi-badge sgi-badge-info">{a}</span>
                   ))}
                 </div>
               </div>
             ) : null}
 
             {listing.description ? (
-              <div className="z-panel">
-                <h2>{t("detail.description")}</h2>
-                <p>{listing.description}</p>
+              <div className="sgi-card">
+                <h2 style={{ margin: "0 0 0.75rem", fontSize: "1.1rem", color: "var(--ink)" }}>{t("detail.description")}</h2>
+                <p style={{ margin: 0, color: "var(--ink-2)", lineHeight: 1.7, fontSize: "0.92rem", whiteSpace: "pre-line" }}>
+                  {listing.description}
+                </p>
               </div>
             ) : null}
           </div>
 
-          {/* Colonne latérale : prix + réservation + agent + contact */}
-          <aside className="z-detail-aside">
-            <div
-              className="z-panel"
-              style={{ display: "flex", flexDirection: "column", gap: 18 }}
-            >
-              <div className="z-detail-price">
-                {price ? (
-                  <>
-                    {price}
-                    <span>{period}</span>
-                  </>
-                ) : (
-                  <span
-                    style={{
-                      fontFamily: "var(--z-sans)",
-                      fontSize: 18,
-                      color: "var(--z-muted)",
-                    }}
-                  >
-                    {t("card.priceOnRequest")}
-                  </span>
-                )}
-              </div>
-              <BookButton
-                listing={listing}
-                label={t("book.cta")}
-                variant="gold"
-                large
-              />
-            </div>
-
+          {/* Colonne latérale : agent + contact */}
+          <aside style={{ display: "flex", flexDirection: "column", gap: "var(--section-gap)", minWidth: 0 }}>
             {agent?.name ? (
-              <div className="z-agent">
-                <span className="z-agent-k">{t("contact.agent")}</span>
-                <div className="z-agent-n">{agent.name}</div>
-                <div className="z-agent-btns">
-                  {wa ? (
-                    <a
-                      href={wa}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="z-btn z-btn-wa"
-                    >
-                      <Svg d={Ic.phone} w={16} /> {t("contact.whatsapp")}
+              <div className="sgi-card" style={{ display: "flex", flexDirection: "column", gap: "0.625rem" }}>
+                <span style={{ fontSize: "0.72rem", color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                  {t("contact.agent")}
+                </span>
+                <strong style={{ fontSize: "1.05rem", color: "var(--ink)" }}>{agent.name}</strong>
+                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                  {agent.phone ? (
+                    <a href={`tel:${agent.phone.replace(/[^\d+]/g, "")}`} className="sgi-button sgi-button-secondary" style={{ width: "100%" }}>
+                      {t("contact.call")}
                     </a>
                   ) : null}
-                  {agent.phone ? (
-                    <a
-                      href={`tel:${agent.phone.replace(/[^\d+]/g, "")}`}
-                      className="z-btn z-btn-call"
-                    >
-                      <Svg d={Ic.phone} w={16} /> {t("contact.call")}
+                  {wa ? (
+                    <a href={wa} target="_blank" rel="noopener noreferrer" className="sgi-button sgi-button-primary" style={{ width: "100%" }}>
+                      {t("contact.whatsapp")}
                     </a>
                   ) : null}
                 </div>
@@ -367,24 +235,9 @@ export default async function PropertyDetailPage({
         </div>
 
         {similar.length ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 24,
-              marginTop: 24,
-            }}
-          >
-            <div className="z-sec-head" style={{ marginBottom: 0 }}>
-              <span className="z-eyebrow">{t("home.featuredEyebrow")}</span>
-              <h2
-                className="z-sec-title"
-                style={{ marginTop: 12, fontSize: "clamp(28px,3vw,40px)" }}
-              >
-                {t("detail.similar")}
-              </h2>
-            </div>
-            <div className="z-cards">
+          <div style={{ display: "flex", flexDirection: "column", gap: "1rem", marginBlockStart: "0.5rem" }}>
+            <h2 style={{ margin: 0, fontSize: "var(--h2-size)", color: "var(--ink)" }}>{t("detail.similar")}</h2>
+            <div style={{ display: "grid", gap: "var(--section-gap)", gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 260px), 1fr))" }}>
               {similar.map((s, i) => (
                 <PropertyCard key={s.slug ?? i} listing={s} locale={lc} />
               ))}
