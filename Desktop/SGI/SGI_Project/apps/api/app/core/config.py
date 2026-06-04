@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     PUBLIC_PHOTO_URL_TTL_S: int = 86400
 
     MINIO_ENDPOINT: str = "minio:9000"
+    # Endpoint PUBLIC joignable par le navigateur (présignature des URLs vidéo/média).
+    # Vide → on signe contre MINIO_ENDPOINT interne (injoignable depuis le navigateur).
+    MINIO_PUBLIC_ENDPOINT: str = ""
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
     MINIO_BUCKET: str = "sgi-media"
