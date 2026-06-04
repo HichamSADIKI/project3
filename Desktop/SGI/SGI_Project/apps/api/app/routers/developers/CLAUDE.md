@@ -1,0 +1,3 @@
+# Promoteurs immobiliers (module `developers`, migration 0037)
+
+Module `developers` (`/api/v1/developers`) : annuaire des promoteurs/développeurs (référentiel d'origine des biens neufs). CRUD simple sur la table `developers` (RLS, `reference` auto `DEV-YYYY-NNNNNN`, noms multilingues `name_{ar,en,fr}`, `trade_license`, `projects_count`). Lecture rôles internes (`admin/manager/agent`), écriture `admin/manager`, suppression `admin` (soft delete). Anti-BOLA : 404 jamais 403 hors tenant. Helper pur : `generate_reference`. Frontend : screen `app/screens/realestate-developers.tsx` (nav `nav_developers`).
