@@ -73,16 +73,16 @@ export function ScenarioVideo({
         title={t.scenario_title}
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          border: `1px solid ${readyCount > 0 ? "var(--gold)" : "var(--line-soft)"}`,
+          border: `1px solid ${readyCount > 0 ? "var(--emerald)" : "var(--line-soft)"}`,
           borderRadius: 8, padding: "5px 10px", cursor: "pointer",
           fontSize: 11.5, fontWeight: 600,
-          background: readyCount > 0 ? "rgba(212,160,55,0.12)" : "transparent",
-          color: readyCount > 0 ? "var(--gold-deep)" : "var(--ink-4)",
+          background: readyCount > 0 ? "var(--emerald-soft)" : "transparent",
+          color: readyCount > 0 ? "var(--emerald)" : "var(--ink-4)",
         }}
       >
         <IcFilm /> {t.scenario_btn}
         {readyCount > 0 && (
-          <span className="tnum" style={{ fontSize: 10.5, fontWeight: 700, background: "var(--gold)", color: "#1A1610", borderRadius: 999, padding: "0 6px", lineHeight: "16px" }}>{readyCount}</span>
+          <span className="tnum" style={{ fontSize: 10.5, fontWeight: 700, background: "var(--emerald)", color: "#fff", borderRadius: 999, padding: "0 6px", lineHeight: "16px" }}>{readyCount}</span>
         )}
       </button>
       {open && (

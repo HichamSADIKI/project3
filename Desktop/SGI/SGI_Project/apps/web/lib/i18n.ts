@@ -164,6 +164,7 @@ export type Translations = {
 
   // Common table / list
   col_reference: string; col_type: string; col_status: string; col_emirate: string; col_name: string;
+  col_diffusion: string;
   count_buildings: string; count_units: string; empty_buildings: string; empty_units: string;
   field_name: string; field_emirate: string;
 
@@ -451,6 +452,7 @@ const ar: Translations = {
   set_payment_terms_days: "مهلة السداد (أيام)", set_fiscal_year_start: "شهر بداية السنة المالية",
 
   col_reference: "المرجع", col_type: "النوع", col_status: "الحالة", col_emirate: "الإمارة", col_name: "الاسم",
+  col_diffusion: "النشر",
   count_buildings: "مبنى", count_units: "وحدة", empty_buildings: "لا توجد مبانٍ.", empty_units: "لا توجد وحدات.",
   field_name: "الاسم", field_emirate: "الإمارة",
 
@@ -728,6 +730,7 @@ const en: Translations = {
   set_payment_terms_days: "Payment terms (days)", set_fiscal_year_start: "Fiscal year start month",
 
   col_reference: "Reference", col_type: "Type", col_status: "Status", col_emirate: "Emirate", col_name: "Name",
+  col_diffusion: "Distribution",
   count_buildings: "building(s)", count_units: "unit(s)", empty_buildings: "No buildings.", empty_units: "No units.",
   field_name: "Name", field_emirate: "Emirate",
 
@@ -1005,6 +1008,7 @@ const fr: Translations = {
   set_payment_terms_days: "Délai de paiement (jours)", set_fiscal_year_start: "Mois de début d'exercice",
 
   col_reference: "Référence", col_type: "Type", col_status: "Statut", col_emirate: "Émirat", col_name: "Nom",
+  col_diffusion: "Diffusion",
   count_buildings: "bâtiment(s)", count_units: "unité(s)", empty_buildings: "Aucun bâtiment.", empty_units: "Aucune unité.",
   field_name: "Nom", field_emirate: "Émirat",
 
