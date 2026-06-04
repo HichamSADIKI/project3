@@ -73,7 +73,7 @@ export function ScreenRealEstateBranches() {
   const activeCount = branches.filter(b => b.is_active).length;
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+    <div data-testid="screen-realestate_branches" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={t.nav_branches} />
 
       <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "var(--bg-cream)" }}>
@@ -85,7 +85,7 @@ export function ScreenRealEstateBranches() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${branches.length} · ${activeCount} ${t.branches_active_count}`}</div>
             </div>
           </div>
-          <button onClick={() => { setOpen(true); setFormError(null); }} style={{
+          <button data-testid="branch-add" onClick={() => { setOpen(true); setFormError(null); }} style={{
             display: "flex", alignItems: "center", gap: 8, padding: "9px 16px",
             background: "var(--gold)", color: "#1A1610", border: "none",
             borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer",
@@ -147,7 +147,7 @@ export function ScreenRealEstateBranches() {
             </div>
             <div style={{ padding: "20px", display: "flex", flexDirection: "column", gap: 14 }}>
               <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{t.field_name} *
-                <input autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="Dubai Marina" />
+                <input data-testid="branch-name" autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} style={{ ...inputStyle, marginTop: 5 }} placeholder="Dubai Marina" />
               </label>
               <label style={{ fontSize: 12, color: "var(--ink-3)", fontWeight: 500 }}>{t.field_emirate}
                 <select value={form.emirate} onChange={e => setForm({ ...form, emirate: e.target.value })} style={{ ...inputStyle, marginTop: 5 }}>
@@ -164,7 +164,7 @@ export function ScreenRealEstateBranches() {
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: "14px 20px", borderTop: "1px solid var(--line-soft)" }}>
               <button onClick={() => setOpen(false)} disabled={saving} style={{ padding: "8px 16px", background: "transparent", color: "var(--ink-2)", border: "1px solid var(--line)", borderRadius: "var(--r)", fontSize: 13, cursor: "pointer" }}>{t.cancel}</button>
-              <button onClick={submit} disabled={saving} style={{ padding: "8px 18px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1 }}>
+              <button data-testid="branch-submit" onClick={submit} disabled={saving} style={{ padding: "8px 18px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: saving ? "default" : "pointer", opacity: saving ? 0.6 : 1 }}>
                 {saving ? "…" : t.save}
               </button>
             </div>
