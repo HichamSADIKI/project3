@@ -40,6 +40,14 @@ export type Translations = {
   web_publish: string; web_unpublish: string; web_view: string; web_empty: string;
   web_badge_online: string; web_badge_draft: string; web_offline: string;
   social_btn: string; social_title: string; social_subtitle: string; social_publish: string; social_published: string;
+  scenario_btn: string; scenario_title: string; scenario_subtitle: string;
+  scenario_photos: string; scenario_voice: string; scenario_voice_avatar: string; scenario_voice_record: string;
+  scenario_male: string; scenario_female: string; scenario_voice_m: string; scenario_voice_f: string;
+  scenario_script_ph: string; scenario_record_start: string; scenario_record_stop: string;
+  scenario_recording: string; scenario_recorded: string; scenario_title_ph: string;
+  scenario_generate: string; scenario_generating: string; scenario_generated: string;
+  scenario_untitled: string; scenario_ready: string; scenario_watch: string;
+  scenario_err_upload: string; scenario_err_mic: string; scenario_err_generate: string;
   mkt_campaigns: string; mkt_kpis: string; mkt_name: string; mkt_channel: string;
   mkt_budget: string; mkt_spend: string; mkt_impressions: string; mkt_clicks: string;
   mkt_leads: string; mkt_click_rate: string; mkt_starts_on: string; mkt_ends_on: string;
@@ -314,6 +322,14 @@ const ar: Translations = {
   web_publish: "نشر", web_unpublish: "إلغاء النشر", web_view: "عرض", web_empty: "لا توجد إعلانات",
   web_badge_online: "منشور", web_badge_draft: "مسودة", web_offline: "غير منشور",
   social_btn: "تواصل اجتماعي", social_title: "النشر على وسائل التواصل", social_subtitle: "اختر القنوات لنشر الإعلان عليها.", social_publish: "نشر", social_published: "منشور",
+  scenario_btn: "سيناريو", scenario_title: "إنشاء فيديو لوسائل التواصل", scenario_subtitle: "اجمع عدة صور وصوتًا لإنشاء فيديو.",
+  scenario_photos: "الصور", scenario_voice: "الصوت", scenario_voice_avatar: "صوت أفاتار", scenario_voice_record: "تسجيل",
+  scenario_male: "رجل", scenario_female: "امرأة", scenario_voice_m: "صوت رجولي", scenario_voice_f: "صوت أنثوي",
+  scenario_script_ph: "النص الذي سيُقال…", scenario_record_start: "ابدأ التسجيل", scenario_record_stop: "إيقاف",
+  scenario_recording: "جارٍ التسجيل", scenario_recorded: "تم التسجيل", scenario_title_ph: "عنوان الفيديو (اختياري)",
+  scenario_generate: "إنشاء الفيديو", scenario_generating: "جارٍ الإنشاء", scenario_generated: "الفيديوهات المُنشأة",
+  scenario_untitled: "بدون عنوان", scenario_ready: "جاهز", scenario_watch: "مشاهدة",
+  scenario_err_upload: "فشل رفع الملف", scenario_err_mic: "تعذّر الوصول إلى الميكروفون", scenario_err_generate: "فشل إنشاء الفيديو",
   mkt_campaigns: "الحملات", mkt_kpis: "المؤشرات", mkt_name: "الاسم", mkt_channel: "القناة",
   mkt_budget: "الميزانية (د.إ)", mkt_spend: "الإنفاق", mkt_impressions: "مرات الظهور", mkt_clicks: "النقرات",
   mkt_leads: "العملاء المحتملون", mkt_click_rate: "معدل النقر", mkt_starts_on: "تاريخ البدء", mkt_ends_on: "تاريخ الانتهاء",
@@ -582,6 +598,14 @@ const en: Translations = {
   web_publish: "Publish", web_unpublish: "Unpublish", web_view: "View", web_empty: "No listings",
   web_badge_online: "Online", web_badge_draft: "Draft", web_offline: "Offline",
   social_btn: "Social", social_title: "Publish to social media", social_subtitle: "Pick the channels to publish this listing on.", social_publish: "Publish", social_published: "Published",
+  scenario_btn: "Scenario", scenario_title: "Generate a social media video", scenario_subtitle: "Combine several photos and a voice into a video.",
+  scenario_photos: "Photos", scenario_voice: "Voice", scenario_voice_avatar: "Avatar voice", scenario_voice_record: "Record",
+  scenario_male: "Man", scenario_female: "Woman", scenario_voice_m: "male voice", scenario_voice_f: "female voice",
+  scenario_script_ph: "Script to be spoken…", scenario_record_start: "Start recording", scenario_record_stop: "Stop",
+  scenario_recording: "Recording", scenario_recorded: "Recorded", scenario_title_ph: "Video title (optional)",
+  scenario_generate: "Generate video", scenario_generating: "Generating", scenario_generated: "Generated videos",
+  scenario_untitled: "Untitled", scenario_ready: "Ready", scenario_watch: "Watch",
+  scenario_err_upload: "Upload failed", scenario_err_mic: "Microphone access denied", scenario_err_generate: "Video generation failed",
   mkt_campaigns: "Campaigns", mkt_kpis: "KPIs", mkt_name: "Name", mkt_channel: "Channel",
   mkt_budget: "Budget (AED)", mkt_spend: "Spend", mkt_impressions: "Impressions", mkt_clicks: "Clicks",
   mkt_leads: "Leads", mkt_click_rate: "Click rate", mkt_starts_on: "Start date", mkt_ends_on: "End date",
@@ -850,6 +874,14 @@ const fr: Translations = {
   web_publish: "Publier", web_unpublish: "Retirer du site", web_view: "Voir", web_empty: "Aucune annonce",
   web_badge_online: "En ligne", web_badge_draft: "Brouillon", web_offline: "Hors ligne",
   social_btn: "Réseaux", social_title: "Publier sur les réseaux sociaux", social_subtitle: "Choisissez les canaux où publier cette annonce.", social_publish: "Publier", social_published: "Publié",
+  scenario_btn: "Scénario", scenario_title: "Générer une vidéo social media", scenario_subtitle: "Combinez plusieurs photos et une voix pour générer une vidéo.",
+  scenario_photos: "Photos", scenario_voice: "Voix", scenario_voice_avatar: "Voix d'avatar", scenario_voice_record: "Enregistrer",
+  scenario_male: "Homme", scenario_female: "Femme", scenario_voice_m: "voix masculine", scenario_voice_f: "voix féminine",
+  scenario_script_ph: "Texte à dire…", scenario_record_start: "Enregistrer", scenario_record_stop: "Arrêter",
+  scenario_recording: "Enregistrement", scenario_recorded: "Enregistré", scenario_title_ph: "Titre de la vidéo (optionnel)",
+  scenario_generate: "Générer la vidéo", scenario_generating: "Génération", scenario_generated: "Vidéos générées",
+  scenario_untitled: "Sans titre", scenario_ready: "Prête", scenario_watch: "Voir",
+  scenario_err_upload: "Échec de l'upload", scenario_err_mic: "Accès micro refusé", scenario_err_generate: "Échec de la génération",
   mkt_campaigns: "Campagnes", mkt_kpis: "Indicateurs", mkt_name: "Nom", mkt_channel: "Canal",
   mkt_budget: "Budget (AED)", mkt_spend: "Dépense", mkt_impressions: "Impressions", mkt_clicks: "Clics",
   mkt_leads: "Prospects", mkt_click_rate: "Taux de clic", mkt_starts_on: "Date de début", mkt_ends_on: "Date de fin",

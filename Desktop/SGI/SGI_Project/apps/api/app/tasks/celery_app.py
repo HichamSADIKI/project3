@@ -17,6 +17,7 @@ celery_app = Celery(
         "app.tasks.telephony",
         "app.tasks.inbox",
         "app.tasks.ticketing",
+        "app.tasks.scenarios",
         "app.tasks.watcher",
     ],
 )
