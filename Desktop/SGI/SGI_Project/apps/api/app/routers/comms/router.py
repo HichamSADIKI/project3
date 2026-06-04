@@ -181,6 +181,13 @@ async def send_msg(
     company_id = await get_company_id(db)
     user_id = _user_id(request)
     msg = await send_message(db, company_id, conv_id, user_id, body)
+    # Notifie (in-app) les utilisateurs mentionnés — best-effort, ne bloque pas la
+    # réponse. `notify_mentions` lit les MessageMention créés par send_message et crée
+    # une notification par destinataire (dédupliquée). @celery_app.task → .delay OK.
+    if body.mentioned_user_ids:
+        from app.tasks.comms import notify_mentions
+
+        notify_mentions.delay(str(msg.id), str(company_id))
     return MessageOut.model_validate(msg)
 
 

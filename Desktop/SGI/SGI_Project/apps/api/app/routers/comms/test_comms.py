@@ -14,6 +14,7 @@ import uuid
 
 import pytest
 from fastapi import HTTPException
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import hash_password
@@ -272,3 +273,54 @@ async def test_mark_read_participant_vs_outsider(
 
     outsider = await _make_user(db_session, seed_company)
     assert await mark_read(db_session, seed_company.id, conv.id, outsider.id) is False
+
+
+# ── Déclenchement notify_mentions (in-app) à l'envoi d'un message mentionnant ──
+
+
+@pytest.mark.asyncio
+async def test_send_message_with_mention_enqueues_notify(
+    client: AsyncClient, seed_admin, seed_company, db_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Un message texte avec mentions enfile notify_mentions (notif in-app)."""
+    admin, token = seed_admin
+    mentioned = await _make_user(db_session, seed_company)
+    conv = await _conv(db_session, seed_company, admin, [mentioned])
+    await db_session.commit()
+
+    calls: list[tuple] = []
+    import app.tasks.comms as comms_tasks
+
+    monkeypatch.setattr(comms_tasks.notify_mentions, "delay", lambda *a: calls.append(a))
+
+    r = await client.post(
+        f"/api/v1/comms/conversations/{conv.id}/messages",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"kind": "text", "body": "salut", "mentioned_user_ids": [str(mentioned.id)]},
+    )
+    assert r.status_code == 201
+    assert len(calls) == 1
+    assert calls[0][1] == str(admin.company_id)
+
+
+@pytest.mark.asyncio
+async def test_send_message_without_mention_no_notify(
+    client: AsyncClient, seed_admin, seed_company, db_session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sans mention : aucune tâche notify_mentions n'est enfilée."""
+    admin, token = seed_admin
+    conv = await _conv(db_session, seed_company, admin, [])
+    await db_session.commit()
+
+    calls: list[tuple] = []
+    import app.tasks.comms as comms_tasks
+
+    monkeypatch.setattr(comms_tasks.notify_mentions, "delay", lambda *a: calls.append(a))
+
+    r = await client.post(
+        f"/api/v1/comms/conversations/{conv.id}/messages",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"kind": "text", "body": "sans mention"},
+    )
+    assert r.status_code == 201
+    assert calls == []
