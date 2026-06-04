@@ -265,6 +265,11 @@ export type Translations = {
   copilot_intent_visit: string; copilot_intent_payment: string; copilot_intent_info: string;
   copilot_action_schedule_visit: string; copilot_action_send_listing: string; copilot_action_escalate: string;
   copilot_action_request_payment: string; copilot_action_share_info: string; copilot_action_follow_up: string;
+  // Assistant in-app (chatbot robot)
+  assistant_title: string; assistant_subtitle: string; assistant_welcome: string;
+  assistant_placeholder: string; assistant_send: string; assistant_error: string;
+  assistant_open: string; assistant_close: string; assistant_thinking: string;
+  assistant_goto: string; assistant_clear: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
   dt_invoice: string; dt_statement: string; dt_id: string; dt_passport: string; dt_other: string;
@@ -542,6 +547,10 @@ const ar: Translations = {
   copilot_intent_visit: "زيارة", copilot_intent_payment: "دفع", copilot_intent_info: "استفسار",
   copilot_action_schedule_visit: "جدولة زيارة", copilot_action_send_listing: "إرسال عقار", copilot_action_escalate: "تصعيد",
   copilot_action_request_payment: "طلب دفعة", copilot_action_share_info: "مشاركة معلومات", copilot_action_follow_up: "متابعة",
+  assistant_title: "مساعد SGI", assistant_subtitle: "هنا لمساعدتك", assistant_welcome: "مرحباً! أنا مساعد SGI. كيف يمكنني مساعدتك في استخدام التطبيق؟",
+  assistant_placeholder: "اكتب سؤالك…", assistant_send: "إرسال", assistant_error: "تعذّر الحصول على رد، حاول مرة أخرى.",
+  assistant_open: "فتح المساعد", assistant_close: "إغلاق", assistant_thinking: "يكتب…",
+  assistant_goto: "افتح", assistant_clear: "محادثة جديدة",
   // Lot 3 — documents
   dt_contract: "عقد", dt_mandate: "تفويض", dt_ejari: "إيجاري", dt_dld: "دائرة الأراضي", dt_insurance: "تأمين",
   dt_invoice: "فاتورة", dt_statement: "كشف", dt_id: "هوية", dt_passport: "جواز سفر", dt_other: "أخرى",
@@ -819,6 +828,10 @@ const en: Translations = {
   copilot_intent_visit: "Visit", copilot_intent_payment: "Payment", copilot_intent_info: "Info",
   copilot_action_schedule_visit: "Schedule visit", copilot_action_send_listing: "Send listing", copilot_action_escalate: "Escalate",
   copilot_action_request_payment: "Request payment", copilot_action_share_info: "Share info", copilot_action_follow_up: "Follow up",
+  assistant_title: "SGI Assistant", assistant_subtitle: "Here to help", assistant_welcome: "Hi! I'm the SGI assistant. How can I help you use the app?",
+  assistant_placeholder: "Type your question…", assistant_send: "Send", assistant_error: "Couldn't get a reply, please try again.",
+  assistant_open: "Open assistant", assistant_close: "Close", assistant_thinking: "Typing…",
+  assistant_goto: "Open", assistant_clear: "New chat",
   // Lot 3 — documents
   dt_contract: "Contract", dt_mandate: "Mandate", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Insurance",
   dt_invoice: "Invoice", dt_statement: "Statement", dt_id: "ID", dt_passport: "Passport", dt_other: "Other",
@@ -1096,6 +1109,10 @@ const fr: Translations = {
   copilot_intent_visit: "Visite", copilot_intent_payment: "Paiement", copilot_intent_info: "Information",
   copilot_action_schedule_visit: "Planifier une visite", copilot_action_send_listing: "Envoyer un bien", copilot_action_escalate: "Escalader",
   copilot_action_request_payment: "Demander un paiement", copilot_action_share_info: "Partager une info", copilot_action_follow_up: "Relancer",
+  assistant_title: "Assistant SGI", assistant_subtitle: "Là pour vous aider", assistant_welcome: "Bonjour ! Je suis l'assistant SGI. Comment puis-je vous aider à utiliser l'application ?",
+  assistant_placeholder: "Saisissez votre question…", assistant_send: "Envoyer", assistant_error: "Impossible d'obtenir une réponse, réessayez.",
+  assistant_open: "Ouvrir l'assistant", assistant_close: "Fermer", assistant_thinking: "Rédige…",
+  assistant_goto: "Ouvrir", assistant_clear: "Nouvelle discussion",
   // Lot 3 — documents
   dt_contract: "Contrat", dt_mandate: "Mandat", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Assurance",
   dt_invoice: "Facture", dt_statement: "Relevé", dt_id: "Pièce ID", dt_passport: "Passeport", dt_other: "Autre",

@@ -63,6 +63,7 @@ import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
 import { SoftphoneProvider } from "@/components/softphone/softphone-provider";
 import { SoftphoneDock } from "@/components/softphone/softphone-dock";
+import { AssistantDock } from "@/components/assistant/assistant-dock";
 import { PermissionsProvider, useNavGate } from "@/lib/permissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -248,6 +249,8 @@ export default function App() {
           />
           {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
           <SoftphoneDock onOpenClient={handleNavigateToClient} />
+          {/* Assistant in-app (chatbot robot) — à côté du softphone, aide + navigation guidée. */}
+          <AssistantDock screen={screen} onNavigate={setScreen} />
         </div>
       </SoftphoneProvider>
     </PermissionsProvider>

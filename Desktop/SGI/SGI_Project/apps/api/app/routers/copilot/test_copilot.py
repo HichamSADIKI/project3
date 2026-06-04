@@ -147,3 +147,115 @@ async def test_assist_agent_anti_bola(db_session, seed_admin) -> None:
         role="agent",
     )
     assert out is None
+
+
+# ── Assistant in-app (chat) — helpers purs ────────────────────────────────
+
+
+def test_suggest_navigation_keyword_match() -> None:
+    nav = service.suggest_navigation("Comment créer un nouveau prospect dans le CRM ?", "fr")
+    screens = [n["screen"] for n in nav]
+    assert "crm" in screens
+    # Libellé localisé.
+    assert nav[0]["label"] == "CRM / Prospects"
+
+
+def test_suggest_navigation_multilingue_et_borne() -> None:
+    # EN
+    assert any(
+        n["screen"] == "realestate_payments"
+        for n in service.suggest_navigation("show overdue payments", "en")
+    )
+    # AR
+    ar = service.suggest_navigation("أين العقارات المتاحة؟", "ar")
+    assert any(n["screen"] == "realestate" for n in ar)
+    assert ar[0]["label"] == "العقارات"
+    # Borné à 3 même si le message déclenche plus d'écrans.
+    many = service.suggest_navigation(
+        "crm biens paiements contrats tickets maintenance owners tenants", "fr"
+    )
+    assert len(many) <= 3
+
+
+def test_suggest_navigation_no_false_positive_substring() -> None:
+    # « rent » ne doit pas matcher dans « parent » (matching par mot entier).
+    assert service.suggest_navigation("my parent called", "en") == []
+
+
+def test_data_summary_localise() -> None:
+    snap = {"leads_total": 12, "properties_available": 3}
+    fr = service._data_summary("fr", snap)
+    assert "12 prospects au total" in fr and "3 biens disponibles" in fr
+    en = service._data_summary("en", snap)
+    assert "12 total leads" in en
+    ar = service._data_summary("ar", snap)
+    assert "12" in ar and "إجمالي الفرص" in ar
+
+
+def test_heuristic_chat_reply_data_question() -> None:
+    snap = {"leads_total": 5}
+    out = service.heuristic_chat_reply("Combien de prospects ai-je ?", "fr", snap, [])
+    assert "5 prospects au total" in out
+
+
+def test_heuristic_chat_reply_data_question_how_many() -> None:
+    snap = {"properties_total": 7}
+    out = service.heuristic_chat_reply("how many properties do we have", "en", snap, [])
+    assert "7 properties" in out
+
+
+def test_heuristic_chat_reply_generic_with_nav() -> None:
+    nav = [{"screen": "crm", "label": "CRM / Prospects"}]
+    out = service.heuristic_chat_reply("aide moi", "fr", {}, nav)
+    assert "CRM / Prospects" in out and "assistant SGI" in out
+
+
+def test_heuristic_chat_reply_locale_invalide_retombe_fr() -> None:
+    out = service.heuristic_chat_reply("hello", "xx", {}, [])  # type: ignore[arg-type]
+    assert "assistant SGI" in out
+
+
+# ── Assistant in-app (chat) — orchestration avec DB ───────────────────────
+
+
+async def test_gather_tenant_snapshot_counts_keys(db_session, seed_company) -> None:
+    cid = seed_company.id
+    snap = await service.gather_tenant_snapshot(db_session, cid)
+    # Tenant frais : les compteurs existent (la requête s'exécute) et valent 0.
+    for key in ("leads_total", "properties_total", "payments_overdue"):
+        assert snap.get(key) == 0
+
+
+async def test_chat_uses_gemini_when_available(db_session, seed_company, monkeypatch) -> None:
+    """Branche succès : si generate_chat renvoie du texte, on le relaie + engine."""
+
+    async def _fake_chat(messages, **kwargs):  # type: ignore[no-untyped-def]
+        return {"text": "Voici comment créer un prospect…", "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(service, "generate_chat", _fake_chat)
+    out = await service.chat(
+        db_session,
+        seed_company.id,
+        messages=[{"role": "user", "content": "créer un prospect crm"}],
+        locale="fr",
+        screen="crm",
+    )
+    assert out["engine"] == "gemini-2.5-flash"
+    assert out["reply"].startswith("Voici comment")
+    # La navigation reste déterministe (indépendante de Gemini).
+    assert any(n["screen"] == "crm" for n in out["suggested_navigation"])
+
+
+async def test_chat_fallback_when_gemini_unavailable(db_session, seed_company, monkeypatch) -> None:
+    async def _empty_chat(messages, **kwargs):  # type: ignore[no-untyped-def]
+        return {"text": "", "engine": "unavailable"}
+
+    monkeypatch.setattr(service, "generate_chat", _empty_chat)
+    out = await service.chat(
+        db_session,
+        seed_company.id,
+        messages=[{"role": "user", "content": "bonjour"}],
+        locale="fr",
+    )
+    assert out["engine"] == "fallback"
+    assert "assistant SGI" in out["reply"]
