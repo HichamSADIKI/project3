@@ -324,9 +324,21 @@ async def transition_application_endpoint(
             application_id,
             body.status,
             converted_rental_id=body.converted_rental_id,
+            start_date=body.start_date,
+            end_date=body.end_date,
+            deposit=body.deposit,
+            payment_frequency=body.payment_frequency,
         )
     except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+        code = str(exc)
+        # Transition d'état interdite → 409 ; impossibilité de conversion
+        # (annonce/unité sans bien lié, loyer/période invalides) → 422.
+        http_status = (
+            status.HTTP_409_CONFLICT
+            if code.startswith("invalid_transition")
+            else status.HTTP_422_UNPROCESSABLE_ENTITY
+        )
+        raise HTTPException(status_code=http_status, detail=code) from exc
     if application is None:  # pragma: no cover - garde-fou course
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="application_not_found")
     return ApplicationItemOut(data=ApplicationOut.model_validate(application))

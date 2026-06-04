@@ -80,8 +80,16 @@ class ApplicationCreate(BaseModel):
 
 class ApplicationTransitionBody(BaseModel):
     status: Literal["submitted", "screening", "approved", "rejected", "converted"]
-    # Renseigné uniquement lors d'un passage vers `converted` (bail effectif).
+    # Passage vers `converted` (bail effectif). Deux modes :
+    #  - `converted_rental_id` fourni → on rattache un bail existant (∈ tenant) ;
+    #  - sinon → auto-création contrat + bail + échéancier, paramétrée ci-dessous
+    #    (tous optionnels ; défauts : début = aujourd'hui, bail 12 mois, dépôt =
+    #    1 loyer, fréquence mensuelle).
     converted_rental_id: uuid.UUID | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    deposit: Decimal | None = Field(None, ge=0)
+    payment_frequency: Literal["monthly", "quarterly", "semi_annual", "annual"] = "monthly"
 
 
 # ── Enveloppes standard {success, data, meta} ──────────────────────────────
