@@ -48,7 +48,7 @@ export type Translations = {
   scenario_generate: string; scenario_generating: string; scenario_generated: string;
   scenario_untitled: string; scenario_ready: string; scenario_watch: string;
   scenario_err_upload: string; scenario_err_mic: string; scenario_err_generate: string;
-  scenario_share: string; scenario_err_share: string;
+  scenario_share: string; scenario_err_share: string; scenario_failed: string;
   mkt_campaigns: string; mkt_kpis: string; mkt_name: string; mkt_channel: string;
   mkt_budget: string; mkt_spend: string; mkt_impressions: string; mkt_clicks: string;
   mkt_leads: string; mkt_click_rate: string; mkt_starts_on: string; mkt_ends_on: string;
@@ -331,7 +331,7 @@ const ar: Translations = {
   scenario_generate: "إنشاء الفيديو", scenario_generating: "جارٍ الإنشاء", scenario_generated: "الفيديوهات المُنشأة",
   scenario_untitled: "بدون عنوان", scenario_ready: "جاهز", scenario_watch: "مشاهدة",
   scenario_err_upload: "فشل رفع الملف", scenario_err_mic: "تعذّر الوصول إلى الميكروفون", scenario_err_generate: "فشل إنشاء الفيديو",
-  scenario_share: "نشر الفيديو", scenario_err_share: "فشل النشر",
+  scenario_share: "نشر الفيديو", scenario_err_share: "فشل النشر", scenario_failed: "فشل",
   mkt_campaigns: "الحملات", mkt_kpis: "المؤشرات", mkt_name: "الاسم", mkt_channel: "القناة",
   mkt_budget: "الميزانية (د.إ)", mkt_spend: "الإنفاق", mkt_impressions: "مرات الظهور", mkt_clicks: "النقرات",
   mkt_leads: "العملاء المحتملون", mkt_click_rate: "معدل النقر", mkt_starts_on: "تاريخ البدء", mkt_ends_on: "تاريخ الانتهاء",
@@ -608,7 +608,7 @@ const en: Translations = {
   scenario_generate: "Generate video", scenario_generating: "Generating", scenario_generated: "Generated videos",
   scenario_untitled: "Untitled", scenario_ready: "Ready", scenario_watch: "Watch",
   scenario_err_upload: "Upload failed", scenario_err_mic: "Microphone access denied", scenario_err_generate: "Video generation failed",
-  scenario_share: "Publish video", scenario_err_share: "Publish failed",
+  scenario_share: "Publish video", scenario_err_share: "Publish failed", scenario_failed: "Failed",
   mkt_campaigns: "Campaigns", mkt_kpis: "KPIs", mkt_name: "Name", mkt_channel: "Channel",
   mkt_budget: "Budget (AED)", mkt_spend: "Spend", mkt_impressions: "Impressions", mkt_clicks: "Clicks",
   mkt_leads: "Leads", mkt_click_rate: "Click rate", mkt_starts_on: "Start date", mkt_ends_on: "End date",
@@ -885,7 +885,7 @@ const fr: Translations = {
   scenario_generate: "Générer la vidéo", scenario_generating: "Génération", scenario_generated: "Vidéos générées",
   scenario_untitled: "Sans titre", scenario_ready: "Prête", scenario_watch: "Voir",
   scenario_err_upload: "Échec de l'upload", scenario_err_mic: "Accès micro refusé", scenario_err_generate: "Échec de la génération",
-  scenario_share: "Publier la vidéo", scenario_err_share: "Échec de la publication",
+  scenario_share: "Publier la vidéo", scenario_err_share: "Échec de la publication", scenario_failed: "Échec",
   mkt_campaigns: "Campagnes", mkt_kpis: "Indicateurs", mkt_name: "Nom", mkt_channel: "Canal",
   mkt_budget: "Budget (AED)", mkt_spend: "Dépense", mkt_impressions: "Impressions", mkt_clicks: "Clics",
   mkt_leads: "Prospects", mkt_click_rate: "Taux de clic", mkt_starts_on: "Date de début", mkt_ends_on: "Date de fin",

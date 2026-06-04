@@ -151,10 +151,13 @@ async def create_endpoint(
         script=body.script,
         audio_ref=body.audio_ref,
     )
-    # MVP : génération stub instantanée (un vrai fournisseur asynchrone passerait
-    # par app.tasks.scenarios.generate.delay(...) et laisserait le statut 'generating').
-    done = await service.run_stub_generation(db, company_id, scenario.id)
-    return ScenarioDetailOut(data=ScenarioOut.model_validate(done or scenario))
+    # Génération vidéo FFmpeg en tâche de fond (statut 'generating' → 'ready' /
+    # 'failed'). Le front poll le statut. Import paresseux : évite de charger
+    # Celery au démarrage de l'API.
+    from app.tasks.scenarios import generate as generate_task
+
+    generate_task.delay(str(company_id), str(scenario.id))
+    return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
 
 
 @router.get(
@@ -183,9 +186,15 @@ async def generate_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> ScenarioDetailOut:
     company_id = await get_company_id(db)
-    scenario = await service.run_stub_generation(db, company_id, scenario_id)
+    scenario = await service.get_scenario(db, company_id, scenario_id)
     if scenario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="scenario_not_found")
+    # Relance la génération (ex. après un échec) en tâche de fond.
+    await service.mark_generating(db, company_id, scenario_id)
+    from app.tasks.scenarios import generate as generate_task
+
+    generate_task.delay(str(company_id), str(scenario_id))
+    scenario = await service.get_scenario(db, company_id, scenario_id)
     return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
 
 
