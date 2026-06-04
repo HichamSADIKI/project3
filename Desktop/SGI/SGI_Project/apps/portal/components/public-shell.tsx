@@ -3,6 +3,7 @@ import Link from "next/link";
 import { makeT, isValidLocale, type Locale } from "@/lib/i18n";
 import { BookingProvider, type BookingLabels } from "./zoi/booking-modal";
 import { PublicHeader, type HeaderLabels } from "./zoi/public-header";
+import { RevealObserver } from "./zoi/reveal";
 import { Ic, Svg } from "./zoi/icons";
 
 const PHONE = "+971 2 203 1000";
@@ -77,6 +78,7 @@ export function PublicShell({
     <div className="zoi-site" dir={lc === "ar" ? "rtl" : "ltr"}>
       <BookingProvider locale={lc} labels={bookingLabels}>
         <PublicHeader locale={lc} labels={headerLabels} />
+        <RevealObserver />
 
         <main style={{ flex: 1 }}>{children}</main>
 

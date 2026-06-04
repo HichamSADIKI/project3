@@ -95,6 +95,8 @@
     "contact": "اتصل بنا"
   },
   "portfolio": {
+    "title": "محفظتنا",
+    "subtitle": "صفّ حسب نوع العقار والمعاملة.",
     "all": "الكل",
     "villa": "فلل",
     "apartment": "شقق",

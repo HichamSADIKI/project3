@@ -260,6 +260,7 @@ function Modal({
                   <input
                     className="z-finput"
                     value={name}
+                    maxLength={120}
                     placeholder={labels.namePlaceholder}
                     onChange={(e) => setName(e.target.value)}
                   />
@@ -269,6 +270,7 @@ function Modal({
                   <input
                     className="z-finput"
                     value={phone}
+                    maxLength={40}
                     placeholder="+971 5x xxx xxxx"
                     inputMode="tel"
                     onChange={(e) => setPhone(e.target.value)}

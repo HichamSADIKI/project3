@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { isValidLocale, makeT, type Locale } from "@/lib/i18n";
 import { PublicShell } from "@/components/public-shell";
+import { Ic, Svg } from "@/components/zoi/icons";
 import { apiServerPublic } from "@/lib/api-server";
 import { type PublicAgentProfile, type PublicEnvelope } from "@/lib/realestate";
 
@@ -34,27 +35,52 @@ export default async function AgentsPage({
 
   return (
     <PublicShell locale={lc}>
-      <section className="sgi-container" style={{ paddingBlock: "var(--page-py)", display: "flex", flexDirection: "column", gap: "var(--section-gap)" }}>
-        <div>
-          <h1 style={{ margin: "0 0 0.25rem", fontSize: "var(--h1-size)", color: "var(--ink)" }}>{t("agents.title")}</h1>
-          <p style={{ margin: 0, color: "var(--ink-3)", fontSize: "0.9rem" }}>{t("agents.subtitle")}</p>
+      <section
+        className="z-container"
+        style={{
+          paddingBlock: "56px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 36,
+        }}
+      >
+        <div className="z-sec-head" style={{ marginBottom: 0 }}>
+          <span className="z-eyebrow">{t("agents.title")}</span>
+          <h1
+            className="z-sec-title"
+            style={{ marginTop: 12, fontSize: "clamp(30px,4vw,52px)" }}
+          >
+            {t("agents.title")}
+          </h1>
+          <p className="z-sec-sub">{t("agents.subtitle")}</p>
         </div>
 
         {agents.length === 0 ? (
-          <p style={{ color: "var(--ink-4)" }}>{t("agents.empty")}</p>
+          <p style={{ color: "var(--z-muted)" }}>{t("agents.empty")}</p>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: "1.25rem" }}>
+          <div className="z-agents-grid">
             {agents.map((a) => (
-              <Link key={a.slug} href={`/${lc}/agent/${a.slug}`} className="sgi-card" style={{ textDecoration: "none", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: "0.6rem" }}>
-                <div style={{ width: 96, height: 96, borderRadius: "var(--r-full)", overflow: "hidden", background: "var(--bg-cream)", border: "2px solid var(--gold-soft)" }}>
+              <Link
+                key={a.slug}
+                href={`/${lc}/agent/${a.slug}`}
+                className="z-acard"
+              >
+                <div className="z-avatar">
                   {a.photo_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={a.photo_url} alt={a.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                  ) : null}
+                    <img src={a.photo_url} alt={a.name} />
+                  ) : (
+                    <Svg d={Ic.user} w={40} />
+                  )}
                 </div>
-                <div style={{ fontWeight: 700, color: "var(--ink)" }}>{a.name}</div>
-                {a.title ? <div style={{ fontSize: "0.8rem", color: "var(--gold-deep)" }}>{a.title}</div> : null}
-                <span className="sgi-button sgi-button-secondary" style={{ fontSize: "0.78rem", padding: "0.35rem 0.9rem" }}>{t("agents.viewProfile")}</span>
+                <div className="z-aname">{a.name}</div>
+                {a.title ? <div className="z-atitle">{a.title}</div> : null}
+                <span
+                  className="z-btn z-btn-ghost"
+                  style={{ fontSize: 13, padding: "9px 18px", marginTop: 4 }}
+                >
+                  {t("agents.viewProfile")}
+                </span>
               </Link>
             ))}
           </div>
