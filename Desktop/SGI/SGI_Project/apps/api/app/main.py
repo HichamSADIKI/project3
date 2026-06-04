@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.core.config import settings
 from app.core.database import create_db_pool
@@ -248,3 +249,12 @@ app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
 @app.get("/health", tags=["System"])
 async def health():
     return {"status": "ok", "version": "0.1.0"}
+
+
+# ── Observabilité — métriques Prometheus (`GET /metrics`) ──────────────────
+# Expose compteurs/latences/in-progress par (méthode · handler · status). Labels
+# par TEMPLATE de route (pas de path param ni de company_id → ni explosion de
+# cardinalité ni fuite Loi 1). Endpoint non authentifié (Prometheus scrape sans
+# JWT ; restreindre l'accès au niveau réseau/nginx). Le déploiement du serveur
+# Prometheus + Grafana (infra/) reste un chantier séparé.
+Instrumentator().instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
