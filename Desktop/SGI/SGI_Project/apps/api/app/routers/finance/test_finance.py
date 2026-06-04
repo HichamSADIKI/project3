@@ -261,3 +261,45 @@ async def test_vat_report_on_paid_transactions(db_session, seed_company: Company
     assert vat.input_vat == Decimal("400.00")
     assert vat.net_vat == Decimal("600.00")
     assert vat.rate == Decimal("0.05")
+
+
+# ── Export CSV ────────────────────────────────────────────────────────────
+
+
+async def test_transactions_csv_header_and_row(db_session, seed_company: Company) -> None:
+    from app.routers.finance.service import transactions_csv
+
+    await create_transaction(
+        db_session,
+        seed_company.id,
+        _txn(
+            type="commission",
+            direction="credit",
+            amount=Decimal("1500"),
+            description_fr="Honoraires",
+        ),
+    )
+    csv_text = await transactions_csv(db_session, seed_company.id)
+    lines = csv_text.strip().splitlines()
+    assert (
+        lines[0]
+        == "reference,date,type,direction,amount,currency,status,due_date,paid_at,description"
+    )
+    assert "commission,credit,1500.00,AED,pending" in lines[1]
+    assert lines[1].endswith("Honoraires")
+
+
+async def test_transactions_csv_isolated_and_filtered(db_session, seed_company: Company) -> None:
+    from app.routers.finance.service import transactions_csv
+
+    other = await _other_company(db_session)
+    await create_transaction(db_session, seed_company.id, _txn(type="expense", direction="debit"))
+    await create_transaction(db_session, seed_company.id, _txn(type="invoice", direction="credit"))
+    await create_transaction(db_session, other.id, _txn())  # autre tenant → exclu
+
+    # Filtre type=expense → 1 ligne data.
+    csv_text = await transactions_csv(db_session, seed_company.id, type_="expense")
+    assert len(csv_text.strip().splitlines()) == 2  # header + 1
+    # Sans filtre : 2 lignes data (isolation tenant).
+    full = await transactions_csv(db_session, seed_company.id)
+    assert len(full.strip().splitlines()) == 3

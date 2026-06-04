@@ -61,6 +61,7 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "Courant", b30: "1-30 j", b60: "31-60 j", b90: "61-90 j", b90p: "90+ j", total: "Total",
     pMonth: "Ce mois", pQuarter: "Trimestre", pYtd: "Année",
     vat: "TVA (5 %)", vatOut: "TVA collectée", vatIn: "TVA déductible", vatNet: "TVA nette à payer",
+    exportCsv: "Exporter CSV",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -74,6 +75,7 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "Current", b30: "1-30 d", b60: "31-60 d", b90: "61-90 d", b90p: "90+ d", total: "Total",
     pMonth: "This month", pQuarter: "Quarter", pYtd: "Year",
     vat: "VAT (5%)", vatOut: "Output VAT", vatIn: "Input VAT", vatNet: "Net VAT payable",
+    exportCsv: "Export CSV",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -87,6 +89,7 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "جارٍ", b30: "1-30 يوم", b60: "31-60 يوم", b90: "61-90 يوم", b90p: "+90 يوم", total: "الإجمالي",
     pMonth: "هذا الشهر", pQuarter: "ربع سنة", pYtd: "السنة",
     vat: "ضريبة القيمة المضافة (5%)", vatOut: "ضريبة المخرجات", vatIn: "ضريبة المدخلات", vatNet: "صافي الضريبة المستحقة",
+    exportCsv: "تصدير CSV",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -228,6 +231,21 @@ export function ScreenFinance(): React.ReactNode {
                 <option value="">{L("allStatus")}</option>
                 {STATUSES.map((s) => (<option key={s} value={s}>{STATUS_LABEL[lg][s]}</option>))}
               </select>
+              <a
+                href={`/api/admin/finance/transactions/export${
+                  typeF || statusF
+                    ? `?${new URLSearchParams({ ...(typeF ? { type: typeF } : {}), ...(statusF ? { status: statusF } : {}) }).toString()}`
+                    : ""
+                }`}
+                style={{
+                  marginInlineStart: "auto", display: "inline-flex", alignItems: "center",
+                  padding: "9px 14px", borderRadius: 8, border: "1px solid var(--line)",
+                  background: "var(--bg-paper)", color: "var(--ink)", fontSize: 12.5, fontWeight: 600,
+                  textDecoration: "none", cursor: "pointer",
+                }}
+              >
+                ⬇ {L("exportCsv")}
+              </a>
             </div>
 
         {/* Ledger */}
