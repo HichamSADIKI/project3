@@ -31,6 +31,36 @@ def test_generate_reference() -> None:
     assert service.generate_reference(2026, 5) < service.generate_reference(2026, 50)
 
 
+class TestBuildSlug:
+    _UID = uuid.UUID("0123456789abcdef0123456789abcdef")  # hex[:6] = "012345"
+
+    def test_basic_kebab_and_suffix(self) -> None:
+        slug = service.build_slug("Luxury Villa Dubai", fallback="SALE-2026-000001", uniq=self._UID)
+        assert slug == "luxury-villa-dubai-012345"
+
+    def test_suffix_is_uuid_hex(self) -> None:
+        # le suffixe garantit l'unicité par société sans round-trip DB
+        slug = service.build_slug("X", fallback="ref", uniq=self._UID)
+        assert slug.endswith(f"-{self._UID.hex[:6]}")
+
+    def test_picks_first_non_empty_title(self) -> None:
+        slug = service.build_slug(None, "", "Second Title", fallback="ref", uniq=self._UID)
+        assert slug == "second-title-012345"
+
+    def test_falls_back_when_all_titles_empty(self) -> None:
+        slug = service.build_slug(None, None, fallback="SALE-2026-000007", uniq=self._UID)
+        assert slug == "sale-2026-000007-012345"
+
+    def test_strips_non_ascii_and_collapses_separators(self) -> None:
+        # accents/arabe retirés, séparateurs multiples réduits, bords nettoyés
+        slug = service.build_slug("  Été — Villa / Mer  ", fallback="ref", uniq=self._UID)
+        assert slug == "t-villa-mer-012345"
+
+    def test_punctuation_only_base_yields_annonce(self) -> None:
+        slug = service.build_slug("!!!", fallback="@@@", uniq=self._UID)
+        assert slug == "annonce-012345"
+
+
 class TestComputeCommission:
     def test_normal_rate(self) -> None:
         # 1 000 000 × 2 % = 20 000
