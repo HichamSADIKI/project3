@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import AsyncIterator
 from typing import Any, Literal
 
 import httpx
@@ -878,3 +879,77 @@ async def generate_chat(
         return {"text": "", "engine": "unavailable"}
 
     return {"text": (raw or "").strip()[:max_chars], "engine": GEMINI_MODEL}
+
+
+# ── Chat en streaming (SSE) — assistant in-app, effet « en train d'écrire » ──
+
+GEMINI_STREAM_URL = (
+    f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}"
+    ":streamGenerateContent?alt=sse"
+)
+
+
+async def generate_chat_stream(
+    messages: list[dict[str, str]],
+    *,
+    system_instruction: str | None = None,
+    locale: Locale = "fr",
+    temperature: float = 0.3,
+) -> AsyncIterator[str]:
+    """Complétion conversationnelle **en streaming** (deltas de texte) via Gemini.
+
+    Best-effort : sans clé ou sur erreur, le générateur **ne yield rien** (et ne
+    lève jamais) → l'appelant détecte l'absence de chunk et fournit son repli.
+    """
+    turns = [
+        {
+            "role": "model" if m.get("role") == "assistant" else "user",
+            "text": (m.get("content") or "").strip(),
+        }
+        for m in messages
+        if (m.get("content") or "").strip()
+    ]
+    if not turns or turns[-1]["role"] != "user":
+        return
+
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        logger.info("GEMINI_API_KEY absent — generate_chat_stream indisponible")
+        return
+
+    contents = [{"role": t["role"], "parts": [{"text": t["text"]}]} for t in turns]
+    sys = f"Locale={locale}. Always answer in this language."
+    if system_instruction:
+        sys = f"{system_instruction}\n\n{sys}"
+    payload: dict[str, Any] = {
+        "contents": contents,
+        "generationConfig": {"temperature": temperature},
+        "systemInstruction": {"parts": [{"text": sys}]},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            async with client.stream(
+                "POST",
+                GEMINI_STREAM_URL,
+                json=payload,
+                headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
+            ) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    line = line.strip()
+                    if not line.startswith("data:"):
+                        continue
+                    chunk = line[len("data:") :].strip()
+                    if not chunk or chunk == "[DONE]":
+                        continue
+                    try:
+                        obj = json.loads(chunk)
+                        text = obj["candidates"][0]["content"]["parts"][0]["text"]
+                    except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+                        continue
+                    if text:
+                        yield text
+    except Exception as exc:  # noqa: BLE001 — fail-safe : l'appelant repliera
+        logger.warning("generate_chat_stream Gemini error: %s", exc)
+        return

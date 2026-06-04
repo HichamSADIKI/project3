@@ -10,15 +10,23 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import uuid
+from collections.abc import AsyncIterator
 from typing import Any, Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.gemini import Locale, generate_chat, generate_text
+from app.core.gemini import (
+    GEMINI_MODEL,
+    Locale,
+    generate_chat,
+    generate_chat_stream,
+    generate_text,
+)
 from app.models.crm import CRMLead
 from app.models.payment import PaymentRequest
 from app.models.property import Property
@@ -1039,3 +1047,73 @@ async def chat(
         "suggested_navigation": nav,
         "prefill": prefill,
     }
+
+
+def _build_chat_system(snapshot: dict[str, int], screen: str | None) -> str:
+    """Instruction système commune (guide app + snapshot KPI + écran courant)."""
+    system = _APP_GUIDE
+    if snapshot:
+        system += "\n\nLive data (current tenant): " + ", ".join(
+            f"{k}={v}" for k, v in snapshot.items()
+        )
+    if screen:
+        system += f"\n\nThe user is currently on the '{screen}' screen of the app."
+    return system
+
+
+def _sse(obj: dict[str, Any]) -> str:
+    """Encode un événement SSE (`data: {json}\\n\\n`)."""
+    return f"data: {json.dumps(obj, ensure_ascii=False)}\n\n"
+
+
+async def chat_stream(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    *,
+    messages: list[dict[str, str]],
+    locale: Locale = "fr",
+    screen: str | None = None,
+) -> AsyncIterator[str]:
+    """Variante **streaming** de `chat` (Server-Sent Events).
+
+    Émet des événements `{"delta": "..."}` au fil de la génération Gemini, puis
+    un `{"done": true, "engine", "suggested_navigation", "prefill"}` final. Tout
+    l'accès DB (snapshot) est fait AVANT le streaming (la session peut se fermer
+    pendant l'envoi des deltas). Repli : si Gemini ne produit rien, un unique
+    delta heuristique est émis (engine "fallback").
+    """
+    loc = _loc(locale)
+    last_user = next(
+        (
+            (m.get("content") or "").strip()
+            for m in reversed(messages)
+            if m.get("role") == "user" and (m.get("content") or "").strip()
+        ),
+        "",
+    )
+    snapshot = await gather_tenant_snapshot(db, company_id)
+    nav = suggest_navigation(last_user, loc)
+    prefill = extract_lead_prefill(last_user)
+    system = _build_chat_system(snapshot, screen)
+
+    got_any = False
+    async for delta in generate_chat_stream(
+        messages, system_instruction=system, locale=loc, temperature=0.4
+    ):
+        got_any = True
+        yield _sse({"delta": delta})
+
+    if not got_any:
+        yield _sse({"delta": heuristic_chat_reply(last_user, loc, snapshot, nav)})
+        engine = "fallback"
+    else:
+        engine = GEMINI_MODEL
+
+    yield _sse(
+        {
+            "done": True,
+            "engine": engine,
+            "suggested_navigation": nav,
+            "prefill": prefill,
+        }
+    )
