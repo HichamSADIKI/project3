@@ -239,6 +239,7 @@ export type Translations = {
   inbox_live: string; inbox_offline: string; inbox_send: string; inbox_write_reply: string;
   inbox_agent_panel: string; inbox_assign: string; inbox_assign_me: string; inbox_status_label: string;
   inbox_tags_label: string; inbox_add_tag: string; inbox_notes_label: string; inbox_add_note: string;
+  inbox_ai_label: string; inbox_ai_summarize: string; inbox_ai_suggest_tags: string; inbox_ai_summary_label: string; inbox_ai_suggested_label: string; inbox_ai_running: string;
   inbox_write_note: string; inbox_empty_notes: string; inbox_empty_tags: string; inbox_reference: string;
   inbox_all_channels: string; inbox_all_statuses: string; inbox_filter: string;
   // Ticketing SLA (service desk)
@@ -526,6 +527,7 @@ const ar: Translations = {
   inbox_live: "مباشر", inbox_offline: "غير متصل", inbox_send: "إرسال", inbox_write_reply: "اكتب ردًّا…",
   inbox_agent_panel: "لوحة الوكيل", inbox_assign: "إسناد", inbox_assign_me: "إسناد إليّ", inbox_status_label: "الحالة",
   inbox_tags_label: "الوسوم", inbox_add_tag: "إضافة وسم", inbox_notes_label: "ملاحظات داخلية", inbox_add_note: "إضافة ملاحظة",
+  inbox_ai_label: "المساعد الذكي", inbox_ai_summarize: "تلخيص", inbox_ai_suggest_tags: "اقتراح وسوم", inbox_ai_summary_label: "ملخّص", inbox_ai_suggested_label: "وسوم مقترحة", inbox_ai_running: "جارٍ التوليد…",
   inbox_write_note: "اكتب ملاحظة داخلية…", inbox_empty_notes: "لا ملاحظات.", inbox_empty_tags: "لا وسوم.", inbox_reference: "المرجع",
   inbox_all_channels: "كل القنوات", inbox_all_statuses: "كل الحالات", inbox_filter: "تصفية",
   nav_tickets: "التذاكر",
@@ -812,6 +814,7 @@ const en: Translations = {
   inbox_live: "Live", inbox_offline: "Offline", inbox_send: "Send", inbox_write_reply: "Write a reply…",
   inbox_agent_panel: "Agent panel", inbox_assign: "Assign", inbox_assign_me: "Assign to me", inbox_status_label: "Status",
   inbox_tags_label: "Tags", inbox_add_tag: "Add tag", inbox_notes_label: "Internal notes", inbox_add_note: "Add note",
+  inbox_ai_label: "AI Assistant", inbox_ai_summarize: "Summarize", inbox_ai_suggest_tags: "Suggest tags", inbox_ai_summary_label: "Summary", inbox_ai_suggested_label: "Suggested tags", inbox_ai_running: "Generation started…",
   inbox_write_note: "Write an internal note…", inbox_empty_notes: "No notes.", inbox_empty_tags: "No tags.", inbox_reference: "Reference",
   inbox_all_channels: "All channels", inbox_all_statuses: "All statuses", inbox_filter: "Filter",
   nav_tickets: "Tickets",
@@ -1098,6 +1101,7 @@ const fr: Translations = {
   inbox_live: "Temps réel", inbox_offline: "Hors-ligne", inbox_send: "Envoyer", inbox_write_reply: "Écrire une réponse…",
   inbox_agent_panel: "Panneau agent", inbox_assign: "Assigner", inbox_assign_me: "M'assigner", inbox_status_label: "Statut",
   inbox_tags_label: "Étiquettes", inbox_add_tag: "Ajouter une étiquette", inbox_notes_label: "Notes internes", inbox_add_note: "Ajouter une note",
+  inbox_ai_label: "Assistant IA", inbox_ai_summarize: "Résumer", inbox_ai_suggest_tags: "Suggérer des tags", inbox_ai_summary_label: "Résumé", inbox_ai_suggested_label: "Tags suggérés", inbox_ai_running: "Génération lancée…",
   inbox_write_note: "Écrire une note interne…", inbox_empty_notes: "Aucune note.", inbox_empty_tags: "Aucune étiquette.", inbox_reference: "Référence",
   inbox_all_channels: "Tous les canaux", inbox_all_statuses: "Tous les statuts", inbox_filter: "Filtrer",
   nav_tickets: "Tickets",

@@ -221,6 +221,12 @@ async def get_conversation_endpoint(
     detail.messages = [MessageOut.model_validate(m) for m in messages]
     detail.notes = [NoteOut.model_validate(n) for n in notes]
     detail.tags = [TagOut.model_validate(t) for t in tags]
+    # Surface le résultat des tâches IA (résumé / tags) stocké dans channel_metadata.
+    meta = conv.channel_metadata or {}
+    summary_meta = meta.get("ai_summary") or {}
+    tags_meta = meta.get("ai_suggested_tags") or {}
+    detail.ai_summary = summary_meta.get("text") if isinstance(summary_meta, dict) else None
+    detail.ai_suggested_tags = tags_meta.get("tags", []) if isinstance(tags_meta, dict) else []
     return ConversationDetailOut(data=detail)
 
 
