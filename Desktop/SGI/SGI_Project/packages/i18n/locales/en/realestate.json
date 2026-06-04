@@ -1,17 +1,31 @@
 {
   "nav": {
     "properties": "Properties",
-    "home": "Home"
+    "home": "Home",
+    "contact": "Contact"
   },
   "home": {
     "heroTitle": "Find your next address in the UAE",
-    "heroSubtitle": "Curated apartments, villas and offices for sale and rent across Dubai and Abu Dhabi.",
+    "heroSubtitle": "A curated portfolio of villas, residences, offices and land — for sale and rent across the Emirates' most coveted locations.",
     "searchCta": "Search properties",
-    "featuredTitle": "Featured properties",
+    "featuredEyebrow": "Featured selection",
+    "featuredTitle": "Signature residences",
     "featuredSubtitle": "Hand-picked listings from our portfolio.",
     "urgentTitle": "Urgent opportunities",
     "urgentSubtitle": "Limited-time listings — act fast.",
-    "viewAll": "View all properties →",
+    "viewAll": "View all properties",
+    "clientCard": {
+      "kicker": "Buyers & tenants",
+      "title": "Client space",
+      "description": "Track your enquiries, favourites and visits in one place.",
+      "cta": "Create your account"
+    },
+    "fournisseurCard": {
+      "kicker": "Partners",
+      "title": "Partner space",
+      "description": "Submit your services, missions and commissions to our team.",
+      "cta": "Become a partner"
+    },
     "stats": {
       "forSale": "For sale",
       "forRent": "For rent",
@@ -19,21 +33,94 @@
       "listings": "Active listings"
     }
   },
+  "hero": {
+    "eyebrow": "United Arab Emirates · Luxury real estate",
+    "line1": "Find the address",
+    "line2": "that defines you",
+    "explore": "Explore properties",
+    "watch": "Discover more"
+  },
+  "why": {
+    "eyebrow": "Why choose us",
+    "title": "A standard of excellence",
+    "items": [
+      {
+        "title": "Trusted & licensed",
+        "text": "A regulated agency with full transparency on every transaction."
+      },
+      {
+        "title": "Award-winning portfolio",
+        "text": "Hand-selected residences across the Emirates' finest addresses."
+      },
+      {
+        "title": "Concierge service",
+        "text": "A dedicated advisor guides you from first visit to handover."
+      }
+    ]
+  },
+  "ctaBand": {
+    "title": "Ready to find your next home?",
+    "subtitle": "Book a private viewing and let our advisors curate a shortlist tailored to you."
+  },
+  "book": {
+    "cta": "Book a Visit",
+    "short": "Book visit",
+    "title": "Book a Visit",
+    "subtitle": "Choose a date and a time slot — our advisor will confirm with you.",
+    "name": "Full name",
+    "namePlaceholder": "Your name",
+    "phone": "Phone",
+    "date": "Choose a date",
+    "slot": "Choose a time",
+    "confirm": "Confirm booking",
+    "sending": "Sending…",
+    "booked": "Visit requested",
+    "bookedSub": "Thank you! Our advisor will contact you shortly to confirm.",
+    "property": "Property",
+    "when": "When",
+    "close": "Close",
+    "errorValidation": "Please provide your name and phone number.",
+    "errorNetwork": "We could not send your request. Please try again."
+  },
+  "theme": {
+    "light": "Light mode",
+    "dark": "Dark mode"
+  },
+  "footer": {
+    "tagline": "Curated luxury real estate across Dubai and Abu Dhabi — for sale and rent.",
+    "newsletter": "Email address",
+    "subscribe": "Subscribe",
+    "explore": "Explore",
+    "company": "Company",
+    "contact": "Contact"
+  },
+  "portfolio": {
+    "all": "All",
+    "villa": "Villas",
+    "apartment": "Apartments",
+    "townhouse": "Townhouses",
+    "penthouse": "Penthouses",
+    "office": "Offices",
+    "studio": "Studios",
+    "land": "Land"
+  },
   "search": {
     "title": "Search",
+    "find": "Find Your Property",
     "keyword": "City or area",
-    "keywordPlaceholder": "e.g. Dubai Marina",
+    "keywordPlaceholder": "Select Location",
     "deal": "Type",
-    "dealAny": "Sale & rent",
-    "dealSale": "For sale",
-    "dealRent": "For rent",
-    "unitType": "Property type",
+    "dealAny": "Any",
+    "dealSale": "Buy",
+    "dealRent": "Rent",
+    "unitType": "Property Type",
     "unitTypeAny": "Any type",
     "bedrooms": "Bedrooms",
     "bedroomsAny": "Any",
+    "priceRange": "Price Range",
     "priceMin": "Min price (AED)",
     "priceMax": "Max price (AED)",
-    "submit": "Search",
+    "submit": "Search Property",
     "reset": "Reset",
     "sort": "Sort by",
     "sortNewest": "Newest",
@@ -55,7 +142,7 @@
     "beds": "{{count}} bd",
     "baths": "{{count}} ba",
     "area": "{{area}} sqft",
-    "viewDetails": "View details",
+    "viewDetails": "Details",
     "priceOnRequest": "Price on request"
   },
   "detail": {

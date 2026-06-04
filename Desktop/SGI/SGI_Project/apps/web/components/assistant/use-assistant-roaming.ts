@@ -86,6 +86,7 @@ export function useAssistantRoaming(opts: {
   tipBelow: boolean;
   onAvatarPointerDown: (e: React.PointerEvent) => void;
   consumeDragClick: () => boolean;
+  resetHome: () => void;
 } {
   const { open, pinned, t, screen } = opts;
 
@@ -146,6 +147,16 @@ export function useAssistantRoaming(opts: {
     const moved = dragMoved.current;
     dragMoved.current = false;
     return moved;
+  }, []);
+
+  // Réinitialise la position « maison » au coin par défaut (annule un drag).
+  const resetHome = useCallback(() => {
+    homeOverride.current = null;
+    try {
+      localStorage.removeItem(HOME_KEY);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const dismissTip = useCallback(() => {
@@ -278,11 +289,16 @@ export function useAssistantRoaming(opts: {
       const el = detail.anchorSelector
         ? document.querySelector<HTMLElement>(detail.anchorSelector)
         : null;
-      const tone = detail.type === "rescue" ? "rescue" : "info";
-      if (el) rescue.current = { el, until: performance.now() + RESCUE_HOLD };
-      const fallback =
-        detail.type === "tour" ? t.assistant_tip_tour : t.assistant_tip_idle;
-      showTip(detail.message ?? fallback, tone, detail.prompt);
+      const isRescue = detail.type === "rescue";
+      // Pour un secours, on entre en mode ambulance même sans ancre (l'avatar
+      // se transforme sur place) ; avec ancre, il fonce dessus.
+      if (isRescue) rescue.current = { el, until: performance.now() + RESCUE_HOLD };
+      const fallback = isRescue
+        ? t.assistant_tip_error
+        : detail.type === "tour"
+          ? t.assistant_tip_tour
+          : t.assistant_tip_idle;
+      showTip(detail.message ?? fallback, isRescue ? "rescue" : "info", detail.prompt);
     };
 
     window.addEventListener("mousemove", onMove, { passive: true });
@@ -429,9 +445,15 @@ export function useAssistantRoaming(opts: {
         m = "parked";
         target = home();
         ease = 0.14;
-      } else if (rescue.current && now < rescue.current.until && rescue.current.el?.isConnected) {
+      } else if (
+        rescue.current &&
+        now < rescue.current.until &&
+        (rescue.current.el === null || rescue.current.el.isConnected)
+      ) {
         m = "rescue";
-        target = anchorOf(rescue.current.el);
+        // Ancre connue → on fonce dessus ; sinon (erreur API sans cible DOM) →
+        // l'ambulance se matérialise sur place.
+        target = rescue.current.el ? anchorOf(rescue.current.el) : { ...pos.current };
         ease = 0.17;
       } else if (focused.current && focused.current.isConnected && isField(focused.current)) {
         m = "field";
@@ -476,5 +498,6 @@ export function useAssistantRoaming(opts: {
     tipBelow,
     onAvatarPointerDown,
     consumeDragClick,
+    resetHome,
   };
 }

@@ -87,6 +87,8 @@ type ScreenProps = {
   onNavigate?: (screen: string) => void;
   initialSearch?: string;
   confirmedDeals?: ConfirmedDeal[];
+  initialLead?: Record<string, string | number>;
+  onPrefillConsumed?: () => void;
 };
 
 // ─── Screen Registry ──────────────────────────────────────────────────────────
@@ -94,7 +96,7 @@ type ScreenProps = {
 const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode> = {
   // Core screens
   "dash":        (p)  => <ScreenDashboard onNavigate={p.onNavigate} />,
-  "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} />,
+  "crm":         (p)  => <ScreenCRM onNavigateToClient={p.onNavigateToClient} initialLead={p.initialLead} onPrefillConsumed={p.onPrefillConsumed} />,
   "orders":      (_)  => <ScreenOrders />,
   "realestate":  (_)  => <ScreenRealEstate />,
   "realestate_achat": (_) => <ScreenRealEstateAchat />,
@@ -208,6 +210,8 @@ export default function App() {
   const [screen, setScreen] = useState<string>("login");
   const [confirmedDeals, setConfirmedDeals] = useState<ConfirmedDeal[]>([]);
   const [clientSearch, setClientSearch] = useState<string>("");
+  // Pré-remplissage CRM poussé par l'assistant (action guidée profonde).
+  const [crmPrefill, setCrmPrefill] = useState<Record<string, string | number> | null>(null);
 
   function handleNavigateToClient(name: string) {
     setClientSearch(name);
@@ -243,6 +247,8 @@ export default function App() {
                 onNavigate:         setScreen,
                 initialSearch:      clientSearch,
                 confirmedDeals:     confirmedDeals,
+                initialLead:        crmPrefill ?? undefined,
+                onPrefillConsumed:  () => setCrmPrefill(null),
               })}
             </GatedScreen>
           </div>
@@ -253,7 +259,13 @@ export default function App() {
           {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
           <SoftphoneDock onOpenClient={handleNavigateToClient} />
           {/* Assistant in-app (chatbot robot) — à côté du softphone, aide + navigation guidée. */}
-          <AssistantDock screen={screen} onNavigate={setScreen} />
+          <AssistantDock
+            screen={screen}
+            onNavigate={setScreen}
+            onPrefill={(pf) => {
+              if (pf.screen === "crm") setCrmPrefill(pf.fields);
+            }}
+          />
         </div>
       </SoftphoneProvider>
     </PermissionsProvider>

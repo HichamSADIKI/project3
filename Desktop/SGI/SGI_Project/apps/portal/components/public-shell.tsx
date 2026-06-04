@@ -1,8 +1,20 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { LocaleSwitcher } from "./locale-switcher";
 import { makeT, isValidLocale, type Locale } from "@/lib/i18n";
+import { BookingProvider, type BookingLabels } from "./zoi/booking-modal";
+import { PublicHeader, type HeaderLabels } from "./zoi/public-header";
+import { Ic, Svg } from "./zoi/icons";
 
+const PHONE = "+971 2 203 1000";
+const EMAIL = "info@sgi.ae";
+const ADDRESS = "Al Maryah Island, Abu Dhabi";
+
+/**
+ * Coquille publique — direction luxe (design Claude « ZOI Signature »), adaptée
+ * à la marque SGI. Barre utilitaire + nav sérif + modal de réservation +
+ * footer vert dégradé. Tout est scopé sous `.zoi-site` ; les portails
+ * authentifiés gardent la palette Slate Pro. RTL : CSS logique (Loi 3).
+ */
 export function PublicShell({
   locale,
   children,
@@ -14,52 +26,110 @@ export function PublicShell({
   const t = makeT("common", lc);
   const tr = makeT("realestate", lc);
 
+  const headerLabels: HeaderLabels = {
+    brand: t("brand.name"),
+    brandSub: t("brand.tagline"),
+    phone: PHONE,
+    email: EMAIL,
+    links: [
+      { href: `/${lc}`, label: tr("nav.home") },
+      { href: `/${lc}/properties`, label: tr("nav.properties") },
+      { href: `/${lc}/agents`, label: tr("agents.title") },
+      { href: `/${lc}/contact`, label: tr("nav.contact") },
+    ],
+    bookCta: tr("book.cta"),
+    dashboard: t("header.login"),
+    themeLight: tr("theme.light"),
+    themeDark: tr("theme.dark"),
+  };
+
+  const bookingLabels: BookingLabels = {
+    title: tr("book.title"),
+    subtitle: tr("book.subtitle"),
+    name: tr("book.name"),
+    namePlaceholder: tr("book.namePlaceholder"),
+    phone: tr("book.phone"),
+    date: tr("book.date"),
+    slot: tr("book.slot"),
+    confirm: tr("book.confirm"),
+    sending: tr("book.sending"),
+    booked: tr("book.booked"),
+    bookedSub: tr("book.bookedSub"),
+    property: tr("book.property"),
+    when: tr("book.when"),
+    close: tr("book.close"),
+    bedrooms: tr("detail.bedrooms"),
+    bathrooms: tr("detail.bathrooms"),
+    perYear: tr("card.perYear"),
+    reference: tr("detail.reference"),
+    errorValidation: tr("book.errorValidation"),
+    errorNetwork: tr("book.errorNetwork"),
+  };
+
+  const propertyTypes: Array<[string, string]> = [
+    ["villa", tr("portfolio.villa")],
+    ["apartment", tr("portfolio.apartment")],
+    ["office", tr("portfolio.office")],
+    ["land", tr("portfolio.land")],
+  ];
+
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-      <header className="sgi-public-header">
-        <Link
-          href={`/${lc}`}
-          style={{
-            fontFamily: "'Playfair Display', Georgia, serif",
-            fontSize: "clamp(1.15rem, 3vw, 1.4rem)",
-            fontWeight: 700,
-            color: "var(--ink)",
-            letterSpacing: "0.02em",
-          }}
-        >
-          {t("brand.name")} <span style={{ color: "var(--gold)" }}>·</span>{" "}
-          {t("brand.tagline")}
-        </Link>
-        <nav style={{ display: "flex", alignItems: "center", gap: "1.25rem", flexWrap: "wrap" }}>
-          <Link href={`/${lc}/properties`} style={{ fontSize: "0.875rem", color: "var(--ink-2)", fontWeight: 500 }}>
-            {tr("nav.properties")}
-          </Link>
-          <Link href={`/${lc}/agents`} style={{ fontSize: "0.875rem", color: "var(--ink-2)", fontWeight: 500 }}>
-            {tr("agents.title")}
-          </Link>
-          <Link
-            href={`/${lc}/login`}
-            style={{ fontSize: "0.875rem", color: "var(--ink-2)", fontWeight: 500 }}
-          >
-            {t("header.login")}
-          </Link>
-          <LocaleSwitcher current={lc} />
-        </nav>
-      </header>
-      <main style={{ flex: 1 }}>{children}</main>
-      <footer
-        style={{
-          padding: "1.25rem var(--page-px)",
-          background: "var(--surface-3)",
-          borderTop: "1px solid var(--line-soft)",
-          fontSize: "0.78rem",
-          color: "var(--ink-3)",
-          textAlign: "center",
-          lineHeight: 1.5,
-        }}
-      >
-        {t("footer.copyright", { year: new Date().getFullYear() })}
-      </footer>
+    <div className="zoi-site" dir={lc === "ar" ? "rtl" : "ltr"}>
+      <BookingProvider locale={lc} labels={bookingLabels}>
+        <PublicHeader locale={lc} labels={headerLabels} />
+
+        <main style={{ flex: 1 }}>{children}</main>
+
+        <footer className="z-footer">
+          <div className="z-container">
+            <div>
+              <div className="z-flogo">{t("brand.name")}</div>
+              <p style={{ maxWidth: 280 }}>{tr("footer.tagline")}</p>
+              <div className="z-fnews">
+                <input
+                  placeholder={EMAIL}
+                  aria-label={tr("footer.newsletter")}
+                />
+                <button type="button">{tr("footer.subscribe")}</button>
+              </div>
+            </div>
+            <div>
+              <h4>{tr("footer.explore")}</h4>
+              {propertyTypes.map(([key, label]) => (
+                <Link key={key} href={`/${lc}/properties?unit_type=${key}`}>
+                  {label}
+                </Link>
+              ))}
+            </div>
+            <div>
+              <h4>{tr("footer.company")}</h4>
+              <Link href={`/${lc}/properties`}>{tr("nav.properties")}</Link>
+              <Link href={`/${lc}/agents`}>{tr("agents.title")}</Link>
+              <Link href={`/${lc}/contact`}>{tr("nav.contact")}</Link>
+            </div>
+            <div>
+              <h4>{tr("footer.contact")}</h4>
+              <p className="z-fcontact">
+                <Svg d={Ic.phone} w={16} /> {PHONE}
+              </p>
+              <p className="z-fcontact">
+                <Svg d={Ic.mail} w={16} /> {EMAIL}
+              </p>
+              <p className="z-fcontact">
+                <Svg d={Ic.pin} w={16} /> {ADDRESS}
+              </p>
+            </div>
+          </div>
+          <div className="z-footer-bottom">
+            <div className="z-container">
+              <span>
+                {t("footer.copyright", { year: new Date().getFullYear() })}
+              </span>
+              <span>Abu Dhabi · United Arab Emirates</span>
+            </div>
+          </div>
+        </footer>
+      </BookingProvider>
     </div>
   );
 }

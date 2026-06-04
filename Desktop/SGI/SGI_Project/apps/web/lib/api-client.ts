@@ -6,6 +6,20 @@
  * via [lib/api-proxy.ts]). À utiliser depuis les Client Components.
  */
 
+/**
+ * Convoque l'assistant en mode « ambulance » sur une vraie anomalie serveur.
+ * Dispatch un événement `sgi:assistant` (type rescue, sans message → l'assistant
+ * affiche son texte d'erreur localisé). Best-effort, jamais bloquant.
+ */
+function summonAssistantOnError(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new CustomEvent("sgi:assistant", { detail: { type: "rescue" } }));
+  } catch {
+    /* dispatch best-effort */
+  }
+}
+
 /** Extrait un code d'erreur lisible du corps JSON d'une réponse non-ok. */
 export async function extractError(
   res: Response,
@@ -65,7 +79,11 @@ export async function getJson<T>(url: string, fallback = "load_failed"): Promise
       throw new Error("unauthenticated");
     }
   }
-  if (!res.ok) throw new Error(await extractError(res, fallback));
+  if (!res.ok) {
+    const code = await extractError(res, fallback);
+    if (res.status >= 500) summonAssistantOnError(); // anomalie serveur → ambulance
+    throw new Error(code);
+  }
   return (await res.json()) as T;
 }
 
@@ -90,6 +108,7 @@ export async function postJson(url: string, body: unknown): Promise<Response> {
     if (await tryRefresh()) res = await doPost();
     if (res.status === 401) handleUnauthenticated();
   }
+  if (res.status >= 500) summonAssistantOnError(); // anomalie serveur → ambulance
   return res;
 }
 
@@ -110,5 +129,6 @@ export async function patchJson(url: string, body: unknown): Promise<Response> {
     if (await tryRefresh()) res = await doPatch();
     if (res.status === 401) handleUnauthenticated();
   }
+  if (res.status >= 500) summonAssistantOnError(); // anomalie serveur → ambulance
   return res;
 }
