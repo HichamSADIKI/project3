@@ -189,12 +189,13 @@ function ListingsTab({ t }: { t: Translations }) {
               <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.re_monthly_rent}</th>
               <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_status}</th>
               <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.re_showcase}</th>
+              <th style={{ textAlign: "start", padding: "12px 16px", fontWeight: 600 }}>{t.col_diffusion}</th>
               <th style={{ textAlign: "end", padding: "12px 16px", fontWeight: 600 }}>{t.col_action}</th>
             </tr>
           </thead>
           <tbody>
             {!loading && items.length === 0 && !error && (
-              <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
+              <tr><td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
             )}
             {items.map(x => {
               const allNext = LISTING_NEXT[x.status] ?? [];
@@ -220,11 +221,15 @@ function ListingsTab({ t }: { t: Translations }) {
                       <ListingFlagToggle basePath="/api/admin/leasing/listings" id={x.id} flag="is_urgent" value={!!x.is_urgent} label={t.st_urgent} activeColor="var(--rose)" activeBg="var(--rose-soft)" />
                     </span>
                   </td>
+                  <td style={{ padding: "13px 16px" }}>
+                    <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                      <SocialPublish t={t} listingType="rent" listingId={x.id} posts={socialByListing[x.id] ?? []} onChanged={social.reload} />
+                      <ScenarioVideo t={t} listingType="rent" listingId={x.id} scenarios={scenariosByListing[x.id] ?? []} onChanged={scenarios.reload} />
+                    </span>
+                  </td>
                   <td style={{ padding: "13px 16px", textAlign: "end" }}>
                     {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                       <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
-                        <SocialPublish t={t} listingType="rent" listingId={x.id} posts={socialByListing[x.id] ?? []} onChanged={social.reload} />
-                        <ScenarioVideo t={t} listingType="rent" listingId={x.id} scenarios={scenariosByListing[x.id] ?? []} onChanged={scenarios.reload} />
                         {x.status === "published" && x.slug && (
                           <a href={`${PORTAL_URL}/${lang}/property/${x.slug}`} target="_blank" rel="noopener noreferrer" style={{ ...actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)"), textDecoration: "none" }}>{t.web_view}</a>
                         )}

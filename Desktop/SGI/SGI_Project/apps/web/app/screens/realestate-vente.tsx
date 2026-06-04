@@ -245,12 +245,13 @@ function ListingsTab({ t }: { t: Translations }) {
               <th style={th}>{t.re_list_price}</th>
               <th style={th}>{t.col_status}</th>
               <th style={th}>{t.re_showcase}</th>
-              <th style={thEnd} />
+              <th style={th}>{t.col_diffusion}</th>
+              <th style={thEnd}>{t.col_action}</th>
             </tr>
           </thead>
           <tbody>
             {!loading && items.length === 0 && !error && (
-              <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
+              <tr><td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
             )}
             {items.map(x => (
               <tr key={x.id} style={trow}>
@@ -270,11 +271,15 @@ function ListingsTab({ t }: { t: Translations }) {
                     <ListingFlagToggle basePath="/api/admin/sales/listings" id={x.id} flag="is_urgent" value={!!x.is_urgent} label={t.st_urgent} activeColor="var(--rose)" activeBg="var(--rose-soft)" />
                   </span>
                 </td>
+                <td style={td}>
+                  <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}>
+                    <SocialPublish t={t} listingType="sale" listingId={x.id} posts={socialByListing[x.id] ?? []} onChanged={social.reload} />
+                    <ScenarioVideo t={t} listingType="sale" listingId={x.id} scenarios={scenariosByListing[x.id] ?? []} onChanged={scenarios.reload} />
+                  </span>
+                </td>
                 <td style={tdEnd}>
                   {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                     <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
-                      <SocialPublish t={t} listingType="sale" listingId={x.id} posts={socialByListing[x.id] ?? []} onChanged={social.reload} />
-                      <ScenarioVideo t={t} listingType="sale" listingId={x.id} scenarios={scenariosByListing[x.id] ?? []} onChanged={scenarios.reload} />
                       {x.status === "published" && x.slug && (
                         <a href={`${PORTAL_URL}/${lang}/property/${x.slug}`} target="_blank" rel="noopener noreferrer" style={{ ...actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)"), textDecoration: "none" }}>{t.web_view}</a>
                       )}

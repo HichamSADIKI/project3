@@ -40,7 +40,12 @@ class Settings(BaseSettings):
     PUBLIC_SITE_COMPANY_SLUG: str = ""
     PUBLIC_PHOTO_URL_TTL_S: int = 86400
 
-    MINIO_ENDPOINT: str = "minio:9000"
+    MINIO_ENDPOINT: str = "minio:9000"  # endpoint interne (réseau Docker) pour put/get
+    # Endpoint PUBLIC utilisé pour SIGNER les URLs présignées (consultées par le
+    # navigateur). En interne `minio:9000` n'est pas joignable depuis le client ;
+    # mettre ici l'hôte exposé (dev: `localhost:9000`, prod: domaine/CDN derrière
+    # TLS). Vide → repli sur MINIO_ENDPOINT (URLs injoignables hors réseau Docker).
+    MINIO_PUBLIC_ENDPOINT: str = ""
     MINIO_ACCESS_KEY: str
     MINIO_SECRET_KEY: str
     MINIO_BUCKET: str = "sgi-media"

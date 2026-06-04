@@ -49,6 +49,8 @@ celery_app.conf.update(
         # ── Inbox omnicanal (IA asynchrone, déclenchée à la demande) ───────
         "app.tasks.inbox.summarize_conversation": {"queue": "exports"},
         "app.tasks.inbox.suggest_tags": {"queue": "exports"},
+        # ── Scénarios vidéo (génération FFmpeg + TTS, à la demande) ────────
+        "app.tasks.scenarios.*": {"queue": "exports"},
         # ── Watcher de portails immobiliers (couche sources) ──────────────
         "app.tasks.watcher.*": {"queue": "reminders"},
     },

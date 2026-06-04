@@ -172,7 +172,8 @@ services:
     volumes:
       - minio_data:/data
     ports:
-      - "9001:9001"
+      - "9000:9000"  # API S3 — exposée pour les URLs présignées (navigateur)
+      - "9001:9001"  # console MinIO
     networks:
       - backend
 
