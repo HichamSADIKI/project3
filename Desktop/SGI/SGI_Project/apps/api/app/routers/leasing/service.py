@@ -8,12 +8,15 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.contract import Contract
+from app.models.rental import Rental
+from app.models.unit import Unit
 from app.routers.leasing.models import RentalApplication, RentalListing
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -333,6 +336,125 @@ async def list_applications(
     return list(rows), total
 
 
+# ─────────────────────────────────────────────────────────────────────────
+# Conversion en bail effectif (contrat + bail + échéancier)
+# ─────────────────────────────────────────────────────────────────────────
+
+# Bail annuel par défaut (usage UAE) ; commission contrat par défaut (cf. contracts).
+DEFAULT_LEASE_MONTHS = 12
+DEFAULT_COMMISSION_RATE = Decimal("2.0")
+
+
+def default_lease_end(start: date, months: int = DEFAULT_LEASE_MONTHS) -> date:
+    """Fin de bail par défaut : `months` mois après le début, **moins un jour**
+    (bail annuel UAE → 12 échéances mensuelles pleines, pas 13). Helper pur."""
+    from app.routers.rentals.service import _add_months
+
+    return _add_months(start, months) - timedelta(days=1)
+
+
+async def convert_application_to_lease(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    application: RentalApplication,
+    *,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    deposit: Decimal | None = None,
+    payment_frequency: str = "monthly",
+) -> Rental:
+    """Crée le **bail effectif** à partir d'une candidature approuvée.
+
+    Auto-crée (Loi 1, tout porte `company_id`) :
+      1. un **contrat** de location (`type='rental'`, statut `active`, réf
+         `CNT-{année}-{seq}`, montant = loyer annuel, commission 2 %),
+      2. le **bail** (`rentals`) rattaché + **échéancier** (`payment_schedule`)
+         généré selon la fréquence.
+
+    Le bien (`property_id`) est résolu via `units.legacy_property_id` (pont
+    unité→propriété). Aucun PDC généré ici (échéancier seul). N'effectue **pas**
+    de commit : l'appelant (`transition_application`) commite l'ensemble en une
+    seule transaction (atomicité contrat+bail+candidature).
+
+    Lève `ValueError(<code>)` — mappé en 422 par le router — si la conversion
+    est impossible : `listing_not_found`, `listing_without_unit`,
+    `unit_not_found`, `unit_without_property`, `invalid_rent`, `invalid_period`.
+    """
+    listing = await get_listing(db, company_id, application.listing_id)
+    if listing is None:
+        raise ValueError("listing_not_found")
+    if listing.unit_id is None:
+        raise ValueError("listing_without_unit")
+    unit = (
+        await db.execute(
+            select(Unit).where(
+                Unit.id == listing.unit_id,
+                Unit.company_id == company_id,
+                Unit.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if unit is None:
+        raise ValueError("unit_not_found")
+    if unit.legacy_property_id is None:
+        # Pas de bien `properties` lié → impossible de créer contrat/bail (FK NOT NULL).
+        raise ValueError("unit_without_property")
+
+    monthly_rent = application.offered_rent or listing.monthly_rent
+    if monthly_rent is None or monthly_rent <= 0:
+        raise ValueError("invalid_rent")
+
+    start = start_date or date.today()
+    end = end_date or default_lease_end(start)
+    if end <= start:
+        raise ValueError("invalid_period")
+    dep = deposit if deposit is not None else monthly_rent  # 1 mois par défaut
+    freq = payment_frequency or "monthly"
+    annual_rent = monthly_rent * DEFAULT_LEASE_MONTHS
+
+    # Contrat de location auto-généré (même format de référence que le module contracts).
+    from app.routers.contracts.service import _next_contract_sequence
+
+    seq = await _next_contract_sequence(db, start.year)
+    contract = Contract(
+        company_id=company_id,
+        reference=f"CNT-{start.year}-{seq:04d}",
+        type="rental",
+        client_id=application.applicant_client_id,
+        property_id=unit.legacy_property_id,
+        amount=annual_rent,
+        commission_rate=DEFAULT_COMMISSION_RATE,
+        commission_amount=annual_rent * DEFAULT_COMMISSION_RATE / Decimal("100"),
+        status="active",
+        start_date=start,
+        end_date=end,
+    )
+    db.add(contract)
+    await db.flush()  # contract.id
+
+    # Bail + échéancier (helper pur réutilisé du module rentals).
+    from app.routers.rentals.service import _build_payment_schedule
+
+    rental = Rental(
+        company_id=company_id,
+        contract_id=contract.id,
+        client_id=application.applicant_client_id,
+        property_id=unit.legacy_property_id,
+        monthly_rent=monthly_rent,
+        annual_rent=annual_rent,
+        deposit=dep,
+        payment_frequency=freq,
+        status="active",
+        start_date=start,
+        end_date=end,
+        renewal_alert_sent=False,
+        payment_schedule=_build_payment_schedule(start, end, monthly_rent, freq),
+    )
+    db.add(rental)
+    await db.flush()  # rental.id
+    return rental
+
+
 async def transition_application(
     db: AsyncSession,
     company_id: uuid.UUID,
@@ -340,6 +462,10 @@ async def transition_application(
     new_status: str,
     *,
     converted_rental_id: uuid.UUID | None = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    deposit: Decimal | None = None,
+    payment_frequency: str = "monthly",
 ) -> RentalApplication | None:
     application = await get_application(db, company_id, application_id)
     if application is None:
@@ -347,15 +473,28 @@ async def transition_application(
     if not is_valid_application_transition(application.status, new_status):
         raise ValueError(f"invalid_transition:{application.status}->{new_status}")
     now = datetime.now(UTC)
+    # Conversion en bail : soit on rattache un bail existant (fourni & validé
+    # ∈ tenant par le router), soit on auto-crée contrat + bail + échéancier.
+    # On résout AVANT de muter le statut → si la création échoue, rien n'est
+    # commité (la candidature reste dans son état d'origine).
+    if new_status == "converted":
+        if converted_rental_id is not None:
+            application.converted_rental_id = converted_rental_id
+        else:
+            rental = await convert_application_to_lease(
+                db,
+                company_id,
+                application,
+                start_date=start_date,
+                end_date=end_date,
+                deposit=deposit,
+                payment_frequency=payment_frequency,
+            )
+            application.converted_rental_id = rental.id
     application.status = new_status
     # Horodatage de décision sur les états décisifs.
     if new_status in ("approved", "rejected", "converted") and application.decided_at is None:
         application.decided_at = now
-    # NB : la création EFFECTIVE du bail `rentals` (contrat + calendrier de
-    # paiement + PDC) reste un point d'intégration à câbler (TODO) — ici on se
-    # contente de rattacher un bail déjà existant validé ∈ tenant par le router.
-    if new_status == "converted" and converted_rental_id is not None:
-        application.converted_rental_id = converted_rental_id
     application.updated_at = now
     await db.commit()
     await db.refresh(application)

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -98,3 +98,23 @@ class InboxNote(Base, TimestampMixin, TenantMixin):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     body: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class InboxChannelConfig(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
+    """Routage d'un canal externe entrant (`phone_number_id`) vers un tenant.
+
+    Résout le multi-tenant du webhook WhatsApp (Meta n'envoie pas de JWT). RLS
+    (Loi 1) pour le CRUD métier (enrôlement tenant-scopé) ; le webhook, sans
+    contexte tenant, résout via la fonction SQL SECURITY DEFINER
+    `inbox_resolve_company(channel, phone_number_id)` (migration 0045) qui
+    contourne la RLS pour ce seul lookup. `phone_number_id` est unique
+    GLOBALEMENT par canal (un numéro → un seul tenant)."""
+
+    __tablename__ = "inbox_channel_configs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    channel: Mapped[str] = mapped_column(String(20), nullable=False)
+    phone_number_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_phone_number: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    label: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

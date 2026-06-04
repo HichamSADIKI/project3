@@ -7,15 +7,24 @@
 """
 
 import uuid as _uuid
+from datetime import date
+from decimal import Decimal
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.building import Building
 from app.models.client import Client
 from app.models.company import Company
+from app.models.contract import Contract
+from app.models.property import Property
+from app.models.rental import Rental
+from app.models.unit import Unit
 from app.models.user import User
 from app.routers.leasing import service
+from app.routers.leasing.models import RentalApplication, RentalListing
 
 # ── Helpers purs : generate_reference ─────────────────────────────────────────
 
@@ -152,12 +161,16 @@ def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-async def _create_listing(client: AsyncClient, token: str, monthly_rent: str = "12000.00") -> str:
-    resp = await client.post(
-        "/api/v1/leasing/listings",
-        headers=_auth(token),
-        json={"monthly_rent": monthly_rent, "title_en": "2BR Marina"},
-    )
+async def _create_listing(
+    client: AsyncClient,
+    token: str,
+    monthly_rent: str = "12000.00",
+    unit_id: str | None = None,
+) -> str:
+    payload: dict[str, object] = {"monthly_rent": monthly_rent, "title_en": "2BR Marina"}
+    if unit_id is not None:
+        payload["unit_id"] = unit_id
+    resp = await client.post("/api/v1/leasing/listings", headers=_auth(token), json=payload)
     assert resp.status_code == 201, resp.text
     return resp.json()["data"]["id"]
 
@@ -175,6 +188,85 @@ async def _create_client(db_session: AsyncSession, company_id: _uuid.UUID) -> _u
     db_session.add(c)
     await db_session.commit()
     return c.id
+
+
+async def _seed_unit(
+    db_session: AsyncSession, company_id: _uuid.UUID, *, with_property: bool = True
+) -> tuple[_uuid.UUID, _uuid.UUID | None]:
+    """Crée Building + Unit (+ Property liée via legacy_property_id si demandé).
+
+    Retourne (unit_id, property_id|None) — le pont unité→bien requis par la
+    conversion en bail effectif.
+    """
+    property_id: _uuid.UUID | None = None
+    if with_property:
+        prop = Property(
+            id=_uuid.uuid4(),
+            company_id=company_id,
+            reference=f"PROP-{_uuid.uuid4().hex[:10]}",
+            type="apartment",
+            price=Decimal("1200000"),
+            status="available",
+        )
+        db_session.add(prop)
+        property_id = prop.id
+    building = Building(
+        id=_uuid.uuid4(),
+        company_id=company_id,
+        reference=f"BLD-{_uuid.uuid4().hex[:10]}",
+        building_type="residential_tower",
+    )
+    db_session.add(building)
+    await db_session.flush()
+    unit = Unit(
+        id=_uuid.uuid4(),
+        company_id=company_id,
+        building_id=building.id,
+        unit_number="101",
+        unit_type="apartment",
+        legacy_property_id=property_id,
+    )
+    db_session.add(unit)
+    await db_session.commit()
+    return unit.id, property_id
+
+
+async def _seed_application(
+    db_session: AsyncSession,
+    company_id: _uuid.UUID,
+    *,
+    unit_id: _uuid.UUID | None = None,
+    offered_rent: str | None = "11500.00",
+    listing_rent: str = "12000.00",
+    status: str = "approved",
+) -> tuple[_uuid.UUID, _uuid.UUID]:
+    """Seed annonce (∈ tenant, unit_id optionnel) + candidature au statut voulu.
+
+    Retourne (application_id, applicant_client_id).
+    """
+    client_id = await _create_client(db_session, company_id)
+    listing = RentalListing(
+        id=_uuid.uuid4(),
+        company_id=company_id,
+        reference=f"LEAS-{_uuid.uuid4().hex[:6]}",
+        unit_id=unit_id,
+        monthly_rent=Decimal(listing_rent),
+        status="published",
+    )
+    db_session.add(listing)
+    await db_session.flush()
+    appn = RentalApplication(
+        id=_uuid.uuid4(),
+        company_id=company_id,
+        reference=f"APP-{_uuid.uuid4().hex[:6]}",
+        listing_id=listing.id,
+        applicant_client_id=client_id,
+        offered_rent=Decimal(offered_rent) if offered_rent else None,
+        status=status,
+    )
+    db_session.add(appn)
+    await db_session.commit()
+    return appn.id, client_id
 
 
 async def test_health_is_public(client: AsyncClient) -> None:
@@ -205,7 +297,8 @@ async def test_full_flow_listing_to_converted(
     client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
 ) -> None:
     admin, token = seed_admin
-    listing_id = await _create_listing(client, token)
+    unit_id, _property_id = await _seed_unit(db_session, admin.company_id)
+    listing_id = await _create_listing(client, token, unit_id=str(unit_id))
 
     # draft → published
     r = await client.post(
@@ -242,7 +335,7 @@ async def test_full_flow_listing_to_converted(
         assert r.status_code == 200, r.text
         assert r.json()["data"]["status"] == target
 
-    # approved → converted (sans bail rattaché : autorisé, converted_rental_id reste null)
+    # approved → converted : auto-création du bail effectif (contrat + échéancier).
     r = await client.post(
         f"/api/v1/leasing/applications/{app_id}/transition",
         headers=_auth(token),
@@ -252,7 +345,7 @@ async def test_full_flow_listing_to_converted(
     body = r.json()["data"]
     assert body["status"] == "converted"
     assert body["decided_at"] is not None
-    assert body["converted_rental_id"] is None
+    assert body["converted_rental_id"] is not None
 
 
 async def test_invalid_listing_transition_409(
@@ -374,3 +467,116 @@ async def test_list_filters_by_status(client: AsyncClient, seed_admin: tuple[Use
     data = r.json()["data"]
     assert all(item["status"] == "published" for item in data)
     assert l1 in [item["id"] for item in data]
+
+
+# ── Helper pur : fin de bail par défaut ───────────────────────────────────────
+
+
+def test_default_lease_end_is_one_year_minus_a_day() -> None:
+    # Bail annuel UAE → fin = début + 12 mois − 1 jour (12 échéances pleines).
+    assert service.default_lease_end(date(2026, 1, 1)) == date(2026, 12, 31)
+    assert service.default_lease_end(date(2026, 7, 1)) == date(2027, 6, 30)
+
+
+# ── Conversion en bail effectif (contrat + bail + échéancier) ─────────────────
+
+
+async def test_convert_creates_effective_lease(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Convertir une candidature approuvée auto-crée contrat + bail + échéancier."""
+    admin, token = seed_admin
+    unit_id, property_id = await _seed_unit(db_session, admin.company_id)
+    app_id, client_id = await _seed_application(db_session, admin.company_id, unit_id=unit_id)
+
+    r = await client.post(
+        f"/api/v1/leasing/applications/{app_id}/transition",
+        headers=_auth(token),
+        json={"status": "converted", "start_date": "2026-07-01"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()["data"]
+    assert body["status"] == "converted"
+    assert body["converted_rental_id"] is not None
+
+    # Le bail créé porte le tenant, le bien (via legacy_property_id), le loyer offert.
+    rental = (
+        await db_session.execute(
+            select(Rental).where(Rental.id == _uuid.UUID(body["converted_rental_id"]))
+        )
+    ).scalar_one()
+    assert rental.company_id == admin.company_id
+    assert rental.property_id == property_id
+    assert rental.client_id == client_id
+    assert rental.monthly_rent == Decimal("11500.00")
+    assert rental.annual_rent == Decimal("138000.00")
+    assert rental.status == "active"
+    # Bail 12 mois mensuel → 12 échéances.
+    assert len(rental.payment_schedule) == 12
+
+    # Le contrat auto-créé est un contrat de location du tenant, réf CNT-….
+    contract = (
+        await db_session.execute(select(Contract).where(Contract.id == rental.contract_id))
+    ).scalar_one()
+    assert contract.company_id == admin.company_id
+    assert contract.type == "rental"
+    assert contract.reference.startswith("CNT-")
+    assert contract.amount == Decimal("138000.00")
+
+
+async def test_convert_without_unit_returns_422(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Une annonce sans unité ne peut pas produire de bail (pas de bien) → 422."""
+    admin, token = seed_admin
+    app_id, _ = await _seed_application(db_session, admin.company_id, unit_id=None)
+    r = await client.post(
+        f"/api/v1/leasing/applications/{app_id}/transition",
+        headers=_auth(token),
+        json={"status": "converted"},
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == "listing_without_unit"
+
+
+async def test_convert_unit_without_property_returns_422(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Une unité sans bien lié (legacy_property_id null) → 422 (FK contrat/bail)."""
+    admin, token = seed_admin
+    unit_id, _ = await _seed_unit(db_session, admin.company_id, with_property=False)
+    app_id, _ = await _seed_application(db_session, admin.company_id, unit_id=unit_id)
+    r = await client.post(
+        f"/api/v1/leasing/applications/{app_id}/transition",
+        headers=_auth(token),
+        json={"status": "converted"},
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["detail"] == "unit_without_property"
+
+
+async def test_convert_cross_tenant_404(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+) -> None:
+    """Loi 1 (Red-Team) : le tenant B ne peut PAS convertir la candidature de A → 404."""
+    admin_a, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    unit_id, _ = await _seed_unit(db_session, admin_a.company_id)
+    app_id, _ = await _seed_application(db_session, admin_a.company_id, unit_id=unit_id)
+
+    r = await client.post(
+        f"/api/v1/leasing/applications/{app_id}/transition",
+        headers=_auth(token_b),
+        json={"status": "converted"},
+    )
+    assert r.status_code == 404, r.text
+    # Et aucun bail n'a été créé pour B.
+    rentals_b = (
+        (await db_session.execute(select(Rental).where(Rental.company_id == _company_b.id)))
+        .scalars()
+        .all()
+    )
+    assert rentals_b == []
