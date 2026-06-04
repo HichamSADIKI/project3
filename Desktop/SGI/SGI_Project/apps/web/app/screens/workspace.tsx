@@ -5,10 +5,10 @@ import { useLang } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 
 const KPIS = [
-  { key: "docs",    color: "var(--azure)",   value: "1 847", delta: "+43 today",      up: true, label_en: "Documents",       label_ar: "الوثائق",        label_fr: "Documents" },
-  { key: "tasks",   color: "var(--emerald)", value: "284",   delta: "68 due today",   up: null, label_en: "Open tasks",      label_ar: "المهام المفتوحة", label_fr: "Tâches en cours" },
-  { key: "meet",    color: "var(--gold)",    value: "12",    delta: "this week",      up: null, label_en: "Meetings",        label_ar: "الاجتماعات",      label_fr: "Réunions" },
-  { key: "members", color: "var(--azure)",   value: "52",    delta: "+3 this month",  up: true, label_en: "Team members",    label_ar: "أعضاء الفريق",   label_fr: "Membres" },
+  { key: "docs",    color: "var(--azure)",   value: "1 847", delta_en: "+43 today",      delta_ar: "+43 اليوم",          delta_fr: "+43 aujourd'hui",   up: true, label_en: "Documents",       label_ar: "الوثائق",        label_fr: "Documents" },
+  { key: "tasks",   color: "var(--emerald)", value: "284",   delta_en: "68 due today",   delta_ar: "68 مستحقة اليوم",    delta_fr: "68 dues aujourd'hui", up: null, label_en: "Open tasks",      label_ar: "المهام المفتوحة", label_fr: "Tâches en cours" },
+  { key: "meet",    color: "var(--gold)",    value: "12",    delta_en: "this week",      delta_ar: "هذا الأسبوع",        delta_fr: "cette semaine",     up: null, label_en: "Meetings",        label_ar: "الاجتماعات",      label_fr: "Réunions" },
+  { key: "members", color: "var(--azure)",   value: "52",    delta_en: "+3 this month",  delta_ar: "+3 هذا الشهر",       delta_fr: "+3 ce mois",        up: true, label_en: "Team members",    label_ar: "أعضاء الفريق",   label_fr: "Membres" },
 ];
 
 const RECENT_DOCS = [
@@ -61,7 +61,7 @@ export function ScreenWorkspace() {
               </div>
               <div className="tnum font-display" style={{ fontSize: 26, color: k.color, lineHeight: 1, marginBottom: 6 }}>{k.value}</div>
               <div style={{ fontSize: 10.5, display: "flex", alignItems: "center", gap: 4, color: k.up === null ? "var(--ink-4)" : "var(--emerald)" }}>
-                {k.up === true && <IcArrowUp />}{k.delta}
+                {k.up === true && <IcArrowUp />}{lang === "ar" ? k.delta_ar : lang === "fr" ? k.delta_fr : k.delta_en}
               </div>
             </div>
           ))}

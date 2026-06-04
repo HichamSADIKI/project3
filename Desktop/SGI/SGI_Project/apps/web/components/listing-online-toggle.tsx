@@ -59,6 +59,7 @@ export function ListingOnlineToggle({
   return (
     <button
       type="button"
+      data-testid={`online-toggle-${id}`}
       onClick={toggle}
       disabled={busy}
       aria-pressed={on}

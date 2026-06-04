@@ -434,6 +434,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       <div
         role="button"
         tabIndex={0}
+        data-testid={`nav-${navKey}`}
         onClick={() => handleNavigate(navKey)}
         onKeyDown={e => { if (e.key === "Enter" || e.key === " ") handleNavigate(navKey); }}
         aria-label={label}
@@ -508,6 +509,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
         <div
           role="button"
           tabIndex={0}
+          data-testid={`navgroup-${entry.groupKey}`}
           onClick={() => {
             onNavigate(entry.groupKey);
             setOpenGroup(p => p === entry.id ? null : entry.id);
@@ -608,6 +610,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
                       <div
                         role="button"
                         tabIndex={0}
+                        data-testid={`navsection-${block.section}`}
                         aria-expanded={secOpen}
                         aria-label={sectionLabel}
                         onClick={() => toggleSection(block.section!)}

@@ -69,20 +69,21 @@ export function ScenarioVideo({
     <>
       <button
         type="button"
+        data-testid="scenario-open"
         onClick={() => setOpen(true)}
         title={t.scenario_title}
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          border: `1px solid ${readyCount > 0 ? "var(--gold)" : "var(--line-soft)"}`,
+          border: `1px solid ${readyCount > 0 ? "var(--emerald)" : "var(--line-soft)"}`,
           borderRadius: 8, padding: "5px 10px", cursor: "pointer",
           fontSize: 11.5, fontWeight: 600,
-          background: readyCount > 0 ? "rgba(212,160,55,0.12)" : "transparent",
-          color: readyCount > 0 ? "var(--gold-deep)" : "var(--ink-4)",
+          background: readyCount > 0 ? "var(--emerald-soft)" : "transparent",
+          color: readyCount > 0 ? "var(--emerald)" : "var(--ink-4)",
         }}
       >
         <IcFilm /> {t.scenario_btn}
         {readyCount > 0 && (
-          <span className="tnum" style={{ fontSize: 10.5, fontWeight: 700, background: "var(--gold)", color: "#1A1610", borderRadius: 999, padding: "0 6px", lineHeight: "16px" }}>{readyCount}</span>
+          <span className="tnum" style={{ fontSize: 10.5, fontWeight: 700, background: "var(--emerald)", color: "#fff", borderRadius: 999, padding: "0 6px", lineHeight: "16px" }}>{readyCount}</span>
         )}
       </button>
       {open && (
@@ -257,7 +258,7 @@ function ScenarioModal({
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(10,8,4,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 96vw)", maxHeight: "90vh", overflowY: "auto", background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 16, padding: 22, boxShadow: "0 24px 60px rgba(0,0,0,0.4)" }}>
+      <div data-testid="scenario-dialog" onClick={(e) => e.stopPropagation()} style={{ width: "min(560px, 96vw)", maxHeight: "90vh", overflowY: "auto", background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 16, padding: 22, boxShadow: "0 24px 60px rgba(0,0,0,0.4)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 2 }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "var(--gold-deep)", fontSize: 15, fontWeight: 700 }}><IcFilm /> {t.scenario_title}</div>
           <button onClick={onClose} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--ink-4)", fontSize: 20, lineHeight: 1 }}>×</button>
@@ -300,7 +301,7 @@ function ScenarioModal({
                 {AVATARS.map((a) => {
                   const on = avatar === a.key;
                   return (
-                    <button key={a.key} onClick={() => setAvatar(a.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, cursor: "pointer", border: `2px solid ${on ? "var(--gold)" : "var(--line-soft)"}`, background: on ? "rgba(212,160,55,0.10)" : "var(--bg-paper)" }}>
+                    <button key={a.key} data-testid={`avatar-${a.key}`} aria-pressed={on} onClick={() => setAvatar(a.key)} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "12px 8px", borderRadius: 12, cursor: "pointer", border: `2px solid ${on ? "var(--gold)" : "var(--line-soft)"}`, background: on ? "rgba(212,160,55,0.10)" : "var(--bg-paper)" }}>
                       <span style={{ fontSize: 34, lineHeight: 1 }}>{a.emoji}</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink)" }}>{t[a.labelKey]}</span>
                       <span style={{ fontSize: 11, color: on ? "var(--gold-deep)" : "var(--ink-4)" }}>{a.key === "male" ? t.scenario_voice_m : t.scenario_voice_f}</span>
@@ -330,7 +331,7 @@ function ScenarioModal({
 
         {/* Titre + générer */}
         <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t.scenario_title_ph} style={{ width: "100%", border: "1px solid var(--line-soft)", borderRadius: 8, padding: "9px 11px", fontSize: 13, marginBottom: 12, background: "var(--bg-paper)", color: "var(--ink)" }} />
-        <button onClick={generate} disabled={!canGenerate} style={{ width: "100%", border: "none", borderRadius: 10, padding: "12px", cursor: canGenerate ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, background: canGenerate ? "var(--gold)" : "var(--line-soft)", color: canGenerate ? "#1A1610" : "var(--ink-4)" }}>
+        <button data-testid="scenario-generate" onClick={generate} disabled={!canGenerate} style={{ width: "100%", border: "none", borderRadius: 10, padding: "12px", cursor: canGenerate ? "pointer" : "not-allowed", fontSize: 14, fontWeight: 700, background: canGenerate ? "var(--gold)" : "var(--line-soft)", color: canGenerate ? "#1A1610" : "var(--ink-4)" }}>
           {busy ? `${t.scenario_generating}…` : `🎬 ${t.scenario_generate}`}
         </button>
 
