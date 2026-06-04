@@ -90,7 +90,7 @@ export function AssistantDock({
   }
 
   const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow } =
-    useAssistantRoaming({ open, pinned, t, onSummon: summon });
+    useAssistantRoaming({ open, pinned, t, screen, onSummon: summon });
 
   useEffect(() => {
     if (!open) return;

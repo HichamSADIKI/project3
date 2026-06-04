@@ -53,10 +53,25 @@ function isField(el: Element | null): el is HTMLElement {
   return (el as HTMLElement).isContentEditable;
 }
 
+// Écrans « complexes » méritant un mini-tour à la première visite (clés de nav).
+const TOUR_SCREENS: ReadonlySet<string> = new Set([
+  "crm",
+  "realestate",
+  "realestate_payments",
+  "realestate_contracts",
+  "realestate_tickets",
+  "finance",
+  "marketing",
+]);
+const SEEN_KEY = "sgi_assistant_seen_screens";
+const SUBMIT_WINDOW = 25000; // fenêtre des soumissions répétées
+const SUBMIT_THRESHOLD = 3; // nb de soumissions rapprochées → « bloqué »
+
 export function useAssistantRoaming(opts: {
   open: boolean;
   pinned: boolean;
   t: Translations;
+  screen?: string;
   onSummon: (prompt?: string) => void;
 }): {
   containerRef: React.RefObject<HTMLDivElement | null>;
@@ -67,7 +82,7 @@ export function useAssistantRoaming(opts: {
   dismissTip: () => void;
   tipBelow: boolean;
 } {
-  const { open, pinned, t } = opts;
+  const { open, pinned, t, screen } = opts;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pupilLRef = useRef<HTMLSpanElement | null>(null);
@@ -89,6 +104,9 @@ export function useAssistantRoaming(opts: {
   const modeRef = useRef<RoamMode>("idle");
   const tipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduced = useRef(false);
+  // Soumissions répétées par formulaire (détecteur « bloqué »).
+  const submitLog = useRef<WeakMap<HTMLFormElement, number[]>>(new WeakMap());
+  const tourTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const home = useCallback(
     (): XY => ({
@@ -161,11 +179,48 @@ export function useAssistantRoaming(opts: {
       showTip(t.assistant_tip_field, "rescue", t.assistant_tip_field);
     };
 
+    // Soumissions répétées du même formulaire en peu de temps → « bloqué ».
+    // Couvre la recherche relancée sans succès comme tout formulaire ré-soumis.
+    const onSubmit = (e: Event): void => {
+      const form = e.target;
+      if (!(form instanceof HTMLFormElement)) return;
+      if (form.closest("[data-assistant-ui]")) return; // pas notre propre UI
+      const now = performance.now();
+      const log = (submitLog.current.get(form) ?? []).filter((ts) => now - ts < SUBMIT_WINDOW);
+      log.push(now);
+      submitLog.current.set(form, log);
+      if (log.length >= SUBMIT_THRESHOLD) {
+        rescue.current = { el: form, until: now + RESCUE_HOLD };
+        showTip(t.assistant_tip_stuck, "rescue", t.assistant_tip_stuck);
+        submitLog.current.set(form, []); // reset après déclenchement
+      }
+    };
+
+    // API d'événement explicite : window.dispatchEvent(new CustomEvent(
+    //   "sgi:assistant", { detail: { type, message?, prompt?, anchorSelector? } }))
+    // type: "rescue" (accourt vers l'ancre) | "tip" | "tour".
+    const onAssistantEvent = (e: Event): void => {
+      const detail = (e as CustomEvent).detail as
+        | { type?: string; message?: string; prompt?: string; anchorSelector?: string }
+        | undefined;
+      if (!detail) return;
+      const el = detail.anchorSelector
+        ? document.querySelector<HTMLElement>(detail.anchorSelector)
+        : null;
+      const tone = detail.type === "rescue" ? "rescue" : "info";
+      if (el) rescue.current = { el, until: performance.now() + RESCUE_HOLD };
+      const fallback =
+        detail.type === "tour" ? t.assistant_tip_tour : t.assistant_tip_idle;
+      showTip(detail.message ?? fallback, tone, detail.prompt);
+    };
+
     window.addEventListener("mousemove", onMove, { passive: true });
     window.addEventListener("keydown", onKey, { passive: true });
     window.addEventListener("focusin", onFocusIn);
     window.addEventListener("focusout", onFocusOut);
     window.addEventListener("invalid", onInvalid, true);
+    window.addEventListener("submit", onSubmit, true);
+    window.addEventListener("sgi:assistant", onAssistantEvent as EventListener);
 
     // Apparition d'une alerte (toast / message d'erreur) → secours.
     const obs = new MutationObserver((muts) => {
@@ -201,10 +256,37 @@ export function useAssistantRoaming(opts: {
       window.removeEventListener("focusin", onFocusIn);
       window.removeEventListener("focusout", onFocusOut);
       window.removeEventListener("invalid", onInvalid, true);
+      window.removeEventListener("submit", onSubmit, true);
+      window.removeEventListener("sgi:assistant", onAssistantEvent as EventListener);
       obs.disconnect();
       window.clearInterval(idleTimer);
     };
   }, [open, pinned, t, showTip]);
+
+  // Mini-tour à la PREMIÈRE visite d'un écran complexe (proactif mesuré).
+  useEffect(() => {
+    if (!screen || open || pinned || reduced.current) return;
+    if (!TOUR_SCREENS.has(screen)) return;
+    let seen: string[] = [];
+    try {
+      seen = JSON.parse(localStorage.getItem(SEEN_KEY) ?? "[]") as string[];
+    } catch {
+      seen = [];
+    }
+    if (seen.includes(screen)) return;
+    // Laisse l'écran s'afficher avant de proposer le tour.
+    tourTimer.current = setTimeout(() => {
+      showTip(t.assistant_tip_tour, "info", t.assistant_tour_prompt);
+      try {
+        localStorage.setItem(SEEN_KEY, JSON.stringify([...seen, screen]));
+      } catch {
+        /* ignore */
+      }
+    }, 1200);
+    return () => {
+      if (tourTimer.current) clearTimeout(tourTimer.current);
+    };
+  }, [screen, open, pinned, t, showTip]);
 
   // ── Boucle d'animation ──────────────────────────────────────────────────
   useEffect(() => {

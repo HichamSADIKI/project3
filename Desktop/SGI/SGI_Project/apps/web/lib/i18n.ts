@@ -273,6 +273,7 @@ export type Translations = {
   assistant_goto: string; assistant_clear: string;
   assistant_tip_field: string; assistant_tip_error: string; assistant_tip_idle: string;
   assistant_pin: string; assistant_unpin: string;
+  assistant_tip_tour: string; assistant_tip_stuck: string; assistant_tour_prompt: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
   dt_invoice: string; dt_statement: string; dt_id: string; dt_passport: string; dt_other: string;
@@ -557,6 +558,7 @@ const ar: Translations = {
   assistant_goto: "افتح", assistant_clear: "محادثة جديدة",
   assistant_tip_field: "هل تحتاج مساعدة في ملء هذا الحقل؟", assistant_tip_error: "حدث خطأ — هل أساعدك؟", assistant_tip_idle: "هل تحتاج مساعدة في هذه الصفحة؟",
   assistant_pin: "تثبيت المساعد", assistant_unpin: "تحرير المساعد",
+  assistant_tip_tour: "أول مرة هنا؟ يمكنني إرشادك في هذه الشاشة.", assistant_tip_stuck: "يبدو أنك تواجه صعوبة — هل تحتاج مساعدة؟", assistant_tour_prompt: "قدّم لي جولة إرشادية في هذه الشاشة واشرح الإجراءات الأساسية.",
   // Lot 3 — documents
   dt_contract: "عقد", dt_mandate: "تفويض", dt_ejari: "إيجاري", dt_dld: "دائرة الأراضي", dt_insurance: "تأمين",
   dt_invoice: "فاتورة", dt_statement: "كشف", dt_id: "هوية", dt_passport: "جواز سفر", dt_other: "أخرى",
@@ -841,6 +843,7 @@ const en: Translations = {
   assistant_goto: "Open", assistant_clear: "New chat",
   assistant_tip_field: "Need help filling this field?", assistant_tip_error: "Something went wrong — can I help?", assistant_tip_idle: "Need help on this page?",
   assistant_pin: "Pin assistant", assistant_unpin: "Unpin assistant",
+  assistant_tip_tour: "First time here? I can give you a tour of this screen.", assistant_tip_stuck: "Looks like you're stuck — need help?", assistant_tour_prompt: "Give me a guided tour of this screen and explain the main actions.",
   // Lot 3 — documents
   dt_contract: "Contract", dt_mandate: "Mandate", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Insurance",
   dt_invoice: "Invoice", dt_statement: "Statement", dt_id: "ID", dt_passport: "Passport", dt_other: "Other",
@@ -1125,6 +1128,7 @@ const fr: Translations = {
   assistant_goto: "Ouvrir", assistant_clear: "Nouvelle discussion",
   assistant_tip_field: "Besoin d'aide pour remplir ce champ ?", assistant_tip_error: "Une erreur est survenue — je peux vous aider ?", assistant_tip_idle: "Besoin d'aide sur cette page ?",
   assistant_pin: "Figer l'assistant", assistant_unpin: "Libérer l'assistant",
+  assistant_tip_tour: "Première fois ici ? Je peux vous guider sur cet écran.", assistant_tip_stuck: "Vous semblez bloqué — besoin d'aide ?", assistant_tour_prompt: "Fais-moi un tour guidé de cet écran et explique les actions principales.",
   // Lot 3 — documents
   dt_contract: "Contrat", dt_mandate: "Mandat", dt_ejari: "Ejari", dt_dld: "DLD", dt_insurance: "Assurance",
   dt_invoice: "Facture", dt_statement: "Relevé", dt_id: "Pièce ID", dt_passport: "Passeport", dt_other: "Autre",
