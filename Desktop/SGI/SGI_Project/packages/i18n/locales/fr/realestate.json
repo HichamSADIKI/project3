@@ -1,17 +1,31 @@
 {
   "nav": {
     "properties": "Biens",
-    "home": "Accueil"
+    "home": "Accueil",
+    "contact": "Contact"
   },
   "home": {
     "heroTitle": "Trouvez votre prochaine adresse aux Émirats",
-    "heroSubtitle": "Appartements, villas et bureaux sélectionnés, à la vente et à la location, à Dubaï et Abou Dabi.",
+    "heroSubtitle": "Un portefeuille d'exception : villas, résidences, bureaux et terrains — à la vente et à la location, aux adresses les plus convoitées des Émirats.",
     "searchCta": "Rechercher un bien",
-    "featuredTitle": "Biens en vedette",
+    "featuredEyebrow": "Sélection en vedette",
+    "featuredTitle": "Résidences Signature",
     "featuredSubtitle": "Une sélection de notre portefeuille.",
     "urgentTitle": "Opportunités urgentes",
     "urgentSubtitle": "Annonces à durée limitée — agissez vite.",
-    "viewAll": "Voir tous les biens →",
+    "viewAll": "Voir tous les biens",
+    "clientCard": {
+      "kicker": "Acheteurs & locataires",
+      "title": "Espace client",
+      "description": "Suivez vos demandes, favoris et visites au même endroit.",
+      "cta": "Créer votre compte"
+    },
+    "fournisseurCard": {
+      "kicker": "Partenaires",
+      "title": "Espace partenaire",
+      "description": "Soumettez vos services, missions et commissions à notre équipe.",
+      "cta": "Devenir partenaire"
+    },
     "stats": {
       "forSale": "À vendre",
       "forRent": "À louer",
@@ -19,18 +33,91 @@
       "listings": "Annonces actives"
     }
   },
+  "hero": {
+    "eyebrow": "Émirats arabes unis · Immobilier de luxe",
+    "line1": "Trouvez l'adresse",
+    "line2": "qui vous ressemble",
+    "explore": "Explorer les biens",
+    "watch": "En savoir plus"
+  },
+  "why": {
+    "eyebrow": "Pourquoi nous choisir",
+    "title": "Une exigence d'excellence",
+    "items": [
+      {
+        "title": "Agréé & de confiance",
+        "text": "Une agence régulée, transparente sur chaque transaction."
+      },
+      {
+        "title": "Portefeuille primé",
+        "text": "Des résidences sélectionnées aux meilleures adresses des Émirats."
+      },
+      {
+        "title": "Service conciergerie",
+        "text": "Un conseiller dédié vous accompagne de la première visite à la remise des clés."
+      }
+    ]
+  },
+  "ctaBand": {
+    "title": "Prêt à trouver votre prochain chez-vous ?",
+    "subtitle": "Réservez une visite privée et laissez nos conseillers composer une sélection sur mesure."
+  },
+  "book": {
+    "cta": "Réserver une visite",
+    "short": "Réserver",
+    "title": "Réserver une visite",
+    "subtitle": "Choisissez une date et un créneau — notre conseiller confirmera avec vous.",
+    "name": "Nom complet",
+    "namePlaceholder": "Votre nom",
+    "phone": "Téléphone",
+    "date": "Choisir une date",
+    "slot": "Choisir un créneau",
+    "confirm": "Confirmer la réservation",
+    "sending": "Envoi…",
+    "booked": "Visite demandée",
+    "bookedSub": "Merci ! Notre conseiller vous contactera sous peu pour confirmer.",
+    "property": "Bien",
+    "when": "Quand",
+    "close": "Fermer",
+    "errorValidation": "Veuillez indiquer votre nom et votre téléphone.",
+    "errorNetwork": "Impossible d'envoyer votre demande. Veuillez réessayer."
+  },
+  "theme": {
+    "light": "Mode clair",
+    "dark": "Mode sombre"
+  },
+  "footer": {
+    "tagline": "Immobilier de luxe sélectionné à Dubaï et Abou Dabi — à la vente et à la location.",
+    "newsletter": "Adresse e-mail",
+    "subscribe": "S'abonner",
+    "explore": "Explorer",
+    "company": "Société",
+    "contact": "Contact"
+  },
+  "portfolio": {
+    "all": "Tous",
+    "villa": "Villas",
+    "apartment": "Appartements",
+    "townhouse": "Maisons de ville",
+    "penthouse": "Penthouses",
+    "office": "Bureaux",
+    "studio": "Studios",
+    "land": "Terrains"
+  },
   "search": {
     "title": "Recherche",
+    "find": "Trouvez votre bien",
     "keyword": "Ville ou quartier",
-    "keywordPlaceholder": "ex. Dubai Marina",
+    "keywordPlaceholder": "Choisir un lieu",
     "deal": "Transaction",
-    "dealAny": "Vente & location",
-    "dealSale": "À vendre",
-    "dealRent": "À louer",
+    "dealAny": "Indifférent",
+    "dealSale": "Acheter",
+    "dealRent": "Louer",
     "unitType": "Type de bien",
     "unitTypeAny": "Tous types",
     "bedrooms": "Chambres",
     "bedroomsAny": "Indifférent",
+    "priceRange": "Gamme de prix",
     "priceMin": "Prix min (AED)",
     "priceMax": "Prix max (AED)",
     "submit": "Rechercher",
@@ -55,7 +142,7 @@
     "beds": "{{count}} ch",
     "baths": "{{count}} sdb",
     "area": "{{area}} sqft",
-    "viewDetails": "Voir le détail",
+    "viewDetails": "Détails",
     "priceOnRequest": "Prix sur demande"
   },
   "detail": {

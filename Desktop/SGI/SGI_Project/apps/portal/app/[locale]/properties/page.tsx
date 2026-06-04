@@ -7,7 +7,11 @@ import { PropertyGrid } from "@/components/property-grid";
 import { SearchFilters } from "@/components/search-filters";
 import { PropertyMap, type PropertyMarker } from "@/components/property-map";
 import { apiServerPublic } from "@/lib/api-server";
-import { formatAed, type PublicEnvelope, type PublicListing } from "@/lib/realestate";
+import {
+  formatAed,
+  type PublicEnvelope,
+  type PublicListing,
+} from "@/lib/realestate";
 
 const LIMIT = 12;
 
@@ -67,7 +71,8 @@ export default async function PropertiesPage({
   const sp = await searchParams;
 
   const pageRaw = one(sp.page);
-  const page = pageRaw && /^\d+$/.test(pageRaw) ? Math.max(1, Number(pageRaw)) : 1;
+  const page =
+    pageRaw && /^\d+$/.test(pageRaw) ? Math.max(1, Number(pageRaw)) : 1;
 
   const query = buildBackendQuery(sp, page);
   const res = await apiServerPublic<PublicEnvelope<PublicListing[]>>(
@@ -103,25 +108,47 @@ export default async function PropertiesPage({
 
   // Marqueurs (uniquement les annonces géolocalisées).
   const markers: PropertyMarker[] = listings
-    .filter((l) => !!l.slug && typeof l.lat === "number" && typeof l.lng === "number")
+    .filter(
+      (l) => !!l.slug && typeof l.lat === "number" && typeof l.lng === "number",
+    )
     .map((l) => ({
       slug: l.slug as string,
       lat: l.lat as number,
       lng: l.lng as number,
       title: l.title ?? (l.slug as string),
-      priceLabel: formatAed(Number(l.price)) + (l.deal === "rent" ? " /yr" : ""),
-      dealLabel: l.deal === "sale" ? t("search.dealSale") : t("search.dealRent"),
+      priceLabel:
+        formatAed(Number(l.price)) + (l.deal === "rent" ? " /yr" : ""),
+      dealLabel:
+        l.deal === "sale" ? t("search.dealSale") : t("search.dealRent"),
       href: `/${lc}/property/${l.slug}`,
     }));
 
   return (
     <PublicShell locale={lc}>
-      <section className="sgi-container" style={{ paddingBlock: "var(--page-py)", display: "flex", flexDirection: "column", gap: "var(--section-gap)" }}>
+      <section
+        className="z-container"
+        style={{
+          paddingBlock: "56px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "var(--section-gap)",
+        }}
+      >
         <div>
-          <h1 style={{ margin: "0 0 0.25rem", fontSize: "var(--h1-size)", color: "var(--ink)" }}>
+          <span className="z-eyebrow">{t("nav.home")}</span>
+          <h1
+            className="z-sec-title"
+            style={{ margin: "12px 0 0", fontSize: "clamp(30px,4vw,48px)" }}
+          >
             {t("nav.properties")}
           </h1>
-          <p style={{ margin: 0, color: "var(--ink-3)", fontSize: "0.9rem" }}>
+          <p
+            style={{
+              margin: "10px 0 0",
+              color: "var(--z-muted)",
+              fontSize: "0.95rem",
+            }}
+          >
             {t("filters.results", { count: total })}
           </p>
         </div>
@@ -160,11 +187,37 @@ export default async function PropertiesPage({
         />
 
         {/* Bascule Liste / Carte (CSS logique, RTL-safe) */}
-        <div style={{ display: "inline-flex", gap: 2, padding: 3, background: "var(--bg-cream)", border: "1px solid var(--line-soft)", borderRadius: "var(--r)", alignSelf: "flex-start" }}>
-          <Link href={viewHref("list")} className={view === "list" ? "sgi-button sgi-button-primary" : "sgi-button sgi-button-ghost"} style={{ fontSize: "0.8rem", padding: "0.4rem 0.9rem" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            gap: 2,
+            padding: 3,
+            background: "var(--bg-cream)",
+            border: "1px solid var(--line-soft)",
+            borderRadius: "var(--r)",
+            alignSelf: "flex-start",
+          }}
+        >
+          <Link
+            href={viewHref("list")}
+            className={
+              view === "list"
+                ? "sgi-button sgi-button-primary"
+                : "sgi-button sgi-button-ghost"
+            }
+            style={{ fontSize: "0.8rem", padding: "0.4rem 0.9rem" }}
+          >
             {t("view.list")}
           </Link>
-          <Link href={viewHref("map")} className={view === "map" ? "sgi-button sgi-button-primary" : "sgi-button sgi-button-ghost"} style={{ fontSize: "0.8rem", padding: "0.4rem 0.9rem" }}>
+          <Link
+            href={viewHref("map")}
+            className={
+              view === "map"
+                ? "sgi-button sgi-button-primary"
+                : "sgi-button sgi-button-ghost"
+            }
+            style={{ fontSize: "0.8rem", padding: "0.4rem 0.9rem" }}
+          >
             {t("view.map")}
           </Link>
         </div>
@@ -176,9 +229,19 @@ export default async function PropertiesPage({
         )}
 
         {view === "list" && totalPages > 1 ? (
-          <nav style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.75rem" }}>
+          <nav
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "0.75rem",
+            }}
+          >
             {page > 1 ? (
-              <Link href={pageHref(page - 1)} className="sgi-button sgi-button-secondary">
+              <Link
+                href={pageHref(page - 1)}
+                className="sgi-button sgi-button-secondary"
+              >
                 {t("pagination.previous")}
               </Link>
             ) : null}
@@ -186,7 +249,10 @@ export default async function PropertiesPage({
               {t("pagination.page", { page })} / {totalPages}
             </span>
             {page < totalPages ? (
-              <Link href={pageHref(page + 1)} className="sgi-button sgi-button-secondary">
+              <Link
+                href={pageHref(page + 1)}
+                className="sgi-button sgi-button-secondary"
+              >
                 {t("pagination.next")}
               </Link>
             ) : null}

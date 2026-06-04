@@ -22,10 +22,17 @@ export function PropertyGrid({
         className="sgi-card"
         style={{ textAlign: "center", padding: "clamp(2rem, 6vw, 3.5rem)" }}
       >
-        <h3 style={{ margin: "0 0 0.5rem", color: "var(--ink)", fontSize: "1.1rem" }}>
+        <h3
+          className="z-serif"
+          style={{
+            margin: "0 0 0.5rem",
+            color: "var(--z-green-900)",
+            fontSize: "1.6rem",
+          }}
+        >
           {t("empty.title")}
         </h3>
-        <p style={{ margin: 0, color: "var(--ink-3)", fontSize: "0.9rem" }}>
+        <p style={{ margin: 0, color: "var(--z-muted)", fontSize: "0.95rem" }}>
           {t("empty.subtitle")}
         </p>
       </div>
@@ -33,15 +40,13 @@ export function PropertyGrid({
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: "var(--section-gap)",
-        gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 1fr))",
-      }}
-    >
+    <div className="z-cards">
       {listings.map((listing, i) => (
-        <PropertyCard key={listing.slug ?? i} listing={listing} locale={locale} />
+        <PropertyCard
+          key={listing.slug ?? i}
+          listing={listing}
+          locale={locale}
+        />
       ))}
     </div>
   );
