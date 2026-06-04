@@ -11,6 +11,7 @@ import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 import { ListingFlagToggle } from "@/components/listing-flag-toggle";
 import { ListingOnlineToggle } from "@/components/listing-online-toggle";
 import { SocialPublish, type SocialPost } from "@/components/social-publish";
+import { ScenarioVideo, type Scenario } from "@/components/scenario-video";
 
 // Câblé sur /api/admin/leasing/{listings,applications} → /api/v1/leasing/*.
 
@@ -133,6 +134,12 @@ function ListingsTab({ t }: { t: Translations }) {
     for (const p of social.items) (m[p.listing_id] ??= []).push(p);
     return m;
   }, [social.items]);
+  const scenarios = useApiList<Scenario>("/api/admin/scenarios?listing_type=rent&limit=500");
+  const scenariosByListing = React.useMemo(() => {
+    const m: Record<string, Scenario[]> = {};
+    for (const s of scenarios.items) (m[s.listing_id] ??= []).push(s);
+    return m;
+  }, [scenarios.items]);
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);
@@ -217,6 +224,7 @@ function ListingsTab({ t }: { t: Translations }) {
                     {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                       <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
                         <SocialPublish t={t} listingType="rent" listingId={x.id} posts={socialByListing[x.id] ?? []} onChanged={social.reload} />
+                        <ScenarioVideo t={t} listingType="rent" listingId={x.id} scenarios={scenariosByListing[x.id] ?? []} onChanged={scenarios.reload} />
                         {x.status === "published" && x.slug && (
                           <a href={`${PORTAL_URL}/${lang}/property/${x.slug}`} target="_blank" rel="noopener noreferrer" style={{ ...actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)"), textDecoration: "none" }}>{t.web_view}</a>
                         )}

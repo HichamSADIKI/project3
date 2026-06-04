@@ -44,6 +44,7 @@ from app.routers import (
     rentals,
     reporting,
     sales,
+    scenarios,
     scraping,
     social,
     sources,
@@ -233,6 +234,8 @@ app.include_router(leasing.router, prefix="/api/v1")
 app.include_router(marketing.router, prefix="/api/v1")
 # Immobilier — Social : publication d'annonces sur les réseaux sociaux (migration 0042)
 app.include_router(social.router, prefix="/api/v1")
+# Immobilier — Scenarios : générateur de vidéos social media (photos + voix avatar) (migration 0043)
+app.include_router(scenarios.router, prefix="/api/v1")
 # Immobilier — Sources : ingestion multi-source idempotente → leads (migration 0039)
 app.include_router(sources.router, prefix="/api/v1")
 # Vitrine immobilière publique (sans auth JWT — site public, mono-agence) (migrations 0040/0041)
