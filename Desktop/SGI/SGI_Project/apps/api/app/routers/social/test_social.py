@@ -16,6 +16,7 @@ from app.models.company import Company
 from app.models.user import User
 from app.routers.sales import service as sales_service
 from app.routers.scenarios import service as scenarios_service
+from app.routers.scenarios.models import VideoScenario
 from app.routers.social import service
 from app.routers.social.models import SocialPost
 
@@ -336,3 +337,47 @@ class TestPostToOut:
         post = _post(external_url="https://minio/last-known")
         out = await service.post_to_out(None, uuid.uuid4(), post)
         assert out.external_url == "https://minio/last-known"
+
+
+@pytest.mark.asyncio
+async def test_posts_to_out_batches_scenarios(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    """`posts_to_out` charge les scénarios liés en UNE requête (anti-N+1) et
+    préserve l'ordre + le repli (pas de MinIO en test → external_url conservé)."""
+    cid = seed_company.id
+    listing_id = await _seed_sale_listing(db_session, cid)
+    scenario = VideoScenario(
+        company_id=cid,
+        listing_type="sale",
+        listing_id=listing_id,
+        voice_mode="avatar",
+        status="ready",
+        photo_refs=[],
+    )
+    db_session.add(scenario)
+    await db_session.flush()
+    p_video = SocialPost(
+        company_id=cid,
+        listing_type="sale",
+        listing_id=listing_id,
+        channel="facebook",
+        status="published",
+        video_scenario_id=scenario.id,
+        external_url="https://stored/fb",
+    )
+    p_plain = SocialPost(
+        company_id=cid,
+        listing_type="sale",
+        listing_id=listing_id,
+        channel="instagram",
+        status="published",
+        external_url="https://stored/ig",
+    )
+    db_session.add_all([p_video, p_plain])
+    await db_session.commit()
+
+    out = await service.posts_to_out(db_session, cid, [p_video, p_plain])
+    assert [o.channel for o in out] == ["facebook", "instagram"]
+    # Repli : sans MinIO en test, l'URL stockée est conservée pour les deux.
+    assert out[1].external_url == "https://stored/ig"

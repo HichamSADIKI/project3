@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.routers.scenarios import service as scenarios_service
+from app.routers.scenarios.models import VideoScenario
 from app.routers.social.models import SocialPost
 from app.routers.social.schemas import PostOut
 
@@ -80,6 +81,46 @@ async def post_to_out(db: AsyncSession, company_id: uuid.UUID, post: SocialPost)
             fresh = (await scenarios_service.scenario_to_out(scenario)).video_url
             if fresh:
                 out.external_url = fresh
+    return out
+
+
+async def posts_to_out(
+    db: AsyncSession, company_id: uuid.UUID, posts: list[SocialPost]
+) -> list[PostOut]:
+    """Sérialise une LISTE de posts en **un seul** chargement des scénarios liés.
+
+    Variante batch de `post_to_out` pour les listes : sans elle, sérialiser N
+    posts portant une vidéo ferait N requêtes `get_scenario` (N+1). On récupère
+    tous les scénarios liés (∈ tenant) en une requête `IN (...)`, puis on re-signe
+    l'URL à la lecture (presign local, pas de DB). Repli identique à `post_to_out`.
+    """
+    sid_set = {p.video_scenario_id for p in posts if p.video_scenario_id is not None}
+    scenarios_by_id: dict[uuid.UUID, VideoScenario] = {}
+    if sid_set:
+        rows = (
+            await db.execute(
+                select(VideoScenario).where(
+                    VideoScenario.company_id == company_id,
+                    VideoScenario.id.in_(sid_set),
+                    VideoScenario.deleted_at.is_(None),
+                )
+            )
+        ).scalars()
+        scenarios_by_id = {s.id: s for s in rows}
+
+    out: list[PostOut] = []
+    for post in posts:
+        item = PostOut.model_validate(post)
+        scenario = (
+            scenarios_by_id.get(post.video_scenario_id)
+            if post.video_scenario_id is not None
+            else None
+        )
+        if scenario is not None:
+            fresh = (await scenarios_service.scenario_to_out(scenario)).video_url
+            if fresh:
+                item.external_url = fresh
+        out.append(item)
     return out
 
 

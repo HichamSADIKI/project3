@@ -65,7 +65,7 @@ async def list_posts_endpoint(
     posts = await service.list_posts(
         db, company_id, listing_type=listing_type, listing_id=listing_id
     )
-    return PostListOut(data=[await service.post_to_out(db, company_id, p) for p in posts])
+    return PostListOut(data=await service.posts_to_out(db, company_id, posts))
 
 
 @router.post(
