@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # ── TTS (Azure Speech) — voix d'avatar des scénarios vidéo ────────────
+    # Si la clé OU la région manque, la voix d'avatar est désactivée (le
+    # diaporama reste silencieux) — le mode « voix enregistrée » n'en dépend pas.
+    AZURE_SPEECH_KEY: str = ""
+    AZURE_SPEECH_REGION: str = ""  # ex. "uaenorth", "westeurope"
+
     # ── Téléphonie / Asterisk AMI ────────────────────────────────────────
     # Consommé par le module telephony (pont AMI → WebSocket). Si le listener
     # ne peut joindre l'AMI, il se met en reconnexion silencieuse (l'API reste
