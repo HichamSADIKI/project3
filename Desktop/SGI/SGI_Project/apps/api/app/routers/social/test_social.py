@@ -13,6 +13,7 @@ from app.models.client import Client
 from app.models.company import Company
 from app.models.user import User
 from app.routers.sales import service as sales_service
+from app.routers.scenarios import service as scenarios_service
 from app.routers.social import service
 
 # ── Helpers purs ─────────────────────────────────────────────────────────────
@@ -199,3 +200,62 @@ async def test_cross_tenant_publish_and_list(
         headers={"Authorization": f"Bearer {token2}"},
     )
     assert lst.json()["data"] == []
+
+
+async def _ready_scenario(db: AsyncSession, company_id: uuid.UUID, listing_id: uuid.UUID):
+    sc = await scenarios_service.create_scenario(
+        db,
+        company_id,
+        listing_type="sale",
+        listing_id=listing_id,
+        voice_mode="avatar",
+        photo_refs=["scenarios/x/photo/a.jpg"],
+        avatar="female",
+    )
+    return await scenarios_service.run_stub_generation(db, company_id, sc.id)
+
+
+@pytest.mark.asyncio
+async def test_publish_with_video_scenario(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    seed_company: Company,
+) -> None:
+    _, token = seed_admin
+    h = {"Authorization": f"Bearer {token}"}
+    listing_id = await _seed_sale_listing(db_session, seed_company.id)
+    sc = await _ready_scenario(db_session, seed_company.id, listing_id)
+    assert sc is not None
+
+    # Publier la vidéo sur facebook → le post porte la vidéo + son URL.
+    r = await client.post(
+        "/api/v1/social/posts",
+        headers=h,
+        json={
+            "listing_type": "sale",
+            "listing_id": str(listing_id),
+            "channel": "facebook",
+            "video_scenario_id": str(sc.id),
+        },
+    )
+    assert r.status_code == 201
+    data = r.json()["data"]
+    assert data["video_scenario_id"] == str(sc.id)
+    assert data["external_url"] == sc.video_url
+
+    # Une vidéo d'une AUTRE annonce ne peut pas être attachée → 404.
+    other_listing = await _seed_sale_listing(db_session, seed_company.id)
+    sc_other = await _ready_scenario(db_session, seed_company.id, other_listing)
+    assert sc_other is not None
+    rbad = await client.post(
+        "/api/v1/social/posts",
+        headers=h,
+        json={
+            "listing_type": "sale",
+            "listing_id": str(listing_id),
+            "channel": "instagram",
+            "video_scenario_id": str(sc_other.id),
+        },
+    )
+    assert rbad.status_code == 404

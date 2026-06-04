@@ -25,4 +25,6 @@ class SocialPost(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="published")
     message: Mapped[str | None] = mapped_column(Text, nullable=True)
     external_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Vidéo générée (scénario) attachée au post — optionnel (migration 0044).
+    video_scenario_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

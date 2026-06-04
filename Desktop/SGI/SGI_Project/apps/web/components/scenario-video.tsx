@@ -10,6 +10,7 @@ import React, { useRef, useState } from "react";
 
 import type { Translations } from "@/lib/i18n";
 import { postJson } from "@/lib/api-client";
+import { SOCIAL_CHANNELS } from "@/components/social-publish";
 
 export type Scenario = {
   id: string;
@@ -115,9 +116,36 @@ function ScenarioModal({
   const [recording, setRecording] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [shared, setShared] = useState<Set<string>>(new Set());
+  const [sharing, setSharing] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // Publie la vidéo d'un scénario sur un canal social (réutilise le module social).
+  async function shareVideo(scenarioId: string, channel: string) {
+    const key = `${scenarioId}:${channel}`;
+    if (sharing || shared.has(key)) return;
+    setSharing(key);
+    setErr(null);
+    try {
+      const res = await postJson("/api/admin/social/posts", {
+        listing_type: listingType,
+        listing_id: listingId,
+        channel,
+        video_scenario_id: scenarioId,
+      });
+      if (res.ok) {
+        setShared((prev) => new Set(prev).add(key));
+      } else {
+        setErr(t.scenario_err_share);
+      }
+    } catch {
+      setErr(t.scenario_err_share);
+    } finally {
+      setSharing(null);
+    }
+  }
 
   async function onPickPhotos(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -301,14 +329,44 @@ function ScenarioModal({
             <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--ink-2)", marginBottom: 10 }}>{t.scenario_generated}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {scenarios.map((s) => (
-                <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, background: "var(--bg-cream)", border: "1px solid var(--line-soft)" }}>
-                  <span style={{ fontSize: 18 }}>{s.avatar === "male" ? "👨" : s.avatar === "female" ? "👩" : "🎙️"}</span>
-                  <span style={{ flex: 1, fontSize: 13, color: "var(--ink-2)" }}>{s.title || t.scenario_untitled}</span>
-                  <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: s.status === "ready" ? "rgba(16,185,129,0.12)" : "var(--line-soft)", color: s.status === "ready" ? "var(--emerald)" : "var(--ink-4)" }}>{s.status === "ready" ? t.scenario_ready : s.status}</span>
-                  {s.status === "ready" && s.video_url && (
-                    <a href={s.video_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--gold-deep)", textDecoration: "none" }}>▶ {t.scenario_watch}</a>
+                <div key={s.id} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "8px 12px", borderRadius: 10, background: "var(--bg-cream)", border: "1px solid var(--line-soft)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 18 }}>{s.avatar === "male" ? "👨" : s.avatar === "female" ? "👩" : "🎙️"}</span>
+                    <span style={{ flex: 1, fontSize: 13, color: "var(--ink-2)" }}>{s.title || t.scenario_untitled}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: s.status === "ready" ? "rgba(16,185,129,0.12)" : "var(--line-soft)", color: s.status === "ready" ? "var(--emerald)" : "var(--ink-4)" }}>{s.status === "ready" ? t.scenario_ready : s.status}</span>
+                    {s.status === "ready" && s.video_url && (
+                      <a href={s.video_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--gold-deep)", textDecoration: "none" }}>▶ {t.scenario_watch}</a>
+                    )}
+                    <button onClick={() => remove(s.id)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--ink-4)", fontSize: 16 }}>×</button>
+                  </div>
+                  {s.status === "ready" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 11.5, color: "var(--ink-4)", marginInlineEnd: 2 }}>{t.scenario_share} :</span>
+                      {SOCIAL_CHANNELS.map((c) => {
+                        const key = `${s.id}:${c.key}`;
+                        const on = shared.has(key);
+                        const loading = sharing === key;
+                        return (
+                          <button
+                            key={c.key}
+                            type="button"
+                            onClick={() => shareVideo(s.id, c.key)}
+                            disabled={loading || on}
+                            title={c.label}
+                            style={{
+                              display: "inline-flex", alignItems: "center", justifyContent: "center",
+                              width: 24, height: 24, borderRadius: 7, cursor: on ? "default" : "pointer",
+                              border: `1px solid ${on ? "var(--emerald)" : "var(--line-soft)"}`,
+                              background: on ? "var(--emerald)" : c.color,
+                              color: "#fff", fontSize: 11, fontWeight: 800, opacity: loading ? 0.5 : 1,
+                            }}
+                          >
+                            {on ? "✓" : loading ? "…" : c.label[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
                   )}
-                  <button onClick={() => remove(s.id)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "var(--ink-4)", fontSize: 16 }}>×</button>
                 </div>
               ))}
             </div>
