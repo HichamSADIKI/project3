@@ -139,6 +139,11 @@ async def create_endpoint(
     company_id = await get_company_id(db)
     if not await _listing_belongs(db, company_id, body.listing_type, body.listing_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="listing_not_found")
+    # Loi 1 (stockage) : les refs MinIO doivent appartenir au tenant — sinon un
+    # scénario pourrait faire encoder/exfiltrer le fichier d'un autre tenant.
+    refs = [*body.photo_refs, *([body.audio_ref] if body.audio_ref else [])]
+    if not all(service.owns_ref(company_id, r) for r in refs):
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="foreign_ref")
     scenario = await service.create_scenario(
         db,
         company_id,
