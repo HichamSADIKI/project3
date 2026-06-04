@@ -170,18 +170,21 @@ async def test_cross_tenant_isolation(
 ) -> None:
     _, token1 = seed_admin
     _, token2 = second_admin
+    h1 = {"Authorization": f"Bearer {token1}"}
+    h2 = {"Authorization": f"Bearer {token2}"}
     lid = await _seed_sale_listing(db_session, seed_company.id)
-    await client.post(
-        "/api/v1/scenarios/", headers={"Authorization": f"Bearer {token1}"}, json=_payload(lid)
-    )
+    r1 = await client.post("/api/v1/scenarios/", headers=h1, json=_payload(lid))
+    assert r1.status_code == 201, r1.text
+    sid = r1.json()["data"]["id"]
     # Tenant 2 ne peut pas créer sur l'annonce de tenant 1 (404)
-    rcross = await client.post(
-        "/api/v1/scenarios/", headers={"Authorization": f"Bearer {token2}"}, json=_payload(lid)
-    )
+    rcross = await client.post("/api/v1/scenarios/", headers=h2, json=_payload(lid))
     assert rcross.status_code == 404
     # Tenant 2 ne voit aucun scénario de tenant 1
-    lst = await client.get(
-        f"/api/v1/scenarios/?listing_type=sale&listing_id={lid}",
-        headers={"Authorization": f"Bearer {token2}"},
-    )
+    lst = await client.get(f"/api/v1/scenarios/?listing_type=sale&listing_id={lid}", headers=h2)
     assert lst.json()["data"] == []
+    # Anti-BOLA : tenant 2 ne peut ni lire, ni générer, ni supprimer le scénario
+    # de tenant 1 — 404 (jamais 403), et le scénario reste intact pour tenant 1.
+    assert (await client.get(f"/api/v1/scenarios/{sid}", headers=h2)).status_code == 404
+    assert (await client.post(f"/api/v1/scenarios/{sid}/generate", headers=h2)).status_code == 404
+    assert (await client.delete(f"/api/v1/scenarios/{sid}", headers=h2)).status_code == 404
+    assert (await client.get(f"/api/v1/scenarios/{sid}", headers=h1)).status_code == 200
