@@ -87,17 +87,17 @@ export function SocialPublish({
         title={t.social_title}
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          border: `1px solid ${count > 0 ? "var(--gold)" : "var(--line-soft)"}`,
+          border: `1px solid ${count > 0 ? "var(--azure)" : "var(--line-soft)"}`,
           borderRadius: 8, padding: "5px 10px", cursor: "pointer",
           fontSize: 11.5, fontWeight: 600,
-          background: count > 0 ? "rgba(212,160,55,0.12)" : "transparent",
-          color: count > 0 ? "var(--gold-deep)" : "var(--ink-4)",
+          background: count > 0 ? "var(--azure-soft)" : "transparent",
+          color: count > 0 ? "var(--azure)" : "var(--ink-4)",
         }}
       >
         <IcShare />
         {t.social_btn}
         {count > 0 && (
-          <span className="tnum" style={{ fontSize: 10.5, fontWeight: 700, background: "var(--gold)", color: "#1A1610", borderRadius: 999, padding: "0 6px", lineHeight: "16px" }}>{count}</span>
+          <span className="tnum" style={{ fontSize: 10.5, fontWeight: 700, background: "var(--azure)", color: "#fff", borderRadius: 999, padding: "0 6px", lineHeight: "16px" }}>{count}</span>
         )}
       </button>
 
