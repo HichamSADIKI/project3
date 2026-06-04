@@ -145,6 +145,13 @@ class TagListOut(BaseModel):
     data: list[TagOut]
 
 
+class AiTriggerOut(BaseModel):
+    """Accusé d'enfilement d'une tâche IA (résumé / tags) — résultat asynchrone."""
+
+    success: bool = True
+    data: dict[str, str]
+
+
 # ── Channel configs (routage tenant des canaux externes) ───────────────────
 
 

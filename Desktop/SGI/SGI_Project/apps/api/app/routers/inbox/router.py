@@ -30,6 +30,7 @@ from app.routers.inbox.models import (
     InboxTag,
 )
 from app.routers.inbox.schemas import (
+    AiTriggerOut,
     AssignBody,
     ChannelConfigCreate,
     ChannelConfigItemOut,
@@ -103,6 +104,23 @@ async def _load_visible_conversation(
     if _get_role(request) == "agent" and conv.assigned_agent_id != _get_user_id(request):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="conversation_not_found")
     return conv
+
+
+def _enqueue_inbox_ai(task_name: str, company_id: uuid.UUID, conv_id: uuid.UUID) -> None:
+    """Enfile une tâche IA inbox (résumé / tags) sur la queue `exports`.
+
+    On passe par `celery_app.send_task` (et NON `task.delay`) : ces tâches sont
+    `@shared_task`, donc `.delay` depuis le process API (uvicorn) viserait le broker
+    par défaut `amqp://localhost` (Errno 111). `send_task` cible explicitement
+    `celery_app` (broker Valkey) et la queue `exports` consommée par le worker.
+    """
+    from app.tasks.celery_app import celery_app
+
+    celery_app.send_task(
+        task_name,
+        args=[str(company_id), str(conv_id)],
+        queue="exports",
+    )
 
 
 @router.get("/health")
@@ -536,6 +554,53 @@ async def delete_channel_endpoint(
             status_code=status.HTTP_404_NOT_FOUND, detail="channel_config_not_found"
         )
     return {"success": True, "data": {"deleted": str(config_id)}}
+
+
+# ── IA asynchrone (résumé + tags) — déclenchée à la demande par l'agent ─────
+
+
+@router.post(
+    "/conversations/{conv_id}/summarize",
+    response_model=AiTriggerOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
+)
+async def summarize_endpoint(
+    conv_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> AiTriggerOut:
+    """Enfile le résumé IA de la conversation (résultat dans `channel_metadata`).
+
+    Anti-BOLA : 404 si la conversation n'appartient pas au tenant (ou invisible à
+    l'agent), jamais 403. Traitement asynchrone (queue `exports`) → 202.
+    """
+    company_id = _get_company_id(request)
+    await _load_visible_conversation(db, request, company_id, conv_id)
+    _enqueue_inbox_ai("app.tasks.inbox.summarize_conversation", company_id, conv_id)
+    return AiTriggerOut(data={"status": "queued", "task": "summarize"})
+
+
+@router.post(
+    "/conversations/{conv_id}/suggest-tags",
+    response_model=AiTriggerOut,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
+)
+async def suggest_tags_endpoint(
+    conv_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> AiTriggerOut:
+    """Enfile la suggestion de tags IA (résultat dans `channel_metadata`).
+
+    Ne crée aucun lien : l'agent valide ensuite les tags proposés. Anti-BOLA : 404
+    hors tenant / hors visibilité agent. Asynchrone (queue `exports`) → 202.
+    """
+    company_id = _get_company_id(request)
+    await _load_visible_conversation(db, request, company_id, conv_id)
+    _enqueue_inbox_ai("app.tasks.inbox.suggest_tags", company_id, conv_id)
+    return AiTriggerOut(data={"status": "queued", "task": "suggest_tags"})
 
 
 # ── WebSocket temps réel (Ph4) ─────────────────────────────────────────────
