@@ -10,6 +10,7 @@ et un simple agent ne voit que SES conversations assignées (anti-BOLA).
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, WebSocket, status
 from sqlalchemy import select
@@ -30,6 +31,10 @@ from app.routers.inbox.models import (
 )
 from app.routers.inbox.schemas import (
     AssignBody,
+    ChannelConfigCreate,
+    ChannelConfigItemOut,
+    ChannelConfigListOut,
+    ChannelConfigOut,
     ConversationDetail,
     ConversationDetailOut,
     ConversationItemOut,
@@ -461,6 +466,76 @@ async def attach_tag_endpoint(
         )
         await db.commit()
     return ConversationItemOut(data=ConversationOut.model_validate(conv))
+
+
+# ── Channel configs (enrôlement WhatsApp, routage tenant) ──────────────────
+
+# Réservé admin/manager : c'est une config d'infrastructure (routage entrant).
+_CHANNEL_ADMIN_ROLES = ("admin", "manager")
+
+
+@router.post(
+    "/channels",
+    response_model=ChannelConfigItemOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_require_roles(*_CHANNEL_ADMIN_ROLES))],
+)
+async def enroll_channel_endpoint(
+    body: ChannelConfigCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> ChannelConfigItemOut:
+    """Enrôle un canal externe (mapping `phone_number_id` → ce tenant).
+
+    Le `phone_number_id` est unique globalement : déjà pris par un autre tenant
+    → 409 (sans révéler lequel — Loi 1).
+    """
+    company_id = _get_company_id(request)
+    try:
+        cfg = await service.enroll_channel(
+            db,
+            company_id,
+            channel=body.channel,
+            phone_number_id=body.phone_number_id,
+            display_phone_number=body.display_phone_number,
+            label=body.label,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    return ChannelConfigItemOut(data=ChannelConfigOut.model_validate(cfg))
+
+
+@router.get(
+    "/channels",
+    response_model=ChannelConfigListOut,
+    dependencies=[Depends(_require_roles(*_CHANNEL_ADMIN_ROLES))],
+)
+async def list_channels_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+    channel: str | None = Query(None),
+) -> ChannelConfigListOut:
+    company_id = _get_company_id(request)
+    items = await service.list_channels(db, company_id, channel)
+    return ChannelConfigListOut(data=[ChannelConfigOut.model_validate(c) for c in items])
+
+
+@router.delete(
+    "/channels/{config_id}",
+    dependencies=[Depends(_require_roles(*_CHANNEL_ADMIN_ROLES))],
+)
+async def delete_channel_endpoint(
+    config_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, Any]:
+    """Désenrôle (soft-delete) un canal du tenant. 404 si introuvable ∈ tenant (anti-BOLA)."""
+    company_id = _get_company_id(request)
+    if not await service.delete_channel(db, company_id, config_id):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="channel_config_not_found"
+        )
+    return {"success": True, "data": {"deleted": str(config_id)}}
 
 
 # ── WebSocket temps réel (Ph4) ─────────────────────────────────────────────

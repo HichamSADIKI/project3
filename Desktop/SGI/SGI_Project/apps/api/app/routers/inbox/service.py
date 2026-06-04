@@ -12,11 +12,15 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.routers.inbox.models import InboxConversation, InboxMessage
+from app.routers.inbox.models import (
+    InboxChannelConfig,
+    InboxConversation,
+    InboxMessage,
+)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helpers purs
@@ -268,3 +272,118 @@ async def assign_conversation(
     await db.commit()
     await db.refresh(conv)
     return conv
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Channel configs — routage tenant des canaux externes (WhatsApp…)
+# ─────────────────────────────────────────────────────────────────────────
+
+# Résolution tenant via la fonction SECURITY DEFINER (migration 0045) : seul
+# moyen pour le webhook (sans contexte RLS) de retrouver le tenant d'un canal.
+_RESOLVE_COMPANY_SQL = text("SELECT inbox_resolve_company(:channel, :pid)")
+
+
+async def resolve_company_by_channel(
+    db: AsyncSession, channel: str, phone_number_id: str | None
+) -> uuid.UUID | None:
+    """Résout le tenant d'un canal externe à partir du `phone_number_id`.
+
+    Appelle la fonction SQL `inbox_resolve_company` (SECURITY DEFINER) qui
+    contourne la RLS pour ce seul lookup — indispensable car le webhook n'a
+    aucun contexte tenant. Retourne None si le canal n'est pas enrôlé/actif.
+    """
+    if not phone_number_id:
+        return None
+    result = await db.execute(_RESOLVE_COMPANY_SQL, {"channel": channel, "pid": phone_number_id})
+    return result.scalar_one_or_none()
+
+
+async def enroll_channel(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    *,
+    channel: str,
+    phone_number_id: str,
+    display_phone_number: str | None = None,
+    label: str | None = None,
+) -> InboxChannelConfig:
+    """Enrôle (ou réactive) un canal pour le tenant courant.
+
+    `phone_number_id` est unique GLOBALEMENT par canal : s'il est déjà enrôlé
+    par un AUTRE tenant, l'index unique lève une IntegrityError → on remonte
+    `ValueError("phone_number_id_taken")` (mappée en 409 par le router). Loi 1 :
+    on ne révèle pas à quel tenant il appartient.
+    """
+    existing = (
+        await db.execute(
+            select(InboxChannelConfig).where(
+                InboxChannelConfig.company_id == company_id,
+                InboxChannelConfig.channel == channel,
+                InboxChannelConfig.phone_number_id == phone_number_id,
+                InboxChannelConfig.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        # Ré-enrôlement idempotent par le même tenant : on rafraîchit les libellés.
+        if display_phone_number is not None:
+            existing.display_phone_number = display_phone_number
+        if label is not None:
+            existing.label = label
+        existing.is_active = True
+        existing.updated_at = datetime.now(UTC)
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+
+    cfg = InboxChannelConfig(
+        company_id=company_id,
+        channel=channel,
+        phone_number_id=phone_number_id,
+        display_phone_number=display_phone_number,
+        label=label,
+        is_active=True,
+    )
+    db.add(cfg)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise ValueError("phone_number_id_taken") from exc
+    await db.refresh(cfg)
+    return cfg
+
+
+async def list_channels(
+    db: AsyncSession, company_id: uuid.UUID, channel: str | None = None
+) -> list[InboxChannelConfig]:
+    """Liste les canaux enrôlés du tenant (Loi 1 : filtre company_id explicite)."""
+    query = select(InboxChannelConfig).where(
+        InboxChannelConfig.company_id == company_id,
+        InboxChannelConfig.deleted_at.is_(None),
+    )
+    if channel:
+        query = query.where(InboxChannelConfig.channel == channel)
+    query = query.order_by(InboxChannelConfig.created_at.desc())
+    return list((await db.execute(query)).scalars().all())
+
+
+async def delete_channel(db: AsyncSession, company_id: uuid.UUID, config_id: uuid.UUID) -> bool:
+    """Soft-delete + désactivation d'un canal du tenant. False si introuvable ∈ tenant."""
+    cfg = (
+        await db.execute(
+            select(InboxChannelConfig).where(
+                InboxChannelConfig.id == config_id,
+                InboxChannelConfig.company_id == company_id,
+                InboxChannelConfig.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if cfg is None:
+        return False
+    now = datetime.now(UTC)
+    cfg.deleted_at = now
+    cfg.is_active = False
+    cfg.updated_at = now
+    await db.commit()
+    return True

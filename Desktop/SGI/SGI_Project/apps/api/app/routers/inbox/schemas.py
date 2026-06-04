@@ -143,3 +143,37 @@ class TagItemOut(BaseModel):
 class TagListOut(BaseModel):
     success: bool = True
     data: list[TagOut]
+
+
+# ── Channel configs (routage tenant des canaux externes) ───────────────────
+
+
+class ChannelConfigCreate(BaseModel):
+    """Enrôlement d'un canal externe (mapping phone_number_id → tenant)."""
+
+    channel: Literal["whatsapp", "facebook", "instagram", "email", "webchat"] = "whatsapp"
+    phone_number_id: str = Field(..., min_length=1, max_length=64)
+    display_phone_number: str | None = Field(None, max_length=32)
+    label: str | None = Field(None, max_length=120)
+
+
+class ChannelConfigOut(BaseModel):
+    id: uuid.UUID
+    channel: str
+    phone_number_id: str
+    display_phone_number: str | None
+    label: str | None
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ChannelConfigItemOut(BaseModel):
+    success: bool = True
+    data: ChannelConfigOut
+
+
+class ChannelConfigListOut(BaseModel):
+    success: bool = True
+    data: list[ChannelConfigOut]
