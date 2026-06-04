@@ -1,11 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Topbar, IcFinance, IcPlus } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
+import { postJson, extractError } from "@/lib/api-client";
+import { CreateModal, Field, fieldInput } from "@/components/create-modal";
+
+const PAY_TYPES = ["rent", "charges", "deposit", "deposit_return", "owner_payout", "other"] as const;
 
 // Câblé sur /api/admin/payments/requests → /api/v1/payments/requests.
 
@@ -32,12 +36,53 @@ type Request = {
   amount_aed: string; due_date: string;
 };
 
-export function ScreenRealEstatePayments() {
+export function ScreenRealEstatePayments({
+  initialLead,
+  onPrefillConsumed,
+}: {
+  initialLead?: Record<string, string | number>;
+  onPrefillConsumed?: () => void;
+} = {}) {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Request>("/api/admin/payments/requests?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
   const overdue = items.filter(p => p.status === "overdue").length;
   const payBtn: React.CSSProperties = { border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11.5, fontWeight: 600, background: "rgba(16,185,129,0.12)", color: "var(--emerald)" };
+
+  // Création de demande de paiement (+ action guidée de l'assistant).
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [form, setForm] = useState({ payment_type: "rent", amount_aed: "", due_date: "" });
+
+  useEffect(() => {
+    if (!initialLead) return;
+    setForm((f) => ({
+      ...f,
+      payment_type: initialLead.payment_type != null ? String(initialLead.payment_type) : f.payment_type,
+      amount_aed: initialLead.amount != null ? String(initialLead.amount) : f.amount_aed,
+    }));
+    setFormError(null);
+    setOpen(true);
+    onPrefillConsumed?.();
+  }, [initialLead, onPrefillConsumed]);
+
+  async function submit() {
+    if (!form.amount_aed || Number(form.amount_aed) <= 0) { setFormError(t.invalid_amount); return; }
+    if (!form.due_date) { setFormError(t.col_due_date); return; }
+    setSaving(true); setFormError(null);
+    try {
+      const res = await postJson("/api/admin/payments/requests", {
+        payment_type: form.payment_type,
+        amount_aed: Number(form.amount_aed),
+        due_date: form.due_date,
+      });
+      if (!res.ok) { setFormError(await extractError(res, "save_failed")); setSaving(false); return; }
+      setForm({ payment_type: "rent", amount_aed: "", due_date: "" });
+      setOpen(false); reload();
+    } catch { setFormError("save_failed"); }
+    finally { setSaving(false); }
+  }
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
@@ -51,7 +96,7 @@ export function ScreenRealEstatePayments() {
               <div style={{ fontSize: 12, color: "var(--ink-4)" }}>{loading ? t.loading : `${items.length} · ${overdue} ${t.payments_overdue_count}`}</div>
             </div>
           </div>
-          <button style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
+          <button onClick={() => { setOpen(true); setFormError(null); }} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)", color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer" }}>
             <IcPlus /> {t.add}
           </button>
         </div>
@@ -94,6 +139,20 @@ export function ScreenRealEstatePayments() {
           </table>
         </div>
       </div>
+
+      <CreateModal title={t.add} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={() => void submit()}>
+        <Field label={t.col_type}>
+          <select value={form.payment_type} onChange={(e) => setForm({ ...form, payment_type: e.target.value })} style={fieldInput}>
+            {PAY_TYPES.map((pt) => (<option key={pt} value={pt}>{typeLabel(t, pt)}</option>))}
+          </select>
+        </Field>
+        <Field label={`${t.col_amount} (AED)`}>
+          <input type="number" value={form.amount_aed} onChange={(e) => setForm({ ...form, amount_aed: e.target.value })} placeholder="5000" style={fieldInput} />
+        </Field>
+        <Field label={t.col_due_date}>
+          <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} style={fieldInput} />
+        </Field>
+      </CreateModal>
     </div>
   );
 }

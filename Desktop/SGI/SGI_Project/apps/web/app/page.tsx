@@ -106,7 +106,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_units": (_) => <ScreenRealEstateUnits />,
   "realestate_tenants": (_) => <ScreenRealEstateTenants />,
   "realestate_contracts": (p) => <ScreenRealEstateContracts initialLead={p.initialLead} onPrefillConsumed={p.onPrefillConsumed} />,
-  "realestate_payments": (_) => <ScreenRealEstatePayments />,
+  "realestate_payments": (p) => <ScreenRealEstatePayments initialLead={p.initialLead} onPrefillConsumed={p.onPrefillConsumed} />,
   "realestate_cheques": (_) => <ScreenRealEstateCheques />,
   "realestate_maintenance": (_) => <MaintenanceScreen />,
   "realestate_comms": (_) => <ScreenRealEstateComms />,
