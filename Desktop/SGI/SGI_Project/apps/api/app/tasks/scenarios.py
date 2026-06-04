@@ -30,6 +30,7 @@ from app.routers.scenarios.service import (
     VIDEO_URL_TTL,
     build_ffmpeg_command,
     ffmpeg_output_key,
+    owns_ref,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,11 @@ def _render_video(scenario: VideoScenario) -> str:
     """Télécharge photos/audio, assemble la vidéo FFmpeg, uploade → clé MinIO."""
     if not scenario.photo_refs:
         raise RuntimeError("no_photos")
+    # Défense en profondeur Loi 1 : ne jamais télécharger une ref hors du namespace
+    # du tenant (le worker lit MinIO en privilégié, sans RLS de stockage).
+    refs = [*scenario.photo_refs, *([scenario.audio_ref] if scenario.audio_ref else [])]
+    if not all(owns_ref(scenario.company_id, r) for r in refs):
+        raise RuntimeError("foreign_ref")
     with tempfile.TemporaryDirectory() as tmp:
         image_paths: list[str] = []
         for i, ref in enumerate(scenario.photo_refs):

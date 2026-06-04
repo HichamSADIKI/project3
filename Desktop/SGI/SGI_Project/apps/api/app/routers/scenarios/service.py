@@ -62,6 +62,17 @@ def ffmpeg_output_key(company_id: uuid.UUID, scenario_id: uuid.UUID) -> str:
     return f"scenarios/{company_id}/videos/{scenario_id.hex}.mp4"
 
 
+def owns_ref(company_id: uuid.UUID, ref: str) -> bool:
+    """Vrai si la clé MinIO `ref` appartient au tenant (préfixe `scenarios/{company_id}/`).
+
+    Garde-fou **Loi 1 sur le stockage** : le bucket MinIO est partagé et sans RLS,
+    donc une ref fournie par le client doit être contrainte au namespace du tenant,
+    sinon un scénario pourrait référencer (et faire encoder) le fichier d'un autre
+    tenant. Pur, testable.
+    """
+    return ref.startswith(f"scenarios/{company_id}/")
+
+
 def build_ffmpeg_command(
     image_paths: list[str],
     audio_path: str | None,
