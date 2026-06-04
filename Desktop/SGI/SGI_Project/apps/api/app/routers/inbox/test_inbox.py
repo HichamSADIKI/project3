@@ -5,6 +5,7 @@
   isolation multi-tenant (Loi 1).
 """
 
+import uuid
 from datetime import UTC, datetime
 
 import pytest
@@ -120,3 +121,98 @@ async def test_health_is_public(client: AsyncClient) -> None:
     resp = await client.get("/api/v1/inbox/health")
     assert resp.status_code == 200
     assert resp.json()["module"] == "inbox"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# IA asynchrone : déclencheurs résumé / tags (send_task, anti-BOLA)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.fixture
+def _capture_send_task(monkeypatch: pytest.MonkeyPatch) -> list[tuple[str, dict]]:
+    """Capture les appels `celery_app.send_task` (pas de broker en test)."""
+    calls: list[tuple[str, dict]] = []
+    import app.tasks.celery_app as cel
+
+    monkeypatch.setattr(cel.celery_app, "send_task", lambda name, **kw: calls.append((name, kw)))
+    return calls
+
+
+@pytest.mark.asyncio
+async def test_summarize_enqueues_task_202(
+    client: AsyncClient,
+    seed_admin: tuple,
+    db_session,
+    _capture_send_task: list[tuple[str, dict]],
+) -> None:
+    admin, token = seed_admin
+    conv, _ = await service.get_or_create_conversation(
+        db_session, admin.company_id, channel="whatsapp", external_thread_id="t-summarize"
+    )
+    await db_session.commit()
+
+    r = await client.post(
+        f"/api/v1/inbox/conversations/{conv.id}/summarize",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 202
+    assert r.json()["data"]["task"] == "summarize"
+    assert _capture_send_task, "send_task non appelé"
+    name, kw = _capture_send_task[0]
+    assert name == "app.tasks.inbox.summarize_conversation"
+    assert kw["queue"] == "exports"
+    assert kw["args"] == [str(admin.company_id), str(conv.id)]
+
+
+@pytest.mark.asyncio
+async def test_suggest_tags_enqueues_task_202(
+    client: AsyncClient,
+    seed_admin: tuple,
+    db_session,
+    _capture_send_task: list[tuple[str, dict]],
+) -> None:
+    admin, token = seed_admin
+    conv, _ = await service.get_or_create_conversation(
+        db_session, admin.company_id, channel="whatsapp", external_thread_id="t-tags"
+    )
+    await db_session.commit()
+
+    r = await client.post(
+        f"/api/v1/inbox/conversations/{conv.id}/suggest-tags",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 202
+    name, kw = _capture_send_task[0]
+    assert name == "app.tasks.inbox.suggest_tags"
+    assert kw["queue"] == "exports"
+
+
+@pytest.mark.asyncio
+async def test_summarize_cross_tenant_404(
+    client: AsyncClient,
+    seed_admin: tuple,
+    second_admin: tuple,
+    db_session,
+    _capture_send_task: list[tuple[str, dict]],
+) -> None:
+    """Anti-BOLA Loi 1 : le tenant B ne peut pas résumer une conversation du tenant A."""
+    admin, _ = seed_admin
+    conv, _ = await service.get_or_create_conversation(
+        db_session, admin.company_id, channel="whatsapp", external_thread_id="t-cross"
+    )
+    await db_session.commit()
+
+    _, token2 = second_admin
+    r = await client.post(
+        f"/api/v1/inbox/conversations/{conv.id}/summarize",
+        headers={"Authorization": f"Bearer {token2}"},
+    )
+    assert r.status_code == 404
+    assert _capture_send_task == [], "aucune tâche ne doit être enfilée hors tenant"
+
+
+@pytest.mark.asyncio
+async def test_summarize_requires_auth(client: AsyncClient) -> None:
+    r = await client.post(f"/api/v1/inbox/conversations/{uuid.uuid4()}/summarize")
+    # Sans session : rejeté (middleware tenant 401 ou garde de rôle 403), jamais 202.
+    assert r.status_code in (401, 403)
