@@ -15,6 +15,18 @@ from app.models.user import User
 from app.routers.sales import service as sales_service
 from app.routers.scenarios import service, tts
 
+
+@pytest.fixture(autouse=True)
+def _stub_generate_delay(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neutralise l'enqueue Celery (pas de broker en test) : les endpoints
+    create/generate laissent le scénario en `generating` — état vérifié par les
+    tests. Le rendu FFmpeg réel est couvert par les helpers purs `build_ffmpeg_command`.
+    """
+    import app.tasks.scenarios as scenarios_task
+
+    monkeypatch.setattr(scenarios_task.generate, "delay", lambda *a, **k: None)
+
+
 # ── Helpers purs ─────────────────────────────────────────────────────────────
 
 
