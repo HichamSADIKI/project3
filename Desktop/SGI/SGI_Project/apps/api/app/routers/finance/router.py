@@ -16,6 +16,7 @@ from app.routers.finance.schemas import (
     TransactionListOut,
     TransactionOut,
     TransactionUpdate,
+    VatReport,
 )
 from app.routers.finance.service import (
     create_transaction,
@@ -23,6 +24,7 @@ from app.routers.finance.service import (
     get_pnl,
     get_summary,
     get_transaction,
+    get_vat_report,
     list_transactions,
     update_transaction,
 )
@@ -87,6 +89,16 @@ async def get_aged_receivables_report(
     """Balance âgée des factures impayées du tenant (tranches de retard)."""
     company_id = await _get_company_id(db)
     return await get_aged_receivables(db, company_id)
+
+
+@router.get("/reports/vat", response_model=VatReport)
+async def get_vat_report_endpoint(
+    period: str = Query("quarter", pattern="^(month|quarter|ytd)$"),
+    db: AsyncSession = Depends(get_db_session),
+) -> VatReport:
+    """Rapport TVA (UAE 5 %) du tenant sur la période (déclaration trimestrielle)."""
+    company_id = await _get_company_id(db)
+    return await get_vat_report(db, company_id, period)  # type: ignore[arg-type]
 
 
 @router.get("/transactions", response_model=TransactionListOut)

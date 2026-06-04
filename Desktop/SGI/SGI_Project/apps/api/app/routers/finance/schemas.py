@@ -103,3 +103,19 @@ class AgedReceivables(BaseModel):
     buckets: AgedBuckets
     total: Decimal
     count: int
+
+
+class VatReport(BaseModel):
+    """Rapport TVA (UAE 5 %) dérivé des transactions encaissées de la période.
+
+    Hypothèse : montants HT, standard-rated à 5 %. `output_vat` = TVA collectée
+    sur les revenus ; `input_vat` = TVA déductible sur les dépenses ; `net_vat`
+    = à reverser (positif) ou crédit (négatif)."""
+
+    period: Literal["month", "quarter", "ytd"]
+    rate: Decimal
+    taxable_revenue: Decimal
+    taxable_expenses: Decimal
+    output_vat: Decimal
+    input_vat: Decimal
+    net_vat: Decimal

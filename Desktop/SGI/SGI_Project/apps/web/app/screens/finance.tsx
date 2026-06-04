@@ -60,6 +60,7 @@ const TR: Record<Lang, Record<string, string>> = {
     aged: "Balance âgée (impayés)", incomeT: "Produits", expenseT: "Charges",
     bCurrent: "Courant", b30: "1-30 j", b60: "31-60 j", b90: "61-90 j", b90p: "90+ j", total: "Total",
     pMonth: "Ce mois", pQuarter: "Trimestre", pYtd: "Année",
+    vat: "TVA (5 %)", vatOut: "TVA collectée", vatIn: "TVA déductible", vatNet: "TVA nette à payer",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -72,6 +73,7 @@ const TR: Record<Lang, Record<string, string>> = {
     aged: "Aged receivables (unpaid)", incomeT: "Income", expenseT: "Expenses",
     bCurrent: "Current", b30: "1-30 d", b60: "31-60 d", b90: "61-90 d", b90p: "90+ d", total: "Total",
     pMonth: "This month", pQuarter: "Quarter", pYtd: "Year",
+    vat: "VAT (5%)", vatOut: "Output VAT", vatIn: "Input VAT", vatNet: "Net VAT payable",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -84,6 +86,7 @@ const TR: Record<Lang, Record<string, string>> = {
     aged: "أعمار الذمم (غير مدفوعة)", incomeT: "الإيرادات", expenseT: "المصروفات",
     bCurrent: "جارٍ", b30: "1-30 يوم", b60: "31-60 يوم", b90: "61-90 يوم", b90p: "+90 يوم", total: "الإجمالي",
     pMonth: "هذا الشهر", pQuarter: "ربع سنة", pYtd: "السنة",
+    vat: "ضريبة القيمة المضافة (5%)", vatOut: "ضريبة المخرجات", vatIn: "ضريبة المدخلات", vatNet: "صافي الضريبة المستحقة",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -315,14 +318,24 @@ type Aged = {
   total: string;
   count: number;
 };
+type Vat = {
+  rate: string;
+  taxable_revenue: string;
+  taxable_expenses: string;
+  output_vat: string;
+  input_vat: string;
+  net_vat: string;
+};
 
 function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.ReactNode {
   const [period, setPeriod] = useState<"month" | "quarter" | "ytd">("month");
   const [pnl, setPnl] = useState<Pnl | null>(null);
   const [aged, setAged] = useState<Aged | null>(null);
+  const [vat, setVat] = useState<Vat | null>(null);
 
   useEffect(() => {
     getJson<Pnl>(`/api/admin/finance/reports/pnl?period=${period}`).then(setPnl).catch(() => setPnl(null));
+    getJson<Vat>(`/api/admin/finance/reports/vat?period=${period}`).then(setVat).catch(() => setVat(null));
   }, [period]);
   useEffect(() => {
     getJson<Aged>("/api/admin/finance/reports/aged-receivables").then(setAged).catch(() => setAged(null));
@@ -382,6 +395,23 @@ function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.
               {row(L("b90p"), aed(aged.buckets.d90plus), "var(--rose)")}
               <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
               {row(`${L("total")} (${aged.count})`, aed(aged.total))}
+            </>
+          ) : (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
+          )}
+        </div>
+
+        {/* TVA */}
+        <div style={{ ...card, flex: "1 1 320px" }}>
+          <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 10 }}>{L("vat")}</div>
+          {vat ? (
+            <>
+              {row(L("incomeT"), aed(vat.taxable_revenue))}
+              {row(L("vatOut"), aed(vat.output_vat), "var(--emerald)")}
+              {row(L("expenseT"), aed(vat.taxable_expenses))}
+              {row(L("vatIn"), aed(vat.input_vat), "var(--rose)")}
+              <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
+              {row(L("vatNet"), aed(vat.net_vat), Number(vat.net_vat) >= 0 ? "var(--ink)" : "var(--emerald)")}
             </>
           ) : (
             <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
