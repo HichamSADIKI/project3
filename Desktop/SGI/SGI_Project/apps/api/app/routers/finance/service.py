@@ -1,18 +1,24 @@
 """Service — Finance. Toujours filtrer par company_id (Loi 1)."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.finance import FinanceTransaction
 from app.routers.finance.schemas import (
+    AgedBuckets,
+    AgedReceivables,
     FinanceSummary,
+    PnlReport,
     TransactionCreate,
     TransactionUpdate,
 )
+
+Period = Literal["month", "quarter", "ytd"]
 
 
 async def _next_transaction_sequence(db: AsyncSession, year: int) -> int:
@@ -219,3 +225,101 @@ async def get_summary(
         pending_amount=pending_amount,
         paid_this_month=paid_this_month,
     )
+
+
+# ── Rapports financiers (P&L + balance âgée) ──────────────────────────────
+
+
+def period_start(period: Period, now: datetime) -> datetime:
+    """Début de la période demandée (mois courant / trimestre / année)."""
+    base = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    if period == "ytd":
+        return base.replace(month=1, day=1)
+    if period == "quarter":
+        q_first_month = ((now.month - 1) // 3) * 3 + 1
+        return base.replace(month=q_first_month, day=1)
+    return base.replace(day=1)  # month
+
+
+def bucket_receivables(items: list[tuple[Decimal, date | None]], today: date) -> dict[str, Decimal]:
+    """Ventile des créances (montant, échéance) par âge d'impayé.
+
+    Pure (testable). Pas d'échéance ou échéance future → `current` ; sinon par
+    tranches de retard 1-30 / 31-60 / 61-90 / 90+ jours."""
+    buckets: dict[str, Decimal] = {
+        "current": Decimal(0),
+        "d1_30": Decimal(0),
+        "d31_60": Decimal(0),
+        "d61_90": Decimal(0),
+        "d90plus": Decimal(0),
+    }
+    for amount, due in items:
+        amt = Decimal(str(amount))
+        if due is None or due >= today:
+            buckets["current"] += amt
+            continue
+        days = (today - due).days
+        if days <= 30:
+            buckets["d1_30"] += amt
+        elif days <= 60:
+            buckets["d31_60"] += amt
+        elif days <= 90:
+            buckets["d61_90"] += amt
+        else:
+            buckets["d90plus"] += amt
+    return buckets
+
+
+async def get_pnl(db: AsyncSession, company_id: uuid.UUID, period: Period) -> PnlReport:
+    """Compte de résultat : revenus/dépenses encaissés par type sur la période."""
+    start = period_start(period, datetime.now(UTC))
+
+    async def _by_type(direction: str) -> dict[str, Decimal]:
+        rows = (
+            await db.execute(
+                select(
+                    FinanceTransaction.type,
+                    func.coalesce(func.sum(FinanceTransaction.amount), 0),
+                )
+                .where(
+                    FinanceTransaction.company_id == company_id,
+                    FinanceTransaction.deleted_at.is_(None),
+                    FinanceTransaction.direction == direction,
+                    FinanceTransaction.status == "paid",
+                    FinanceTransaction.paid_at >= start,
+                )
+                .group_by(FinanceTransaction.type)
+            )
+        ).all()
+        return {t: Decimal(str(amt)) for t, amt in rows}
+
+    revenue_by_type = await _by_type("credit")
+    expense_by_type = await _by_type("debit")
+    total_revenue = sum(revenue_by_type.values(), Decimal(0))
+    total_expenses = sum(expense_by_type.values(), Decimal(0))
+    return PnlReport(
+        period=period,
+        revenue_by_type=revenue_by_type,
+        expense_by_type=expense_by_type,
+        total_revenue=total_revenue,
+        total_expenses=total_expenses,
+        net=total_revenue - total_expenses,
+    )
+
+
+async def get_aged_receivables(db: AsyncSession, company_id: uuid.UUID) -> AgedReceivables:
+    """Balance âgée des factures impayées (pending/overdue) par tranche de retard."""
+    rows = (
+        await db.execute(
+            select(FinanceTransaction.amount, FinanceTransaction.due_date).where(
+                FinanceTransaction.company_id == company_id,
+                FinanceTransaction.deleted_at.is_(None),
+                FinanceTransaction.type == "invoice",
+                FinanceTransaction.status.in_(("pending", "overdue")),
+            )
+        )
+    ).all()
+    items: list[tuple[Decimal, date | None]] = [(amt, due) for amt, due in rows]
+    buckets = bucket_receivables(items, datetime.now(UTC).date())
+    total = sum(buckets.values(), Decimal(0))
+    return AgedReceivables(buckets=AgedBuckets(**buckets), total=total, count=len(items))
