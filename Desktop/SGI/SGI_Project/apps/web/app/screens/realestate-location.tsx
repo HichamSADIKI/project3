@@ -97,12 +97,13 @@ export function ScreenRealEstateLocation() {
   ];
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+    <div data-testid="screen-realestate_location" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={t.nav_location} />
       <div style={{ display: "flex", gap: 4, padding: "10px 26px 0", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)" }}>
         {tabs.map(([key, label, icon]) => (
           <button
             key={key}
+            data-testid={`tab-${key}`}
             onClick={() => setTab(key)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
