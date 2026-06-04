@@ -15,10 +15,14 @@ import pytest
 from app.models.company import Company
 from app.routers.finance.schemas import TransactionCreate, TransactionUpdate
 from app.routers.finance.service import (
+    bucket_receivables,
     create_transaction,
+    get_aged_receivables,
+    get_pnl,
     get_summary,
     get_transaction,
     list_transactions,
+    period_start,
     update_transaction,
 )
 
@@ -146,3 +150,74 @@ async def test_summary_empty_is_zero(db_session, seed_company: Company) -> None:
     assert summary.total_revenue == Decimal("0")
     assert summary.net == Decimal("0")
     assert summary.pending_invoices == 0
+
+
+# ── Rapports : helpers purs ───────────────────────────────────────────────
+
+
+def test_period_start_month_quarter_ytd() -> None:
+    from datetime import UTC, datetime
+
+    now = datetime(2026, 8, 17, 14, 30, tzinfo=UTC)
+    assert period_start("month", now).date().isoformat() == "2026-08-01"
+    assert period_start("quarter", now).date().isoformat() == "2026-07-01"  # Q3 = juil
+    assert period_start("ytd", now).date().isoformat() == "2026-01-01"
+
+
+def test_bucket_receivables_ages() -> None:
+    from datetime import date
+
+    today = date(2026, 6, 4)
+    items = [
+        (Decimal("100"), None),  # current (pas d'échéance)
+        (Decimal("50"), date(2026, 7, 1)),  # current (future)
+        (Decimal("30"), date(2026, 5, 20)),  # 15j → d1_30
+        (Decimal("40"), date(2026, 4, 20)),  # 45j → d31_60
+        (Decimal("60"), date(2026, 3, 20)),  # 76j → d61_90
+        (Decimal("70"), date(2026, 1, 1)),  # >90j → d90plus
+    ]
+    b = bucket_receivables(items, today)
+    assert b["current"] == Decimal("150")
+    assert b["d1_30"] == Decimal("30")
+    assert b["d31_60"] == Decimal("40")
+    assert b["d61_90"] == Decimal("60")
+    assert b["d90plus"] == Decimal("70")
+
+
+# ── Rapports : agrégations DB ─────────────────────────────────────────────
+
+
+async def test_pnl_groups_paid_by_type(db_session, seed_company: Company) -> None:
+    cid = seed_company.id
+    # 2 revenus payés (credit) + 1 dépense payée (debit) + 1 non payé (ignoré).
+    for amt, typ, direction in [
+        ("100", "commission", "credit"),
+        ("40", "invoice", "credit"),
+        ("25", "expense", "debit"),
+    ]:
+        txn = await create_transaction(
+            db_session, cid, _txn(type=typ, direction=direction, amount=Decimal(amt))
+        )
+        await update_transaction(db_session, cid, txn.id, TransactionUpdate(status="paid"))
+    # Non payé → exclu du P&L.
+    await create_transaction(
+        db_session, cid, _txn(type="commission", direction="credit", amount=Decimal("999"))
+    )
+
+    pnl = await get_pnl(db_session, cid, "ytd")
+    assert pnl.total_revenue == Decimal("140")
+    assert pnl.total_expenses == Decimal("25")
+    assert pnl.net == Decimal("115")
+    assert pnl.revenue_by_type.get("commission") == Decimal("100")
+    assert pnl.revenue_by_type.get("invoice") == Decimal("40")
+
+
+async def test_aged_receivables_counts_unpaid_invoices(db_session, seed_company: Company) -> None:
+    cid = seed_company.id
+    await create_transaction(
+        db_session, cid, _txn(type="invoice", direction="credit", amount=Decimal("500"))
+    )  # pending, pas d'échéance → current
+    aged = await get_aged_receivables(db_session, cid)
+    assert aged.count == 1
+    assert aged.total == Decimal("500")
+    assert aged.buckets.current == Decimal("500")

@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.routers.finance.schemas import (
+    AgedReceivables,
     FinanceSummary,
+    PnlReport,
     TransactionCreate,
     TransactionDetailOut,
     TransactionListOut,
@@ -17,6 +19,8 @@ from app.routers.finance.schemas import (
 )
 from app.routers.finance.service import (
     create_transaction,
+    get_aged_receivables,
+    get_pnl,
     get_summary,
     get_transaction,
     list_transactions,
@@ -64,6 +68,25 @@ async def get_finance_summary(
     """Retourne les KPIs financiers agrégés du tenant."""
     company_id = await _get_company_id(db)
     return await get_summary(db, company_id)
+
+
+@router.get("/reports/pnl", response_model=PnlReport)
+async def get_pnl_report(
+    period: str = Query("month", pattern="^(month|quarter|ytd)$"),
+    db: AsyncSession = Depends(get_db_session),
+) -> PnlReport:
+    """Compte de résultat (P&L) du tenant sur la période (mois/trimestre/année)."""
+    company_id = await _get_company_id(db)
+    return await get_pnl(db, company_id, period)  # type: ignore[arg-type]
+
+
+@router.get("/reports/aged-receivables", response_model=AgedReceivables)
+async def get_aged_receivables_report(
+    db: AsyncSession = Depends(get_db_session),
+) -> AgedReceivables:
+    """Balance âgée des factures impayées du tenant (tranches de retard)."""
+    company_id = await _get_company_id(db)
+    return await get_aged_receivables(db, company_id)
 
 
 @router.get("/transactions", response_model=TransactionListOut)

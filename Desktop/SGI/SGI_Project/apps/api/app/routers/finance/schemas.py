@@ -73,3 +73,33 @@ class FinanceSummary(BaseModel):
     pending_invoices: int
     pending_amount: Decimal
     paid_this_month: Decimal
+
+
+# ── Rapports ──────────────────────────────────────────────────────────────
+
+
+class PnlReport(BaseModel):
+    """Compte de résultat (P&L) : revenus/dépenses encaissés par type."""
+
+    period: Literal["month", "quarter", "ytd"]
+    revenue_by_type: dict[str, Decimal] = Field(default_factory=dict)
+    expense_by_type: dict[str, Decimal] = Field(default_factory=dict)
+    total_revenue: Decimal
+    total_expenses: Decimal
+    net: Decimal
+
+
+class AgedBuckets(BaseModel):
+    current: Decimal
+    d1_30: Decimal
+    d31_60: Decimal
+    d61_90: Decimal
+    d90plus: Decimal
+
+
+class AgedReceivables(BaseModel):
+    """Balance âgée des factures impayées par tranche de retard."""
+
+    buckets: AgedBuckets
+    total: Decimal
+    count: int

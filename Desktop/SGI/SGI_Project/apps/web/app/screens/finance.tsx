@@ -56,6 +56,10 @@ const TR: Record<Lang, Record<string, string>> = {
     allTypes: "Tous types", allStatus: "Tous statuts", empty: "Aucune transaction", ref: "Réf.",
     status: "Statut", date: "Date", invalidAmount: "Montant invalide", loading: "Chargement…",
     credit: "Crédit", debit: "Débit",
+    ledger: "Journal", reports: "Rapports", period: "Période", pnl: "Compte de résultat",
+    aged: "Balance âgée (impayés)", incomeT: "Produits", expenseT: "Charges",
+    bCurrent: "Courant", b30: "1-30 j", b60: "31-60 j", b90: "61-90 j", b90p: "90+ j", total: "Total",
+    pMonth: "Ce mois", pQuarter: "Trimestre", pYtd: "Année",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -64,6 +68,10 @@ const TR: Record<Lang, Record<string, string>> = {
     allTypes: "All types", allStatus: "All statuses", empty: "No transactions", ref: "Ref.",
     status: "Status", date: "Date", invalidAmount: "Invalid amount", loading: "Loading…",
     credit: "Credit", debit: "Debit",
+    ledger: "Ledger", reports: "Reports", period: "Period", pnl: "Profit & Loss",
+    aged: "Aged receivables (unpaid)", incomeT: "Income", expenseT: "Expenses",
+    bCurrent: "Current", b30: "1-30 d", b60: "31-60 d", b90: "61-90 d", b90p: "90+ d", total: "Total",
+    pMonth: "This month", pQuarter: "Quarter", pYtd: "Year",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -72,6 +80,10 @@ const TR: Record<Lang, Record<string, string>> = {
     allTypes: "كل الأنواع", allStatus: "كل الحالات", empty: "لا توجد معاملات", ref: "المرجع",
     status: "الحالة", date: "التاريخ", invalidAmount: "مبلغ غير صالح", loading: "جارٍ التحميل…",
     credit: "دائن", debit: "مدين",
+    ledger: "السجل", reports: "التقارير", period: "الفترة", pnl: "قائمة الدخل",
+    aged: "أعمار الذمم (غير مدفوعة)", incomeT: "الإيرادات", expenseT: "المصروفات",
+    bCurrent: "جارٍ", b30: "1-30 يوم", b60: "31-60 يوم", b90: "61-90 يوم", b90p: "+90 يوم", total: "الإجمالي",
+    pMonth: "هذا الشهر", pQuarter: "ربع سنة", pYtd: "السنة",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -113,6 +125,8 @@ export function ScreenFinance(): React.ReactNode {
       .then(setSummary)
       .catch(() => setSummary(null));
   }, [items]);
+
+  const [view, setView] = useState<"ledger" | "reports">("ledger");
 
   // Création
   const [open, setOpen] = useState(false);
@@ -180,17 +194,38 @@ export function ScreenFinance(): React.ReactNode {
           {kpi(L("paidMonth"), summary ? aed(summary.paid_this_month) : "—")}
         </div>
 
-        {/* Filtres */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <select value={typeF} onChange={(e) => setTypeF(e.target.value)} style={{ ...fieldInput, width: "auto" }}>
-            <option value="">{L("allTypes")}</option>
-            {TYPES.map((ty) => (<option key={ty} value={ty}>{TYPE_LABEL[lg][ty]}</option>))}
-          </select>
-          <select value={statusF} onChange={(e) => setStatusF(e.target.value)} style={{ ...fieldInput, width: "auto" }}>
-            <option value="">{L("allStatus")}</option>
-            {STATUSES.map((s) => (<option key={s} value={s}>{STATUS_LABEL[lg][s]}</option>))}
-          </select>
+        {/* Onglets Journal / Rapports */}
+        <div style={{ display: "flex", gap: 6 }}>
+          {(["ledger", "reports"] as const).map((v) => (
+            <button
+              key={v}
+              onClick={() => setView(v)}
+              style={{
+                padding: "6px 14px", borderRadius: 8, border: "1px solid var(--line)",
+                background: view === v ? "var(--gold)" : "transparent",
+                color: view === v ? "#1A1610" : "var(--ink-3)", fontSize: 12.5, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              {L(v)}
+            </button>
+          ))}
         </div>
+
+        {view === "reports" && <ReportsPanel lg={lg} L={L} />}
+
+        {view === "ledger" && (
+          <>
+            {/* Filtres */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <select value={typeF} onChange={(e) => setTypeF(e.target.value)} style={{ ...fieldInput, width: "auto" }}>
+                <option value="">{L("allTypes")}</option>
+                {TYPES.map((ty) => (<option key={ty} value={ty}>{TYPE_LABEL[lg][ty]}</option>))}
+              </select>
+              <select value={statusF} onChange={(e) => setStatusF(e.target.value)} style={{ ...fieldInput, width: "auto" }}>
+                <option value="">{L("allStatus")}</option>
+                {STATUSES.map((s) => (<option key={s} value={s}>{STATUS_LABEL[lg][s]}</option>))}
+              </select>
+            </div>
 
         {/* Ledger */}
         <div style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 12, overflow: "hidden" }}>
@@ -236,6 +271,8 @@ export function ScreenFinance(): React.ReactNode {
             </table>
           )}
         </div>
+          </>
+        )}
       </div>
 
       <CreateModal title={L("newTxn")} open={open} saving={saving} error={formError} onClose={() => setOpen(false)} onSubmit={() => void submit()}>
@@ -260,6 +297,97 @@ export function ScreenFinance(): React.ReactNode {
           <input type="date" value={form.due_date} onChange={(e) => setForm({ ...form, due_date: e.target.value })} style={fieldInput} />
         </Field>
       </CreateModal>
+    </div>
+  );
+}
+
+// ── Panneau Rapports (P&L + balance âgée) ──────────────────────────────────
+type Pnl = {
+  period: string;
+  revenue_by_type: Record<string, string>;
+  expense_by_type: Record<string, string>;
+  total_revenue: string;
+  total_expenses: string;
+  net: string;
+};
+type Aged = {
+  buckets: { current: string; d1_30: string; d31_60: string; d61_90: string; d90plus: string };
+  total: string;
+  count: number;
+};
+
+function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.ReactNode {
+  const [period, setPeriod] = useState<"month" | "quarter" | "ytd">("month");
+  const [pnl, setPnl] = useState<Pnl | null>(null);
+  const [aged, setAged] = useState<Aged | null>(null);
+
+  useEffect(() => {
+    getJson<Pnl>(`/api/admin/finance/reports/pnl?period=${period}`).then(setPnl).catch(() => setPnl(null));
+  }, [period]);
+  useEffect(() => {
+    getJson<Aged>("/api/admin/finance/reports/aged-receivables").then(setAged).catch(() => setAged(null));
+  }, []);
+
+  const card: React.CSSProperties = { background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 12, padding: 16 };
+  const row = (label: string, value: string, accent?: string): React.ReactNode => (
+    <div style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5 }}>
+      <span style={{ color: "var(--ink-3)" }}>{label}</span>
+      <span style={{ fontWeight: 600, color: accent ?? "var(--ink)" }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+      {/* Sélecteur de période */}
+      <div style={{ display: "flex", gap: 6 }}>
+        {(["month", "quarter", "ytd"] as const).map((p) => (
+          <button
+            key={p}
+            onClick={() => setPeriod(p)}
+            style={{
+              padding: "5px 12px", borderRadius: 8, border: "1px solid var(--line)",
+              background: period === p ? "var(--gold-ghost, rgba(197,160,89,0.18))" : "transparent",
+              color: period === p ? "var(--ink)" : "var(--ink-4)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            {L(p === "month" ? "pMonth" : p === "quarter" ? "pQuarter" : "pYtd")}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+        {/* P&L */}
+        <div style={{ ...card, flex: "1 1 320px" }}>
+          <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 10 }}>{L("pnl")}</div>
+          <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginBlockEnd: 4 }}>{L("incomeT")}</div>
+          {pnl && Object.keys(pnl.revenue_by_type).length === 0 && row("—", "—")}
+          {pnl && Object.entries(pnl.revenue_by_type).map(([ty, v]) => row(TYPE_LABEL[lg][ty] ?? ty, aed(v), "var(--emerald)"))}
+          <div style={{ borderTop: "1px solid var(--line-soft)", margin: "8px 0" }} />
+          <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginBlockEnd: 4 }}>{L("expenseT")}</div>
+          {pnl && Object.keys(pnl.expense_by_type).length === 0 && row("—", "—")}
+          {pnl && Object.entries(pnl.expense_by_type).map(([ty, v]) => row(TYPE_LABEL[lg][ty] ?? ty, aed(v), "var(--rose)"))}
+          <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
+          {pnl && row(L("net"), aed(pnl.net), Number(pnl.net) >= 0 ? "var(--emerald)" : "var(--rose)")}
+        </div>
+
+        {/* Balance âgée */}
+        <div style={{ ...card, flex: "1 1 320px" }}>
+          <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 10 }}>{L("aged")}</div>
+          {aged ? (
+            <>
+              {row(L("bCurrent"), aed(aged.buckets.current))}
+              {row(L("b30"), aed(aged.buckets.d1_30))}
+              {row(L("b60"), aed(aged.buckets.d31_60))}
+              {row(L("b90"), aed(aged.buckets.d61_90))}
+              {row(L("b90p"), aed(aged.buckets.d90plus), "var(--rose)")}
+              <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
+              {row(`${L("total")} (${aged.count})`, aed(aged.total))}
+            </>
+          ) : (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
