@@ -28,5 +28,8 @@ class VideoScenario(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     photo_refs: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     audio_ref: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
+    # Clé objet MinIO de la vidéo rendue. On re-signe à la lecture (URL durable) ;
+    # `video_url` ne sert plus que de repli legacy/stub (cf. service.scenario_to_out).
+    video_object_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     video_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)

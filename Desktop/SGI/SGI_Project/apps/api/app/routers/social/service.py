@@ -14,7 +14,9 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.routers.scenarios import service as scenarios_service
 from app.routers.social.models import SocialPost
+from app.routers.social.schemas import PostOut
 
 # Canaux supportés — DOIVENT correspondre EXACTEMENT au CHECK (migration 0042).
 SOCIAL_CHANNELS: tuple[str, ...] = (
@@ -60,6 +62,25 @@ def build_share_url(channel: str, public_url: str) -> str:
 
 
 # ── Fonctions DB (Loi 1 : toujours filtrer company_id) ───────────────────────
+
+
+async def post_to_out(db: AsyncSession, company_id: uuid.UUID, post: SocialPost) -> PostOut:
+    """Sérialise un post en **re-signant l'URL vidéo à la lecture**.
+
+    Si le post porte une vidéo (`video_scenario_id`), on récupère l'URL FRAÎCHE du
+    scénario (presign-on-read, cf. `scenarios.service.scenario_to_out`) au lieu de
+    renvoyer un `external_url` figé — qui était une URL présignée MinIO périmant à
+    7 jours. Repli : si le scénario a disparu ou n'a pas d'URL, on garde l'external_url
+    stocké. N+1 borné en pratique (1 post actif par (tenant, annonce, canal)).
+    """
+    out = PostOut.model_validate(post)
+    if post.video_scenario_id is not None:
+        scenario = await scenarios_service.get_scenario(db, company_id, post.video_scenario_id)
+        if scenario is not None:
+            fresh = (await scenarios_service.scenario_to_out(scenario)).video_url
+            if fresh:
+                out.external_url = fresh
+    return out
 
 
 async def list_posts(

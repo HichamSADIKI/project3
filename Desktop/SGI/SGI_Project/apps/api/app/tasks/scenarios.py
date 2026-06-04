@@ -146,6 +146,9 @@ def generate(self: Any, company_id: str, scenario_id: str) -> dict[str, str]:
             return {"status": "ready", "id": scenario_id}
         try:
             key = _render_video(scenario)
+            # Source de vérité = la clé objet (re-signée à la lecture, URL durable).
+            # On garde aussi une URL signée pour l'affichage immédiat post-génération.
+            scenario.video_object_key = key
             scenario.video_url = storage._presigned_sync(key, VIDEO_URL_TTL)  # noqa: SLF001
             scenario.status = "ready"
             scenario.error = None

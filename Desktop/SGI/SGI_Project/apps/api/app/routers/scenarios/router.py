@@ -24,7 +24,6 @@ from app.routers.scenarios.schemas import (
     ScenarioCreate,
     ScenarioDetailOut,
     ScenarioListOut,
-    ScenarioOut,
     UploadOut,
 )
 
@@ -103,7 +102,7 @@ async def list_endpoint(
     rows = await service.list_scenarios(
         db, company_id, listing_type=listing_type, listing_id=listing_id
     )
-    return ScenarioListOut(data=[ScenarioOut.model_validate(r) for r in rows])
+    return ScenarioListOut(data=[await service.scenario_to_out(r) for r in rows])
 
 
 @router.post(
@@ -177,7 +176,7 @@ async def create_endpoint(
     # Génération vidéo FFmpeg en tâche de fond (statut 'generating' → 'ready' /
     # 'failed'). Le front poll le statut.
     _enqueue_generate(company_id, scenario.id)
-    return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
+    return ScenarioDetailOut(data=await service.scenario_to_out(scenario))
 
 
 @router.get(
@@ -193,7 +192,7 @@ async def get_endpoint(
     scenario = await service.get_scenario(db, company_id, scenario_id)
     if scenario is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="scenario_not_found")
-    return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
+    return ScenarioDetailOut(data=await service.scenario_to_out(scenario))
 
 
 @router.post(
@@ -213,7 +212,9 @@ async def generate_endpoint(
     await service.mark_generating(db, company_id, scenario_id)
     _enqueue_generate(company_id, scenario_id)
     scenario = await service.get_scenario(db, company_id, scenario_id)
-    return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
+    if scenario is None:  # pragma: no cover — vient d'être vérifié + marqué juste avant
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="scenario_not_found")
+    return ScenarioDetailOut(data=await service.scenario_to_out(scenario))
 
 
 @router.delete(
