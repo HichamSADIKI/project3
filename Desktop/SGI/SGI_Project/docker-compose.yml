@@ -172,6 +172,8 @@ services:
     volumes:
       - minio_data:/data
     ports:
+      # API S3 exposée à l'hôte → présignature joignable par le navigateur (MINIO_PUBLIC_ENDPOINT).
+      - "9000:9000"
       - "9001:9001"
     networks:
       - backend

@@ -49,21 +49,30 @@ def extension_for_mime(content_type: str) -> str | None:
     return _EXT_BY_MIME.get((content_type or "").split(";")[0].strip().lower())
 
 
-def _client():  # type: ignore[no-untyped-def]
+def _client(endpoint: str | None = None):  # type: ignore[no-untyped-def]
     """Instancie un client MinIO. Import paresseux pour ne pas exiger la lib
-    en environnement de test sans MinIO."""
+    en environnement de test sans MinIO.
+
+    `endpoint` permet de signer des URLs présignées contre l'hôte PUBLIC
+    (joignable par le navigateur) plutôt que l'endpoint interne Docker.
+    """
     try:
         from minio import Minio
     except ImportError as exc:  # pragma: no cover - dépendance déclarée
         raise StorageError("minio_library_missing") from exc
 
-    secure = settings.MINIO_ENDPOINT.startswith("https://")
-    endpoint = settings.MINIO_ENDPOINT.replace("https://", "").replace("http://", "")
+    ep = endpoint or settings.MINIO_ENDPOINT
+    secure = ep.startswith("https://")
+    ep = ep.replace("https://", "").replace("http://", "")
     return Minio(
-        endpoint,
+        ep,
         access_key=settings.MINIO_ACCESS_KEY,
         secret_key=settings.MINIO_SECRET_KEY,
         secure=secure,
+        # Région fixée → la présignature contre l'endpoint PUBLIC ne déclenche
+        # PAS d'appel de découverte de région (sinon le worker tenterait de
+        # joindre localhost:9000, injoignable depuis le conteneur).
+        region="us-east-1",
     )
 
 
@@ -85,7 +94,8 @@ def _put_sync(object_key: str, data: bytes, content_type: str) -> str:
 def _presigned_sync(object_key: str, expires_seconds: int) -> str:
     from datetime import timedelta
 
-    client = _client()
+    # Signer contre l'endpoint PUBLIC si défini (URL consultée par le navigateur).
+    client = _client(settings.MINIO_PUBLIC_ENDPOINT or None)
     return client.presigned_get_object(
         settings.MINIO_BUCKET,
         object_key,
