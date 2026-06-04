@@ -15,17 +15,16 @@ La sécurité repose donc sur :
 ────────────────────────────────────────────────────────────────────────────
 RÉSOLUTION MULTI-TENANT (Loi 1) — point d'attention
 ────────────────────────────────────────────────────────────────────────────
-Meta envoie le `phone_number_id` du numéro WhatsApp Business destinataire. Comme
-le socle Ph0-1 ne fournit pas encore de table de mapping
-`phone_number_id → company_id`, ce MVP résout le tenant via la variable
-d'environnement `WHATSAPP_PHONE_NUMBER_MAP` (JSON : `{"<phone_number_id>":
-"<company_uuid>"}`). Un `phone_number_id` inconnu → 200 + ignoré (Meta ne doit
-jamais recevoir d'erreur, sinon il retire l'abonnement).
-
-TODO (wiring_needed) : remplacer ce mapping env par une table par tenant
-`inbox_channel_configs(company_id, channel, phone_number_id, …)` filtrée RLS, et
-exposer un endpoint d'enrôlement WhatsApp dans le router métier. Tant que ce
-n'est pas fait, le multi-tenant du webhook dépend d'une config statique.
+Meta envoie le `phone_number_id` du numéro WhatsApp Business destinataire. Le
+tenant est résolu via la table **`inbox_channel_configs`** (migration 0045),
+interrogée par la fonction **SECURITY DEFINER** `inbox_resolve_company` : le
+webhook n'ayant aucun contexte RLS (pas de JWT), cette fonction — propriété de
+l'owner des tables — contourne la RLS pour ce seul lookup et ne renvoie que le
+`company_id` du canal actif. L'enrôlement se fait via `POST /inbox/channels`
+(tenant-scopé, RLS). Le mapping env historique `WHATSAPP_PHONE_NUMBER_MAP`
+(JSON `{"<phone_number_id>": "<company_uuid>"}`) reste un **fallback déprécié**.
+Un `phone_number_id` inconnu → 200 + ignoré (Meta ne doit jamais recevoir
+d'erreur, sinon il retire l'abonnement).
 
 Comme aucun JWT n'est présent, le `TenantMiddleware` ne pose pas le contexte RLS :
 on pose donc manuellement le GUC `app.current_company_id` sur la connexion
@@ -329,7 +328,15 @@ async def receive_whatsapp_webhook(
     deduped = 0
 
     for parsed in messages:
-        company_id = resolve_company_id(parsed.get("phone_number_id"))
+        phone_number_id = parsed.get("phone_number_id")
+        # Source de vérité : table inbox_channel_configs via la fonction
+        # SECURITY DEFINER (résout sans contexte RLS). Fallback : mapping env
+        # historique (déprécié) pour ne pas casser les déploiements existants.
+        company_id = await service.resolve_company_by_channel(
+            db, _WHATSAPP_CHANNEL, phone_number_id
+        )
+        if company_id is None:
+            company_id = resolve_company_id(phone_number_id)
         if company_id is None:
             skipped_no_tenant += 1
             logger.warning(
