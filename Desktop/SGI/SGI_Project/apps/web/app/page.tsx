@@ -105,7 +105,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_buildings": (_) => <ScreenRealEstateBuildings />,
   "realestate_units": (_) => <ScreenRealEstateUnits />,
   "realestate_tenants": (_) => <ScreenRealEstateTenants />,
-  "realestate_contracts": (_) => <ScreenRealEstateContracts />,
+  "realestate_contracts": (p) => <ScreenRealEstateContracts initialLead={p.initialLead} onPrefillConsumed={p.onPrefillConsumed} />,
   "realestate_payments": (_) => <ScreenRealEstatePayments />,
   "realestate_cheques": (_) => <ScreenRealEstateCheques />,
   "realestate_maintenance": (_) => <MaintenanceScreen />,
@@ -210,8 +210,8 @@ export default function App() {
   const [screen, setScreen] = useState<string>("login");
   const [confirmedDeals, setConfirmedDeals] = useState<ConfirmedDeal[]>([]);
   const [clientSearch, setClientSearch] = useState<string>("");
-  // Pré-remplissage CRM poussé par l'assistant (action guidée profonde).
-  const [crmPrefill, setCrmPrefill] = useState<Record<string, string | number> | null>(null);
+  // Pré-remplissage poussé par l'assistant (action guidée profonde), ciblé par écran.
+  const [prefill, setPrefill] = useState<{ screen: string; fields: Record<string, string | number> } | null>(null);
 
   function handleNavigateToClient(name: string) {
     setClientSearch(name);
@@ -247,8 +247,8 @@ export default function App() {
                 onNavigate:         setScreen,
                 initialSearch:      clientSearch,
                 confirmedDeals:     confirmedDeals,
-                initialLead:        crmPrefill ?? undefined,
-                onPrefillConsumed:  () => setCrmPrefill(null),
+                initialLead:        prefill && prefill.screen === screen ? prefill.fields : undefined,
+                onPrefillConsumed:  () => setPrefill(null),
               })}
             </GatedScreen>
           </div>
@@ -262,9 +262,7 @@ export default function App() {
           <AssistantDock
             screen={screen}
             onNavigate={setScreen}
-            onPrefill={(pf) => {
-              if (pf.screen === "crm") setCrmPrefill(pf.fields);
-            }}
+            onPrefill={(pf) => setPrefill(pf)}
           />
         </div>
       </SoftphoneProvider>

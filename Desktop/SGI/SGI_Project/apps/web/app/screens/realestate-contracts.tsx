@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Topbar, IcContract, IcPlus, IcCheck, IcClock } from "@/components/sgi-ui";
 import { useT } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
@@ -39,7 +39,13 @@ type Contract = {
   signed_at: string | null; end_date: string | null; renewed_from_contract_id: string | null;
 };
 
-export function ScreenRealEstateContracts() {
+export function ScreenRealEstateContracts({
+  initialLead,
+  onPrefillConsumed,
+}: {
+  initialLead?: Record<string, string | number>;
+  onPrefillConsumed?: () => void;
+} = {}) {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Contract>("/api/admin/contracts?limit=100");
   const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
@@ -50,6 +56,20 @@ export function ScreenRealEstateContracts() {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "rental", client_id: "", property_id: "", amount: "" });
+
+  // Action guidée de l'assistant : ouvre le formulaire de création pré-rempli
+  // (type/montant extraits du message ; client/bien restent à choisir). One-shot.
+  useEffect(() => {
+    if (!initialLead) return;
+    setForm((f) => ({
+      ...f,
+      type: initialLead.type != null ? String(initialLead.type) : f.type,
+      amount: initialLead.amount != null ? String(initialLead.amount) : f.amount,
+    }));
+    setFormError(null);
+    setOpen(true);
+    onPrefillConsumed?.();
+  }, [initialLead, onPrefillConsumed]);
 
   // Demande de signature : picker de document lié au contrat (S3 wiring).
   const [sigContract, setSigContract] = useState<Contract | null>(null);

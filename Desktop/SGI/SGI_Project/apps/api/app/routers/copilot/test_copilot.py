@@ -297,3 +297,39 @@ def test_extract_budget_aed_variants() -> None:
     assert service._extract_budget_aed("1.5m") == 1_500_000
     assert service._extract_budget_aed("environ 750k") == 750_000
     assert service._extract_budget_aed("pas de chiffre ici") is None
+
+
+# ── Pré-remplissage contrat (extend) ──────────────────────────────────────
+
+
+def test_extract_contract_prefill_rental_default() -> None:
+    out = service.extract_contract_prefill("créer un contrat de bail, loyer 145000")
+    assert out == {"screen": "realestate_contracts", "fields": {"type": "rental", "amount": 145000}}
+
+
+def test_extract_contract_prefill_sale() -> None:
+    out = service.extract_contract_prefill("nouveau contrat de vente à 3M")
+    assert out is not None
+    assert out["screen"] == "realestate_contracts"
+    assert out["fields"]["type"] == "sale"
+    assert out["fields"]["amount"] == 3_000_000
+
+
+def test_extract_contract_prefill_none_when_not_contract() -> None:
+    assert service.extract_contract_prefill("créer un prospect villa") is None
+    assert service.extract_contract_prefill("où sont mes contrats ?") is None  # pas de création
+
+
+def test_extract_prefill_dispatch_contract_over_lead() -> None:
+    # Contrat plus spécifique → priorité sur prospect.
+    out = service.extract_prefill("créer un contrat de location 90000")
+    assert out is not None and out["screen"] == "realestate_contracts"
+
+
+def test_extract_prefill_dispatch_lead() -> None:
+    out = service.extract_prefill("ajouter un prospect, villa 2M")
+    assert out is not None and out["screen"] == "crm"
+
+
+def test_extract_prefill_none() -> None:
+    assert service.extract_prefill("bonjour ça va ?") is None
