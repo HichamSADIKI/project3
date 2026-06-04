@@ -273,31 +273,97 @@ export function SoftphoneDock({
     setSecret(""); // ne pas garder le secret dans le state plus que nécessaire
   }
 
+  // État visuel du téléphone : arrêt (offline) · au repos (idle) · sonnée
+  // (ringing) · en communication (incall). Pilote la forme ET l'animation.
+  const phoneState: "offline" | "idle" | "ringing" | "incall" =
+    call?.state === "ringing"
+      ? "ringing"
+      : call?.state === "answered" || call?.state === "held"
+        ? "incall"
+        : registered
+          ? "idle"
+          : "offline";
+  const phoneBg =
+    phoneState === "incall"
+      ? "var(--emerald)"
+      : phoneState === "offline"
+        ? "#8a8270"
+        : "var(--gold)";
+
   return (
     <>
-      {/* Bouton flottant */}
+      <style>{SOFTPHONE_CSS}</style>
+      {/* Bouton flottant — forme représentative de l'état d'appel.
+          Carré arrondi vert + ondes = en communication ; rond doré secoué +
+          anneaux = sonnerie ; rond doré = au repos ; gris barré = hors-ligne. */}
       <button
         onClick={() => setOpen((o) => !o)}
         aria-label={t.tel_softphone}
+        title={t.tel_softphone}
+        className={`sgph-fab${
+          phoneState === "ringing"
+            ? " sgph-ringing"
+            : phoneState === "incall"
+              ? " sgph-incall"
+              : ""
+        }`}
         style={{
           position: "fixed",
           insetBlockEnd: 20,
           insetInlineEnd: 20,
-          width: 52,
-          height: 52,
-          borderRadius: 999,
+          width: 56,
+          height: 56,
+          borderRadius: phoneState === "incall" ? 18 : 999,
           border: "none",
-          background: call ? "var(--emerald)" : "var(--gold)",
+          background: phoneBg,
           color: "#1A1610",
           cursor: "pointer",
-          boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
+          boxShadow: "0 6px 20px rgba(0,0,0,0.28)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 1200,
+          opacity: phoneState === "offline" ? 0.85 : 1,
+          transition: "background .3s ease, border-radius .3s ease",
         }}
       >
-        <IcPhone />
+        {/* Anneaux d'appel entrant */}
+        {phoneState === "ringing" && (
+          <>
+            <span className="sgph-ring" />
+            <span className="sgph-ring sgph-ring2" />
+          </>
+        )}
+        {/* Combiné — secoué quand ça sonne */}
+        <span
+          className={phoneState === "ringing" ? "sgph-shake" : undefined}
+          style={{ display: "inline-flex" }}
+        >
+          <IcPhone />
+        </span>
+        {/* Ondes sonores « en communication » */}
+        {phoneState === "incall" && (
+          <span className="sgph-waves" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </span>
+        )}
+        {/* Combiné barré quand hors-ligne */}
+        {phoneState === "offline" && (
+          <span
+            aria-hidden
+            style={{
+              position: "absolute",
+              width: 32,
+              height: 2,
+              background: "#1A1610",
+              transform: "rotate(45deg)",
+              borderRadius: 2,
+              opacity: 0.7,
+            }}
+          />
+        )}
         {/* Pastille d'état d'enregistrement */}
         <span
           style={{
@@ -834,3 +900,28 @@ const keypadBtn: React.CSSProperties = {
   color: "var(--ink)",
   cursor: "pointer",
 };
+
+// Animations du FAB téléphone selon l'état (sonnerie / en communication).
+const SOFTPHONE_CSS = `
+.sgph-fab.sgph-ringing { animation: sgph-bounce .6s ease-in-out infinite; }
+.sgph-fab.sgph-incall { box-shadow: 0 6px 20px rgba(0,0,0,.28), 0 0 0 4px rgba(47,158,110,.25); }
+.sgph-shake { animation: sgph-shake .5s ease-in-out infinite; transform-origin: center; }
+.sgph-ring {
+  position: absolute; inset: 0; border-radius: 999px;
+  border: 2px solid var(--emerald, #2f9e6e); opacity: 0;
+  animation: sgph-ring 1.4s ease-out infinite; pointer-events: none;
+}
+.sgph-ring2 { animation-delay: .7s; }
+.sgph-waves {
+  position: absolute; inset-block-end: 8px; display: flex; gap: 2px;
+  align-items: flex-end; height: 12px; pointer-events: none;
+}
+.sgph-waves span { width: 3px; height: 4px; background: #1A1610; border-radius: 2px; animation: sgph-wave 1s ease-in-out infinite; }
+.sgph-waves span:nth-child(2) { animation-delay: .2s; }
+.sgph-waves span:nth-child(3) { animation-delay: .4s; }
+@keyframes sgph-shake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(-18deg)} 40%{transform:rotate(16deg)} 60%{transform:rotate(-12deg)} 80%{transform:rotate(8deg)} }
+@keyframes sgph-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
+@keyframes sgph-ring { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.65);opacity:0} }
+@keyframes sgph-wave { 0%,100%{height:4px} 50%{height:12px} }
+@media (prefers-reduced-motion: reduce){ .sgph-fab,.sgph-shake,.sgph-ring,.sgph-waves span{animation:none!important} }
+`;
