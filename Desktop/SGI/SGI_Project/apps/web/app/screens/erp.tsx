@@ -5,10 +5,10 @@ import { useLang } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 
 const KPIS = [
-  { key: "users",    color: "var(--azure)",   value: "148",        delta: "+6 ce mois",        up: true,  label_en: "Active users",      label_ar: "مستخدمون نشطون",  label_fr: "Utilisateurs actifs" },
-  { key: "modules",  color: "var(--emerald)", value: "9",          delta: "7 configurés",       up: null,  label_en: "Modules",           label_ar: "الوحدات",          label_fr: "Modules" },
-  { key: "tasks",    color: "var(--gold)",    value: "2 340",      delta: "+312 cette semaine", up: true,  label_en: "Open tasks",        label_ar: "مهام مفتوحة",     label_fr: "Tâches ouvertes" },
-  { key: "sync",     color: "var(--emerald)", value: "99.8 %",     delta: "uptime 30 j",        up: true,  label_en: "System uptime",     label_ar: "وقت التشغيل",     label_fr: "Disponibilité" },
+  { key: "users",    color: "var(--azure)",   value: "148",        delta_en: "+6 this month",   delta_ar: "+6 هذا الشهر",      delta_fr: "+6 ce mois",        up: true,  label_en: "Active users",      label_ar: "مستخدمون نشطون",  label_fr: "Utilisateurs actifs" },
+  { key: "modules",  color: "var(--emerald)", value: "9",          delta_en: "7 configured",    delta_ar: "7 مُهيأة",          delta_fr: "7 configurés",      up: null,  label_en: "Modules",           label_ar: "الوحدات",          label_fr: "Modules" },
+  { key: "tasks",    color: "var(--gold)",    value: "2 340",      delta_en: "+312 this week",  delta_ar: "+312 هذا الأسبوع",  delta_fr: "+312 cette semaine", up: true,  label_en: "Open tasks",        label_ar: "مهام مفتوحة",     label_fr: "Tâches ouvertes" },
+  { key: "sync",     color: "var(--emerald)", value: "99.8 %",     delta_en: "uptime 30 d",     delta_ar: "تشغيل 30 يوم",      delta_fr: "disponibilité 30 j", up: true,  label_en: "System uptime",     label_ar: "وقت التشغيل",     label_fr: "Disponibilité" },
 ];
 
 const MODULES = [
@@ -56,7 +56,7 @@ export function ScreenERP() {
               </div>
               <div className="tnum font-display" style={{ fontSize: 26, color: k.color, lineHeight: 1, marginBottom: 6 }}>{k.value}</div>
               <div style={{ fontSize: 10.5, display: "flex", alignItems: "center", gap: 4, color: k.up === null ? "var(--ink-4)" : k.up ? "var(--emerald)" : "var(--rose)" }}>
-                {k.up === true && <IcArrowUp />}{k.up === false && <IcArrowDown />}{k.delta}
+                {k.up === true && <IcArrowUp />}{k.up === false && <IcArrowDown />}{lang === "ar" ? k.delta_ar : lang === "fr" ? k.delta_fr : k.delta_en}
               </div>
             </div>
           ))}
