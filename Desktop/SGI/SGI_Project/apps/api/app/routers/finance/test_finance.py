@@ -16,11 +16,13 @@ from app.models.company import Company
 from app.routers.finance.schemas import TransactionCreate, TransactionUpdate
 from app.routers.finance.service import (
     bucket_receivables,
+    compute_vat,
     create_transaction,
     get_aged_receivables,
     get_pnl,
     get_summary,
     get_transaction,
+    get_vat_report,
     list_transactions,
     period_start,
     update_transaction,
@@ -221,3 +223,41 @@ async def test_aged_receivables_counts_unpaid_invoices(db_session, seed_company:
     assert aged.count == 1
     assert aged.total == Decimal("500")
     assert aged.buckets.current == Decimal("500")
+
+
+# ── Rapport TVA (UAE 5 %) ─────────────────────────────────────────────────
+
+
+def test_compute_vat_5pct() -> None:
+    v = compute_vat(Decimal("10000"), Decimal("4000"))
+    assert v["output_vat"] == Decimal("500.00")
+    assert v["input_vat"] == Decimal("200.00")
+    assert v["net_vat"] == Decimal("300.00")
+
+
+def test_compute_vat_credit_when_expenses_higher() -> None:
+    v = compute_vat(Decimal("1000"), Decimal("3000"))
+    assert v["net_vat"] == Decimal("-100.00")  # crédit de TVA
+
+
+async def test_vat_report_on_paid_transactions(db_session, seed_company: Company) -> None:
+    cid = seed_company.id
+    rev = await create_transaction(
+        db_session, cid, _txn(type="commission", direction="credit", amount=Decimal("20000"))
+    )
+    await update_transaction(db_session, cid, rev.id, TransactionUpdate(status="paid"))
+    exp = await create_transaction(
+        db_session, cid, _txn(type="expense", direction="debit", amount=Decimal("8000"))
+    )
+    await update_transaction(db_session, cid, exp.id, TransactionUpdate(status="paid"))
+    # Non payé → exclu.
+    await create_transaction(
+        db_session, cid, _txn(type="invoice", direction="credit", amount=Decimal("99999"))
+    )
+
+    vat = await get_vat_report(db_session, cid, "ytd")
+    assert vat.taxable_revenue == Decimal("20000")
+    assert vat.output_vat == Decimal("1000.00")
+    assert vat.input_vat == Decimal("400.00")
+    assert vat.net_vat == Decimal("600.00")
+    assert vat.rate == Decimal("0.05")

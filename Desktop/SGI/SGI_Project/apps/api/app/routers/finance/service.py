@@ -16,6 +16,7 @@ from app.routers.finance.schemas import (
     PnlReport,
     TransactionCreate,
     TransactionUpdate,
+    VatReport,
 )
 
 Period = Literal["month", "quarter", "ytd"]
@@ -323,3 +324,54 @@ async def get_aged_receivables(db: AsyncSession, company_id: uuid.UUID) -> AgedR
     buckets = bucket_receivables(items, datetime.now(UTC).date())
     total = sum(buckets.values(), Decimal(0))
     return AgedReceivables(buckets=AgedBuckets(**buckets), total=total, count=len(items))
+
+
+# ── Rapport TVA (UAE 5 %) — dérivé, sans changement de schéma ──────────────
+
+VAT_RATE = Decimal("0.05")  # taux standard UAE
+
+
+def compute_vat(
+    taxable_revenue: Decimal, taxable_expenses: Decimal, rate: Decimal = VAT_RATE
+) -> dict[str, Decimal]:
+    """TVA collectée/déductible/nette (pure, testable). Montants supposés HT."""
+    q = Decimal("0.01")
+    output_vat = (taxable_revenue * rate).quantize(q)
+    input_vat = (taxable_expenses * rate).quantize(q)
+    return {
+        "output_vat": output_vat,
+        "input_vat": input_vat,
+        "net_vat": output_vat - input_vat,
+    }
+
+
+async def get_vat_report(
+    db: AsyncSession, company_id: uuid.UUID, period: Period, rate: Decimal = VAT_RATE
+) -> VatReport:
+    """Rapport TVA sur les revenus/dépenses encaissés (paid) de la période."""
+    start = period_start(period, datetime.now(UTC))
+
+    async def _sum(direction: str) -> Decimal:
+        res = await db.execute(
+            select(func.coalesce(func.sum(FinanceTransaction.amount), 0)).where(
+                FinanceTransaction.company_id == company_id,
+                FinanceTransaction.deleted_at.is_(None),
+                FinanceTransaction.direction == direction,
+                FinanceTransaction.status == "paid",
+                FinanceTransaction.paid_at >= start,
+            )
+        )
+        return Decimal(str(res.scalar_one()))
+
+    taxable_revenue = await _sum("credit")
+    taxable_expenses = await _sum("debit")
+    vat = compute_vat(taxable_revenue, taxable_expenses, rate)
+    return VatReport(
+        period=period,
+        rate=rate,
+        taxable_revenue=taxable_revenue,
+        taxable_expenses=taxable_expenses,
+        output_vat=vat["output_vat"],
+        input_vat=vat["input_vat"],
+        net_vat=vat["net_vat"],
+    )
