@@ -31,6 +31,22 @@ from app.routers.scenarios.schemas import (
 router = APIRouter(prefix="/scenarios", tags=["scenarios"])
 
 _ROLES = ("admin", "manager", "agent")
+
+
+def _enqueue_generate(company_id: uuid.UUID, scenario_id: uuid.UUID) -> None:
+    """Enfile la génération vidéo sur la queue `exports`.
+
+    On passe par `celery_app.send_task` (et NON `task.delay`) : depuis le process
+    API (uvicorn), le pool de producteurs de `.delay` peut échouer à joindre le
+    broker (Errno 111) alors que `send_task` ouvre une connexion fiable.
+    """
+    from app.tasks.celery_app import celery_app
+
+    celery_app.send_task(
+        "app.tasks.scenarios.generate",
+        args=[str(company_id), str(scenario_id)],
+        queue="exports",
+    )
 _MAX_UPLOAD = 15 * 1024 * 1024  # 15 Mo / fichier
 _EXT = {
     "image/jpeg": "jpg",
@@ -157,11 +173,8 @@ async def create_endpoint(
         audio_ref=body.audio_ref,
     )
     # Génération vidéo FFmpeg en tâche de fond (statut 'generating' → 'ready' /
-    # 'failed'). Le front poll le statut. Import paresseux : évite de charger
-    # Celery au démarrage de l'API.
-    from app.tasks.scenarios import generate as generate_task
-
-    generate_task.delay(str(company_id), str(scenario.id))
+    # 'failed'). Le front poll le statut.
+    _enqueue_generate(company_id, scenario.id)
     return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
 
 
@@ -196,9 +209,7 @@ async def generate_endpoint(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="scenario_not_found")
     # Relance la génération (ex. après un échec) en tâche de fond.
     await service.mark_generating(db, company_id, scenario_id)
-    from app.tasks.scenarios import generate as generate_task
-
-    generate_task.delay(str(company_id), str(scenario_id))
+    _enqueue_generate(company_id, scenario_id)
     scenario = await service.get_scenario(db, company_id, scenario_id)
     return ScenarioDetailOut(data=ScenarioOut.model_validate(scenario))
 
