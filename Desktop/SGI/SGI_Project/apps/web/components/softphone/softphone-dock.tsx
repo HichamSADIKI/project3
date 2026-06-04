@@ -107,11 +107,12 @@ export function SoftphoneDock({
     return () => window.clearInterval(id);
   }, [sp.call?.state]);
 
-  // Ouvre le dock automatiquement sur un appel entrant, un screen pop, ou un
-  // wrap-up à traiter.
+  // Ouvre le panneau complet quand l'appel est décroché (contrôles en
+  // communication) ou en wrap-up. À la SONNERIE, on n'ouvre PAS le panneau :
+  // l'aperçu compact sur le casque (nom/numéro + décrocher) suffit.
   useEffect(() => {
-    if (sp.call?.state === "ringing" || sp.screenPop || wrapUp) setOpen(true);
-  }, [sp.call?.state, sp.screenPop, wrapUp]);
+    if (sp.call?.state === "answered" || wrapUp) setOpen(true);
+  }, [sp.call?.state, wrapUp]);
 
   // Statut agent automatique + entrée en wrap-up autour d'un appel.
   // - décroché → busy ; - terminé (snapshot transitoire "ended") → wrap_up.
@@ -385,6 +386,94 @@ export function SoftphoneDock({
           }}
         />
       </button>
+
+      {/* Aperçu d'appel entrant sur le casque (visible même panneau fermé) :
+          nom/numéro de l'appelant + décrocher / refuser en un geste. */}
+      {phoneState === "ringing" && !open && (
+        <div
+          style={{
+            position: "fixed",
+            insetBlockEnd: 86,
+            insetInlineEnd: 20,
+            width: "min(260px, calc(100vw - 32px))",
+            background: "var(--bg-paper)",
+            border: "1px solid var(--emerald)",
+            borderRadius: 14,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
+            zIndex: 1200,
+            padding: "12px 14px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 10,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 10.5,
+              color: "var(--emerald)",
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: 0.5,
+            }}
+          >
+            {t.tel_incoming}
+          </div>
+          <div
+            className="font-display"
+            style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)", direction: "ltr", textAlign: "start" }}
+          >
+            {sp.screenPop?.[0]?.display_name ??
+              (call?.remoteIdentity === "inconnu" ? t.tel_unknown_caller : call?.remoteIdentity ?? "—")}
+          </div>
+          {sp.screenPop?.[0]?.phone && (
+            <div style={{ fontSize: 12, color: "var(--ink-4)", direction: "ltr", textAlign: "start" }}>
+              {sp.screenPop[0].phone}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={sp.answer}
+              style={{
+                flex: 1,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                padding: "8px 12px",
+                border: "none",
+                borderRadius: 999,
+                background: "var(--emerald)",
+                color: "#fff",
+                fontSize: 12.5,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <IcPhone /> {t.tel_answer}
+            </button>
+            <button
+              onClick={sp.hangup}
+              aria-label={t.tel_hangup}
+              title={t.tel_hangup}
+              style={{
+                width: 38,
+                borderRadius: 999,
+                border: "none",
+                background: "var(--rose)",
+                color: "#fff",
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <span style={{ transform: "rotate(135deg)", display: "inline-flex" }}>
+                <IcPhone />
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {!open ? null : (
         <div
