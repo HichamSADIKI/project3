@@ -3,10 +3,11 @@
 // Bouton « Scénario » + popup de génération d'une vidéo social media à partir de
 // plusieurs photos + une voix (enregistrée OU générée depuis un avatar Homme/
 // Femme) + un script. Câblé sur /api/admin/scenarios/**. CSS strictement logique
-// (Loi 3, RTL-safe), chiffres latins. La génération vidéo/voix est un STUB MVP
-// côté backend (vidéo placeholder) — l'UX est complète et réelle.
+// (Loi 3, RTL-safe), chiffres latins. La génération est asynchrone (FFmpeg côté
+// worker) : le statut passe 'generating' → 'ready' (vidéo) / 'failed' — la popup
+// rafraîchit tant qu'une génération est en cours.
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 import type { Translations } from "@/lib/i18n";
 import { postJson } from "@/lib/api-client";
@@ -20,6 +21,7 @@ export type Scenario = {
   avatar: string | null;
   voice_mode: string;
   title: string | null;
+  error?: string | null;
 };
 
 type UploadedPhoto = { ref: string; url: string };
@@ -121,6 +123,15 @@ function ScenarioModal({
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+
+  // Tant qu'une vidéo est en cours de génération (worker FFmpeg), rafraîchir la
+  // liste toutes les 4 s pour faire apparaître la vidéo prête (ou l'échec).
+  const anyGenerating = scenarios.some((s) => s.status === "generating");
+  useEffect(() => {
+    if (!anyGenerating) return;
+    const id = setInterval(() => onChanged(), 4000);
+    return () => clearInterval(id);
+  }, [anyGenerating, onChanged]);
 
   // Publie la vidéo d'un scénario sur un canal social (réutilise le module social).
   async function shareVideo(scenarioId: string, channel: string) {
@@ -333,7 +344,7 @@ function ScenarioModal({
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 18 }}>{s.avatar === "male" ? "👨" : s.avatar === "female" ? "👩" : "🎙️"}</span>
                     <span style={{ flex: 1, fontSize: 13, color: "var(--ink-2)" }}>{s.title || t.scenario_untitled}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: s.status === "ready" ? "rgba(16,185,129,0.12)" : "var(--line-soft)", color: s.status === "ready" ? "var(--emerald)" : "var(--ink-4)" }}>{s.status === "ready" ? t.scenario_ready : s.status}</span>
+                    <span title={s.status === "failed" ? (s as { error?: string }).error ?? "" : undefined} style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, background: s.status === "ready" ? "rgba(16,185,129,0.12)" : s.status === "failed" ? "var(--rose-soft)" : "var(--line-soft)", color: s.status === "ready" ? "var(--emerald)" : s.status === "failed" ? "var(--rose)" : "var(--ink-4)" }}>{s.status === "ready" ? t.scenario_ready : s.status === "generating" ? `${t.scenario_generating}…` : s.status === "failed" ? t.scenario_failed : s.status}</span>
                     {s.status === "ready" && s.video_url && (
                       <a href={s.video_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--gold-deep)", textDecoration: "none" }}>▶ {t.scenario_watch}</a>
                     )}

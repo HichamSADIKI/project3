@@ -1,18 +1,21 @@
 """Tâches Celery — module Scenarios (génération vidéo social media).
 
-Queue : exports (traitements lourds non temps-réel).
+Queue : exports (traitement lourd non temps-réel).
 
-`generate` est un **STUB** (MVP) : il fait passer le scénario de `generating` à
-`ready` avec une URL vidéo placeholder. C'est le **seam** pour brancher un vrai
-fournisseur asynchrone (D-ID/HeyGen + TTS) — il suffira de remplacer le corps par
-l'appel réel (photos + script + avatar → vidéo) sans changer la signature ni le
-reste du module.
+`generate` produit une **vraie vidéo** via **FFmpeg** : un diaporama vertical
+9:16 des photos uploadées + (optionnel) la voix enregistrée, encodé H.264 et
+uploadé sur MinIO. Statut `generating` → `ready` (avec URL signée) ou `failed`
+(avec message d'erreur). La voix d'avatar (TTS) reste à brancher — sans audio le
+diaporama est silencieux.
 
 Rôle privilégié (`sync_session_maker`) comme les autres tâches, mais on pose le
 GUC tenant et on filtre explicitement par `company_id` (Loi 1).
 """
 
 import logging
+import os
+import subprocess
+import tempfile
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -20,14 +23,57 @@ from typing import Any
 from celery import shared_task
 from sqlalchemy import select, text
 
+from app.core import storage
 from app.core.database import sync_session_maker
 from app.routers.scenarios.models import VideoScenario
-from app.routers.scenarios.service import stub_video_url
+from app.routers.scenarios.service import (
+    VIDEO_URL_TTL,
+    build_ffmpeg_command,
+    ffmpeg_output_key,
+)
 
 logger = logging.getLogger(__name__)
 
+_FFMPEG_TIMEOUT_S = 180
 
-@shared_task(name="app.tasks.scenarios.generate", bind=True, max_retries=3)
+
+def _render_video(scenario: VideoScenario) -> str:
+    """Télécharge photos/audio, assemble la vidéo FFmpeg, uploade → clé MinIO."""
+    if not scenario.photo_refs:
+        raise RuntimeError("no_photos")
+    with tempfile.TemporaryDirectory() as tmp:
+        image_paths: list[str] = []
+        for i, ref in enumerate(scenario.photo_refs):
+            data, _ct = storage.download_bytes(ref)
+            ext = os.path.splitext(ref)[1] or ".jpg"
+            path = os.path.join(tmp, f"img_{i:03d}{ext}")
+            with open(path, "wb") as fh:
+                fh.write(data)
+            image_paths.append(path)
+
+        audio_path: str | None = None
+        if scenario.audio_ref:
+            adata, _ = storage.download_bytes(scenario.audio_ref)
+            audio_path = os.path.join(
+                tmp, "audio" + (os.path.splitext(scenario.audio_ref)[1] or ".webm")
+            )
+            with open(audio_path, "wb") as fh:
+                fh.write(adata)
+
+        out_path = os.path.join(tmp, "out.mp4")
+        cmd = build_ffmpeg_command(image_paths, audio_path, out_path)
+        proc = subprocess.run(cmd, capture_output=True, timeout=_FFMPEG_TIMEOUT_S)  # noqa: S603
+        if proc.returncode != 0:
+            tail = proc.stderr.decode("utf-8", "replace")[-300:]
+            raise RuntimeError(f"ffmpeg_failed: {tail}")
+        with open(out_path, "rb") as fh:
+            video = fh.read()
+        key = ffmpeg_output_key(scenario.company_id, scenario.id)
+        storage._put_sync(key, video, "video/mp4")  # noqa: SLF001
+        return key
+
+
+@shared_task(name="app.tasks.scenarios.generate", bind=True, max_retries=2)
 def generate(self: Any, company_id: str, scenario_id: str) -> dict[str, str]:
     cid = uuid.UUID(company_id)
     sid = uuid.UUID(scenario_id)
@@ -51,11 +97,16 @@ def generate(self: Any, company_id: str, scenario_id: str) -> dict[str, str]:
             return {"status": "not_found", "id": scenario_id}
         if scenario.status == "ready" and scenario.video_url:
             return {"status": "ready", "id": scenario_id}
-        # ── STUB : remplacer par l'appel réel au fournisseur vidéo/voix ──────
-        scenario.status = "ready"
-        scenario.video_url = stub_video_url(scenario.id)
-        scenario.error = None
+        try:
+            key = _render_video(scenario)
+            scenario.video_url = storage._presigned_sync(key, VIDEO_URL_TTL)  # noqa: SLF001
+            scenario.status = "ready"
+            scenario.error = None
+            logger.info("scenario %s généré (ffmpeg)", scenario_id)
+        except Exception as exc:  # noqa: BLE001 — toute erreur de rendu → failed
+            scenario.status = "failed"
+            scenario.error = str(exc)[:480]
+            logger.exception("scenario %s génération échouée", scenario_id)
         scenario.updated_at = datetime.now(UTC)
         db.commit()
-        logger.info("scenario %s généré (stub)", scenario_id)
-        return {"status": "ready", "id": scenario_id}
+        return {"status": scenario.status, "id": scenario_id}
