@@ -22,7 +22,6 @@ from app.routers.social.schemas import (
     PostCreate,
     PostDetailOut,
     PostListOut,
-    PostOut,
 )
 
 router = APIRouter(prefix="/social", tags=["social"])
@@ -66,7 +65,7 @@ async def list_posts_endpoint(
     posts = await service.list_posts(
         db, company_id, listing_type=listing_type, listing_id=listing_id
     )
-    return PostListOut(data=[PostOut.model_validate(p) for p in posts])
+    return PostListOut(data=[await service.post_to_out(db, company_id, p) for p in posts])
 
 
 @router.post(
@@ -85,8 +84,9 @@ async def publish_endpoint(
     if not await _listing_belongs_to_tenant(db, company_id, body.listing_type, body.listing_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="listing_not_found")
     external_url = body.external_url
-    # Si une vidéo générée est attachée : la valider (tenant + même annonce) et
-    # utiliser son URL comme média du post (anti-BOLA : 404 hors tenant).
+    # Si une vidéo générée est attachée : la valider (tenant + même annonce ;
+    # anti-BOLA : 404 hors tenant). On NE fige PAS son URL ici — elle est re-signée
+    # à la lecture (service.post_to_out) pour ne jamais périmer (cf. fix « Voir »).
     if body.video_scenario_id is not None:
         scenario = await scenarios_service.get_scenario(db, company_id, body.video_scenario_id)
         if (
@@ -95,7 +95,6 @@ async def publish_endpoint(
             or scenario.listing_id != body.listing_id
         ):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="scenario_not_found")
-        external_url = scenario.video_url or external_url
     post = await service.publish(
         db,
         company_id,
@@ -106,7 +105,7 @@ async def publish_endpoint(
         external_url=external_url,
         video_scenario_id=body.video_scenario_id,
     )
-    return PostDetailOut(data=PostOut.model_validate(post))
+    return PostDetailOut(data=await service.post_to_out(db, company_id, post))
 
 
 @router.delete(

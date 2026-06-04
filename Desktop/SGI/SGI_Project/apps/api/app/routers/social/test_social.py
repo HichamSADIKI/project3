@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from httpx import AsyncClient
@@ -15,6 +17,7 @@ from app.models.user import User
 from app.routers.sales import service as sales_service
 from app.routers.scenarios import service as scenarios_service
 from app.routers.social import service
+from app.routers.social.models import SocialPost
 
 # ── Helpers purs ─────────────────────────────────────────────────────────────
 
@@ -259,3 +262,77 @@ async def test_publish_with_video_scenario(
         },
     )
     assert rbad.status_code == 404
+
+
+# ── post_to_out : re-signature de l'URL vidéo à la lecture (lien jamais périmé) ──
+
+
+def _post(**over: object) -> SocialPost:
+    """Fabrique un SocialPost en mémoire (non persisté) pour les tests purs."""
+    base: dict[str, object] = dict(
+        id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        listing_type="sale",
+        listing_id=uuid.uuid4(),
+        channel="instagram",
+        status="published",
+        message="Découvrez ce bien",
+        external_url="https://minio/stale?expired=1",
+        video_scenario_id=uuid.uuid4(),
+        published_at=None,
+        created_at=datetime.now(UTC),
+    )
+    base.update(over)
+    return SocialPost(**base)
+
+
+class TestPostToOut:
+    """`post_to_out` re-signe l'URL vidéo (external_url) à chaque lecture."""
+
+    async def test_video_post_resigns_fresh_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def fake_get(db: object, cid: object, sid: object) -> object:
+            return SimpleNamespace(id=sid)
+
+        async def fake_out(scenario: object) -> object:
+            return SimpleNamespace(video_url="https://minio/fresh?sig=new")
+
+        monkeypatch.setattr(service.scenarios_service, "get_scenario", fake_get)
+        monkeypatch.setattr(service.scenarios_service, "scenario_to_out", fake_out)
+        out = await service.post_to_out(None, uuid.uuid4(), _post())
+        assert out.external_url == "https://minio/fresh?sig=new"
+
+    async def test_non_video_post_unchanged(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        called = False
+
+        async def fake_get(db: object, cid: object, sid: object) -> object:
+            nonlocal called
+            called = True
+            return None
+
+        monkeypatch.setattr(service.scenarios_service, "get_scenario", fake_get)
+        post = _post(video_scenario_id=None, external_url="https://platform/post/123")
+        out = await service.post_to_out(None, uuid.uuid4(), post)
+        assert out.external_url == "https://platform/post/123"
+        assert called is False
+
+    async def test_missing_scenario_keeps_stored_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def fake_get(db: object, cid: object, sid: object) -> None:
+            return None  # scénario supprimé / hors tenant
+
+        monkeypatch.setattr(service.scenarios_service, "get_scenario", fake_get)
+        post = _post(external_url="https://minio/last-known")
+        out = await service.post_to_out(None, uuid.uuid4(), post)
+        assert out.external_url == "https://minio/last-known"
+
+    async def test_no_fresh_url_keeps_stored(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def fake_get(db: object, cid: object, sid: object) -> object:
+            return SimpleNamespace(id=sid)
+
+        async def fake_out(scenario: object) -> object:
+            return SimpleNamespace(video_url=None)  # MinIO KO → pas de fraîche URL
+
+        monkeypatch.setattr(service.scenarios_service, "get_scenario", fake_get)
+        monkeypatch.setattr(service.scenarios_service, "scenario_to_out", fake_out)
+        post = _post(external_url="https://minio/last-known")
+        out = await service.post_to_out(None, uuid.uuid4(), post)
+        assert out.external_url == "https://minio/last-known"
