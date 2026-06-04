@@ -682,6 +682,112 @@ img, svg, video { max-width: 100%; height: auto; }
 .zoi-site .z-reveal{opacity:0;transform:translateY(26px);transition:.8s cubic-bezier(.2,.7,.3,1)}
 .zoi-site .z-reveal.in{opacity:1;transform:none}
 
+/* ---------- pages agents ---------- */
+.zoi-site .z-agents-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+  gap: 24px;
+}
+.zoi-site .z-acard {
+  background: var(--z-paper);
+  border: 1px solid var(--z-line);
+  border-radius: var(--z-rlg);
+  padding: 30px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 10px;
+  box-shadow: var(--z-shadow-sm);
+  transition: 0.35s;
+}
+.zoi-site .z-acard:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--z-shadow-md);
+}
+.zoi-site .z-avatar {
+  width: 104px;
+  height: 104px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--z-sand);
+  box-shadow: 0 0 0 2px var(--z-gold-400);
+  display: grid;
+  place-items: center;
+  color: var(--z-gold-600);
+}
+.zoi-site .z-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.zoi-site .z-acard .z-aname {
+  font-family: var(--z-serif);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--z-green-900);
+  line-height: 1.1;
+}
+[dir="rtl"] .zoi-site .z-acard .z-aname {
+  font-family: var(--z-arab);
+}
+.zoi-site .z-acard .z-atitle {
+  font-size: 13px;
+  color: var(--z-gold-700);
+  letter-spacing: 0.04em;
+}
+.dark .zoi-site .z-acard .z-atitle {
+  color: var(--z-gold-400);
+}
+.zoi-site .z-agent-hero {
+  display: flex;
+  gap: 32px;
+  align-items: center;
+  flex-wrap: wrap;
+  background: var(--z-paper);
+  border: 1px solid var(--z-line);
+  border-radius: var(--z-rxl);
+  padding: 36px;
+}
+.zoi-site .z-agent-hero .z-avatar {
+  width: 132px;
+  height: 132px;
+  flex-shrink: 0;
+}
+.zoi-site .z-agent-hero h1 {
+  font-family: var(--z-serif);
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-weight: 600;
+  color: var(--z-green-900);
+  line-height: 1.05;
+  margin: 0;
+}
+[dir="rtl"] .zoi-site .z-agent-hero h1 {
+  font-family: var(--z-arab);
+}
+.zoi-site .z-agent-hero .z-atitle {
+  font-size: 15px;
+  color: var(--z-gold-700);
+  font-weight: 600;
+  margin-top: 4px;
+}
+.dark .zoi-site .z-agent-hero .z-atitle {
+  color: var(--z-gold-400);
+}
+.zoi-site .z-agent-hero .z-abio {
+  color: var(--z-muted);
+  font-size: 15px;
+  line-height: 1.65;
+  margin-top: 12px;
+  max-width: 620px;
+}
+.zoi-site .z-agent-hero .z-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
 /* ---------- vitrine overrides of shared sgi-* (page /properties) ---------- */
 .zoi-site .sgi-card{background:var(--z-paper);border:1px solid var(--z-line);border-radius:var(--z-rlg);box-shadow:var(--z-shadow-sm)}
 .zoi-site .sgi-input{background:var(--z-paper);border:1.5px solid var(--z-line);border-radius:11px;color:var(--z-ink)}

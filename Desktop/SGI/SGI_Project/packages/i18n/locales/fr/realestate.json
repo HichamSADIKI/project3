@@ -95,6 +95,8 @@
     "contact": "Contact"
   },
   "portfolio": {
+    "title": "Notre portefeuille",
+    "subtitle": "Filtrez par type de bien et par transaction.",
     "all": "Tous",
     "villa": "Villas",
     "apartment": "Appartements",

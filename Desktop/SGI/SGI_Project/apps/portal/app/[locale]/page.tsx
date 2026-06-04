@@ -5,6 +5,7 @@ import { isValidLocale, makeT, type Locale } from "@/lib/i18n";
 import { PublicShell } from "@/components/public-shell";
 import { PropertyGrid } from "@/components/property-grid";
 import { ZoiSearchBox } from "@/components/zoi/zoi-search";
+import { Portfolio } from "@/components/zoi/portfolio";
 import { Ic, Svg } from "@/components/zoi/icons";
 import { BookButton } from "@/components/zoi/book-button";
 import { apiServerPublic } from "@/lib/api-server";
@@ -44,7 +45,7 @@ export default async function HomePage({
   const tre = makeT("realestate", lc);
 
   // Vitrine immobilière — données publiques (fail-safe : null si backend KO).
-  const [featuredRes, urgentRes, statsRes] = await Promise.all([
+  const [featuredRes, urgentRes, statsRes, poolRes] = await Promise.all([
     apiServerPublic<PublicEnvelope<PublicListing[]>>(
       "/api/v1/public/listings?is_featured=true&limit=3",
     ),
@@ -52,11 +53,49 @@ export default async function HomePage({
       "/api/v1/public/listings?is_urgent=true&limit=3",
     ),
     apiServerPublic<PublicEnvelope<PublicStats>>("/api/v1/public/stats"),
+    apiServerPublic<PublicEnvelope<PublicListing[]>>(
+      "/api/v1/public/listings?limit=9",
+    ),
   ]);
 
   const featured = featuredRes?.data ?? [];
   const urgent = urgentRes?.data ?? [];
   const stats = statsRes?.data ?? null;
+  const pool = poolRes?.data ?? [];
+
+  const UNIT_TYPE_KEYS = [
+    "villa",
+    "apartment",
+    "townhouse",
+    "penthouse",
+    "office",
+    "studio",
+    "land",
+  ];
+  const typeLabels: Record<string, string> = Object.fromEntries(
+    UNIT_TYPE_KEYS.map((k) => {
+      const v = tre(`portfolio.${k}`);
+      return [k, v === `portfolio.${k}` ? k : v];
+    }),
+  );
+  const portfolioLabels = {
+    all: tre("portfolio.all"),
+    villa: tre("portfolio.villa"),
+    apartment: tre("portfolio.apartment"),
+    office: tre("portfolio.office"),
+    land: tre("portfolio.land"),
+    any: tre("search.dealAny"),
+    buy: tre("search.dealSale"),
+    rent: tre("search.dealRent"),
+    badgeSale: tre("badges.sale"),
+    badgeRent: tre("badges.rent"),
+    perYear: tre("card.perYear"),
+    priceOnRequest: tre("card.priceOnRequest"),
+    details: tre("card.viewDetails"),
+    book: tre("book.short"),
+    favorite: tre("badges.featured"),
+    typeLabels,
+  };
 
   const overlayDeg = lc === "ar" ? "280deg" : "80deg";
 
@@ -198,6 +237,24 @@ export default async function HomePage({
             </div>
             <PropertyGrid listings={urgent} locale={lc} />
           </div>
+        </section>
+      ) : null}
+
+      {/* ── Portfolio filtrable ──────────────────────────────────────────── */}
+      {pool.length ? (
+        <section
+          style={{ padding: "60px 0 40px", background: "var(--z-cream)" }}
+        >
+          <div className="z-container">
+            <div className="z-sec-head">
+              <span className="z-eyebrow">{tre("home.featuredEyebrow")}</span>
+              <h2 className="z-sec-title" style={{ marginTop: 14 }}>
+                {tre("portfolio.title")}
+              </h2>
+              <p className="z-sec-sub">{tre("portfolio.subtitle")}</p>
+            </div>
+          </div>
+          <Portfolio locale={lc} listings={pool} labels={portfolioLabels} />
         </section>
       ) : null}
 
