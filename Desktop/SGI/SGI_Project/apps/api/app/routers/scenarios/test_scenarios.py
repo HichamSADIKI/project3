@@ -42,6 +42,34 @@ class TestPureHelpers:
         assert out.startswith("https://") and out == service.stub_video_url(sid)
         assert sid.hex[:8] in out
 
+    def test_ffmpeg_output_key(self) -> None:
+        cid = uuid.UUID("00000000-0000-4000-8000-000000000002")
+        sid = uuid.UUID("00000000-0000-4000-8000-000000000003")
+        key = service.ffmpeg_output_key(cid, sid)
+        assert key == f"scenarios/{cid}/videos/{sid.hex}.mp4"
+
+    def test_build_ffmpeg_command_photos_only(self) -> None:
+        cmd = service.build_ffmpeg_command(["/a.jpg", "/b.jpg"], None, "/out.mp4")
+        assert cmd[0] == "ffmpeg"
+        assert "/a.jpg" in cmd and "/b.jpg" in cmd and cmd[-1] == "/out.mp4"
+        # 2 plans concaténés, encodage H.264, format vertical 1080x1920
+        joined = " ".join(cmd)
+        assert "concat=n=2:v=1:a=0[v]" in joined
+        assert "libx264" in cmd and "1080:1920" in joined
+        # pas d'audio → pas de map audio
+        assert "-shortest" not in cmd
+
+    def test_build_ffmpeg_command_with_audio(self) -> None:
+        cmd = service.build_ffmpeg_command(["/a.jpg"], "/voice.webm", "/out.mp4")
+        assert "/voice.webm" in cmd
+        assert "-shortest" in cmd and "1:a" in " ".join(cmd)
+
+    def test_build_ffmpeg_command_requires_image(self) -> None:
+        import pytest as _pytest
+
+        with _pytest.raises(ValueError, match="at_least_one_image"):
+            service.build_ffmpeg_command([], None, "/out.mp4")
+
 
 # ── Fixture de données ───────────────────────────────────────────────────────
 
@@ -124,7 +152,7 @@ async def test_create_validation_errors(
 
 
 @pytest.mark.asyncio
-async def test_create_generates_and_lifecycle(
+async def test_create_async_lifecycle(
     client: AsyncClient,
     seed_admin: tuple[User, str],
     db_session: AsyncSession,
@@ -134,30 +162,45 @@ async def test_create_generates_and_lifecycle(
     h = {"Authorization": f"Bearer {token}"}
     lid = await _seed_sale_listing(db_session, seed_company.id)
 
-    # create → génération stub instantanée → ready + video_url
+    # create → génération FFmpeg en tâche de fond → statut 'generating'
     res = await client.post("/api/v1/scenarios/", headers=h, json=_payload(lid))
     assert res.status_code == 201
     data = res.json()["data"]
-    assert data["status"] == "ready"
-    assert data["video_url"] and data["video_url"].startswith("https://")
+    assert data["status"] == "generating"
+    assert data["video_url"] is None
     assert data["avatar"] == "female"
     sid = data["id"]
 
-    # list
+    # list / get
     lst = await client.get(f"/api/v1/scenarios/?listing_type=sale&listing_id={lid}", headers=h)
     assert lst.status_code == 200 and len(lst.json()["data"]) == 1
-
-    # get
     one = await client.get(f"/api/v1/scenarios/{sid}", headers=h)
-    assert one.status_code == 200 and one.json()["data"]["status"] == "ready"
+    assert one.status_code == 200 and one.json()["data"]["status"] == "generating"
 
-    # generate (idempotent : reste ready)
+    # generate (relance) → re-enqueue, repasse en 'generating'
     gen = await client.post(f"/api/v1/scenarios/{sid}/generate", headers=h)
-    assert gen.status_code == 200 and gen.json()["data"]["status"] == "ready"
+    assert gen.status_code == 200 and gen.json()["data"]["status"] == "generating"
 
     # delete → 204 puis 404
     assert (await client.delete(f"/api/v1/scenarios/{sid}", headers=h)).status_code == 204
     assert (await client.get(f"/api/v1/scenarios/{sid}", headers=h)).status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_stub_generation_helper(db_session: AsyncSession, seed_company: Company) -> None:
+    """`run_stub_generation` (utilisé par les tests social) fabrique un ready."""
+    lid = await _seed_sale_listing(db_session, seed_company.id)
+    sc = await service.create_scenario(
+        db_session,
+        seed_company.id,
+        listing_type="sale",
+        listing_id=lid,
+        voice_mode="avatar",
+        photo_refs=["k.jpg"],
+        avatar="male",
+    )
+    done = await service.run_stub_generation(db_session, seed_company.id, sc.id)
+    assert done is not None and done.status == "ready" and done.video_url
 
 
 @pytest.mark.asyncio
