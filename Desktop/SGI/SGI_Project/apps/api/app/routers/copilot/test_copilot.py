@@ -333,3 +333,32 @@ def test_extract_prefill_dispatch_lead() -> None:
 
 def test_extract_prefill_none() -> None:
     assert service.extract_prefill("bonjour ça va ?") is None
+
+
+# ── Pré-remplissage paiement (extend) ─────────────────────────────────────
+
+
+def test_extract_payment_prefill_rent() -> None:
+    out = service.extract_payment_prefill("créer un paiement de loyer 5000")
+    assert out == {
+        "screen": "realestate_payments",
+        "fields": {"payment_type": "rent", "amount": 5000},
+    }
+
+
+def test_extract_payment_prefill_deposit_no_amount() -> None:
+    out = service.extract_payment_prefill("nouveau paiement caution")
+    assert out is not None
+    assert out["screen"] == "realestate_payments"
+    assert out["fields"]["payment_type"] == "deposit"
+
+
+def test_extract_payment_prefill_none_when_not_payment() -> None:
+    assert service.extract_payment_prefill("créer un contrat de bail") is None
+    assert service.extract_payment_prefill("où sont les paiements ?") is None  # pas de création
+
+
+def test_extract_prefill_dispatch_payment_first() -> None:
+    out = service.extract_prefill("encaisser un paiement de charges 1200")
+    assert out is not None and out["screen"] == "realestate_payments"
+    assert out["fields"]["payment_type"] == "charges"

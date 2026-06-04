@@ -1031,11 +1031,49 @@ def extract_contract_prefill(text: str) -> dict[str, Any] | None:
     return {"screen": "realestate_contracts", "fields": fields}
 
 
-def extract_prefill(text: str) -> dict[str, Any] | None:
-    """Dispatch des actions guidées de création : contrat puis prospect.
+_PAYMENT_WORDS: frozenset[str] = frozenset(
+    {"paiement", "paiements", "payment", "payments", "encaissement", "encaisser", "دفعة", "إيصال"}
+)
+# Mots → type de paiement (rent/charges/deposit). Défaut omis (l'UI choisit).
+_PAY_TYPE_WORDS: dict[str, frozenset[str]] = {
+    "rent": frozenset({"loyer", "loyers", "rent", "location", "إيجار"}),
+    "charges": frozenset({"charges", "charge", "service", "رسوم"}),
+    "deposit": frozenset({"caution", "dépôt", "depot", "deposit", "garantie", "تأمين"}),
+}
 
-    L'ordre privilégie le contrat (plus spécifique) sur le prospect."""
-    return extract_contract_prefill(text) or extract_lead_prefill(text)
+
+def extract_payment_prefill(text: str) -> dict[str, Any] | None:
+    """Si le message exprime une création de paiement, renvoie
+    `{screen: "realestate_payments", fields: {payment_type?, amount?}}`. None sinon."""
+    low = (text or "").lower()
+    tokens = set(_WORD_RE.findall(low))
+    # « encaisser/encaissement » implique une création de paiement (pas que créer/ajouter).
+    create = any(_matches(low, tokens, w) for w in _CREATE_WORDS) or any(
+        _matches(low, tokens, w) for w in ("encaisser", "encaissement")
+    )
+    is_payment = any(_matches(low, tokens, w) for w in _PAYMENT_WORDS)
+    if not (create and is_payment):
+        return None
+    fields: dict[str, Any] = {}
+    for ptype, words in _PAY_TYPE_WORDS.items():
+        if any(_matches(low, tokens, w) for w in words):
+            fields["payment_type"] = ptype
+            break
+    amount = _extract_budget_aed(low)
+    if amount:
+        fields["amount"] = amount
+    return {"screen": "realestate_payments", "fields": fields}
+
+
+def extract_prefill(text: str) -> dict[str, Any] | None:
+    """Dispatch des actions guidées de création : paiement, contrat, prospect.
+
+    Ordre du plus spécifique au plus général."""
+    return (
+        extract_payment_prefill(text)
+        or extract_contract_prefill(text)
+        or extract_lead_prefill(text)
+    )
 
 
 async def chat(
