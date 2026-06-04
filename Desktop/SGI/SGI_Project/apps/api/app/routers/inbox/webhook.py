@@ -7,10 +7,11 @@ La sécurité repose donc sur :
 1. **GET /inbox/webhook/whatsapp** — vérification du challenge Meta. On compare
    `hub.verify_token` au secret partagé `WHATSAPP_VERIFY_TOKEN` (env) et on renvoie
    `hub.challenge` en clair (exigence Meta). Échec → 403.
-2. **POST /inbox/webhook/whatsapp** — réception des messages. Idéalement protégé
-   par la signature `X-Hub-Signature-256` (HMAC SHA-256 du corps avec l'app secret) —
-   vérification implémentée si `WHATSAPP_APP_SECRET` est défini, sinon best-effort
-   (voir wiring_needed pour rendre la vérification obligatoire en prod).
+2. **POST /inbox/webhook/whatsapp** — réception des messages. Protégé par la
+   signature `X-Hub-Signature-256` (HMAC SHA-256 du corps avec l'app secret).
+   En prod : `WHATSAPP_APP_SECRET` défini **et** `WHATSAPP_REQUIRE_SIGNATURE=true`
+   → tout payload non signé/mal signé est rejeté (fail-closed). En dev (flag à
+   `false`, défaut) : best-effort si le secret est absent.
 
 ────────────────────────────────────────────────────────────────────────────
 RÉSOLUTION MULTI-TENANT (Loi 1) — point d'attention
@@ -197,20 +198,42 @@ def resolve_company_id(phone_number_id: str | None) -> uuid.UUID | None:
 
 
 # ─────────────────────────────────────────────────────────────────────────
-# Signature Meta (X-Hub-Signature-256) — best-effort si app secret configuré
+# Signature Meta (X-Hub-Signature-256) — fail-closed en prod (REQUIRE_SIGNATURE)
 # ─────────────────────────────────────────────────────────────────────────
 
 
-def verify_meta_signature(raw_body: bytes, header_signature: str | None) -> bool:
-    """Vérifie la signature HMAC-SHA256 de Meta. True si valide OU si non configurée.
+def _require_signature() -> bool:
+    """True si la vérification de signature est OBLIGATOIRE (fail-closed).
 
-    Si `WHATSAPP_APP_SECRET` n'est pas défini, on ne peut pas vérifier → True
-    (best-effort, ne bloque pas le MVP). En prod, définir le secret pour activer
-    le rejet des payloads non signés (voir wiring_needed).
+    Piloté par `WHATSAPP_REQUIRE_SIGNATURE` (à mettre à `true` en prod). Par
+    défaut `false` → comportement dev best-effort (cf. `verify_meta_signature`).
+    """
+    return os.getenv("WHATSAPP_REQUIRE_SIGNATURE", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
+def verify_meta_signature(raw_body: bytes, header_signature: str | None) -> bool:
+    """Vérifie la signature HMAC-SHA256 de Meta (`X-Hub-Signature-256`).
+
+    - Secret défini → on exige une signature valide (sinon False).
+    - Secret ABSENT → dépend de `WHATSAPP_REQUIRE_SIGNATURE` : **prod (`true`) →
+      False (fail-closed : on refuse les payloads non vérifiables)** ; dev
+      (`false`, défaut) → True (best-effort, ne bloque pas le développement local).
+
+    Le fail-closed devient important depuis l'enrôlement par tenant (table
+    `inbox_channel_configs`, migration 0045) : un `phone_number_id` résout vers
+    un vrai tenant, donc un payload non signé pourrait injecter de faux messages
+    dans son inbox. En prod : définir `WHATSAPP_APP_SECRET` **et**
+    `WHATSAPP_REQUIRE_SIGNATURE=true`.
     """
     app_secret = os.getenv("WHATSAPP_APP_SECRET", "")
     if not app_secret:
-        return True
+        # Pas de secret : refus en prod (require), best-effort en dev.
+        return not _require_signature()
     if not header_signature or not header_signature.startswith("sha256="):
         return False
     expected = hmac.new(app_secret.encode(), raw_body, hashlib.sha256).hexdigest()

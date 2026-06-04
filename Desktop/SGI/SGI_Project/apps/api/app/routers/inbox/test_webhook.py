@@ -203,11 +203,32 @@ def test_resolve_company_id_invalid_configs(monkeypatch) -> None:
 
 
 def test_verify_signature_best_effort_when_no_secret(monkeypatch) -> None:
+    # Dev (REQUIRE non posé) + pas de secret → best-effort : accepte.
     monkeypatch.delenv("WHATSAPP_APP_SECRET", raising=False)
+    monkeypatch.delenv("WHATSAPP_REQUIRE_SIGNATURE", raising=False)
     assert webhook.verify_meta_signature(b"{}", None) is True
 
 
+def test_verify_signature_required_no_secret_rejects(monkeypatch) -> None:
+    # Prod (REQUIRE=true) SANS secret → fail-closed : on refuse (jamais True).
+    monkeypatch.delenv("WHATSAPP_APP_SECRET", raising=False)
+    monkeypatch.setenv("WHATSAPP_REQUIRE_SIGNATURE", "true")
+    assert webhook.verify_meta_signature(b"{}", None) is False
+    assert webhook.verify_meta_signature(b"{}", "sha256=whatever") is False
+
+
+def test_verify_signature_required_with_valid_sig(monkeypatch) -> None:
+    # Prod (REQUIRE=true) AVEC secret + signature valide → accepte.
+    monkeypatch.setenv("WHATSAPP_REQUIRE_SIGNATURE", "true")
+    monkeypatch.setenv("WHATSAPP_APP_SECRET", "topsecret")
+    body = b'{"hello":"world"}'
+    good = "sha256=" + hmac.new(b"topsecret", body, hashlib.sha256).hexdigest()
+    assert webhook.verify_meta_signature(body, good) is True
+    assert webhook.verify_meta_signature(body, "sha256=deadbeef") is False
+
+
 def test_verify_signature_hmac(monkeypatch) -> None:
+    monkeypatch.delenv("WHATSAPP_REQUIRE_SIGNATURE", raising=False)
     monkeypatch.setenv("WHATSAPP_APP_SECRET", "topsecret")
     body = b'{"hello":"world"}'
     good = "sha256=" + hmac.new(b"topsecret", body, hashlib.sha256).hexdigest()
@@ -293,3 +314,12 @@ async def test_post_ingests_and_dedupes(
 async def _never_processed(external_message_id: str) -> bool:
     """Stub : court-circuite la dédup Valkey pour les tests d'intégration HTTP."""
     return False
+
+
+async def test_post_required_signature_rejects_unsigned(client: AsyncClient, monkeypatch) -> None:
+    """Prod (REQUIRE=true) sans secret/signature → payload ignoré (fail-closed)."""
+    monkeypatch.delenv("WHATSAPP_APP_SECRET", raising=False)
+    monkeypatch.setenv("WHATSAPP_REQUIRE_SIGNATURE", "true")
+    resp = await client.post("/api/v1/inbox/webhook/whatsapp", json=_text_payload())
+    assert resp.status_code == 200  # Meta ne doit jamais recevoir d'erreur.
+    assert resp.json()["data"] == {"ignored": "invalid_signature"}
