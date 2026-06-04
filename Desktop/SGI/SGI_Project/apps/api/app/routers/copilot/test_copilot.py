@@ -259,3 +259,41 @@ async def test_chat_fallback_when_gemini_unavailable(db_session, seed_company, m
     )
     assert out["engine"] == "fallback"
     assert "assistant SGI" in out["reply"]
+
+
+# ── Actions guidées profondes — extract_lead_prefill (helper pur) ──────────
+
+
+def test_extract_lead_prefill_create_intent() -> None:
+    out = service.extract_lead_prefill("créer un prospect, villa à Dubai Marina, budget 2.5M")
+    assert out is not None
+    assert out["screen"] == "crm"
+    f = out["fields"]
+    assert f["budget"] == 2_500_000
+    assert f["prop"] == "villa"
+    assert f["ctry"] == "Dubai Marina"
+
+
+def test_extract_lead_prefill_en_and_units() -> None:
+    out = service.extract_lead_prefill("add a new lead, apartment, 500k budget")
+    assert out is not None
+    assert out["fields"]["budget"] == 500_000
+    assert out["fields"]["prop"] == "apartment"
+
+
+def test_extract_lead_prefill_minimal_create_no_fields() -> None:
+    # Intention de création sans détail → écran crm, champs vides (ouvre le form).
+    out = service.extract_lead_prefill("je veux ajouter un prospect")
+    assert out == {"screen": "crm", "fields": {}}
+
+
+def test_extract_lead_prefill_none_when_not_create() -> None:
+    assert service.extract_lead_prefill("combien de prospects ai-je ?") is None
+    assert service.extract_lead_prefill("bonjour, où sont les paiements ?") is None
+
+
+def test_extract_budget_aed_variants() -> None:
+    assert service._extract_budget_aed("budget 2,000,000 AED") == 2_000_000
+    assert service._extract_budget_aed("1.5m") == 1_500_000
+    assert service._extract_budget_aed("environ 750k") == 750_000
+    assert service._extract_budget_aed("pas de chiffre ici") is None

@@ -51,10 +51,18 @@ class NavSuggestion(BaseModel):
     label: str
 
 
+class ChatPrefill(BaseModel):
+    """Action guidée profonde : écran cible + champs à pré-remplir."""
+
+    screen: str
+    fields: dict[str, str | int] = Field(default_factory=dict)
+
+
 class ChatData(BaseModel):
     reply: str
     engine: str
     suggested_navigation: list[NavSuggestion] = Field(default_factory=list)
+    prefill: ChatPrefill | None = None
 
 
 class ChatOut(BaseModel):

@@ -888,6 +888,109 @@ def heuristic_chat_reply(
     return base + tail
 
 
+# ── Actions guidées profondes — extraction de pré-remplissage (CRM lead) ──
+
+_CREATE_WORDS: frozenset[str] = frozenset(
+    {
+        "créer",
+        "creer",
+        "ajouter",
+        "nouveau",
+        "nouvelle",
+        "create",
+        "add",
+        "new",
+        "سجل",
+        "أضف",
+        "جديد",
+    }
+)
+_LEAD_WORDS: frozenset[str] = frozenset(
+    {"prospect", "prospects", "lead", "leads", "client", "clients", "عميل", "عملاء", "فرصة"}
+)
+_PROP_TYPES: dict[str, str] = {
+    "villa": "villa",
+    "appartement": "apartment",
+    "apartment": "apartment",
+    "studio": "studio",
+    "penthouse": "penthouse",
+    "duplex": "duplex",
+    "townhouse": "townhouse",
+    "bureau": "office",
+    "office": "office",
+    "terrain": "land",
+    "land": "land",
+    "شقة": "apartment",
+    "فيلا": "villa",
+}
+_LOCATIONS: tuple[str, ...] = (
+    "dubai marina",
+    "marina",
+    "downtown",
+    "palm jumeirah",
+    "palm",
+    "business bay",
+    "jbr",
+    "jvc",
+    "deira",
+    "abu dhabi",
+    "sharjah",
+    "dubai",
+)
+_BUDGET_RE = re.compile(r"(\d[\d.,]*)\s*(millions?|milliards?|m|k|bn)?", re.IGNORECASE)
+_BUDGET_MULT: dict[str, int] = {
+    "k": 1_000,
+    "m": 1_000_000,
+    "million": 1_000_000,
+    "millions": 1_000_000,
+    "bn": 1_000_000_000,
+    "milliard": 1_000_000_000,
+    "milliards": 1_000_000_000,
+}
+
+
+def _extract_budget_aed(text: str) -> int | None:
+    """Plus gros montant plausible en AED trouvé dans le texte (≥ 1000)."""
+    best: int | None = None
+    for m in _BUDGET_RE.finditer(text.lower()):
+        raw, unit = m.group(1), (m.group(2) or "").lower()
+        try:
+            val = float(raw.replace(" ", "").replace(",", ""))
+        except ValueError:
+            continue
+        amount = int(val * _BUDGET_MULT.get(unit, 1))
+        if amount >= 1000:
+            best = max(best or 0, amount)
+    return best
+
+
+def extract_lead_prefill(text: str) -> dict[str, Any] | None:
+    """Si le message exprime une création de prospect, renvoie un pré-remplissage
+    `{screen: "crm", fields: {...}}` (budget/type/localisation extraits). None sinon.
+
+    Déterministe (sans IA) → testable. Les champs absents sont simplement omis ;
+    le front ouvre alors le formulaire de création (éventuellement vide)."""
+    low = (text or "").lower()
+    tokens = set(_WORD_RE.findall(low))
+    create = any(_matches(low, tokens, w) for w in _CREATE_WORDS)
+    is_lead = any(_matches(low, tokens, w) for w in _LEAD_WORDS)
+    if not (create and is_lead):
+        return None
+    fields: dict[str, Any] = {}
+    budget = _extract_budget_aed(low)
+    if budget:
+        fields["budget"] = budget
+    for kw, canonical in _PROP_TYPES.items():
+        if _matches(low, tokens, kw):
+            fields["prop"] = canonical
+            break
+    for loc in _LOCATIONS:
+        if loc in low:
+            fields["ctry"] = loc.title()
+            break
+    return {"screen": "crm", "fields": fields}
+
+
 async def chat(
     db: AsyncSession,
     company_id: uuid.UUID,
@@ -929,4 +1032,10 @@ async def chat(
     else:
         reply, engine = heuristic_chat_reply(last_user, loc, snapshot, nav), "fallback"
 
-    return {"reply": reply, "engine": engine, "suggested_navigation": nav}
+    prefill = extract_lead_prefill(last_user)
+    return {
+        "reply": reply,
+        "engine": engine,
+        "suggested_navigation": nav,
+        "prefill": prefill,
+    }

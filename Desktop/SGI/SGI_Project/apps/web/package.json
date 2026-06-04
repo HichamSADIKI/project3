@@ -9,7 +9,8 @@
     "lint": "next lint",
     "test": "vitest run",
     "e2e": "playwright test",
-    "e2e:ui": "playwright test --ui"
+    "e2e:ui": "playwright test --ui",
+    "e2e:assistant": "node e2e/assistant.e2e.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

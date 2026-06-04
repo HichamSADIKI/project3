@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Topbar, Eyebrow, Chip, IcFilter, IcPlus, IcCheck, IcClock, IcPhone, IcMail, IcSearch, IcList, IcGrid } from "@/components/sgi-ui";
 import { CallButton } from "@/components/softphone/call-button";
 import { useLang, useT } from "@/components/language-provider";
@@ -1358,8 +1358,9 @@ const inputStyle: React.CSSProperties = {
   fontFamily: "Roboto, sans-serif", outline: "none", width: "100%", boxSizing: "border-box",
 };
 
-function AddLeadModal({ onClose, onAdd, targetStage }: { onClose: () => void; onAdd: (l: Lead) => void; targetStage?: string }) {
-  const [form, setForm] = useState(emptyForm);
+function AddLeadModal({ onClose, onAdd, targetStage, initialForm }: { onClose: () => void; onAdd: (l: Lead) => void; targetStage?: string; initialForm?: Partial<typeof emptyForm> }) {
+  // Pré-remplissage (action guidée de l'assistant) fusionné sur le formulaire vide.
+  const [form, setForm] = useState({ ...emptyForm, ...initialForm });
   const [error, setError] = useState("");
   const bp    = useBreakpoint();
   const isMob = bp === "mobile";
@@ -2089,7 +2090,15 @@ function MetaContactSearchPanel({ onClose, onAddToCRM, initialQuery }: {
 
 /* ─── ScreenCRM ─────────────────────────────────────────────────────── */
 
-export function ScreenCRM({ onNavigateToClient }: { onNavigateToClient?: (name: string) => void } = {}) {
+export function ScreenCRM({
+  onNavigateToClient,
+  initialLead,
+  onPrefillConsumed,
+}: {
+  onNavigateToClient?: (name: string) => void;
+  initialLead?: Record<string, string | number>;
+  onPrefillConsumed?: () => void;
+} = {}) {
   const t = useT();
   const { lang } = useLang();
   const bp    = useBreakpoint();
@@ -2102,6 +2111,20 @@ export function ScreenCRM({ onNavigateToClient }: { onNavigateToClient?: (name: 
   const [draggingFromStage, setDraggingFromStage] = useState<string | null>(null);
   const [selectedLead, setSelectedLead] = useState<{ lead: Lead; stage: string } | null>(null);
   const [addModalOpen,   setAddModalOpen]   = useState(false);
+  const [prefillForm, setPrefillForm] = useState<Partial<typeof emptyForm> | undefined>(undefined);
+
+  // Action guidée de l'assistant : ouvre le formulaire de création pré-rempli.
+  useEffect(() => {
+    if (!initialLead) return;
+    setPrefillForm({
+      budget: initialLead.budget != null ? String(initialLead.budget) : "",
+      prop: initialLead.prop != null ? String(initialLead.prop) : "",
+      ctry: initialLead.ctry != null ? String(initialLead.ctry) : "",
+    });
+    setAddTargetStage("new");
+    setAddModalOpen(true);
+    onPrefillConsumed?.(); // one-shot : évite la réouverture au remount
+  }, [initialLead, onPrefillConsumed]);
   const [metaSearchOpen, setMetaSearchOpen] = useState(false);
   const [metaQuery,      setMetaQuery]      = useState("");
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
@@ -2381,7 +2404,7 @@ export function ScreenCRM({ onNavigateToClient }: { onNavigateToClient?: (name: 
       )}
 
       {addModalOpen && (
-        <AddLeadModal onClose={() => setAddModalOpen(false)} onAdd={handleAddLead} targetStage={addTargetStage} />
+        <AddLeadModal onClose={() => { setAddModalOpen(false); setPrefillForm(undefined); }} onAdd={handleAddLead} targetStage={addTargetStage} initialForm={prefillForm} />
       )}
 
       {metaSearchOpen && (

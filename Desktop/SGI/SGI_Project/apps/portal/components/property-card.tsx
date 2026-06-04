@@ -7,10 +7,14 @@ import {
   formatSqft,
   formatNumber,
 } from "@/lib/realestate";
+import { Ic, Svg } from "./zoi/icons";
+import { BookButton } from "./zoi/book-button";
+import { FavoriteButton } from "./zoi/favorite-button";
 
 /**
- * Carte d'annonce — Server Component (pas d'interactivité).
- * RTL strict : CSS logique uniquement (inset-inline, ms/me, start/end).
+ * Carte d'annonce — direction luxe (design « ZOI Signature »).
+ * Server Component ; les actions interactives (favori, réservation) sont des
+ * sous-composants client. RTL strict : CSS logique uniquement (Loi 3).
  * Prix en AED chiffres latins, surface en sqft.
  */
 export function PropertyCard({
@@ -22,133 +26,94 @@ export function PropertyCard({
 }) {
   const t = makeT("realestate", locale);
   const slug = listing.slug ?? "";
+  const detailHref = `/${locale}/property/${slug}`;
   const photo = listing.photos?.[0];
   const isRent = listing.deal === "rent";
   const price = formatAed(listing.price);
-  const period =
-    listing.price_period === "month"
-      ? t("card.perMonth")
-      : isRent
-        ? t("card.perYear")
-        : "";
   const sqft = formatSqft(listing.area_sqm);
+  const typeKey = listing.unit_type ?? "";
+  const typeLabel =
+    typeKey && t(`portfolio.${typeKey}`) !== `portfolio.${typeKey}`
+      ? t(`portfolio.${typeKey}`)
+      : typeKey;
+  const loc =
+    [listing.district, listing.city, listing.emirate]
+      .filter(Boolean)
+      .join(" · ") || "—";
 
   return (
-    <Link
-      href={`/${locale}/property/${slug}`}
-      className="sgi-card"
-      style={{
-        padding: 0,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        textAlign: "start",
-      }}
-    >
-      <div
-        style={{
-          position: "relative",
-          aspectRatio: "4 / 3",
-          background: "var(--bg-inset)",
-          overflow: "hidden",
-        }}
+    <article className="z-pcard z-reveal">
+      <Link
+        href={detailHref}
+        className="z-pcard-img"
+        aria-label={listing.title ?? ""}
       >
         {photo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={photo}
-            alt={listing.title ?? ""}
-            loading="lazy"
-            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-          />
-        ) : (
-          <div
-            style={{
-              width: "100%",
-              height: "100%",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "var(--ink-4)",
-              fontSize: "0.8rem",
-            }}
-          >
-            —
-          </div>
-        )}
-        <div
-          style={{
-            position: "absolute",
-            insetBlockStart: "0.625rem",
-            insetInlineStart: "0.625rem",
-            display: "flex",
-            gap: "0.375rem",
-            flexWrap: "wrap",
-          }}
-        >
-          <span
-            className="sgi-badge"
-            style={{
-              background: isRent ? "var(--azure-soft)" : "var(--gold-soft)",
-              color: isRent ? "var(--azure)" : "var(--gold-deep)",
-            }}
-          >
+          <img src={photo} alt={listing.title ?? ""} loading="lazy" />
+        ) : null}
+        <div className="z-pcard-tags">
+          <span className={`z-tag ${isRent ? "z-tag-rent" : "z-tag-sale"}`}>
             {isRent ? t("badges.rent") : t("badges.sale")}
           </span>
-          {listing.is_urgent ? (
-            <span className="sgi-badge sgi-badge-rejected">{t("badges.urgent")}</span>
-          ) : null}
-          {listing.is_featured ? (
-            <span className="sgi-badge sgi-badge-pending">{t("badges.featured")}</span>
+          {typeLabel ? (
+            <span className="z-tag z-tag-type">{typeLabel}</span>
           ) : null}
         </div>
-      </div>
-
-      <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: "1.05rem", color: "var(--gold-deep)" }}>
+        <div className="z-pcard-price">
           {price ? (
             <>
               {price}
-              <span style={{ fontSize: "0.8rem", color: "var(--ink-3)", fontWeight: 500 }}>{period}</span>
+              {isRent ? <span> {t("card.perYear")}</span> : null}
             </>
           ) : (
-            <span style={{ fontSize: "0.9rem", color: "var(--ink-3)" }}>{t("card.priceOnRequest")}</span>
+            t("card.priceOnRequest")
           )}
         </div>
-        <h3
-          style={{
-            margin: 0,
-            fontSize: "0.95rem",
-            color: "var(--ink)",
-            lineHeight: 1.35,
-            display: "-webkit-box",
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: "vertical",
-            overflow: "hidden",
-          }}
-        >
-          {listing.title ?? "—"}
-        </h3>
-        <div style={{ fontSize: "0.8rem", color: "var(--ink-3)" }}>
-          {[listing.district, listing.city, listing.emirate].filter(Boolean).join(" · ") || "—"}
+      </Link>
+
+      <FavoriteButton label={t("badges.featured")} />
+
+      <div className="z-pcard-body">
+        <Link href={detailHref}>
+          <h3 className="z-pcard-title">{listing.title ?? "—"}</h3>
+        </Link>
+        <div className="z-pcard-loc">
+          <Svg d={Ic.pin} w={15} /> {loc}
         </div>
-        <div
-          style={{
-            marginBlockStart: "auto",
-            paddingBlockStart: "0.5rem",
-            borderBlockStart: "1px solid var(--line-soft)",
-            display: "flex",
-            gap: "0.875rem",
-            fontSize: "0.8rem",
-            color: "var(--ink-2)",
-            flexWrap: "wrap",
-          }}
-        >
-          {listing.bedrooms != null ? <span>{t("card.beds", { count: formatNumber(listing.bedrooms) })}</span> : null}
-          {listing.bathrooms != null ? <span>{t("card.baths", { count: formatNumber(listing.bathrooms) })}</span> : null}
-          {sqft ? <span>{t("card.area", { area: sqft })}</span> : null}
+        <div className="z-pcard-specs">
+          {listing.bedrooms != null ? (
+            <span className="z-spec">
+              <Svg d={Ic.bed} w={16} /> {formatNumber(listing.bedrooms)}
+            </span>
+          ) : null}
+          {listing.bathrooms != null ? (
+            <span className="z-spec">
+              <Svg d={Ic.bath} w={16} /> {formatNumber(listing.bathrooms)}
+            </span>
+          ) : null}
+          {sqft ? (
+            <span className="z-spec">
+              <Svg d={Ic.area} w={16} /> {sqft} sqft
+            </span>
+          ) : null}
+        </div>
+        <div className="z-pcard-foot">
+          <Link
+            href={detailHref}
+            className="z-btn z-btn-ghost"
+            style={{ flex: 1, fontSize: 13, padding: 11 }}
+          >
+            {t("card.viewDetails")}
+          </Link>
+          <BookButton
+            listing={listing}
+            label={t("book.short")}
+            variant="green"
+            withIcon={false}
+          />
         </div>
       </div>
-    </Link>
+    </article>
   );
 }

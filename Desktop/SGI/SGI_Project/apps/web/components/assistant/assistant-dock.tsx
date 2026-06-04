@@ -24,9 +24,20 @@ import { postJson } from "@/lib/api-client";
 import { useAssistantRoaming, type RoamMode } from "./use-assistant-roaming";
 
 type NavSuggestion = { screen: string; label: string };
-type ChatMessage = { role: "user" | "assistant"; content: string; nav?: NavSuggestion[] };
+export type AssistantPrefill = { screen: string; fields: Record<string, string | number> };
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+  nav?: NavSuggestion[];
+  prefill?: AssistantPrefill;
+};
 type ChatResponse = {
-  data?: { reply: string; engine: string; suggested_navigation: NavSuggestion[] };
+  data?: {
+    reply: string;
+    engine: string;
+    suggested_navigation: NavSuggestion[];
+    prefill?: AssistantPrefill;
+  };
 };
 
 const PIN_KEY = "sgi_assistant_pinned";
@@ -41,9 +52,12 @@ function haloColor(mode: RoamMode): string {
 export function AssistantDock({
   screen,
   onNavigate,
+  onPrefill,
 }: {
   screen?: string;
   onNavigate?: (screen: string) => void;
+  /** Action guidée profonde : pré-remplit un formulaire de l'écran cible. */
+  onPrefill?: (prefill: AssistantPrefill) => void;
 }): React.ReactNode {
   const t = useT();
   const { lang } = useLang();
@@ -89,8 +103,18 @@ export function AssistantDock({
     }
   }
 
-  const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow, onAvatarPointerDown, consumeDragClick } =
+  const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow, onAvatarPointerDown, consumeDragClick, resetHome } =
     useAssistantRoaming({ open, pinned, t, screen, onSummon: summon });
+
+  // Humeur transitoire : le robot sourit brièvement après une réponse réussie.
+  const [mood, setMood] = useState<"neutral" | "happy">("neutral");
+  const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (moodTimer.current) clearTimeout(moodTimer.current); }, []);
+  function cheer(): void {
+    setMood("happy");
+    if (moodTimer.current) clearTimeout(moodTimer.current);
+    moodTimer.current = setTimeout(() => setMood("neutral"), 2500);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -123,8 +147,10 @@ export function AssistantDock({
           role: "assistant",
           content: body.data?.reply ?? "",
           nav: body.data?.suggested_navigation ?? [],
+          prefill: body.data?.prefill,
         },
       ]);
+      cheer();
     } catch {
       setError(true);
     } finally {
@@ -200,6 +226,7 @@ export function AssistantDock({
             <RobotFigure
               walking={mode === "follow" || mode === "field"}
               glow={halo}
+              mood={mood}
               pupilLRef={pupilLRef}
               pupilRRef={pupilRRef}
             />
@@ -323,6 +350,22 @@ export function AssistantDock({
             </span>
             <span style={{ display: "flex", gap: 4, marginInlineStart: "auto" }}>
               <button
+                onClick={resetHome}
+                title={t.assistant_recenter}
+                aria-label={t.assistant_recenter}
+                style={{
+                  background: "none",
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  padding: "3px 8px",
+                  fontSize: 13,
+                  color: "var(--ink-4)",
+                  cursor: "pointer",
+                }}
+              >
+                ↺
+              </button>
+              <button
                 onClick={togglePin}
                 title={pinned ? t.assistant_unpin : t.assistant_pin}
                 aria-pressed={pinned}
@@ -425,6 +468,32 @@ export function AssistantDock({
                     ))}
                   </div>
                 )}
+                {m.role === "assistant" && m.prefill && (
+                  <button
+                    onClick={() => {
+                      onPrefill?.(m.prefill!);
+                      onNavigate?.(m.prefill!.screen);
+                      setOpen(false);
+                    }}
+                    style={{
+                      alignSelf: "flex-start",
+                      marginInlineEnd: "auto",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "7px 13px",
+                      border: "none",
+                      borderRadius: 999,
+                      background: "var(--gold)",
+                      color: "#1A1610",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      cursor: "pointer",
+                    }}
+                  >
+                    ✨ {t.assistant_prefill}
+                  </button>
+                )}
               </React.Fragment>
             ))}
             {loading && (
@@ -500,11 +569,13 @@ export function AssistantDock({
 function RobotFigure({
   walking,
   glow,
+  mood,
   pupilLRef,
   pupilRRef,
 }: {
   walking: boolean;
   glow: string;
+  mood: "neutral" | "happy";
   pupilLRef: React.RefObject<HTMLSpanElement | null>;
   pupilRRef: React.RefObject<HTMLSpanElement | null>;
 }): React.ReactNode {
@@ -516,15 +587,8 @@ function RobotFigure({
       <span className="sgia-arm sgia-arm-l" />
       <span className="sgia-arm sgia-arm-r" />
       <span className="sgia-body" style={{ boxShadow: `0 0 10px ${glow}` }} />
-      {/* Emblème de marque sur le torse → « Infinity vous assiste ». */}
-      <span className="sgia-emblem" title="Infinity">
-        <img
-          src="/logo-hp-holding.png"
-          alt="Infinity"
-          className="sgia-emblem-img"
-          draggable={false}
-        />
-      </span>
+      {/* Emblème de marque (symbole seul, recadré) → « Infinity vous assiste ». */}
+      <span className="sgia-emblem" title="Infinity" aria-label="Infinity" />
       <span className="sgia-head">
         <span className="sgia-antenna" />
         <span className="sgia-antenna-dot" />
@@ -536,6 +600,8 @@ function RobotFigure({
             <span ref={pupilRRef} className="sgia-pupil" />
           </span>
         </span>
+        {/* Bouche : sourit après une réponse réussie (mood happy). */}
+        <span className={`sgia-mouth${mood === "happy" ? " sgia-smile" : ""}`} />
       </span>
     </span>
   );
@@ -601,10 +667,18 @@ const ASSISTANT_CSS = `
 .sgia-body { position: absolute; inset-block-start: 26px; inset-inline-start: 15px; width: 28px; height: 20px; border-radius: 9px; background: var(--gold); }
 .sgia-emblem {
   position: absolute; inset-block-start: 29px; inset-inline-start: 20px; width: 18px; height: 14px;
-  border-radius: 4px; background: #fff; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
-  display: flex; align-items: center; justify-content: center;
+  border-radius: 4px; background-color: #fff; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  background-image: url(/logo-hp-holding.png); background-repeat: no-repeat;
+  background-size: 150% auto; background-position: 24% 14%;  /* mark seul, sans 'HOLDING' */
 }
-.sgia-emblem-img { width: 16px; height: 16px; object-fit: cover; object-position: 34% 28%; pointer-events: none; }
+.sgia-mouth {
+  position: absolute; inset-block-start: 18px; inset-inline-start: 13px; width: 6px; height: 2px;
+  border-radius: 2px; background: rgba(26,22,16,.85);
+}
+.sgia-smile {
+  inset-inline-start: 12px; width: 8px; height: 4px; background: transparent;
+  border: 1.6px solid rgba(26,22,16,.85); border-top: none; border-radius: 0 0 8px 8px;
+}
 .sgia-head { position: absolute; inset-block-start: 4px; inset-inline-start: 13px; width: 32px; height: 24px; border-radius: 9px; background: var(--gold); }
 .sgia-visor { position: absolute; inset-block-start: 7px; inset-inline-start: 4px; width: 24px; height: 11px; border-radius: 6px; background: #1A1610; display: flex; align-items: center; justify-content: center; gap: 5px; }
 .sgia-antenna { position: absolute; inset-block-start: -7px; inset-inline-start: 15px; width: 2px; height: 7px; background: #1A1610; border-radius: 2px; }
