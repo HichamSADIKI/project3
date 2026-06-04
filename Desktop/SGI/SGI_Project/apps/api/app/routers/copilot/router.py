@@ -17,7 +17,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db_session
 from app.core.route_deps import require_roles
 from app.routers.copilot import service
-from app.routers.copilot.schemas import AssistData, AssistOut, AssistRequest
+from app.routers.copilot.schemas import (
+    AssistData,
+    AssistOut,
+    AssistRequest,
+    ChatData,
+    ChatOut,
+    ChatRequest,
+)
 
 router = APIRouter(prefix="/copilot", tags=["copilot"])
 
@@ -74,3 +81,28 @@ async def assist_endpoint(
     if result is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="context_not_found")
     return AssistOut(data=AssistData(**result))
+
+
+@router.post(
+    "/chat",
+    dependencies=[Depends(require_roles(*_WRITE_ROLES))],
+)
+async def chat_endpoint(
+    body: ChatRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> ChatOut:
+    """Assistant in-app conversationnel (aide à l'usage + navigation + KPI tenant).
+
+    Scopé au tenant courant (Loi 1) ; pas de BOLA par item (aide générale).
+    Synchrone non bloquant : Gemini (timeout 8 s) + repli heuristique déterministe.
+    """
+    company_id = _get_company_id(request)
+    result = await service.chat(
+        db,
+        company_id,
+        messages=[m.model_dump() for m in body.messages],
+        locale=body.locale,
+        screen=body.screen,
+    )
+    return ChatOut(data=ChatData(**result))

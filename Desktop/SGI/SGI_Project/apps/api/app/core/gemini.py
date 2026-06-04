@@ -815,3 +815,66 @@ async def generate_text(
         return {"text": "", "engine": "unavailable"}
 
     return {"text": (raw or "").strip()[:max_chars], "engine": GEMINI_MODEL}
+
+
+# ── Chat multi-tours (assistant in-app) ───────────────────────────────────
+
+
+async def generate_chat(
+    messages: list[dict[str, str]],
+    *,
+    system_instruction: str | None = None,
+    locale: Locale = "fr",
+    temperature: float = 0.3,
+    max_chars: int = 2000,
+) -> dict[str, Any]:
+    """Complétion conversationnelle multi-tours via Gemini (assistant in-app).
+
+    ``messages`` est une liste ``{"role": "user"|"assistant", "content": str}``
+    dans l'ordre chronologique. Best-effort, ne lève JAMAIS : sans clé ou sur
+    erreur API, retourne ``{"text": "", "engine": "unavailable"}`` — l'appelant
+    fournit alors son propre repli. Le texte est tronqué à ``max_chars``.
+    """
+    # On ne garde que les messages non vides ; le tour Gemini doit finir par un
+    # message `user` (sinon l'API refuse). On exige donc au moins un user.
+    turns = [
+        {
+            "role": "model" if m.get("role") == "assistant" else "user",
+            "text": (m.get("content") or "").strip(),
+        }
+        for m in messages
+        if (m.get("content") or "").strip()
+    ]
+    if not turns or turns[-1]["role"] != "user":
+        return {"text": "", "engine": "unavailable"}
+
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        logger.info("GEMINI_API_KEY absent — generate_chat indisponible")
+        return {"text": "", "engine": "unavailable"}
+
+    contents = [{"role": t["role"], "parts": [{"text": t["text"]}]} for t in turns]
+    payload: dict[str, Any] = {
+        "contents": contents,
+        "generationConfig": {"temperature": temperature},
+    }
+    sys = f"Locale={locale}. Always answer in this language."
+    if system_instruction:
+        sys = f"{system_instruction}\n\n{sys}"
+    payload["systemInstruction"] = {"parts": [{"text": sys}]}
+
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.post(
+                f"{GEMINI_URL}?key={api_key}",
+                json=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+        raw = data["candidates"][0]["content"]["parts"][0]["text"]
+    except Exception as exc:  # noqa: BLE001 — fail-safe explicite
+        logger.warning("generate_chat Gemini error: %s — repli appelant", exc)
+        return {"text": "", "engine": "unavailable"}
+
+    return {"text": (raw or "").strip()[:max_chars], "engine": GEMINI_MODEL}

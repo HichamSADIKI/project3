@@ -10,16 +10,22 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import uuid
 from typing import Any, Literal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.gemini import Locale, generate_text
+from app.core.gemini import Locale, generate_chat, generate_text
+from app.models.crm import CRMLead
+from app.models.payment import PaymentRequest
+from app.models.property import Property
 from app.routers.inbox.models import InboxConversation, InboxMessage
 from app.routers.ticketing.models import ServiceTicket, ServiceTicketEvent
+
+logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helpers purs (sans DB) — repli déterministe sans IA
@@ -523,3 +529,404 @@ async def assist(
         # est tombé en repli alors que l'autre venait de Gemini).
         "engine": _combine_engines(reply_engine, summary_engine),
     }
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Assistant in-app (chat) — guide d'usage + navigation guidée + KPI tenant
+# ─────────────────────────────────────────────────────────────────────────
+
+# Carte de navigation : (clé d'écran front, libellés AR/EN/FR, mots-clés
+# déclencheurs minuscules). `suggest_navigation` matche par MOT entier (helper
+# `_matches`, mêmes règles que la détection d'intention) et renvoie au plus 3
+# écrans dans l'ordre du tuple — c'est le volet « actions guidées » (le front
+# transforme chaque clé en bouton qui ouvre l'écran).
+_NAV: tuple[tuple[str, dict[Locale, str], frozenset[str]], ...] = (
+    (
+        "crm",
+        {"fr": "CRM / Prospects", "en": "CRM / Leads", "ar": "إدارة العلاقات / الفرص"},
+        frozenset({"crm", "lead", "leads", "prospect", "prospects", "pipeline", "فرصة", "فرص"}),
+    ),
+    (
+        "realestate",
+        {"fr": "Biens immobiliers", "en": "Properties", "ar": "العقارات"},
+        frozenset(
+            {
+                "bien",
+                "biens",
+                "annonce",
+                "annonces",
+                "propriété",
+                "propriete",
+                "property",
+                "properties",
+                "listing",
+                "listings",
+                "عقار",
+                "عقارات",
+            }
+        ),
+    ),
+    (
+        "realestate_achat",
+        {"fr": "Acquisitions", "en": "Acquisitions", "ar": "الاستحواذ"},
+        frozenset({"achat", "acquisition", "acquisitions", "acquérir", "acquerir"}),
+    ),
+    (
+        "realestate_vente",
+        {"fr": "Ventes", "en": "Sales", "ar": "المبيعات"},
+        frozenset({"vente", "ventes", "vendre", "sale", "sales", "بيع", "مبيعات"}),
+    ),
+    (
+        "realestate_location",
+        {"fr": "Locations", "en": "Rentals", "ar": "الإيجارات"},
+        frozenset(
+            {
+                "location",
+                "locations",
+                "louer",
+                "bail",
+                "rent",
+                "rental",
+                "rentals",
+                "lease",
+                "إيجار",
+                "تأجير",
+            }
+        ),
+    ),
+    (
+        "realestate_payments",
+        {"fr": "Paiements", "en": "Payments", "ar": "المدفوعات"},
+        frozenset({"paiement", "paiements", "payer", "payment", "payments", "دفع", "مدفوعات"}),
+    ),
+    (
+        "realestate_cheques",
+        {"fr": "Chèques", "en": "Cheques", "ar": "الشيكات"},
+        frozenset({"chèque", "cheque", "chèques", "cheques", "pdc", "شيك", "شيكات"}),
+    ),
+    (
+        "realestate_contracts",
+        {"fr": "Contrats", "en": "Contracts", "ar": "العقود"},
+        frozenset({"contrat", "contrats", "contract", "contracts", "عقد", "عقود"}),
+    ),
+    (
+        "realestate_tickets",
+        {"fr": "Tickets / SAV", "en": "Tickets", "ar": "التذاكر"},
+        frozenset({"ticket", "tickets", "réclamation", "reclamation", "sav", "تذكرة", "شكوى"}),
+    ),
+    (
+        "realestate_inbox",
+        {"fr": "Messagerie", "en": "Inbox", "ar": "البريد الوارد"},
+        frozenset(
+            {
+                "message",
+                "messages",
+                "inbox",
+                "messagerie",
+                "conversation",
+                "conversations",
+                "whatsapp",
+                "رسالة",
+                "رسائل",
+                "محادثة",
+            }
+        ),
+    ),
+    (
+        "realestate_maintenance",
+        {"fr": "Maintenance", "en": "Maintenance", "ar": "الصيانة"},
+        frozenset({"maintenance", "réparation", "reparation", "repair", "صيانة"}),
+    ),
+    (
+        "realestate_owners",
+        {"fr": "Propriétaires", "en": "Owners", "ar": "الملاك"},
+        frozenset(
+            {"propriétaire", "proprietaire", "propriétaires", "owner", "owners", "مالك", "ملاك"}
+        ),
+    ),
+    (
+        "realestate_tenants",
+        {"fr": "Locataires", "en": "Tenants", "ar": "المستأجرون"},
+        frozenset({"locataire", "locataires", "tenant", "tenants", "مستأجر", "مستأجرون"}),
+    ),
+    (
+        "realestate_buildings",
+        {"fr": "Immeubles", "en": "Buildings", "ar": "المباني"},
+        frozenset({"immeuble", "immeubles", "building", "buildings", "مبنى", "مباني"}),
+    ),
+    (
+        "realestate_units",
+        {"fr": "Unités", "en": "Units", "ar": "الوحدات"},
+        frozenset({"unité", "unite", "unités", "unit", "units", "appartement", "وحدة", "وحدات"}),
+    ),
+    (
+        "finance",
+        {"fr": "Finance", "en": "Finance", "ar": "المالية"},
+        frozenset(
+            {
+                "finance",
+                "facture",
+                "factures",
+                "comptabilité",
+                "comptabilite",
+                "invoice",
+                "accounting",
+                "مالية",
+                "فاتورة",
+            }
+        ),
+    ),
+    (
+        "report",
+        {"fr": "Rapports", "en": "Reports", "ar": "التقارير"},
+        frozenset(
+            {
+                "rapport",
+                "rapports",
+                "report",
+                "reports",
+                "statistique",
+                "statistiques",
+                "kpi",
+                "تقرير",
+                "تقارير",
+            }
+        ),
+    ),
+    (
+        "marketing",
+        {"fr": "Marketing", "en": "Marketing", "ar": "التسويق"},
+        frozenset({"marketing", "campagne", "campagnes", "campaign", "تسويق", "حملة"}),
+    ),
+    (
+        "callcenter",
+        {"fr": "Centre d'appel", "en": "Call center", "ar": "مركز الاتصال"},
+        frozenset({"appel", "appels", "téléphone", "telephone", "softphone", "اتصال", "مكالمة"}),
+    ),
+    (
+        "dash",
+        {"fr": "Tableau de bord", "en": "Dashboard", "ar": "لوحة التحكم"},
+        frozenset({"dashboard", "accueil", "home", "لوحة"}),
+    ),
+    (
+        "clients",
+        {"fr": "Clients", "en": "Clients", "ar": "العملاء"},
+        frozenset({"client", "clients", "عميل", "عملاء"}),
+    ),
+)
+
+_MAX_NAV = 3
+
+
+def suggest_navigation(text: str, locale: Locale = "fr") -> list[dict[str, str]]:
+    """Mots-clés du message → écrans à proposer (max 3), libellés dans la locale.
+
+    Matching par mot entier (helper `_matches`) pour éviter les faux positifs en
+    sous-chaîne. L'ordre suit `_NAV` (priorité métier), pas l'ordre des mots.
+    """
+    low = (text or "").lower()
+    tokens = set(_WORD_RE.findall(low))
+    # Arabe : l'article défini « ال » se colle au mot (العقارات = « les biens »).
+    # On ajoute la forme sans article pour que les mots-clés (عقارات) matchent.
+    tokens |= {tok[2:] for tok in tokens if tok.startswith("ال") and len(tok) > 4}
+    out: list[dict[str, str]] = []
+    for screen, labels, words in _NAV:
+        if any(_matches(low, tokens, w) for w in words):
+            out.append({"screen": screen, "label": labels.get(locale, labels["fr"])})
+        if len(out) >= _MAX_NAV:
+            break
+    return out
+
+
+async def gather_tenant_snapshot(db: AsyncSession, company_id: uuid.UUID) -> dict[str, int]:
+    """Compteurs KPI du tenant courant (Loi 1 : filtre company_id explicite).
+
+    Chaque bloc est isolé : un échec (table absente en test minimal, etc.) ne
+    casse pas le chat — il omet juste la métrique. Sert à répondre aux questions
+    « combien de … » sans halluciner de chiffres.
+    """
+    snap: dict[str, int] = {}
+
+    async def _count(stmt: Any) -> int:
+        return int((await db.execute(stmt)).scalar() or 0)
+
+    try:
+        base = (
+            select(func.count())
+            .select_from(CRMLead)
+            .where(CRMLead.company_id == company_id, CRMLead.deleted_at.is_(None))
+        )
+        snap["leads_total"] = await _count(base)
+        snap["leads_active"] = await _count(base.where(CRMLead.status.notin_(("won", "lost"))))
+        snap["leads_won"] = await _count(base.where(CRMLead.status == "won"))
+    except Exception as exc:  # noqa: BLE001 — best-effort, le chat reste utile
+        logger.warning("snapshot leads indisponible: %s", exc)
+
+    try:
+        base_p = (
+            select(func.count())
+            .select_from(Property)
+            .where(Property.company_id == company_id, Property.deleted_at.is_(None))
+        )
+        snap["properties_total"] = await _count(base_p)
+        snap["properties_available"] = await _count(base_p.where(Property.status == "available"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("snapshot properties indisponible: %s", exc)
+
+    try:
+        base_pay = (
+            select(func.count())
+            .select_from(PaymentRequest)
+            .where(PaymentRequest.company_id == company_id, PaymentRequest.deleted_at.is_(None))
+        )
+        snap["payments_pending"] = await _count(base_pay.where(PaymentRequest.status == "pending"))
+        snap["payments_overdue"] = await _count(base_pay.where(PaymentRequest.status == "overdue"))
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("snapshot payments indisponible: %s", exc)
+
+    return snap
+
+
+_APP_GUIDE = (
+    "You are 'SGI Assistant', a helpful in-app assistant embedded in the SGI real-estate "
+    "management platform of Infinity International Facilities Management (UAE — Dubai, Abu Dhabi). "
+    "Your job is to help agents, managers and staff USE the application: explain where features "
+    "are, how to perform actions (create a lead, publish a listing, register a payment, open a "
+    "ticket, schedule a visit...), answer general questions, and point the user to the right "
+    "screen. "
+    "The platform modules: CRM & leads, property catalogue, sales, rentals, contracts, owners, "
+    "tenants, buildings & units, payments & post-dated cheques (PDC), maintenance, inbox "
+    "(WhatsApp/email), tickets/SLA, marketing, reports, finance, call center (softphone), and "
+    "Golden Visa UAE (eligible when a property >= 2,000,000 AED is signed). "
+    "Currency is AED, always Latin numerals. Be concise (2 to 5 sentences), professional and warm. "
+    "Use ONLY the 'Live data' block for tenant figures; if a figure is absent, say it is not "
+    "available and suggest the relevant screen — never invent numbers. No markdown headings."
+)
+
+# Mots déclencheurs d'une question chiffrée (repli sans IA → réponse depuis le snapshot).
+_DATA_WORDS: frozenset[str] = frozenset({"combien", "nombre", "count", "كم", "عدد"})
+# Locutions (matchées en sous-chaîne).
+_DATA_PHRASES: tuple[str, ...] = ("how many", "how much")
+
+_METRIC_LABELS: dict[str, dict[Locale, str]] = {
+    "leads_total": {"fr": "prospects au total", "en": "total leads", "ar": "إجمالي الفرص"},
+    "leads_active": {"fr": "prospects actifs", "en": "active leads", "ar": "فرص نشطة"},
+    "leads_won": {"fr": "prospects gagnés", "en": "won leads", "ar": "فرص رابحة"},
+    "properties_total": {"fr": "biens", "en": "properties", "ar": "عقارات"},
+    "properties_available": {
+        "fr": "biens disponibles",
+        "en": "available properties",
+        "ar": "عقارات متاحة",
+    },
+    "payments_pending": {
+        "fr": "paiements en attente",
+        "en": "pending payments",
+        "ar": "مدفوعات معلّقة",
+    },
+    "payments_overdue": {
+        "fr": "paiements en retard",
+        "en": "overdue payments",
+        "ar": "مدفوعات متأخرة",
+    },
+}
+
+
+def _loc(locale: Locale | str | None) -> Locale:
+    return locale if locale in ("ar", "en", "fr") else "fr"
+
+
+def _data_summary(locale: Locale, snapshot: dict[str, int]) -> str:
+    """Résumé chiffré localisé à partir du snapshot (repli déterministe)."""
+    loc = _loc(locale)
+    parts = [f"{v} {_METRIC_LABELS[k][loc]}" for k, v in snapshot.items() if k in _METRIC_LABELS]
+    lead = {
+        "fr": "Voici vos chiffres actuels : ",
+        "en": "Here are your current figures: ",
+        "ar": "إليك أرقامك الحالية: ",
+    }[loc]
+    return lead + " · ".join(parts)
+
+
+def heuristic_chat_reply(
+    text: str, locale: Locale, snapshot: dict[str, int], nav: list[dict[str, str]]
+) -> str:
+    """Réponse déterministe quand Gemini est indisponible (sans clé/erreur API).
+
+    Question chiffrée + snapshot disponible → résumé des KPI. Sinon message
+    d'aide générique, augmenté de la section suggérée si la navigation matche.
+    """
+    loc = _loc(locale)
+    low = (text or "").lower()
+    tokens = set(_WORD_RE.findall(low))
+    is_data = any(_matches(low, tokens, w) for w in _DATA_WORDS) or any(
+        p in low for p in _DATA_PHRASES
+    )
+    if is_data and snapshot:
+        return _data_summary(loc, snapshot)
+
+    base = {
+        "fr": (
+            "Je suis l'assistant SGI : je vous aide à naviguer dans l'application "
+            "et à répondre à vos questions. "
+        ),
+        "en": "I'm the SGI assistant: I help you navigate the app and answer your questions. ",
+        "ar": "أنا مساعد SGI: أساعدك في التنقل داخل التطبيق والإجابة عن أسئلتك. ",
+    }[loc]
+    if nav:
+        labels = ", ".join(n["label"] for n in nav)
+        suffix = {
+            "fr": f"Section suggérée : {labels}.",
+            "en": f"Suggested section: {labels}.",
+            "ar": f"القسم المقترح: {labels}.",
+        }[loc]
+        return base + suffix
+    tail = {
+        "fr": "Précisez votre besoin (CRM, biens, paiements, contrats, tickets…).",
+        "en": "Tell me what you need (CRM, properties, payments, contracts, tickets…).",
+        "ar": "أخبرني بما تحتاج (العملاء، العقارات، المدفوعات، العقود، التذاكر…).",
+    }[loc]
+    return base + tail
+
+
+async def chat(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    *,
+    messages: list[dict[str, str]],
+    locale: Locale = "fr",
+    screen: str | None = None,
+) -> dict[str, Any]:
+    """Tour de conversation de l'assistant in-app.
+
+    Combine : guide d'usage de l'app + snapshot KPI du tenant (Loi 1) + écran
+    courant → réponse Gemini, avec repli heuristique déterministe. La navigation
+    suggérée (actions guidées) est calculée de façon déterministe sur le dernier
+    message utilisateur, indépendamment de la réussite de Gemini.
+    """
+    loc = _loc(locale)
+    last_user = next(
+        (
+            (m.get("content") or "").strip()
+            for m in reversed(messages)
+            if m.get("role") == "user" and (m.get("content") or "").strip()
+        ),
+        "",
+    )
+    snapshot = await gather_tenant_snapshot(db, company_id)
+    nav = suggest_navigation(last_user, loc)
+
+    system = _APP_GUIDE
+    if snapshot:
+        system += "\n\nLive data (current tenant): " + ", ".join(
+            f"{k}={v}" for k, v in snapshot.items()
+        )
+    if screen:
+        system += f"\n\nThe user is currently on the '{screen}' screen of the app."
+
+    gen = await generate_chat(messages, system_instruction=system, locale=loc, temperature=0.4)
+    if gen["text"]:
+        reply, engine = gen["text"], gen["engine"]
+    else:
+        reply, engine = heuristic_chat_reply(last_user, loc, snapshot, nav), "fallback"
+
+    return {"reply": reply, "engine": engine, "suggested_navigation": nav}

@@ -27,3 +27,36 @@ class AssistData(BaseModel):
 class AssistOut(BaseModel):
     success: bool = True
     data: AssistData
+
+
+# ── Assistant in-app (chat conversationnel) ───────────────────────────────
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(min_length=1, max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    # Historique éphémère envoyé par le front (ordre chronologique). Borné pour
+    # éviter d'injecter un contexte démesuré dans l'appel Gemini.
+    messages: list[ChatMessage] = Field(min_length=1, max_length=20)
+    locale: Literal["ar", "en", "fr"] = "fr"
+    # Écran courant (clé de nav front) — contexte facultatif pour situer l'aide.
+    screen: str | None = Field(default=None, max_length=60)
+
+
+class NavSuggestion(BaseModel):
+    screen: str
+    label: str
+
+
+class ChatData(BaseModel):
+    reply: str
+    engine: str
+    suggested_navigation: list[NavSuggestion] = Field(default_factory=list)
+
+
+class ChatOut(BaseModel):
+    success: bool = True
+    data: ChatData
