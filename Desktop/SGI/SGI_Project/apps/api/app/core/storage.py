@@ -69,6 +69,10 @@ def _client(endpoint: str | None = None):  # type: ignore[no-untyped-def]
         access_key=settings.MINIO_ACCESS_KEY,
         secret_key=settings.MINIO_SECRET_KEY,
         secure=secure,
+        # Région fixée → la présignature contre l'endpoint PUBLIC ne déclenche
+        # PAS d'appel de découverte de région (sinon le worker tenterait de
+        # joindre localhost:9000, injoignable depuis le conteneur).
+        region="us-east-1",
     )
 
 
