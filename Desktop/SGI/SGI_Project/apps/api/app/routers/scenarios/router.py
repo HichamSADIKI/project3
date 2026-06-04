@@ -47,6 +47,8 @@ def _enqueue_generate(company_id: uuid.UUID, scenario_id: uuid.UUID) -> None:
         args=[str(company_id), str(scenario_id)],
         queue="exports",
     )
+
+
 _MAX_UPLOAD = 15 * 1024 * 1024  # 15 Mo / fichier
 _EXT = {
     "image/jpeg": "jpg",
