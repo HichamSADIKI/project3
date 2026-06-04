@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Topbar, IcDoc, IcPlus } from "@/components/sgi-ui";
+import { Topbar, IcList, IcArrowUp, IcPlus } from "@/components/sgi-ui";
 import { useT, useLang } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
@@ -89,31 +89,34 @@ export function ScreenRealEstateLocation() {
   const t = useT();
   const [tab, setTab] = useState<"listings" | "applications">("listings");
 
+  // Même barre d'onglets que l'écran Vente (icônes + style identiques).
+  const tabs: ReadonlyArray<readonly ["listings" | "applications", string, React.ReactNode]> = [
+    ["listings", t.re_listings, <IcList key="l" />],
+    ["applications", t.re_applications, <IcArrowUp key="a" />],
+  ];
+
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={t.nav_location} />
+      <div style={{ display: "flex", gap: 4, padding: "10px 26px 0", borderBottom: "1px solid var(--line-soft)", background: "var(--bg-paper)" }}>
+        {tabs.map(([key, label, icon]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 16px",
+              border: "none", background: "transparent",
+              borderBottom: tab === key ? "2px solid var(--gold)" : "2px solid transparent",
+              color: tab === key ? "var(--ink)" : "var(--ink-4)",
+              fontWeight: 600, fontSize: 13, cursor: "pointer",
+            }}
+          >
+            <span style={{ color: tab === key ? "var(--gold)" : "var(--ink-4)" }}>{icon}</span>
+            {label}
+          </button>
+        ))}
+      </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "28px 32px", background: "var(--bg-cream)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
-          <span style={{ color: "var(--gold)" }}><IcDoc /></span>
-          <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{t.nav_location}</div>
-        </div>
-        <div style={{ display: "flex", gap: 8, marginBottom: 22, borderBottom: "1px solid var(--line-soft)" }}>
-          {(["listings", "applications"] as const).map(k => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              style={{
-                padding: "9px 16px", border: "none", background: "none", cursor: "pointer",
-                fontSize: 13, fontWeight: 600,
-                color: tab === k ? "var(--gold-deep)" : "var(--ink-4)",
-                borderBottom: tab === k ? "2px solid var(--gold)" : "2px solid transparent",
-                marginBottom: -1,
-              }}
-            >
-              {k === "listings" ? t.re_listings : t.re_applications}
-            </button>
-          ))}
-        </div>
         {tab === "listings" ? <ListingsTab t={t} /> : <ApplicationsTab t={t} />}
       </div>
     </div>
