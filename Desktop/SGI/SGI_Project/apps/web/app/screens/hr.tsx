@@ -5,10 +5,10 @@ import { useLang } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 
 const KPIS = [
-  { key: "staff",    color: "var(--azure)",   value: "148",     delta: "+6 ce mois",    up: true,  label_en: "Total staff",      label_ar: "إجمالي الموظفين",  label_fr: "Effectif total" },
-  { key: "open",     color: "var(--gold)",    value: "12",      delta: "postes ouverts", up: null, label_en: "Open positions",   label_ar: "وظائف شاغرة",      label_fr: "Postes ouverts" },
-  { key: "leave",    color: "var(--emerald)", value: "7",       delta: "en congé auj.",  up: null, label_en: "On leave today",   label_ar: "في إجازة اليوم",   label_fr: "En congé aujourd'hui" },
-  { key: "retent",   color: "var(--emerald)", value: "94.2 %",  delta: "+1.4 pts / an",  up: true, label_en: "Retention rate",   label_ar: "معدل الاحتفاظ",    label_fr: "Taux de rétention" },
+  { key: "staff",    color: "var(--azure)",   value: "148",     delta_en: "+6 this month",     delta_ar: "+6 هذا الشهر",     delta_fr: "+6 ce mois",    up: true,  label_en: "Total staff",      label_ar: "إجمالي الموظفين",  label_fr: "Effectif total" },
+  { key: "open",     color: "var(--gold)",    value: "12",      delta_en: "open positions",    delta_ar: "وظائف شاغرة",      delta_fr: "postes ouverts", up: null, label_en: "Open positions",   label_ar: "وظائف شاغرة",      label_fr: "Postes ouverts" },
+  { key: "leave",    color: "var(--emerald)", value: "7",       delta_en: "on leave today",    delta_ar: "في إجازة اليوم",   delta_fr: "en congé auj.",  up: null, label_en: "On leave today",   label_ar: "في إجازة اليوم",   label_fr: "En congé aujourd'hui" },
+  { key: "retent",   color: "var(--emerald)", value: "94.2 %",  delta_en: "+1.4 pts / yr",     delta_ar: "+1.4 نقطة/سنة",    delta_fr: "+1.4 pts / an",  up: true, label_en: "Retention rate",   label_ar: "معدل الاحتفاظ",    label_fr: "Taux de rétention" },
 ];
 
 const DEPARTMENTS = [
@@ -63,7 +63,7 @@ export function ScreenHR() {
               </div>
               <div className="tnum font-display" style={{ fontSize: 26, color: k.color, lineHeight: 1, marginBottom: 6 }}>{k.value}</div>
               <div style={{ fontSize: 10.5, display: "flex", alignItems: "center", gap: 4, color: k.up === null ? "var(--ink-4)" : k.up ? "var(--emerald)" : "var(--rose)" }}>
-                {k.up === true && <IcArrowUp />}{k.up === false && <IcArrowDown />}{k.delta}
+                {k.up === true && <IcArrowUp />}{k.up === false && <IcArrowDown />}{lang === "ar" ? k.delta_ar : lang === "fr" ? k.delta_fr : k.delta_en}
               </div>
             </div>
           ))}
