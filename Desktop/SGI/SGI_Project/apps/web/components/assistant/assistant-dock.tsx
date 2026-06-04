@@ -159,99 +159,42 @@ export function AssistantDock({
           position: "fixed",
           insetBlockStart: 0,
           insetInlineStart: 0,
-          width: 52,
-          height: 52,
+          width: 58,
+          height: 62,
           zIndex: 1250,
           pointerEvents: "none",
           willChange: "transform",
         }}
         aria-hidden={false}
       >
-        {/* Avatar robot cliquable */}
+        {/* Avatar cliquable : robot (avec bras/jambes, marche en assistance) ou
+            ambulance (en cas d'anomalie/bug → accourt vers le problème). */}
         <button
           onClick={() => setOpen((o) => !o)}
           aria-label={open ? t.assistant_close : t.assistant_open}
           title={t.assistant_title}
-          className={`sgia-face${mode === "rescue" ? " sgia-rescue" : ""}`}
           style={{
             pointerEvents: "auto",
-            width: 52,
-            height: 52,
-            borderRadius: 999,
+            width: 58,
+            height: 62,
             border: "none",
-            background: "var(--gold)",
-            color: "#1A1610",
+            background: "transparent",
             cursor: "pointer",
-            boxShadow: `0 6px 20px rgba(0,0,0,0.28), 0 0 0 0 ${halo}`,
             position: "relative",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
             padding: 0,
+            display: "block",
           }}
         >
-          {/* Halo d'état */}
-          <span
-            className="sgia-halo"
-            style={{
-              position: "absolute",
-              inset: -3,
-              borderRadius: 999,
-              border: `2px solid ${halo}`,
-            }}
-          />
-          {/* Antenne */}
-          <span
-            style={{
-              position: "absolute",
-              insetBlockStart: -7,
-              width: 2,
-              height: 7,
-              background: "#1A1610",
-              borderRadius: 2,
-            }}
-          />
-          <span
-            style={{
-              position: "absolute",
-              insetBlockStart: -11,
-              width: 6,
-              height: 6,
-              borderRadius: 999,
-              background: mode === "rescue" ? "var(--rose)" : "var(--emerald)",
-            }}
-          />
-          {/* Visière + yeux suiveurs */}
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              width: 34,
-              height: 17,
-              borderRadius: 9,
-              background: "#1A1610",
-            }}
-          >
-            <span className="sgia-eye">
-              <span ref={pupilLRef} className="sgia-pupil" />
-            </span>
-            <span className="sgia-eye">
-              <span ref={pupilRRef} className="sgia-pupil" />
-            </span>
-          </span>
-          {/* Bouche */}
-          <span
-            style={{
-              position: "absolute",
-              insetBlockEnd: 9,
-              width: 12,
-              height: 2,
-              borderRadius: 2,
-              background: "rgba(26,22,16,0.55)",
-            }}
-          />
+          {mode === "rescue" ? (
+            <AmbulanceFigure />
+          ) : (
+            <RobotFigure
+              walking={mode === "follow" || mode === "field"}
+              glow={halo}
+              pupilLRef={pupilLRef}
+              pupilRRef={pupilRRef}
+            />
+          )}
         </button>
 
         {/* Bulle proactive (suit l'avatar : enfant du conteneur translaté) */}
@@ -262,7 +205,7 @@ export function AssistantDock({
               pointerEvents: "auto",
               position: "absolute",
               insetInlineEnd: 0,
-              ...(tipBelow ? { insetBlockStart: 60 } : { insetBlockEnd: 60 }),
+              ...(tipBelow ? { insetBlockStart: 68 } : { insetBlockEnd: 68 }),
               width: "max-content",
               maxWidth: 240,
               background: "var(--bg-paper)",
@@ -543,6 +486,60 @@ export function AssistantDock({
   );
 }
 
+/** Robot complet (tête + visière yeux suiveurs, corps, bras, jambes). En
+ *  assistance (`walking`), bras et jambes balancent → effet « il marche ». */
+function RobotFigure({
+  walking,
+  glow,
+  pupilLRef,
+  pupilRRef,
+}: {
+  walking: boolean;
+  glow: string;
+  pupilLRef: React.RefObject<HTMLSpanElement | null>;
+  pupilRRef: React.RefObject<HTMLSpanElement | null>;
+}): React.ReactNode {
+  return (
+    <span className={`sgia-robot${walking ? " sgia-walk" : ""}`}>
+      <span className="sgia-shadow" />
+      <span className="sgia-leg sgia-leg-l" />
+      <span className="sgia-leg sgia-leg-r" />
+      <span className="sgia-arm sgia-arm-l" />
+      <span className="sgia-arm sgia-arm-r" />
+      <span className="sgia-body" style={{ boxShadow: `0 0 10px ${glow}` }} />
+      <span className="sgia-head">
+        <span className="sgia-antenna" />
+        <span className="sgia-antenna-dot" />
+        <span className="sgia-visor">
+          <span className="sgia-eye">
+            <span ref={pupilLRef} className="sgia-pupil" />
+          </span>
+          <span className="sgia-eye">
+            <span ref={pupilRRef} className="sgia-pupil" />
+          </span>
+        </span>
+      </span>
+    </span>
+  );
+}
+
+/** Ambulance : le robot se transforme pour foncer vers l'anomalie. Gyrophare
+ *  clignotant rouge↔bleu, roues qui tournent, croix médicale. */
+function AmbulanceFigure(): React.ReactNode {
+  return (
+    <span className="sgia-amb">
+      <span className="sgia-shadow" />
+      <span className="sgia-amb-body">
+        <span className="sgia-amb-window" />
+        <span className="sgia-amb-cross" />
+      </span>
+      <span className="sgia-amb-light" />
+      <span className="sgia-wheel sgia-wheel-l" />
+      <span className="sgia-wheel sgia-wheel-r" />
+    </span>
+  );
+}
+
 function Bubble({
   role,
   children,
@@ -574,27 +571,61 @@ function Bubble({
   );
 }
 
-// Keyframes : respiration, clignement, sirène (secours). Désactivés si
-// l'utilisateur préfère un mouvement réduit.
+// Keyframes : robot (respiration/bob, clignement, marche bras+jambes) et
+// ambulance (gyrophare, roues, conduite). Désactivés si mouvement réduit.
 const ASSISTANT_CSS = `
-.sgia-face { animation: sgia-breathe 3s ease-in-out infinite; transition: box-shadow .3s ease; }
+.sgia-robot, .sgia-amb { position: relative; display: block; width: 58px; height: 62px; }
+.sgia-robot { animation: sgia-bob 3s ease-in-out infinite; }
+.sgia-shadow {
+  position: absolute; inset-block-end: 0; inset-inline-start: 15px;
+  width: 28px; height: 6px; border-radius: 999px; background: rgba(0,0,0,.18);
+}
+.sgia-body { position: absolute; inset-block-start: 26px; inset-inline-start: 15px; width: 28px; height: 20px; border-radius: 9px; background: var(--gold); }
+.sgia-head { position: absolute; inset-block-start: 4px; inset-inline-start: 13px; width: 32px; height: 24px; border-radius: 9px; background: var(--gold); }
+.sgia-visor { position: absolute; inset-block-start: 7px; inset-inline-start: 4px; width: 24px; height: 11px; border-radius: 6px; background: #1A1610; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.sgia-antenna { position: absolute; inset-block-start: -7px; inset-inline-start: 15px; width: 2px; height: 7px; background: #1A1610; border-radius: 2px; }
+.sgia-antenna-dot { position: absolute; inset-block-start: -11px; inset-inline-start: 12px; width: 6px; height: 6px; border-radius: 999px; background: var(--emerald); animation: sgia-pulse 2s ease-in-out infinite; }
+.sgia-arm { position: absolute; inset-block-start: 27px; width: 5px; height: 15px; border-radius: 3px; background: var(--gold); transform-origin: top center; }
+.sgia-arm-l { inset-inline-start: 9px; }
+.sgia-arm-r { inset-inline-end: 9px; }
+.sgia-leg { position: absolute; inset-block-start: 44px; width: 6px; height: 14px; border-radius: 3px; background: #c8a45c; transform-origin: top center; }
+.sgia-leg-l { inset-inline-start: 19px; }
+.sgia-leg-r { inset-inline-end: 19px; }
 .sgia-eye {
   position: relative; width: 9px; height: 9px; border-radius: 999px;
   background: #fff; display: inline-flex; align-items: center; justify-content: center;
   animation: sgia-blink 4.6s infinite;
 }
-.sgia-pupil {
-  width: 4px; height: 4px; border-radius: 999px; background: #1A1610; display: block;
+.sgia-pupil { width: 4px; height: 4px; border-radius: 999px; background: #1A1610; display: block; }
+/* Marche : balancement opposé bras/jambes + léger rebond */
+.sgia-walk { animation: sgia-walkbob .5s ease-in-out infinite; }
+.sgia-walk .sgia-arm-l, .sgia-walk .sgia-leg-r { animation: sgia-swingA .5s ease-in-out infinite; }
+.sgia-walk .sgia-arm-r, .sgia-walk .sgia-leg-l { animation: sgia-swingB .5s ease-in-out infinite; }
+/* Ambulance */
+.sgia-amb { animation: sgia-drive .35s ease-in-out infinite; }
+.sgia-amb-body { position: absolute; inset-block-start: 16px; inset-inline-start: 4px; width: 50px; height: 28px; border-radius: 8px; background: #fff; border: 1px solid var(--line, #d9cdb6); box-shadow: 0 0 12px rgba(214,69,93,.6); }
+.sgia-amb-window { position: absolute; inset-block-start: 22px; inset-inline-start: 8px; width: 12px; height: 10px; border-radius: 3px; background: #1A1610; opacity: .8; }
+.sgia-amb-cross {
+  position: absolute; inset-block-start: 24px; inset-inline-end: 9px; width: 14px; height: 14px;
+  background:
+    linear-gradient(var(--rose,#d6455d),var(--rose,#d6455d)) center/14px 5px no-repeat,
+    linear-gradient(var(--rose,#d6455d),var(--rose,#d6455d)) center/5px 14px no-repeat;
 }
-.sgia-halo { animation: sgia-pulse 2.6s ease-in-out infinite; opacity: .5; }
-.sgia-rescue { animation: sgia-shake .5s ease-in-out infinite; }
-.sgia-rescue .sgia-halo { animation: sgia-siren .7s ease-in-out infinite; }
-@keyframes sgia-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.sgia-amb-light { position: absolute; inset-block-start: 9px; inset-inline-start: 21px; width: 16px; height: 7px; border-radius: 3px; background: var(--rose,#d6455d); animation: sgia-siren .5s steps(1) infinite; }
+.sgia-wheel { position: absolute; inset-block-end: 4px; width: 13px; height: 13px; border-radius: 999px; background: #1A1610; border: 2px solid #5a5246; animation: sgia-roll .4s linear infinite; }
+.sgia-wheel-l { inset-inline-start: 10px; }
+.sgia-wheel-r { inset-inline-end: 10px; }
+@keyframes sgia-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@keyframes sgia-walkbob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes sgia-swingA { 0%,100% { transform: rotate(17deg); } 50% { transform: rotate(-17deg); } }
+@keyframes sgia-swingB { 0%,100% { transform: rotate(-17deg); } 50% { transform: rotate(17deg); } }
 @keyframes sgia-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
-@keyframes sgia-pulse { 0%,100% { opacity: .35; transform: scale(1); } 50% { opacity: .7; transform: scale(1.08); } }
-@keyframes sgia-siren { 0%,100% { opacity: .4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.16); } }
-@keyframes sgia-shake { 0%,100% { } 25% { margin-block-start: -1px; } 75% { margin-block-start: 1px; } }
+@keyframes sgia-pulse { 0%,100% { opacity: .55; transform: scale(1); } 50% { opacity: 1; transform: scale(1.18); } }
+@keyframes sgia-drive { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+@keyframes sgia-roll { from { transform: rotate(0); } to { transform: rotate(360deg); } }
+@keyframes sgia-siren { 0% { background: var(--rose,#d6455d); } 50% { background: #3b6fd6; } }
 @media (prefers-reduced-motion: reduce) {
-  .sgia-face, .sgia-eye, .sgia-halo, .sgia-rescue, .sgia-rescue .sgia-halo { animation: none !important; }
+  .sgia-robot, .sgia-amb, .sgia-eye, .sgia-antenna-dot, .sgia-walk .sgia-arm-l, .sgia-walk .sgia-arm-r,
+  .sgia-walk .sgia-leg-l, .sgia-walk .sgia-leg-r, .sgia-amb-light, .sgia-wheel { animation: none !important; }
 }
 `;

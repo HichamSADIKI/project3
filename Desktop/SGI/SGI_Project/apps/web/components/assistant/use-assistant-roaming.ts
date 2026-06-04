@@ -24,11 +24,12 @@ import type { Translations } from "@/lib/i18n";
 export type RoamMode = "idle" | "follow" | "field" | "rescue" | "parked";
 export type AssistantTip = { text: string; tone: "info" | "rescue"; prompt?: string } | null;
 
-const SIZE = 52;
+const SIZE = 58;
 const HALF = SIZE / 2;
+const EYE_CY = 16; // centre vertical des yeux (proche du haut : tête du robot)
 const EDGE = 8;
-// Décalage du coin « maison » (à côté du dock softphone, inline-end).
-const HOME_INLINE_END = 84;
+// Décalage du coin « maison » : nettement séparé du dock softphone (inline-end).
+const HOME_INLINE_END = 112;
 const HOME_BLOCK_END = 20;
 // Fenêtres temporelles (ms).
 const FOLLOW_WINDOW = 2500; // souris considérée « active »
@@ -302,7 +303,7 @@ export function useAssistantRoaming(opts: {
 
     const updateEyes = (): void => {
       const cx = pos.current.x + HALF;
-      const cy = pos.current.y + HALF;
+      const cy = pos.current.y + EYE_CY;
       const dx = mouse.current.x - cx;
       const dy = mouse.current.y - cy;
       const a = Math.atan2(dy, dx);
