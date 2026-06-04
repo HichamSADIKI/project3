@@ -109,10 +109,23 @@ async def publish(
     channel: str,
     message: str | None = None,
     external_url: str | None = None,
+    video_scenario_id: uuid.UUID | None = None,
 ) -> SocialPost:
-    """Publie (ou renvoie l'existant) sur un canal. Idempotent par (annonce, canal)."""
+    """Publie (ou met à jour l'existant) sur un canal. Idempotent par (annonce, canal).
+
+    Si une vidéo (`video_scenario_id`) est fournie et que le post existe déjà sur
+    ce canal, on l'enrichit (attache la vidéo + son URL) au lieu de l'ignorer —
+    publier une vidéo sur un canal déjà utilisé doit prendre effet.
+    """
     existing = await get_active_post(db, company_id, listing_type, listing_id, channel)
     if existing is not None:
+        if video_scenario_id is not None and existing.video_scenario_id != video_scenario_id:
+            existing.video_scenario_id = video_scenario_id
+            if external_url:
+                existing.external_url = external_url
+            existing.updated_at = datetime.now(UTC)
+            await db.commit()
+            await db.refresh(existing)
         return existing
     now = datetime.now(UTC)
     post = SocialPost(
@@ -123,6 +136,7 @@ async def publish(
         status="published",
         message=message,
         external_url=external_url,
+        video_scenario_id=video_scenario_id,
         published_at=now,
     )
     db.add(post)

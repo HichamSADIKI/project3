@@ -14,6 +14,7 @@ class PostCreate(BaseModel):
     channel: str
     message: str | None = Field(None, max_length=2000)
     external_url: str | None = Field(None, max_length=1000)
+    video_scenario_id: uuid.UUID | None = None
 
 
 class PostOut(BaseModel):
@@ -24,6 +25,7 @@ class PostOut(BaseModel):
     status: str
     message: str | None
     external_url: str | None
+    video_scenario_id: uuid.UUID | None = None
     published_at: datetime | None
     created_at: datetime
 

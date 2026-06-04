@@ -15,6 +15,7 @@ from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.leasing.models import RentalListing
 from app.routers.sales.models import SaleListing
+from app.routers.scenarios import service as scenarios_service
 from app.routers.social import service
 from app.routers.social.schemas import (
     ChannelsOut,
@@ -83,6 +84,18 @@ async def publish_endpoint(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="invalid_channel")
     if not await _listing_belongs_to_tenant(db, company_id, body.listing_type, body.listing_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="listing_not_found")
+    external_url = body.external_url
+    # Si une vidéo générée est attachée : la valider (tenant + même annonce) et
+    # utiliser son URL comme média du post (anti-BOLA : 404 hors tenant).
+    if body.video_scenario_id is not None:
+        scenario = await scenarios_service.get_scenario(db, company_id, body.video_scenario_id)
+        if (
+            scenario is None
+            or scenario.listing_type != body.listing_type
+            or scenario.listing_id != body.listing_id
+        ):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="scenario_not_found")
+        external_url = scenario.video_url or external_url
     post = await service.publish(
         db,
         company_id,
@@ -90,7 +103,8 @@ async def publish_endpoint(
         listing_id=body.listing_id,
         channel=body.channel,
         message=body.message,
-        external_url=body.external_url,
+        external_url=external_url,
+        video_scenario_id=body.video_scenario_id,
     )
     return PostDetailOut(data=PostOut.model_validate(post))
 
