@@ -2,13 +2,14 @@
 
 import React, { useState } from "react";
 import { Topbar, IcDoc, IcPlus } from "@/components/sgi-ui";
-import { useT } from "@/components/language-provider";
+import { useT, useLang } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 import { ListingFlagToggle } from "@/components/listing-flag-toggle";
+import { ListingOnlineToggle } from "@/components/listing-online-toggle";
 
 // Câblé sur /api/admin/leasing/{listings,applications} → /api/v1/leasing/*.
 
@@ -49,9 +50,11 @@ const badge = (t: Translations, s: string) => {
 
 type Listing = {
   id: string; reference: string; unit_id: string | null;
-  monthly_rent: string; annual_rent: string | null; status: string;
+  monthly_rent: string; annual_rent: string | null; status: string; slug?: string | null;
   is_featured?: boolean; is_urgent?: boolean;
 };
+
+const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
 type Application = {
   id: string; reference: string; listing_id: string;
   applicant_client_id: string; offered_rent: string | null; status: string;
@@ -117,6 +120,7 @@ export function ScreenRealEstateLocation() {
 }
 
 function ListingsTab({ t }: { t: Translations }) {
+  const { lang } = useLang();
   const { items, loading, error, reload } = useApiList<Listing>("/api/admin/leasing/listings?limit=100");
   const { items: units } = useApiList<UnitOpt>("/api/admin/units?limit=200");
   const { busy, error: actErr, run } = useRowAction(reload);
@@ -176,13 +180,23 @@ function ListingsTab({ t }: { t: Translations }) {
               <tr><td colSpan={6} style={{ padding: "24px 16px", textAlign: "center", color: "var(--ink-4)" }}>—</td></tr>
             )}
             {items.map(x => {
-              const next = LISTING_NEXT[x.status] ?? [];
+              const allNext = LISTING_NEXT[x.status] ?? [];
+              const online = x.status === "draft" || x.status === "published" || x.status === "withdrawn";
+              // Quand l'interrupteur En ligne/Hors ligne gère la mise en ligne,
+              // on retire published/withdrawn des boutons de progression.
+              const next = online ? allNext.filter(s => s !== "published" && s !== "withdrawn") : allNext;
               return (
                 <tr key={x.id} style={{ borderTop: "1px solid var(--line-soft)" }}>
                   <td className="tnum" style={{ padding: "13px 16px", fontWeight: 600, color: "var(--gold-deep)" }}>{x.reference}</td>
                   <td className="tnum" style={{ padding: "13px 16px", color: "var(--ink-3)" }}>{x.unit_id ? trunc(x.unit_id) : "—"}</td>
                   <td className="tnum" style={{ padding: "13px 16px", textAlign: "end", fontWeight: 600, color: "var(--ink)" }}>{aed(Number(x.monthly_rent))}</td>
-                  <td style={{ padding: "13px 16px" }}>{badge(t, x.status)}</td>
+                  <td style={{ padding: "13px 16px" }}>
+                    {online ? (
+                      <ListingOnlineToggle basePath="/api/admin/leasing/listings" id={x.id} status={x.status} labelOn={t.web_badge_online} labelOff={t.web_offline} onChanged={reload} />
+                    ) : (
+                      badge(t, x.status)
+                    )}
+                  </td>
                   <td style={{ padding: "13px 16px" }}>
                     <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
                       <ListingFlagToggle basePath="/api/admin/leasing/listings" id={x.id} flag="is_featured" value={!!x.is_featured} label={t.st_featured} activeColor="var(--gold-deep)" activeBg="rgba(212,160,55,0.14)" />
@@ -192,11 +206,15 @@ function ListingsTab({ t }: { t: Translations }) {
                   <td style={{ padding: "13px 16px", textAlign: "end" }}>
                     {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                       <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                        {x.status === "published" && x.slug && (
+                          <a href={`${PORTAL_URL}/${lang}/property/${x.slug}`} target="_blank" rel="noopener noreferrer" style={{ ...actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)"), textDecoration: "none" }}>{t.web_view}</a>
+                        )}
                         {next.length === 0 ? <span style={{ color: "var(--ink-4)" }}>—</span> : next.map(s => {
                           const st = STATUS_STYLE[s] ?? { color: "var(--ink-3)", bg: "var(--line-soft)" };
+                          const isPublish = s === "published";
                           return (
-                            <button key={s} onClick={() => run(x.id, `/api/admin/leasing/listings/${x.id}/transition`, { status: s })} style={actBtn(st.color, st.bg)}>
-                              {statusLabel(t, s)}
+                            <button key={s} onClick={() => run(x.id, `/api/admin/leasing/listings/${x.id}/transition`, { status: s })} style={isPublish ? actBtn("#fff", "var(--emerald)") : actBtn(st.color, st.bg)}>
+                              {isPublish ? t.web_publish : statusLabel(t, s)}
                             </button>
                           );
                         })}

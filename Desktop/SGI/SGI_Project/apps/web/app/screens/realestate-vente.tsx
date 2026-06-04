@@ -2,13 +2,16 @@
 
 import React, { useState } from "react";
 import { Topbar, IcContract, IcList, IcArrowUp, IcFinance, IcPlus } from "@/components/sgi-ui";
-import { useT } from "@/components/language-provider";
+import { useT, useLang } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
+
+const PORTAL_URL = process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
 import { useApiList } from "@/lib/use-api-list";
 import { useRowAction } from "@/lib/use-row-action";
 import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 import { ListingFlagToggle } from "@/components/listing-flag-toggle";
+import { ListingOnlineToggle } from "@/components/listing-online-toggle";
 
 // Câblé sur /api/admin/sales/* → /api/v1/sales/* (module Vente : pipeline
 // mandat → annonce → offre → transaction).
@@ -59,7 +62,7 @@ type Mandate = {
 type Listing = {
   id: string; reference: string; mandate_id: string;
   title_ar: string | null; title_en: string | null; title_fr: string | null;
-  list_price: number; status: string;
+  list_price: number; status: string; slug?: string | null;
   is_featured?: boolean; is_urgent?: boolean;
 };
 type Offer = {
@@ -186,6 +189,7 @@ function MandatesTab({ t }: { t: Translations }) {
 // ── Onglet Annonces ──────────────────────────────────────────────────────────
 
 function ListingsTab({ t }: { t: Translations }) {
+  const { lang } = useLang();
   const { items, loading, error, reload } = useApiList<Listing>("/api/admin/sales/listings?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
@@ -239,7 +243,13 @@ function ListingsTab({ t }: { t: Translations }) {
                 <td className="tnum" style={refCell}>{x.reference}</td>
                 <td className="tnum" style={{ ...td, color: "var(--ink-3)" }}>{x.mandate_id.slice(0, 8)}…</td>
                 <td className="tnum" style={td}>{aed(x.list_price)}</td>
-                <td style={td}><StatusBadge t={t} status={x.status} /></td>
+                <td style={td}>
+                  {(x.status === "draft" || x.status === "published" || x.status === "withdrawn") ? (
+                    <ListingOnlineToggle basePath="/api/admin/sales/listings" id={x.id} status={x.status} labelOn={t.web_badge_online} labelOff={t.web_offline} onChanged={reload} />
+                  ) : (
+                    <StatusBadge t={t} status={x.status} />
+                  )}
+                </td>
                 <td style={td}>
                   <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap" }}>
                     <ListingFlagToggle basePath="/api/admin/sales/listings" id={x.id} flag="is_featured" value={!!x.is_featured} label={t.st_featured} activeColor="var(--gold-deep)" activeBg="rgba(212,160,55,0.14)" />
@@ -249,8 +259,8 @@ function ListingsTab({ t }: { t: Translations }) {
                 <td style={tdEnd}>
                   {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
                     <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
-                      {x.status === "draft" && (
-                        <button onClick={() => run(x.id, `/api/admin/sales/listings/${x.id}/transition`, { status: "published" })} style={actBtn("var(--emerald)", "rgba(16,185,129,0.12)")}>{t.st_published}</button>
+                      {x.status === "published" && x.slug && (
+                        <a href={`${PORTAL_URL}/${lang}/property/${x.slug}`} target="_blank" rel="noopener noreferrer" style={{ ...actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)"), textDecoration: "none" }}>{t.web_view}</a>
                       )}
                       {x.status === "published" && (
                         <button onClick={() => run(x.id, `/api/admin/sales/listings/${x.id}/transition`, { status: "under_offer" })} style={actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>{t.st_under_offer}</button>
@@ -258,10 +268,7 @@ function ListingsTab({ t }: { t: Translations }) {
                       {x.status === "under_offer" && (
                         <button onClick={() => run(x.id, `/api/admin/sales/listings/${x.id}/transition`, { status: "sold" })} style={actBtn("var(--emerald)", "rgba(16,185,129,0.12)")}>{t.st_sold}</button>
                       )}
-                      {(x.status === "draft" || x.status === "published" || x.status === "under_offer") && (
-                        <button onClick={() => run(x.id, `/api/admin/sales/listings/${x.id}/transition`, { status: "withdrawn" })} style={actBtn("var(--rose)", "var(--rose-soft)")}>{t.st_withdrawn}</button>
-                      )}
-                      {(x.status === "sold" || x.status === "withdrawn") && <span style={{ color: "var(--ink-4)" }}>—</span>}
+                      {x.status === "sold" && <span style={{ color: "var(--ink-4)" }}>—</span>}
                     </span>
                   )}
                 </td>

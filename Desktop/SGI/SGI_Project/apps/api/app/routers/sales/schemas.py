@@ -51,6 +51,7 @@ class ListingOut(BaseModel):
     title_fr: str | None
     list_price: Decimal
     status: str
+    slug: str | None = None
     is_featured: bool = False
     is_urgent: bool = False
     published_at: datetime | None

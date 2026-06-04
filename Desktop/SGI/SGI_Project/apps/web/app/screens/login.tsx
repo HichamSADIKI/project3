@@ -89,7 +89,7 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
     process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL ?? "admin@infinity-uae.com",
   );
   const [password,     setPassword]     = useState(
-    process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD ?? "Admin123!",
+    process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD ?? "Admin12345!",
   );
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);

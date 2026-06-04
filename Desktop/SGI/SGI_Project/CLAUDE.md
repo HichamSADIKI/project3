@@ -177,7 +177,7 @@ Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 - *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
 - *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
 
-Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0037_developers`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0041_user_public_profile`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
 
 Le coût bcrypt est réglable via `BCRYPT_ROUNDS` (`app/core/config.py`, défaut 12). La suite de tests le baisse à 4 (≈ −13 % de temps) — ne jamais hasher en prod avec un coût aussi bas.
 
@@ -242,159 +242,31 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `acquisitions`, `sales`, `leasing`, `copilot`, `tenant_portal`, `iam`, `developers`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `acquisitions`, `sales`, `leasing`, `copilot`, `tenant_portal`, `iam`, `developers`, `marketing`, `sources`, `public_site`.
 
 > `tenant_kyc` and `contract_renewal_signature` (migrations 0022–0024) are **not** standalone router dirs — they are sub-routes mounted under `tenants`/`contracts`. Don't look for `tenant_kyc/` or `contract_renewal_signature/` directories.
 
-### RealEstate party-role pattern (migration 0002)
+### Per-module deep reference (moved out of this file)
 
-`clients` is the umbrella **party** table (any individual or company the agency interacts with). Each business role is a **profile table** with PK = FK to the party, so a single client can hold multiple roles without duplication:
+To keep this root file lean, the detailed per-module references now live next to the
+code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
+`docs/architecture/` for cross-cutting groups. Read the relevant one before touching a module.
 
-| Table | Extends | Purpose |
-|---|---|---|
-| `owners` | `clients.id` | Property owner. Carries mandate, IBAN, payout preferences. |
-| `tenant_profiles` | `clients.id` | Tenant / candidate. Lifecycle: `candidate → active → former / blacklisted`. Loyalty score 0-100. |
-| `vendors` | `clients.id` | External provider (maintenance, cleaning, security…). Trade licence, rating cumulé, marketplace eligibility. |
-| `technicians` | `users.id` | **Internal salaried staff**, not a client. Skills + mobile app KPIs. |
+**Cross-cutting (`docs/architecture/`):**
+- [realestate-foundations.md](docs/architecture/realestate-foundations.md) — party-role pattern (`owners`/`tenants`/`vendors`/`technicians`, migration 0002) + physical hierarchy (`buildings`/`floors`/`units`, migration 0003).
+- [operations-modules.md](docs/architecture/operations-modules.md) — `maintenance`·`inspections`·`payments`·`comms`·`workflows`·`ai_services`·`partner`·`client_portal`·`owner_portal` (0013–0019), auth hardening / refresh tokens / C1 RLS, and the Rubrique Immobilier nav (6 sections, migrations 0020–0026).
+- [transactions.md](docs/architecture/transactions.md) — `acquisitions`·`sales`·`leasing` (0033–0035), inline references under advisory lock.
+- [lead-acquisition.md](docs/architecture/lead-acquisition.md) — `marketing`·`sources`·`public_site` (0038–0041), public vitrine in `apps/portal`.
 
-Routes: `/api/v1/{owners,tenants,vendors,technicians}` — CRUD + specific endpoints (`POST /tenants/{id}/status` for lifecycle transitions, `POST /vendors/{id}/ratings`, `POST /technicians/{id}/ratings`).
-
-Pure business helpers (testable without DB) live in `service.py`:
-- `owners.service`: `mandate_is_active`, `days_until_mandate_expiry`, `needs_renewal_alert`
-- `tenants.service`: `is_valid_transition`, `compute_loyalty_score`, `visa_alert_level`
-- `vendors.service`: `merge_rating` (numerically stable cumulative avg, reused by technicians), `cancellation_rate`, `is_eligible_for_marketplace`
-
-Shared FastAPI deps: `app/core/route_deps.py` (`get_company_id`, `require_roles`). New routers use this; legacy routers keep their inline copy for now.
-
-### RealEstate physical hierarchy (migration 0003)
-
-| Table | Parent | Purpose |
-|---|---|---|
-| `buildings` | — | Physical asset (tower, compound, mixed-use). PostGIS `location` + optional `footprint` polygon. DLD reference. Links to `owners`. |
-| `floors` | `buildings.id` (CASCADE) | Optional intermediate level — present for towers, absent for villa compounds. Unique `(building_id, floor_number)`. |
-| `units` | `buildings.id` (RESTRICT) + optional `floors.id` | Rentable / sellable atom. Holds Ejari/DEWA/ADDC account numbers, inventory JSONB, list rent/sale prices. Optional `legacy_property_id` FK bridges to the legacy `properties` table for progressive migration. |
-
-The legacy `properties` table is untouched. New modules (maintenance, inspections, meters, parking — to come) target `units`. Routes: `/api/v1/buildings`, `/api/v1/buildings/{id}/floors`, `/api/v1/buildings/{id}/occupancy`, `/api/v1/units`, `/api/v1/units/{id}/status`.
-
-Pure helpers: `buildings.service.compute_occupancy` (occupied+reserved vs vacant; excludes maintenance/renovation/off_market from denominator), `units.service.is_valid_status_transition` (state machine `vacant → reserved → occupied → vacant | maintenance → renovation → vacant`, `off_market → vacant`).
-
-### PDC — Post-dated cheques (migration 0003)
-
-`pdc_cheques` is the UAE-specific first-class entity. One PDC links to **exactly one** of `rentals` or `contracts` (check-constraint), plus a drawer (`clients.id`). State machine:
-
-```
-pending ─┬─→ deposited ─┬─→ cleared        (terminal)
-         │              └─→ bounced ─→ replaced  (terminal — chained via replaced_by_pdc_id)
-         └─→ cancelled                            (terminal)
-```
-
-Routes: `/api/v1/pdc` (CRUD), plus state actions `/pdc/{id}/{deposit,clear,bounce,cancel,replace,legal-notice}`. Reference auto-generated as `PDC-YYYY-NNNNNN` (6 digits, lexicographically sortable). Calendar endpoint `/api/v1/pdc/calendar?horizon_days=60` returns active cheques due in the window, used by Celery beat to schedule deposit reminders and overdue alerts (UAE Federal Penal Code art. 401 — bounced cheque = offence; `legal_notices_sent` counter tracks the workflow).
-
-Pure helpers in `pdc.service`: `is_valid_pdc_transition`, `days_to_due`, `is_overdue`, `generate_reference`, `aggregate_outstanding`.
-
-### Operations modules (migrations 0013–0019)
-
-All follow the same router/schemas/service/test pattern, mount under `/api/v1`, filter by `company_id`, and keep pure (DB-free) helpers in `service.py` — verify the state machine helper before changing any lifecycle.
-
-| Module | Route prefix | Migration | Notes |
-|---|---|---|---|
-| `maintenance` | `/maintenance` | 0013–0014 | Tickets + quotes/invoices/preventive plans. Helpers: `generate_reference`, `is_valid_transition`, `compute_sla_due`, `is_sla_breached`. Celery task module `tasks/maintenance.py`. |
-| `inspections` | `/inspections` | 0018 | Inspection → sections → items → photos (move-in/out, periodic). State-machine helpers in service. |
-| `payments` | `/payments` | 0019 | Payment requests + transactions + summaries. Backs the owner portal. |
-| `comms` | `/comms` | 0015 | In-app conversations + **WebSocket**. Fan-out across `make scale` replicas via Valkey pub/sub (`conv:{cid}:{conv_id}`); presence/typing keys carry TTLs — see [app/routers/comms/ws.py](apps/api/app/routers/comms/ws.py). Celery task `tasks/comms.py`. |
-| `workflows` | `/workflows` | 0016 | Generic workflow engine: templates → instances → steps → events. Celery task `tasks/workflows.py`. |
-| `ai_services` | `/ai` | — | Gemini-backed endpoints (contract summary, lead scoring, maintenance prediction). Wired to the `gemini` MCP server tools. |
-| `partner` | `/fournisseur` | 0005–0006, 0010–0012 | Fournisseur (vendor) self-service: KYC docs, missions, categories. Role renamed `partner → fournisseur` (0006). |
-| `client_portal` | `/client` | — | Authenticated client self-service: profile, needs, listings. |
-| `owner_portal` | `/owner` | — | Owner self-service: payouts, **statements + notifications** (M6/M7), expense approval. Reuses `owner_statements`/`notifications` services; strict owner scoping (anti-BOLA). |
-
-Auth hardening: MFA (migration 0017). Recent security work fixed MFA bypass, BOLA on owner/payments, and WebSocket authz — preserve the tenant-context (`SET LOCAL`) checks when touching these routers. **Refresh tokens (migration `0027_refresh_tokens`): access JWT court (`JWT_ACCESS_EXPIRE_HOURS=1`) + refresh opaque 30 j stocké haché SHA-256 dans `refresh_tokens` (rotation one-time-use, détection de réutilisation → révocation de famille via `family_id`). Endpoints `/auth/{refresh,logout}` + gestion de sessions `GET /auth/sessions` (familles de refresh tokens actives) et `POST /auth/sessions/revoke-all`. Helpers purs dans `auth/refresh_service.py`. Côté web : cookie `sgi-refresh` httpOnly scopé `/api/auth`, route proxy `/api/auth/refresh` (publique dans `middleware.ts`), et `getJson`/`postJson` rejouent après un refresh transparent sur 401 (`apps/web/lib/api-client.ts`).** **C1 (migration `0023_app_role_rls`): the API connects via the restricted `sgi_app` role (`NOSUPERUSER`/`NOBYPASSRLS`) so RLS is actually enforced — set `APP_DB_PASSWORD` in prod or RLS falls back inert.**
-
-### Rubrique Immobilier — chantier d'intégration (migrations 0020–0026)
-
-Catégorie principale **Immobilier** du backoffice (`apps/web`), 12 modules livrés. Tous suivent le pattern router/schemas/service/test, filtrent par `company_id`, helpers purs testés.
-
-| Module / Migration | Route prefix | Notes |
-|---|---|---|
-| `realestate_core` (0020) | `/branches`, `/company-settings` | Succursales (multi-branch, PostGIS) + paramètres UAE (TVA 5 %, Ejari, DLD). Singleton settings par tenant. |
-| `documents` (0021) | `/documents` | Documents génériques (lien polymorphe `entity_type`+`entity_id`) + versioning immuable (sha256) + **e-signature interne UAE** (hash + OTP + audit). Réutilise `app.core.storage` (MinIO). |
-| `tenant_kyc` (0022) | `/tenants/{id}/kyc` | Workflow KYC locataire (not_started→pending→verified\|rejected), checklist docs (Emirates ID + passeport via `documents`) + alertes expiration. |
-| `contract_renewal_signature` (0023) | `/contracts/{id}/{renew,request-signature,sync-signature}` | Renouvellement de contrats (+ bail lié, escalade loyer) + e-signature via `documents`. Tâche `check_rental_renewals` (J-120). |
-| `owner_statements` (0025) | `/owners/{id}/statements` | Relevés mensuels propriétaires (revenus − dépenses − commission = payout net), statut draft→sent. |
-| `notifications` (0025) | `/notifications` | Notifications in-app génériques réutilisables (statement_ready, pdc_due, maintenance_sla_breach, message_mention, workflow_escalation…). |
-
-Tâches Celery beat ajoutées (queue `reminders`) qui alimentent `notifications` : `check_rental_renewals` (J-120), `check_pdc_due` (échéance/retard chèques), et l'enrichissement de `check_maintenance_sla` / `check_workflow_sla` / `notify_mentions`.
-
-**Frontend** : la rubrique **Immobilier** (`apps/web`, `components/sgi-ui.tsx` + `app/screens/realestate-*.tsx`) regroupe ses entrées de nav en **6 sections thématiques** (clé `section` sur chaque `NavItem`, libellés `nav_re_sec_*` AR/EN/FR dans `lib/i18n.ts` ; intertitre + séparateur + tiret doré rendus dans `GroupRow`) : `patrimoine` (Bâtiments · Unités · Succursales), `transactions` (CRM · Achat · Vente · Location · Contrats), `tiers` (Propriétaires · Portail Propriétaire · Locataires · Promoteurs), `finance` (Paiements · Chèques), `exploitation` (Maintenance · Validations · Communication · Inbox · Tickets) et `admin` (Documents · Paramètres). Migration de merge `0026_merge_0025` réconcilie le fork `owner_statements` / `reference_composite_unique`.
-
-### Téléphonie — centre de contact Asterisk WebRTC (migration 0028)
-
-Module `telephony` (`/api/v1/telephony`) : centre de contact temps réel branché sur **Asterisk** (WebRTC/PJSIP). Suit le pattern router/schemas/service/test, filtre par `company_id` (Loi 1), helpers purs testés.
-
-- **Infra dev** : `infra/asterisk/` (Dockerfile + config pjsip/http/manager/extensions/rtp/queues). WSS sur **8089** (signalisation softphone), AMI interne sur **5038** (non publié — joignable seulement via le réseau `backend`). Agents test 6001/6002, echo test 600 (non enregistré). Var `AMI_PASSWORD` (durcissement : en prod, `AMI_PASSWORD` vide → listener AMI **non démarré** ; en dev `DEBUG=true` un warning suffit). `NEXT_PUBLIC_SIP_WS_URL=wss://localhost:8089/ws`, `NEXT_PUBLIC_WS_URL` (events backend, optionnel).
-- **Backend** : `models.py` (`calls` + `agent_states`, RLS) · `service.py` (machines à états appel/agent, `generate_reference` `CALL-YYYY-NNNNNN`, `find_clients_by_phone` pour le screen pop) · `ami.py` (pont AMI → WebSocket, listener gardé, reconnexion silencieuse, lecture cross-tenant privilégiée) · `ws.py` (bus Valkey `voice:{cid}:ext:{ext}`, fan-out multi-réplicas) · `recording.py` (enregistrement PDPL, voir plus bas).
-- **Routes** : `GET /calls` · `POST /calls` · `GET /calls/{id}` · `POST /calls/{id}/transition` · `POST /calls/click-to-call` (Originate AMI) · `GET /agents` · `GET /agents/me` · `POST /agents/me/status` · `GET /lookup` (screen pop) · `WS /ws?token=&extension=` · `GET /calls/{id}/recording`. Les 4 GET et les actions d'écriture exigent `_require_roles("admin","manager","agent")`.
-- **Sécurité (Loi 1 + RBAC + BOLA)** : tous les GET sont gardés par rôle (pas de lecture par `client`/`fournisseur`/portails) ; un simple `agent` ne voit que SES appels (`agent_user_id` forcé sur son `user_id` — anti-BOLA horizontal) ; le WS valide le JWT (4401) et l'appartenance de l'extension (4403, anti-spoof), pose le GUC RLS en portée session (survit aux requêtes). L'AMI publie sur **tous** les tenants propriétaires d'une extension partagée mais via le channel namespacé par tenant → aucune fuite inter-tenant.
-- **Enregistrement PDPL** (Federal Decree-Law No. 45/2021) : Asterisk diffuse une annonce de consentement (`PDPL_NOTICE`, `beep` placeholder en dev) **puis** arme `MixMonitor` (macro `[macro-pdpl-record]` dans `extensions.conf`), écrit `<UNIQUEID>.wav` dans `RECORDING_DIR=/var/spool/asterisk/monitor` (volume Docker nommé `asterisk_recordings`, monté `:ro` sur le worker). Un worker uploade vers MinIO (`telephony/{company_id}/recordings/{call_id}.wav`). `GET /calls/{id}/recording` renvoie une **URL signée** temporaire (jamais le binaire), refuse 403 sans consentement, 404 hors tenant. `recording_url` est **masquée** (→`None`) dans toutes les sorties `CallOut` tant que `recording_consent` est faux.
-- **Frontend** (`apps/web`) : softphone JsSIP (`lib/sip-client.ts`, import dynamique SSR-safe) + `SoftphoneProvider`/`useSoftphone` + `SoftphoneDock` (widget persistant `inset-inline-end`, RTL-safe, numéros en chiffres latins) monté dans `app/page.tsx`. Onglet **Appels** (`CallsPanel`) intégré au screen **Communication** (`realestate-comms.tsx`) — pas d'entrée de nav dédiée. Route handlers proxy sous `app/api/admin/telephony/**` (mêmes patterns que comms : `proxy()` + `ws-token`). Libellés `tel_*` (AR/EN/FR) dans `apps/web/lib/i18n.ts`.
-- **Mode AMI** (`components/softphone/ami-call-panel.tsx`) : alternative au softphone WebRTC pour les déploiements **Asterisk 11 / chan_sip**. L'agent parle sur son poste/softphone physique enregistré comme extension ; SGI ne fait que **piloter et tracer** via l'AMI (présence `POST /agents/me/status`, WS événements pour le screen-pop entrant, `click-to-call`, journal `GET /calls`). Volontairement **indépendant de JsSIP** : le bouton « Appeler » n'exige aucune registration WebRTC. Le sortant click-to-call est corrélé côté Asterisk 11 (qui ignore `ChannelId` à l'Originate) et les CDR entrants sont rattachés à l'agent propriétaire de l'extension. Le **workspace agent** ajoute notes d'appel, disposition et actions 1-clic (création de lead, etc.).
-
-### Inbox omnicanal (migration 0031)
-
-Module `inbox` (`/api/v1/inbox`) : boîte de réception unifiée des fils externes (WhatsApp/email/webchat/facebook/instagram). Pattern router/schemas/service/test, filtre `company_id` (Loi 1), helpers purs testés. Tables (migration `0031_omnichannel_inbox`, RLS) : `inbox_conversations`, `inbox_messages`, `inbox_tags`, `inbox_conversation_tags`, `inbox_notes`.
-
-- **Helpers purs** (`service.py`) : `is_valid_inbox_status_transition` (machine à états `new → assigned → pending → resolved → closed`, réouverture possible), `generate_inbox_reference` (`INBOX-YYYY-NNNNNN`, triable), `compute_response_due` (SLA), `is_valid_channel`, `CHANNELS`. **Fonctions DB idempotentes** : `get_or_create_conversation` (dédup par `(company, channel, external_thread_id)`), `add_message` (dédup `external_message_id`), `set_status`, `assign_conversation`, `list_conversations`, `get_conversation`.
-- **REST** : `GET /inbox/conversations` (pagination + filtres channel/status/assigned ; un simple **agent** ne voit que SES fils assignés — anti-BOLA, 404 jamais 403), `GET /inbox/conversations/{id}` (fil + messages + notes + tags), `POST …/messages` (réponse sortante agent), `POST …/assign` (admin/manager only), `POST …/status` (409 sur transition invalide), `POST …/notes`, `GET|POST /inbox/tags`, `POST …/tags` (attache idempotente, tag cross-tenant → 404).
-- **Webhook WhatsApp Cloud API** (`webhook.py`, `inbox_webhook_router`, **sans JWT** — appelé par Meta, monté à part dans `main.py`) : `GET /inbox/webhook/whatsapp` (challenge Meta via `WHATSAPP_VERIFY_TOKEN`), `POST /inbox/webhook/whatsapp` (toujours 200 ; signature `X-Hub-Signature-256` via `WHATSAPP_APP_SECRET` ; dédup Valkey `wa:msg:{id}` TTL 3 j ; pose le GUC RLS manuellement car pas de middleware tenant ; persiste via les fonctions service idempotentes). **Résolution tenant MVP** : `phone_number_id → company_id` via env `WHATSAPP_PHONE_NUMBER_MAP` (JSON) — à remplacer par une table `inbox_channel_configs` filtrée RLS.
-- **Temps réel WS** (`ws.py`) : `ws /api/v1/inbox/ws?token=<jwt>` (auth JWT en query param, GUC RLS posé manuellement, refus `mfa_pending` → 4401). Bus Valkey pub/sub fan-out multi-réplicas (`make scale`). **Deux channels** namespacés par tenant : `inbox:{company_id}` (flux superviseur admin/manager) et `inbox:{company_id}:agent:{user_id}` (flux agent — anti-fuite intra-tenant). Présence agent : clé Valkey TTL 45 s. `publish_inbox_event(company_id, event, *, target_agent_id=…)` appelé après commit aux points métier (message, assign, status) ; `publish_event(...)` est l'adaptateur utilisé par le webhook.
-- **IA asynchrone** (`app/tasks/inbox.py`, queue `exports`) : `summarize_conversation` et `suggest_tags` (Gemini si clé, sinon repli heuristique pur ; résultat dans `channel_metadata['ai_summary' | 'ai_suggested_tags']` — `suggest_tags` ne crée aucun lien, l'agent valide). Déclenchées à la demande (`.delay(...)`).
-- **Frontend** (`apps/web`) : screen **Inbox** (`app/screens/realestate-inbox.tsx`, `ScreenRealEstateInbox`, nav `realestate_inbox` icône `IcMail`) — layout 3 colonnes (liste / fil / panneau agent), CSS strictement logique (Loi 3), WS sur `/api/v1/inbox/ws` filtré client-side par `conversation_id`. Proxies sous `app/api/admin/inbox/**` (`proxy()` + `ws-token`). Libellés `inbox_*` / `nav_inbox` (AR/EN/FR) dans `lib/i18n.ts`.
-
-### Ticketing SLA — service desk client (migration 0032)
-
-Module `ticketing` (`/api/v1/tickets`) : service desk client avec SLA et escalade. Pattern router/schemas/service/test, filtre `company_id` (Loi 1), helpers purs testés. Tables (migration `0032_service_tickets`, RLS) : `service_tickets`, `service_ticket_events` (timeline append-only).
-
-- **Helpers purs** (`service.py`) : `generate_reference` (`TCK-YYYY-NNNNNN`, triable), `is_valid_transition` (machine à états `open → in_progress → pending → resolved → closed`, réouverture depuis terminal), `SLA_MINUTES` par priorité (`urgent`=60, `high`=240, `medium`=1440, `low`=2880), `compute_sla_due`, `is_sla_breached`, `escalation_level_for` (0=dans les temps, 1=dépassé, 2=retard ≥24 h). **Fonctions DB** : `create_ticket`, `get_ticket`, `list_tickets`, `transition_ticket` (ValueError sur transition invalide), `assign_ticket` (auto `open→in_progress`), `add_comment`, `list_events`.
-- **REST** (toutes enveloppes `{success,data,meta}`, rôles `admin/manager/agent`) : `GET /tickets` (pagination + filtres status/priority/assigned_agent_id ; un simple **agent** ne voit que SES tickets assignés — anti-BOLA, 404 jamais 403), `GET /tickets/{id}` (ticket + timeline), `POST /tickets`, `POST …/assign` (auto-attribution si `agent_user_id` omis ; agent ne peut que s'auto-assigner, 403 sinon ; agent cible hors tenant → 400), `POST …/transition` (409 sur transition invalide), `POST …/comments` (201).
-- **Escalade SLA** (`app/tasks/ticketing.py`, queue `reminders`, beat horaire `ticketing-sla-check`) : `check_ticket_sla` scanne **cross-tenant** (rôle privilégié `sync_session_maker`) les tickets non terminés en breach ; si `escalation_level_for` dépasse le niveau courant, met à jour le ticket, ajoute un event `escalated` (timeline) et crée une notification in-app `ticket_sla_breach` (destinataire = agent assigné, sinon fallback managers/admins actifs du tenant ; dédup par `(company, type, recipient, ticket_id, level)`). Retry borné (5 min ×3), ne bloque jamais le beat.
-- **Frontend** (`apps/web`) : screen **Tickets** (`app/screens/realestate-tickets.tsx`, `ScreenRealEstateTickets`, nav `realestate_tickets` icône `IcReport`) — Kanban 5 colonnes par statut, drag&drop → `POST /transition` (machine à états miroir côté UI, le backend reste l'autorité 409), badge priorité + indicateur SLA dépassé, panneau détail (transitions, attribution, timeline, commentaire). CSS strictement logique (Loi 3), chiffres latins. Proxies sous `app/api/admin/tickets/**`. Libellés `ticket_*` / `nav_tickets` (AR/EN/FR) dans `lib/i18n.ts`.
-
-### Transactions immobilières — Achat · Vente · Location (migrations 0033–0035)
-
-Les trois flux transactionnels du métier agence, ajoutés après le service desk. Même pattern router/schemas/service/test, filtre `company_id` (Loi 1), helpers purs testés, références auto-générées triables. **La référence est générée inline sous verrou consultatif** (`pg_advisory_xact_lock`) plutôt que par retry — le verrou rend l'anti-collision déterministe (cf. commits récents `refactor/immobilier-inline-references`, `fix/reference-race-condition`).
-
-| Module / Migration | Route prefix | Tables (RLS) | Notes |
-|---|---|---|---|
-| `acquisitions` (0033) | `/acquisitions` | `buyer_mandates`, `purchase_offers` | Mandats d'achat (recherche pour acquéreur) + offres d'achat. Helpers : `generate_reference`, `is_valid_mandate_transition`, `is_valid_offer_transition`, `match_score` (scoring acheteur↔bien, PostGIS pour la proximité), `find_matches`. |
-| `sales` (0034) | `/sales` | `sale_mandates`, `sale_listings`, `sale_offers`, `sale_transactions` | Chaîne de vente complète : mandat → annonce → offre → transaction. `compute_commission`, 4 machines à états (`is_valid_{mandate,listing,offer,transaction}_transition`), `create_transaction_from_offer` (une seule transaction *live* par offre — `get_live_transaction_for_offer`). |
-| `leasing` (0035) | `/leasing` | `rental_listings`, `rental_applications` | Annonces de location + candidatures locataires. `is_valid_listing_transition`, `is_valid_application_transition`, séquences de référence séparées listing/application. |
-
-**Frontend** (`apps/web`) : 3 screens dédiés — `realestate-achat.tsx` (`ScreenRealEstateAchat`, nav `realestate_achat`), `realestate-vente.tsx` (`ScreenRealEstateVente`, nav `realestate_vente`), `realestate-location.tsx` (`ScreenRealEstateLocation`, nav `realestate_location`). Libellés `nav_achat` / `nav_vente` / `nav_location`.
-
-### AI Copilot — assistance agent (module `copilot`, pas de migration)
-
-Module `copilot` (`/api/v1/copilot`) **sans table propre** : il agrège en lecture seule le contexte d'une conversation `inbox` **ou** d'un ticket `ticketing` et renvoie un paquet d'assistance. `POST /copilot/assist` → brouillon de réponse + résumé + sentiment + intention + next-best-actions. Filtré `company_id` (Loi 1) ; un simple **agent** n'assiste que SES items assignés (anti-BOLA : 404, jamais 403).
-
-- **Synchrone mais non bloquant** : `generate_text` (Gemini) a un timeout court (8 s) et retombe sur un **repli heuristique déterministe** (`heuristic_reply`, `heuristic_summary`, `detect_sentiment`, `detect_intent`, `next_best_actions`) — testable sans clé ni DB. `_combine_engines` indique quelle source (Gemini vs heuristique) a produit chaque champ.
-- Pas de tâche Celery, pas de proxy de nav dédié (consommé depuis les écrans Inbox/Tickets).
-
-### Portail locataire (module `tenant_portal`, pas de migration)
-
-Module `tenant_portal` (`/api/v1/tenant`) **sans table propre** : self-service du locataire connecté, sur le modèle de `client_portal`/`owner_portal`. Garde `require_roles("client", "admin", "manager")` au niveau routeur ; chaque endpoint résout le `tenant_profiles`/`clients.id` du JWT et **scope strictement** ses données (anti-BOLA : un locataire ne voit que SES paiements/tickets/conversations). Agrège en lecture/écriture les modules existants — `payments`, `ticketing`, `comms` — sans dupliquer leur logique.
-
-- **Routes** : `GET /tenant/dashboard` (synthèse) · `GET /tenant/payments` + `POST /tenant/payments/{request_id}/pay` · `GET|POST /tenant/tickets`, `GET /tenant/tickets/{id}`, `POST /tenant/tickets/{id}/comments` · `GET /tenant/chat`, `GET /tenant/chat/{conv_id}`.
-- Pas de tâche Celery. **Frontend dans `apps/portal`** (portail public, pas le back-office) : routes `app/[locale]/tenant/{,, chat, payments, tickets}` (dashboard + chat + paiements + tickets) consommant `/api/v1/tenant/**` via le proxy `app/api/proxy/[...path]`. Bundle i18n dédié `packages/i18n/locales/{ar,en,fr}/tenant.json`.
-
-### IAM — accès & permissions hiérarchiques (module `iam`, migration 0036)
-
-Module `iam` (`/api/v1/iam`) : RBAC fin par **arbre de ressources** + **héritage**, en cours sur la branche `feat/iam-access-control`. Remplace progressivement `require_roles` par `require_permission`. Pattern router/schemas/service/test, filtre `company_id` (Loi 1), helpers purs testés (résolution d'héritage sans DB). Tables (migration `0036_iam`, RLS) : `permission_nodes` (catalogue, nœuds système à `company_id` NULL + nœuds par tenant), `iam_groups`, `iam_units`, `iam_group_members`, `iam_unit_members`, `iam_access_grants`.
-
-- **Modèle** : un sujet de droits est un **groupe**, une **unité** (org) ou un **utilisateur** ; un *grant* (`allow`/`deny`) se pose sur un **nœud** du catalogue et **cascade à tous ses descendants**. Précédence à la résolution : user > unit > group, et un nœud plus profond l'emporte sur un ancêtre. Le catalogue est un arbre `category → page → section → field → action` ; les **clés sont stables** (ex. `realestate.contracts.delete`), jamais dérivées d'une URL.
-- **Catalogue statique** (`catalogue.py`) : **stdlib uniquement** (pas de FastAPI/SQLAlchemy) car importé par la migration pour seeder les nœuds système et les grants par défaut des groupes système. `service.ensure_seeded` réplique le catalogue par tenant à la demande. Pour ajouter une ressource gardable : déclarer le nœud ici (pas dans une migration ad hoc).
-- **Helpers purs** (`service.py`) : `build_parent_map`, `resolve_effective`, `subjects_for`, `allowed_keys`, `can`. Vérifier la résolution d'héritage avant de toucher la précédence.
-- **Garde** (`iam/deps.py`, `require_permission(node_key)`) : autorise si le nœud est *allow* dans les permissions effectives résolues, sinon 403. Isolé dans le module `iam` (pas dans `core/route_deps`) pour éviter un cycle d'import. **Cache Valkey** par `(company, user)` invalidé via un compteur de version par tenant (`bump_company_version` après tout changement de grant/membership).
-- **Routes** : `GET /iam/me/permissions` (ouvert à tout authentifié — hydrate le store front), `GET /iam/catalogue`, CRUD `/iam/{users,groups,units}` (+ membres `POST|DELETE …/members`), `GET|PUT /iam/grants`. Le module se gère via sa propre permission `settings.access.*` (par défaut admin seul). Anti-BOLA : 404, jamais 403, hors tenant.
-- **Frontend** (`apps/web`) : store React Context `lib/permissions.tsx` (hydraté depuis `/api/admin/iam/me/permissions`), gating nav/écran + composant `<Can node="…">` pour le gating de champ. **Permissif tant que non chargé** (`ready=false` → tout visible, pas de flash) ; une fois chargé, masque ce qui est *connu du catalogue* et non autorisé — la vraie sécurité reste backend. Écran `app/screens/access-manager.tsx` (Paramètres → Accès & Permissions). Proxies sous `app/api/admin/iam/**`.
+**Co-located module `CLAUDE.md` (under `apps/api/app/routers/{module}/`):**
+- `pdc/` — post-dated cheques, UAE state machine (migration 0003).
+- `telephony/` — Asterisk WebRTC contact centre + PDPL recording (migration 0028).
+- `inbox/` — omnichannel inbox + WhatsApp webhook + realtime WS (migration 0031).
+- `ticketing/` — client service desk, SLA escalation (migration 0032).
+- `copilot/` — agent assist over inbox/tickets, Gemini + heuristic fallback (no migration).
+- `tenant_portal/` — tenant self-service, strict BOLA scoping (no migration).
+- `iam/` — hierarchical RBAC, resource tree + inheritance (migration 0036).
+- `developers/` — real-estate developers directory (migration 0037).
 
 ## API Wiring
 
@@ -403,7 +275,7 @@ Module `iam` (`/api/v1/iam`) : RBAC fin par **arbre de ressources** + **héritag
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
 - Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`, `telephony`, `inbox`, `ticketing` (escalade SLA tickets, queue `reminders`, beat horaire).
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
-- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0037. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
+- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0041. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
 - **Production RLS activation runbook**: [DEPLOYMENT.md](DEPLOYMENT.md) — the one-step gotcha for going live (set `APP_DB_PASSWORD` so the API uses `sgi_app` and Law 1 RLS is actually enforced).
 
 ## CRM Business Rules

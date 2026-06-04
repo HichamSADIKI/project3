@@ -75,6 +75,7 @@ export const IcOrders    = () => <Ic><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0
 export const IcAudit     = () => <Ic><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></Ic>;
 export const IcTravail   = () => <Ic><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M12 12h.01M2 12h20"/></Ic>;
 export const IcMarketing = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/><circle cx="19" cy="5" r="2"/><path d="M19 3v4M17 5h4"/></Ic>;
+export const IcGlobe     = () => <Ic><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Ic>;
 export const IcNews      = () => <Ic><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></Ic>;
 export const IcCallCenter= () => <Ic><path d="M4 12a8 8 0 0 1 16 0"/><path d="M22 13v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2zM2 13v3a2 2 0 0 0 2 2h1v-7H4a2 2 0 0 0-2 2z"/><path d="M19 18v1a3 3 0 0 1-3 3h-3"/></Ic>;
 export const IcHamburger = () => (
@@ -130,7 +131,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_website" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -167,33 +168,35 @@ const NAV_ENTRIES: NavEntry[] = [
   },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
     children: [
-      // 💼 COMMERCIAL — pipeline, transactions, encaissements (1er : usage quotidien)
+      // 🎯 COMMERCIAL — entonnoir + transactions + publication web (usage quotidien)
       { key: "crm", icon: <IcCRM />, badge: 12, section: "commercial" },
+      { key: "realestate_marketing", icon: <IcMarketing />, section: "commercial" },
       { key: "realestate_process", icon: <IcTrend />, section: "commercial" },
       { key: "realestate_achat", icon: <IcFinance />, section: "commercial" },
       { key: "realestate_vente", icon: <IcContract />, section: "commercial" },
       { key: "realestate_location", icon: <IcProp />, section: "commercial" },
-      { key: "realestate_marketing", icon: <IcMarketing />, section: "commercial" },
+      { key: "realestate_website", icon: <IcGlobe />, section: "commercial" },
       { key: "realestate_contracts", icon: <IcContract />, section: "commercial" },
-      { key: "realestate_payments", icon: <IcFinance />, section: "commercial" },
-      { key: "realestate_cheques", icon: <IcReport />, section: "commercial" },
-      // 🏢 BIENS — le patrimoine géré
-      { key: "realestate_buildings", icon: <IcProp />, section: "biens" },
-      { key: "realestate_units", icon: <IcGrid />, section: "biens" },
-      { key: "realestate_branches", icon: <IcPin />, section: "biens" },
-      // 👥 CONTACTS — toutes les parties prenantes
-      { key: "realestate_owners", icon: <IcClients />, section: "personnes" },
-      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "personnes" },
-      { key: "realestate_tenants", icon: <IcPersonne />, section: "personnes" },
-      { key: "realestate_developers", icon: <IcWorkspace />, section: "personnes" },
-      // ⚙️ OPÉRATIONS — exploitation, relation client, admin
-      { key: "realestate_maintenance", icon: <IcClock />, section: "operations" },
-      { key: "realestate_comms", icon: <IcChat />, section: "operations" },
-      { key: "realestate_inbox", icon: <IcMail />, section: "operations" },
-      { key: "realestate_tickets", icon: <IcReport />, section: "operations" },
-      { key: "realestate_workflows", icon: <IcAudit />, section: "operations" },
-      { key: "realestate_documents", icon: <IcDoc />, section: "operations" },
-      { key: "realestate_settings", icon: <IcSettings />, section: "operations" },
+      // 🏢 PATRIMOINE — le stock géré
+      { key: "realestate_buildings", icon: <IcProp />, section: "patrimoine" },
+      { key: "realestate_units", icon: <IcGrid />, section: "patrimoine" },
+      { key: "realestate_branches", icon: <IcPin />, section: "patrimoine" },
+      // 👥 TIERS — toutes les parties prenantes
+      { key: "realestate_owners", icon: <IcClients />, section: "tiers" },
+      { key: "realestate_tenants", icon: <IcPersonne />, section: "tiers" },
+      { key: "realestate_developers", icon: <IcWorkspace />, section: "tiers" },
+      { key: "realestate_owner_portal", icon: <IcWorkspace />, section: "tiers" },
+      // 💰 FINANCE — encaissements
+      { key: "realestate_payments", icon: <IcFinance />, section: "finance" },
+      { key: "realestate_cheques", icon: <IcReport />, section: "finance" },
+      // 🛠️ SUPPORT & ADMIN — exploitation, relation client, config
+      { key: "realestate_maintenance", icon: <IcClock />, section: "support" },
+      { key: "realestate_comms", icon: <IcChat />, section: "support" },
+      { key: "realestate_inbox", icon: <IcMail />, section: "support" },
+      { key: "realestate_tickets", icon: <IcReport />, section: "support" },
+      { key: "realestate_workflows", icon: <IcAudit />, section: "support" },
+      { key: "realestate_documents", icon: <IcDoc />, section: "support" },
+      { key: "realestate_settings", icon: <IcSettings />, section: "support" },
     ],
   },
   { type: "group", id: "tourisme",    groupKey: "tourisme",    icon: <IcTourisme />,
@@ -366,7 +369,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate, realestate_process: t.nav_re_process,
-      realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing,
+      realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing, realestate_website: t.nav_re_website,
       realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
@@ -393,21 +396,23 @@ export function Sidebar({ active, onNavigate, onLogout }: {
   // Libellé d'un sous-thème (sous-titre interne à la rubrique Immobilier).
   const navSectionLabel = (section: string): string => {
     const map: Record<string, string> = {
-      biens: t.nav_re_sec_biens,
       commercial: t.nav_re_sec_commercial,
-      personnes: t.nav_re_sec_personnes,
-      operations: t.nav_re_sec_operations,
+      patrimoine: t.nav_re_sec_patrimoine,
+      tiers: t.nav_re_sec_tiers,
+      finance: t.nav_re_sec_finance,
+      support: t.nav_re_sec_support,
     };
     return map[section] ?? section;
   };
 
-  // Icône par pôle (4 pôles Immobilier) — repère visuel fort et lisible.
+  // Icône par pôle (5 pôles Immobilier) — repère visuel fort et lisible.
   const navSectionIcon = (section: string): React.ReactElement => {
     const map: Record<string, React.ReactElement> = {
-      commercial: <IcFinance />,
-      biens: <IcProp />,
-      personnes: <IcClients />,
-      operations: <IcSettings />,
+      commercial: <IcTrend />,
+      patrimoine: <IcProp />,
+      tiers: <IcClients />,
+      finance: <IcFinance />,
+      support: <IcSettings />,
     };
     return map[section] ?? <IcGrid />;
   };

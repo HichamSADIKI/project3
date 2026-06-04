@@ -20,6 +20,7 @@ class ListingOut(BaseModel):
     monthly_rent: Decimal
     annual_rent: Decimal | None
     status: str
+    slug: str | None = None
     is_featured: bool = False
     is_urgent: bool = False
     available_from: date | None
