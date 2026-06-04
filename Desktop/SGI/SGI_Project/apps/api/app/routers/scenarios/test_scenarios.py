@@ -17,14 +17,15 @@ from app.routers.scenarios import service, tts
 
 
 @pytest.fixture(autouse=True)
-def _stub_generate_delay(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Neutralise l'enqueue Celery (pas de broker en test) : les endpoints
-    create/generate laissent le scénario en `generating` — état vérifié par les
-    tests. Le rendu FFmpeg réel est couvert par les helpers purs `build_ffmpeg_command`.
+def _stub_enqueue_generate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Neutralise l'enqueue Celery (pas de broker en test, déterministe) : les
+    endpoints create/generate laissent le scénario en `generating` — état vérifié
+    par les tests. On patche `_enqueue_generate` (le point d'appel réel, qui passe
+    par `celery_app.send_task`) ; le rendu FFmpeg est couvert par les helpers purs.
     """
-    import app.tasks.scenarios as scenarios_task
+    import app.tasks.celery_app as celery_mod
 
-    monkeypatch.setattr(scenarios_task.generate, "delay", lambda *a, **k: None)
+    monkeypatch.setattr(celery_mod.celery_app, "send_task", lambda *a, **k: None)
 
 
 # ── Helpers purs ─────────────────────────────────────────────────────────────
