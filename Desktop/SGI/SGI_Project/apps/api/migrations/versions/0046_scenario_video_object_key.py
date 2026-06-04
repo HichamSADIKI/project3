@@ -4,8 +4,8 @@ Les URLs présignées MinIO plafonnent à 7 jours : stocker l'URL signée sur la
 faisait expirer le lien « Voir » au bout d'une semaine. On stocke désormais la clé
 objet (`video_object_key`) et on re-signe à chaque lecture → lien jamais périmé.
 
-Revision ID: 0045_scenario_video_object_key
-Revises: 0044_social_post_video
+Revision ID: 0046_scenario_video_object_key
+Revises: 0045_inbox_channel_configs
 """
 
 from collections.abc import Sequence
@@ -13,8 +13,8 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0045_scenario_video_object_key"
-down_revision = "0044_social_post_video"
+revision = "0046_scenario_video_object_key"
+down_revision = "0045_inbox_channel_configs"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
