@@ -230,7 +230,10 @@ export default function App() {
   return (
     <PermissionsProvider>
       <SoftphoneProvider>
-        <div style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}>
+        <div
+          data-testid="app-shell"
+          style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}
+        >
           <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
           <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
             <GatedScreen screen={screen}>
