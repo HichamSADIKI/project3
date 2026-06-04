@@ -71,6 +71,8 @@ class TestPureHelpers:
         assert not service.owns_ref(cid, f"scenarios/{other}/photo/a.jpg")
         # autre namespace de bucket (documents, fournisseurs…) → refusée
         assert not service.owns_ref(cid, f"fournisseurs/{other}/licence.jpg")
+        # traversal : préfixe correct mais `..` pour sortir du namespace → refusée
+        assert not service.owns_ref(cid, f"scenarios/{cid}/../{other}/photo/a.jpg")
 
     def test_build_ffmpeg_command_photos_only(self) -> None:
         cmd = service.build_ffmpeg_command(["/a.jpg", "/b.jpg"], None, "/out.mp4")

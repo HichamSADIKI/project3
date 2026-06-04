@@ -9,7 +9,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.contract import Contract
@@ -56,11 +56,23 @@ def apply_rent_escalation(amount: Decimal, pct: Decimal) -> Decimal:
     return escalated.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-async def _next_contract_sequence(db: AsyncSession, year: int) -> int:
-    """Calcule le prochain numéro de séquence pour les références de contrat."""
-    prefix = f"CNT-{year}-"
+async def _next_contract_sequence(db: AsyncSession, company_id: uuid.UUID, year: int) -> int:
+    """Prochain numéro de séquence pour les références de contrat DU tenant.
+
+    Filtre `company_id` (sinon, RLS inerte = compteur global, réfs devinables
+    entre sociétés) + verrou consultatif transactionnel (libéré au COMMIT) pour
+    sérialiser les créations concurrentes → COUNT+INSERT race-free, plus de
+    collision `CNT-AAAA-NNNN`. Aligné sur `_next_listing_reference` (leasing).
+    """
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:k))"),
+        {"k": f"CNT:contracts:{company_id}:{year}"},
+    )
     result = await db.execute(
-        select(func.count(Contract.id)).where(Contract.reference.like(f"{prefix}%"))
+        select(func.count(Contract.id)).where(
+            Contract.company_id == company_id,
+            Contract.reference.like(f"CNT-{year}-%"),
+        )
     )
     count: int = result.scalar_one()
     return count + 1
@@ -124,7 +136,7 @@ async def create_contract(
     """Crée un contrat avec référence auto-générée et commission calculée."""
     now = datetime.now(UTC)
     year = now.year
-    seq = await _next_contract_sequence(db, year)
+    seq = await _next_contract_sequence(db, company_id, year)
     reference = f"CNT-{year}-{seq:04d}"
 
     commission_amount = (
@@ -264,7 +276,7 @@ async def renew_contract(
     )
 
     now = datetime.now(UTC)
-    seq = await _next_contract_sequence(db, now.year)
+    seq = await _next_contract_sequence(db, company_id, now.year)
     reference = f"CNT-{now.year}-{seq:04d}"
     commission_amount = new_amount * Decimal(str(old.commission_rate)) / Decimal("100")
 
