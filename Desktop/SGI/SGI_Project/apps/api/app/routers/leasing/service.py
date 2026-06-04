@@ -56,6 +56,26 @@ def generate_reference(year: int, sequence: int) -> str:
     return f"LEAS-{year:04d}-{sequence:06d}"
 
 
+def build_slug(*titles: str | None, fallback: str, uniq: uuid.UUID) -> str:
+    """Slug vitrine kebab-case ASCII + suffixe court unique (anti-collision).
+
+    `uniq` (l'id de l'annonce) garantit l'unicité par société sans round-trip DB.
+    Pur, testable.
+    """
+    base = next((t for t in titles if t), None) or fallback
+    out: list[str] = []
+    for ch in base.lower():
+        if ch.isascii() and ch.isalnum():
+            out.append(ch)
+        elif ch in " -_/—":
+            out.append("-")
+    slug = "".join(out)
+    while "--" in slug:
+        slug = slug.replace("--", "-")
+    slug = slug.strip("-") or "annonce"
+    return f"{slug}-{uniq.hex[:6]}"
+
+
 def is_valid_listing_transition(current: str, target: str) -> bool:
     """Vrai si la transition d'annonce `current -> target` est autorisée."""
     if current not in LISTING_STATUSES or target not in LISTING_STATUSES or current == target:
@@ -203,8 +223,18 @@ async def transition_listing(
         raise ValueError(f"invalid_transition:{listing.status}->{new_status}")
     now = datetime.now(UTC)
     listing.status = new_status
-    if new_status == "published" and listing.published_at is None:
-        listing.published_at = now
+    if new_status == "published":
+        if listing.published_at is None:
+            listing.published_at = now
+        # Slug requis par la vitrine publique : généré à la 1re publication.
+        if not listing.slug:
+            listing.slug = build_slug(
+                listing.title_en,
+                listing.title_ar,
+                listing.title_fr,
+                fallback=listing.reference,
+                uniq=listing.id,
+            )
     listing.updated_at = now
     await db.commit()
     await db.refresh(listing)

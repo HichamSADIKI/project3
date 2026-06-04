@@ -10,8 +10,8 @@ export type Translations = {
   // Nav
   nav_dash: string; nav_prop: string; nav_crm: string;
   nav_contract: string; nav_rental: string; nav_realestate: string;
-  nav_re_sec_biens: string; nav_re_sec_commercial: string;
-  nav_re_sec_personnes: string; nav_re_sec_operations: string;
+  nav_re_sec_commercial: string; nav_re_sec_patrimoine: string;
+  nav_re_sec_tiers: string; nav_re_sec_finance: string; nav_re_sec_support: string;
   nav_admin: string; nav_tourisme: string; nav_sante: string;
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
@@ -33,7 +33,12 @@ export type Translations = {
   nav_developers: string; dev_subtitle: string; dev_count: string; dev_empty: string; dev_new: string;
   st_scheduled: string; st_paused: string;
   re_showcase: string; st_featured: string; st_urgent: string;
-  nav_re_marketing: string;
+  nav_re_marketing: string; nav_re_website: string;
+  web_subtitle: string; web_view_site: string;
+  web_kpi_online: string; web_kpi_draft: string; web_kpi_featured: string; web_kpi_urgent: string;
+  web_all: string; web_sale: string; web_rent: string;
+  web_publish: string; web_unpublish: string; web_view: string; web_empty: string;
+  web_badge_online: string; web_badge_draft: string; web_offline: string;
   mkt_campaigns: string; mkt_kpis: string; mkt_name: string; mkt_channel: string;
   mkt_budget: string; mkt_spend: string; mkt_impressions: string; mkt_clicks: string;
   mkt_leads: string; mkt_click_rate: string; mkt_starts_on: string; mkt_ends_on: string;
@@ -278,8 +283,8 @@ const ar: Translations = {
 
   nav_dash: "لوحة القيادة", nav_prop: "العقارات", nav_crm: "إدارة العملاء",
   nav_contract: "العقود", nav_rental: "الإيجارات", nav_realestate: "العقارات",
-  nav_re_sec_biens: "الممتلكات", nav_re_sec_commercial: "التجاري",
-  nav_re_sec_personnes: "جهات الاتصال", nav_re_sec_operations: "العمليات",
+  nav_re_sec_commercial: "التجاري", nav_re_sec_patrimoine: "الممتلكات",
+  nav_re_sec_tiers: "الأطراف", nav_re_sec_finance: "المالية", nav_re_sec_support: "الدعم والإدارة",
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
@@ -301,7 +306,12 @@ const ar: Translations = {
   nav_developers: "المطوّرون", dev_subtitle: "المطوّرون العقاريون ومشاريعهم.", dev_count: "مطوّر", dev_empty: "لا يوجد مطوّرون.", dev_new: "مطوّر جديد",
   st_scheduled: "مجدول", st_paused: "متوقف مؤقتًا",
   re_showcase: "الواجهة", st_featured: "مميّز", st_urgent: "عاجل",
-  nav_re_marketing: "التسويق العقاري",
+  nav_re_marketing: "التسويق العقاري", nav_re_website: "الموقع الإلكتروني",
+  web_subtitle: "إدارة واجهة الموقع العام — البيع والإيجار", web_view_site: "عرض الموقع",
+  web_kpi_online: "منشور", web_kpi_draft: "مسودة", web_kpi_featured: "مميّز", web_kpi_urgent: "عاجل",
+  web_all: "الكل", web_sale: "للبيع", web_rent: "للإيجار",
+  web_publish: "نشر", web_unpublish: "إلغاء النشر", web_view: "عرض", web_empty: "لا توجد إعلانات",
+  web_badge_online: "منشور", web_badge_draft: "مسودة", web_offline: "غير منشور",
   mkt_campaigns: "الحملات", mkt_kpis: "المؤشرات", mkt_name: "الاسم", mkt_channel: "القناة",
   mkt_budget: "الميزانية (د.إ)", mkt_spend: "الإنفاق", mkt_impressions: "مرات الظهور", mkt_clicks: "النقرات",
   mkt_leads: "العملاء المحتملون", mkt_click_rate: "معدل النقر", mkt_starts_on: "تاريخ البدء", mkt_ends_on: "تاريخ الانتهاء",
@@ -540,8 +550,8 @@ const en: Translations = {
 
   nav_dash: "Dashboard", nav_prop: "Properties", nav_crm: "CRM",
   nav_contract: "Contracts", nav_rental: "Rentals", nav_realestate: "Real Estate",
-  nav_re_sec_biens: "Properties", nav_re_sec_commercial: "Commercial",
-  nav_re_sec_personnes: "Contacts", nav_re_sec_operations: "Operations",
+  nav_re_sec_commercial: "Commercial", nav_re_sec_patrimoine: "Properties",
+  nav_re_sec_tiers: "Parties", nav_re_sec_finance: "Finance", nav_re_sec_support: "Support & Admin",
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
@@ -563,7 +573,12 @@ const en: Translations = {
   nav_developers: "Developers", dev_subtitle: "Property developers and their projects.", dev_count: "developers", dev_empty: "No developers yet.", dev_new: "New developer",
   st_scheduled: "Scheduled", st_paused: "Paused",
   re_showcase: "Showcase", st_featured: "Featured", st_urgent: "Urgent",
-  nav_re_marketing: "Real estate marketing",
+  nav_re_marketing: "Real estate marketing", nav_re_website: "Website",
+  web_subtitle: "Manage the public showcase — sales & rentals", web_view_site: "View site",
+  web_kpi_online: "Online", web_kpi_draft: "Drafts", web_kpi_featured: "Featured", web_kpi_urgent: "Urgent",
+  web_all: "All", web_sale: "For sale", web_rent: "For rent",
+  web_publish: "Publish", web_unpublish: "Unpublish", web_view: "View", web_empty: "No listings",
+  web_badge_online: "Online", web_badge_draft: "Draft", web_offline: "Offline",
   mkt_campaigns: "Campaigns", mkt_kpis: "KPIs", mkt_name: "Name", mkt_channel: "Channel",
   mkt_budget: "Budget (AED)", mkt_spend: "Spend", mkt_impressions: "Impressions", mkt_clicks: "Clicks",
   mkt_leads: "Leads", mkt_click_rate: "Click rate", mkt_starts_on: "Start date", mkt_ends_on: "End date",
@@ -802,8 +817,8 @@ const fr: Translations = {
 
   nav_dash: "Tableau de bord", nav_prop: "Propriétés", nav_crm: "CRM",
   nav_contract: "Contrats", nav_rental: "Locations", nav_realestate: "Immobilier",
-  nav_re_sec_biens: "Biens", nav_re_sec_commercial: "Commercial",
-  nav_re_sec_personnes: "Contacts", nav_re_sec_operations: "Opérations",
+  nav_re_sec_commercial: "Commercial", nav_re_sec_patrimoine: "Patrimoine",
+  nav_re_sec_tiers: "Tiers", nav_re_sec_finance: "Finance", nav_re_sec_support: "Support & Admin",
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
@@ -825,7 +840,12 @@ const fr: Translations = {
   nav_developers: "Promoteurs", dev_subtitle: "Promoteurs immobiliers et leurs projets.", dev_count: "promoteurs", dev_empty: "Aucun promoteur pour le moment.", dev_new: "Nouveau promoteur",
   st_scheduled: "Planifiée", st_paused: "En pause",
   re_showcase: "Vitrine", st_featured: "À la une", st_urgent: "Urgent",
-  nav_re_marketing: "Marketing immobilier",
+  nav_re_marketing: "Marketing immobilier", nav_re_website: "Site web",
+  web_subtitle: "Pilotez la vitrine publique — vente & location", web_view_site: "Voir le site",
+  web_kpi_online: "En ligne", web_kpi_draft: "Brouillons", web_kpi_featured: "À la une", web_kpi_urgent: "Urgents",
+  web_all: "Tous", web_sale: "À vendre", web_rent: "À louer",
+  web_publish: "Publier", web_unpublish: "Retirer du site", web_view: "Voir", web_empty: "Aucune annonce",
+  web_badge_online: "En ligne", web_badge_draft: "Brouillon", web_offline: "Hors ligne",
   mkt_campaigns: "Campagnes", mkt_kpis: "Indicateurs", mkt_name: "Nom", mkt_channel: "Canal",
   mkt_budget: "Budget (AED)", mkt_spend: "Dépense", mkt_impressions: "Impressions", mkt_clicks: "Clics",
   mkt_leads: "Prospects", mkt_click_rate: "Taux de clic", mkt_starts_on: "Date de début", mkt_ends_on: "Date de fin",
