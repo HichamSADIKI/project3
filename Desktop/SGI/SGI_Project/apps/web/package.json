@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "e2e:assistant": "node e2e/assistant.e2e.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
