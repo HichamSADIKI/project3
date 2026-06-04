@@ -12,6 +12,7 @@ import { postJson, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 import { ListingFlagToggle } from "@/components/listing-flag-toggle";
 import { ListingOnlineToggle } from "@/components/listing-online-toggle";
+import { SocialPublish, type SocialPost } from "@/components/social-publish";
 
 // Câblé sur /api/admin/sales/* → /api/v1/sales/* (module Vente : pipeline
 // mandat → annonce → offre → transaction).
@@ -191,6 +192,12 @@ function MandatesTab({ t }: { t: Translations }) {
 function ListingsTab({ t }: { t: Translations }) {
   const { lang } = useLang();
   const { items, loading, error, reload } = useApiList<Listing>("/api/admin/sales/listings?limit=100");
+  const social = useApiList<SocialPost>("/api/admin/social/posts?listing_type=sale&limit=500");
+  const socialByListing = React.useMemo(() => {
+    const m: Record<string, SocialPost[]> = {};
+    for (const p of social.items) (m[p.listing_id] ??= []).push(p);
+    return m;
+  }, [social.items]);
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);
@@ -258,7 +265,8 @@ function ListingsTab({ t }: { t: Translations }) {
                 </td>
                 <td style={tdEnd}>
                   {busy === x.id ? <span style={{ color: "var(--ink-4)" }}>…</span> : (
-                    <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end" }}>
+                    <span style={{ display: "inline-flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+                      <SocialPublish t={t} listingType="sale" listingId={x.id} posts={socialByListing[x.id] ?? []} onChanged={social.reload} />
                       {x.status === "published" && x.slug && (
                         <a href={`${PORTAL_URL}/${lang}/property/${x.slug}`} target="_blank" rel="noopener noreferrer" style={{ ...actBtn("var(--gold-deep)", "rgba(212,160,55,0.14)"), textDecoration: "none" }}>{t.web_view}</a>
                       )}

@@ -39,6 +39,7 @@ export type Translations = {
   web_all: string; web_sale: string; web_rent: string;
   web_publish: string; web_unpublish: string; web_view: string; web_empty: string;
   web_badge_online: string; web_badge_draft: string; web_offline: string;
+  social_btn: string; social_title: string; social_subtitle: string; social_publish: string; social_published: string;
   mkt_campaigns: string; mkt_kpis: string; mkt_name: string; mkt_channel: string;
   mkt_budget: string; mkt_spend: string; mkt_impressions: string; mkt_clicks: string;
   mkt_leads: string; mkt_click_rate: string; mkt_starts_on: string; mkt_ends_on: string;
@@ -312,6 +313,7 @@ const ar: Translations = {
   web_all: "الكل", web_sale: "للبيع", web_rent: "للإيجار",
   web_publish: "نشر", web_unpublish: "إلغاء النشر", web_view: "عرض", web_empty: "لا توجد إعلانات",
   web_badge_online: "منشور", web_badge_draft: "مسودة", web_offline: "غير منشور",
+  social_btn: "تواصل اجتماعي", social_title: "النشر على وسائل التواصل", social_subtitle: "اختر القنوات لنشر الإعلان عليها.", social_publish: "نشر", social_published: "منشور",
   mkt_campaigns: "الحملات", mkt_kpis: "المؤشرات", mkt_name: "الاسم", mkt_channel: "القناة",
   mkt_budget: "الميزانية (د.إ)", mkt_spend: "الإنفاق", mkt_impressions: "مرات الظهور", mkt_clicks: "النقرات",
   mkt_leads: "العملاء المحتملون", mkt_click_rate: "معدل النقر", mkt_starts_on: "تاريخ البدء", mkt_ends_on: "تاريخ الانتهاء",
@@ -579,6 +581,7 @@ const en: Translations = {
   web_all: "All", web_sale: "For sale", web_rent: "For rent",
   web_publish: "Publish", web_unpublish: "Unpublish", web_view: "View", web_empty: "No listings",
   web_badge_online: "Online", web_badge_draft: "Draft", web_offline: "Offline",
+  social_btn: "Social", social_title: "Publish to social media", social_subtitle: "Pick the channels to publish this listing on.", social_publish: "Publish", social_published: "Published",
   mkt_campaigns: "Campaigns", mkt_kpis: "KPIs", mkt_name: "Name", mkt_channel: "Channel",
   mkt_budget: "Budget (AED)", mkt_spend: "Spend", mkt_impressions: "Impressions", mkt_clicks: "Clicks",
   mkt_leads: "Leads", mkt_click_rate: "Click rate", mkt_starts_on: "Start date", mkt_ends_on: "End date",
@@ -846,6 +849,7 @@ const fr: Translations = {
   web_all: "Tous", web_sale: "À vendre", web_rent: "À louer",
   web_publish: "Publier", web_unpublish: "Retirer du site", web_view: "Voir", web_empty: "Aucune annonce",
   web_badge_online: "En ligne", web_badge_draft: "Brouillon", web_offline: "Hors ligne",
+  social_btn: "Réseaux", social_title: "Publier sur les réseaux sociaux", social_subtitle: "Choisissez les canaux où publier cette annonce.", social_publish: "Publier", social_published: "Publié",
   mkt_campaigns: "Campagnes", mkt_kpis: "Indicateurs", mkt_name: "Nom", mkt_channel: "Canal",
   mkt_budget: "Budget (AED)", mkt_spend: "Dépense", mkt_impressions: "Impressions", mkt_clicks: "Clics",
   mkt_leads: "Prospects", mkt_click_rate: "Taux de clic", mkt_starts_on: "Date de début", mkt_ends_on: "Date de fin",
