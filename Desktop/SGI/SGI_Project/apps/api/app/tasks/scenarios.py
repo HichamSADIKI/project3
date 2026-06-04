@@ -3,10 +3,11 @@
 Queue : exports (traitement lourd non temps-réel).
 
 `generate` produit une **vraie vidéo** via **FFmpeg** : un diaporama vertical
-9:16 des photos uploadées + (optionnel) la voix enregistrée, encodé H.264 et
-uploadé sur MinIO. Statut `generating` → `ready` (avec URL signée) ou `failed`
-(avec message d'erreur). La voix d'avatar (TTS) reste à brancher — sans audio le
-diaporama est silencieux.
+9:16 des photos uploadées + une **voix** — soit la voix d'avatar **synthétisée**
+(Azure TTS depuis le script, voix par genre × langue), soit la voix enregistrée
+au micro. La durée du diaporama est calée sur celle de la voix. Encodé H.264 et
+uploadé sur MinIO. Statut `generating` → `ready` (URL signée) ou `failed`. Sans
+clé Azure ni audio enregistré, le diaporama est silencieux (repli gracieux).
 
 Rôle privilégié (`sync_session_maker`) comme les autres tâches, mais on pose le
 GUC tenant et on filtre explicitement par `company_id` (Loi 1).
@@ -25,8 +26,10 @@ from sqlalchemy import select, text
 
 from app.core import storage
 from app.core.database import sync_session_maker
+from app.routers.scenarios import tts
 from app.routers.scenarios.models import VideoScenario
 from app.routers.scenarios.service import (
+    SECONDS_PER_PHOTO,
     VIDEO_URL_TTL,
     build_ffmpeg_command,
     ffmpeg_output_key,
@@ -37,8 +40,46 @@ logger = logging.getLogger(__name__)
 _FFMPEG_TIMEOUT_S = 180
 
 
+def _probe_duration(path: str) -> float:
+    """Durée (secondes) d'un média via ffprobe. 0 si indisponible."""
+    args = [
+        "ffprobe",
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=nw=1:nk=1",
+        path,
+    ]
+    try:
+        out = subprocess.run(args, capture_output=True, timeout=30)  # noqa: S603
+        return float(out.stdout.decode().strip() or 0)
+    except Exception:  # noqa: BLE001
+        return 0.0
+
+
+def _prepare_audio(scenario: VideoScenario, tmp: str) -> str | None:
+    """Voix de la vidéo : TTS avatar (script) si dispo, sinon audio enregistré."""
+    if scenario.voice_mode == "avatar" and scenario.script:
+        speech = tts.synthesize(scenario.script, gender=scenario.avatar or "female")
+        if speech:
+            path = os.path.join(tmp, "voice.mp3")
+            with open(path, "wb") as fh:
+                fh.write(speech)
+            return path
+        return None  # TTS non configuré → diaporama silencieux
+    if scenario.audio_ref:
+        adata, _ = storage.download_bytes(scenario.audio_ref)
+        path = os.path.join(tmp, "audio" + (os.path.splitext(scenario.audio_ref)[1] or ".webm"))
+        with open(path, "wb") as fh:
+            fh.write(adata)
+        return path
+    return None
+
+
 def _render_video(scenario: VideoScenario) -> str:
-    """Télécharge photos/audio, assemble la vidéo FFmpeg, uploade → clé MinIO."""
+    """Télécharge photos + voix, assemble la vidéo FFmpeg, uploade → clé MinIO."""
     if not scenario.photo_refs:
         raise RuntimeError("no_photos")
     with tempfile.TemporaryDirectory() as tmp:
@@ -51,17 +92,17 @@ def _render_video(scenario: VideoScenario) -> str:
                 fh.write(data)
             image_paths.append(path)
 
-        audio_path: str | None = None
-        if scenario.audio_ref:
-            adata, _ = storage.download_bytes(scenario.audio_ref)
-            audio_path = os.path.join(
-                tmp, "audio" + (os.path.splitext(scenario.audio_ref)[1] or ".webm")
-            )
-            with open(audio_path, "wb") as fh:
-                fh.write(adata)
+        audio_path = _prepare_audio(scenario, tmp)
+        # Si on a une voix : caler la durée du diaporama sur celle de la voix
+        # (chaque photo dure narration / nb_photos, borné [2 s, 8 s]).
+        spp = SECONDS_PER_PHOTO
+        if audio_path:
+            dur = _probe_duration(audio_path)
+            if dur > 0:
+                spp = min(8.0, max(2.0, dur / len(image_paths)))
 
         out_path = os.path.join(tmp, "out.mp4")
-        cmd = build_ffmpeg_command(image_paths, audio_path, out_path)
+        cmd = build_ffmpeg_command(image_paths, audio_path, out_path, seconds_per_image=spp)
         proc = subprocess.run(cmd, capture_output=True, timeout=_FFMPEG_TIMEOUT_S)  # noqa: S603
         if proc.returncode != 0:
             tail = proc.stderr.decode("utf-8", "replace")[-300:]

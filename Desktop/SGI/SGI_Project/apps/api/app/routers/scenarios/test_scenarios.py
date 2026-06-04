@@ -13,7 +13,7 @@ from app.models.client import Client
 from app.models.company import Company
 from app.models.user import User
 from app.routers.sales import service as sales_service
-from app.routers.scenarios import service
+from app.routers.scenarios import service, tts
 
 # ── Helpers purs ─────────────────────────────────────────────────────────────
 
@@ -69,6 +69,63 @@ class TestPureHelpers:
 
         with _pytest.raises(ValueError, match="at_least_one_image"):
             service.build_ffmpeg_command([], None, "/out.mp4")
+
+
+# ── TTS Azure (helpers purs + synthèse mockée) ───────────────────────────────
+
+
+class TestTts:
+    def test_detect_language(self) -> None:
+        assert tts.detect_language("مرحبا بكم في هذا العقار") == "ar"
+        assert tts.detect_language("Découvrez cette villa à la mer") == "fr"
+        assert tts.detect_language("Welcome to this amazing property") == "en"
+
+    def test_voice_name(self) -> None:
+        assert tts.voice_name("male", "ar") == "ar-AE-HamdanNeural"
+        assert tts.voice_name("female", "ar") == "ar-AE-FatimaNeural"
+        assert tts.voice_name("male", "en") == "en-US-GuyNeural"
+        # genre inconnu → femme ; langue inconnue → arabe
+        assert tts.voice_name("robot", "en") == "en-US-JennyNeural"
+        assert tts.voice_name("male", "xx") == "ar-AE-HamdanNeural"
+
+    def test_build_ssml_escapes(self) -> None:
+        ssml = tts.build_ssml("A & B <x>", voice="ar-AE-FatimaNeural", lang="ar")
+        assert "ar-AE-FatimaNeural" in ssml and "xml:lang='ar-AE'" in ssml
+        assert "&amp;" in ssml and "&lt;x&gt;" in ssml and "<x>" not in ssml
+
+    def test_synthesize_none_when_not_configured(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tts.settings, "AZURE_SPEECH_KEY", "")
+        monkeypatch.setattr(tts.settings, "AZURE_SPEECH_REGION", "")
+        assert tts.synthesize("bonjour", gender="female") is None
+
+    def test_synthesize_none_when_empty_text(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tts.settings, "AZURE_SPEECH_KEY", "k")
+        monkeypatch.setattr(tts.settings, "AZURE_SPEECH_REGION", "uaenorth")
+        assert tts.synthesize("   ", gender="female") is None
+
+    def test_synthesize_ok_and_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(tts.settings, "AZURE_SPEECH_KEY", "k")
+        monkeypatch.setattr(tts.settings, "AZURE_SPEECH_REGION", "uaenorth")
+
+        class _Resp:
+            def __init__(self, code: int, content: bytes = b"") -> None:
+                self.status_code = code
+                self.content = content
+                self.text = ""
+
+        captured: dict[str, object] = {}
+
+        def _fake_post(url: str, **kwargs: object) -> _Resp:
+            captured["url"] = url
+            return _Resp(200, b"MP3DATA")
+
+        monkeypatch.setattr(tts.httpx, "post", _fake_post)
+        out = tts.synthesize("Welcome to this villa", gender="male")
+        assert out == b"MP3DATA"
+        assert "uaenorth.tts.speech.microsoft.com" in str(captured["url"])
+
+        monkeypatch.setattr(tts.httpx, "post", lambda *a, **k: _Resp(401, b""))
+        assert tts.synthesize("hello", gender="male") is None
 
 
 # ── Fixture de données ───────────────────────────────────────────────────────
