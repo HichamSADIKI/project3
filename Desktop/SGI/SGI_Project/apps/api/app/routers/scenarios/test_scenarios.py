@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
@@ -14,6 +15,7 @@ from app.models.company import Company
 from app.models.user import User
 from app.routers.sales import service as sales_service
 from app.routers.scenarios import service, tts
+from app.routers.scenarios.models import VideoScenario
 
 
 @pytest.fixture(autouse=True)
@@ -341,3 +343,84 @@ async def test_create_rejects_foreign_ref(
     p["avatar"] = None
     p["audio_ref"] = f"fournisseurs/{other}/licence.webm"
     assert (await client.post("/api/v1/scenarios/", headers=h, json=p)).status_code == 422
+
+
+# ── scenario_to_out : re-signature de l'URL vidéo à la lecture (URL durable) ──
+
+
+def _ready_scenario(**over: object) -> VideoScenario:
+    """Fabrique un VideoScenario en mémoire (non persisté) pour les tests purs."""
+    base: dict[str, object] = dict(
+        id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        listing_type="sale",
+        listing_id=uuid.uuid4(),
+        title="Annonce démo",
+        voice_mode="avatar",
+        avatar="female",
+        script=None,
+        photo_refs=[],
+        audio_ref=None,
+        status="ready",
+        video_object_key="scenarios/c/s/out.mp4",
+        video_url="https://minio/stale?expired=1",
+        error=None,
+        created_at=datetime.now(UTC),
+    )
+    base.update(over)
+    return VideoScenario(**base)
+
+
+class TestScenarioToOut:
+    """`scenario_to_out` re-signe l'URL vidéo à chaque lecture (lien jamais périmé)."""
+
+    async def test_ready_with_object_key_resigns_fresh(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        calls: list[str] = []
+
+        async def fake_presign(key: str, *a: object, **k: object) -> str:
+            calls.append(key)
+            return "https://minio/fresh?sig=new"
+
+        monkeypatch.setattr(service.storage, "presigned_url", fake_presign)
+        out = await service.scenario_to_out(_ready_scenario())
+        assert out.video_url == "https://minio/fresh?sig=new"
+        assert calls == ["scenarios/c/s/out.mp4"]
+
+    async def test_legacy_without_object_key_keeps_stored_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        called = False
+
+        async def fake_presign(key: str, *a: object, **k: object) -> str:
+            nonlocal called
+            called = True
+            return "https://minio/fresh"
+
+        monkeypatch.setattr(service.storage, "presigned_url", fake_presign)
+        scenario = _ready_scenario(video_object_key=None, video_url="https://legacy/url")
+        out = await service.scenario_to_out(scenario)
+        assert out.video_url == "https://legacy/url"
+        assert called is False
+
+    async def test_not_ready_does_not_presign(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        async def boom(key: str, *a: object, **k: object) -> str:
+            raise AssertionError("presign ne doit pas être appelé hors statut ready")
+
+        monkeypatch.setattr(service.storage, "presigned_url", boom)
+        scenario = _ready_scenario(status="generating", video_url=None)
+        out = await service.scenario_to_out(scenario)
+        assert out.video_url is None
+
+    async def test_presign_failure_falls_back_to_stored_url(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def none_presign(key: str, *a: object, **k: object) -> None:
+            return None  # MinIO indisponible → presigned_url renvoie None
+
+        monkeypatch.setattr(service.storage, "presigned_url", none_presign)
+        scenario = _ready_scenario(video_url="https://minio/last-known")
+        out = await service.scenario_to_out(scenario)
+        # Pas de fraîche URL → on conserve la dernière connue (pas de régression).
+        assert out.video_url == "https://minio/last-known"

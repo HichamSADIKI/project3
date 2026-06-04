@@ -15,7 +15,9 @@ from datetime import UTC, datetime
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core import storage
 from app.routers.scenarios.models import VideoScenario
+from app.routers.scenarios.schemas import ScenarioOut
 
 AVATARS: tuple[str, ...] = ("male", "female")
 VOICE_MODES: frozenset[str] = frozenset({"avatar", "recorded"})
@@ -50,6 +52,22 @@ def is_valid_listing_type(listing_type: str) -> bool:
 def avatar_voice_label(avatar: str | None) -> str:
     """Libellé de la voix générée selon l'avatar choisi (pur, testable)."""
     return {"male": "voix masculine", "female": "voix féminine"}.get(avatar or "", "voix")
+
+
+async def scenario_to_out(scenario: VideoScenario) -> ScenarioOut:
+    """Sérialise un scénario en **re-signant l'URL vidéo à la lecture**.
+
+    Le rendu FFmpeg stocke la clé objet MinIO (`video_object_key`). Comme une URL
+    présignée MinIO plafonne à 7 jours, on la régénère à CHAQUE lecture → le lien
+    « Voir » ne périme jamais. Repli legacy/stub : sans clé objet (anciennes lignes
+    ou génération stub), on conserve le `video_url` stocké.
+    """
+    out = ScenarioOut.model_validate(scenario)
+    if scenario.status == "ready" and scenario.video_object_key:
+        fresh = await storage.presigned_url(scenario.video_object_key)
+        if fresh:
+            out.video_url = fresh
+    return out
 
 
 def stub_video_url(scenario_id: uuid.UUID) -> str:
