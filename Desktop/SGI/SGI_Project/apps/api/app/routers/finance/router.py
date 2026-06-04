@@ -3,6 +3,7 @@
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,6 +27,7 @@ from app.routers.finance.service import (
     get_transaction,
     get_vat_report,
     list_transactions,
+    transactions_csv,
     update_transaction,
 )
 
@@ -125,6 +127,28 @@ async def list_transactions_endpoint(
     return TransactionListOut(
         data=[TransactionOut.model_validate(t) for t in transactions],
         meta={"total": total, "page": page, "limit": limit},
+    )
+
+
+# Déclaré AVANT /transactions/{txn_id} pour que « export » ne soit pas pris pour un id.
+@router.get("/transactions/export")
+async def export_transactions_csv(
+    type_filter: str | None = Query(
+        None, alias="type", pattern="^(invoice|payment|expense|commission|refund)$"
+    ),
+    status_filter: str | None = Query(
+        None, alias="status", pattern="^(pending|paid|cancelled|overdue)$"
+    ),
+    direction: str | None = Query(None, pattern="^(debit|credit)$"),
+    db: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Export CSV des transactions du tenant (téléchargement)."""
+    company_id = await _get_company_id(db)
+    csv_text = await transactions_csv(db, company_id, type_filter, status_filter, direction)
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="transactions.csv"'},
     )
 
 

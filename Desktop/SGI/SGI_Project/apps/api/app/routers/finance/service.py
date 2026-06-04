@@ -1,5 +1,7 @@
 """Service — Finance. Toujours filtrer par company_id (Loi 1)."""
 
+import csv
+import io
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -375,3 +377,64 @@ async def get_vat_report(
         input_vat=vat["input_vat"],
         net_vat=vat["net_vat"],
     )
+
+
+# ── Export comptable (CSV) ────────────────────────────────────────────────
+
+CSV_COLUMNS = (
+    "reference",
+    "date",
+    "type",
+    "direction",
+    "amount",
+    "currency",
+    "status",
+    "due_date",
+    "paid_at",
+    "description",
+)
+
+
+async def transactions_csv(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    type_: str | None = None,
+    status: str | None = None,
+    direction: str | None = None,
+) -> str:
+    """Export CSV des transactions du tenant (filtres optionnels), ordre antéchrono.
+
+    Description = 1re valeur non vide parmi fr/en/ar. Montants bruts (point décimal)."""
+    query = select(FinanceTransaction).where(
+        FinanceTransaction.company_id == company_id,
+        FinanceTransaction.deleted_at.is_(None),
+    )
+    if type_:
+        query = query.where(FinanceTransaction.type == type_)
+    if status:
+        query = query.where(FinanceTransaction.status == status)
+    if direction:
+        query = query.where(FinanceTransaction.direction == direction)
+    query = query.order_by(FinanceTransaction.created_at.desc())
+    rows = (await db.execute(query)).scalars().all()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(CSV_COLUMNS)
+    for t in rows:
+        desc = t.description_fr or t.description_en or t.description_ar or ""
+        writer.writerow(
+            [
+                t.reference,
+                t.created_at.date().isoformat() if t.created_at else "",
+                t.type,
+                t.direction,
+                f"{t.amount:.2f}",
+                t.currency,
+                t.status,
+                t.due_date.isoformat() if t.due_date else "",
+                t.paid_at.isoformat() if t.paid_at else "",
+                desc,
+            ]
+        )
+    return buf.getvalue()
