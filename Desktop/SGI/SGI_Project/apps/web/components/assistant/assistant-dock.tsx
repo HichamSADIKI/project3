@@ -122,37 +122,117 @@ export function AssistantDock({
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages, loading, open]);
 
+  // Met à jour le contenu du dernier message assistant (streaming des deltas).
+  function appendToLastAssistant(delta: string): void {
+    setMessages((prev) => {
+      const c = [...prev];
+      const last = c[c.length - 1];
+      if (last && last.role === "assistant") c[c.length - 1] = { ...last, content: last.content + delta };
+      return c;
+    });
+  }
+  function finalizeLastAssistant(nav: NavSuggestion[], prefill?: AssistantPrefill): void {
+    setMessages((prev) => {
+      const c = [...prev];
+      const last = c[c.length - 1];
+      if (last && last.role === "assistant") c[c.length - 1] = { ...last, nav, prefill };
+      return c;
+    });
+  }
+
+  /** Tente la réponse en streaming (SSE). Lève si le flux est indisponible
+   *  AVANT tout affichage (→ repli non-stream). */
+  async function streamReply(convo: ChatMessage[]): Promise<void> {
+    const res = await fetch("/api/admin/copilot/chat/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        messages: convo.map((m) => ({ role: m.role, content: m.content })),
+        locale: lang,
+        screen,
+      }),
+    });
+    if (!res.ok || !res.body) throw new Error("stream-unavailable");
+
+    // Placeholder assistant qui se remplit au fil des deltas.
+    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    let nav: NavSuggestion[] = [];
+    let prefill: AssistantPrefill | undefined;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const events = buf.split("\n\n");
+      buf = events.pop() ?? "";
+      for (const evt of events) {
+        const data = evt
+          .split("\n")
+          .filter((l) => l.startsWith("data:"))
+          .map((l) => l.slice(5).trim())
+          .join("");
+        if (!data) continue;
+        try {
+          const obj = JSON.parse(data) as {
+            delta?: string;
+            done?: boolean;
+            suggested_navigation?: NavSuggestion[];
+            prefill?: AssistantPrefill;
+          };
+          if (typeof obj.delta === "string") appendToLastAssistant(obj.delta);
+          else if (obj.done) {
+            nav = obj.suggested_navigation ?? [];
+            prefill = obj.prefill;
+          }
+        } catch {
+          /* événement partiel/illisible : ignoré */
+        }
+      }
+    }
+    finalizeLastAssistant(nav, prefill);
+    cheer();
+  }
+
+  /** Repli non-streaming (endpoint /chat classique). */
+  async function nonStreamReply(convo: ChatMessage[]): Promise<void> {
+    const res = await postJson("/api/admin/copilot/chat", {
+      messages: convo.map((m) => ({ role: m.role, content: m.content })),
+      locale: lang,
+      screen,
+    });
+    if (!res.ok) throw new Error("chat-failed");
+    const body = (await res.json()) as ChatResponse;
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: body.data?.reply ?? "",
+        nav: body.data?.suggested_navigation ?? [],
+        prefill: body.data?.prefill,
+      },
+    ]);
+    cheer();
+  }
+
   async function send(): Promise<void> {
     const text = draft.trim();
     if (!text || loading) return;
-    const next: ChatMessage[] = [...messages, { role: "user", content: text }];
-    setMessages(next);
+    const convo: ChatMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(convo);
     setDraft("");
     setError(false);
     setLoading(true);
     try {
-      const res = await postJson("/api/admin/copilot/chat", {
-        messages: next.map((m) => ({ role: m.role, content: m.content })),
-        locale: lang,
-        screen,
-      });
-      if (!res.ok) {
-        setError(true);
-        return;
-      }
-      const body = (await res.json()) as ChatResponse;
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: body.data?.reply ?? "",
-          nav: body.data?.suggested_navigation ?? [],
-          prefill: body.data?.prefill,
-        },
-      ]);
-      cheer();
+      await streamReply(convo);
     } catch {
-      setError(true);
+      // Flux indisponible → repli non-streaming.
+      try {
+        await nonStreamReply(convo);
+      } catch {
+        setError(true);
+      }
     } finally {
       setLoading(false);
     }

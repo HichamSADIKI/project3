@@ -65,11 +65,30 @@ try {
     assert.equal(await page.locator("[data-assistant-ui]").count(), 1);
   });
 
+  await check("chat en streaming + bouton pré-remplir (action guidée)", async () => {
+    // Ouvrir le chat si besoin.
+    if ((await page.locator("[data-assistant-ui]").count()) === 0) {
+      const a = await avatar.boundingBox();
+      await page.mouse.click(a.x + 29, a.y + 30);
+      await page.waitForTimeout(300);
+    }
+    const ta = page.locator("[data-assistant-ui] textarea").first();
+    await ta.fill("créer un prospect, villa à Dubai Marina, budget 2.5M");
+    await ta.press("Enter");
+    // Le flux SSE remplit une bulle assistant (repli déterministe en dev).
+    await page.waitForTimeout(2500);
+    const txt = await page.locator("[data-assistant-ui]").innerText();
+    assert.ok(/assistant SGI|SGI assistant|مساعد/i.test(txt), "réponse assistant attendue");
+    assert.ok(/remplir|pre-fill|النموذج/i.test(txt), "bouton pré-remplir attendu");
+  });
+
   await check("transformation en ambulance sur secours", async () => {
     // Fermer le chat (priorité parked > rescue) puis déclencher un secours.
-    const a = await avatar.boundingBox();
-    await page.mouse.click(a.x + 29, a.y + 30);
-    await page.waitForTimeout(250);
+    if ((await page.locator("[data-assistant-ui]").count()) >= 1) {
+      const a = await avatar.boundingBox();
+      await page.mouse.click(a.x + 29, a.y + 30);
+      await page.waitForTimeout(250);
+    }
     await page.evaluate(() =>
       window.dispatchEvent(new CustomEvent("sgi:assistant", { detail: { type: "rescue" } })),
     );

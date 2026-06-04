@@ -274,3 +274,36 @@ async def test_chat_rejects_empty_messages(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 422
+
+
+async def test_chat_stream_sse_fallback(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    """Sans clé Gemini (tests) : le flux SSE émet un delta heuristique + done."""
+    _, token = seed_admin
+    resp = await client.post(
+        "/api/v1/copilot/chat/stream",
+        json={
+            "messages": [{"role": "user", "content": "Comment créer un prospect ?"}],
+            "locale": "fr",
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert "text/event-stream" in resp.headers.get("content-type", "")
+    body = resp.text
+    assert '"delta"' in body
+    assert '"done"' in body
+    assert '"engine": "fallback"' in body
+    # Navigation déterministe présente dans l'événement final.
+    assert '"crm"' in body
+
+
+async def test_chat_stream_client_role_forbidden(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    admin, _ = seed_admin
+    resp = await client.post(
+        "/api/v1/copilot/chat/stream",
+        json={"messages": [{"role": "user", "content": "salut"}], "locale": "fr"},
+        headers={"Authorization": f"Bearer {_client_token(admin)}"},
+    )
+    assert resp.status_code == 403

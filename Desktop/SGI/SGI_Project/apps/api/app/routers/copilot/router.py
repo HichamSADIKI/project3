@@ -12,6 +12,7 @@ retombe sur un repli heuristique déterministe — jamais bloquant durablement.
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
@@ -106,3 +107,33 @@ async def chat_endpoint(
         screen=body.screen,
     )
     return ChatOut(data=ChatData(**result))
+
+
+@router.post(
+    "/chat/stream",
+    dependencies=[Depends(require_roles(*_WRITE_ROLES))],
+)
+async def chat_stream_endpoint(
+    body: ChatRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> StreamingResponse:
+    """Assistant in-app en **streaming** (SSE) — effet « en train d'écrire ».
+
+    Événements `data: {"delta": "..."}` puis `data: {"done": true, ...}`.
+    Même scoping tenant (Loi 1) + RBAC que `/chat`. Repli heuristique en un seul
+    delta si Gemini est indisponible.
+    """
+    company_id = _get_company_id(request)
+    gen = service.chat_stream(
+        db,
+        company_id,
+        messages=[m.model_dump() for m in body.messages],
+        locale=body.locale,
+        screen=body.screen,
+    )
+    return StreamingResponse(
+        gen,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
