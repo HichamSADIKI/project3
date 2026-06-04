@@ -86,9 +86,11 @@ def owns_ref(company_id: uuid.UUID, ref: str) -> bool:
     Garde-fou **Loi 1 sur le stockage** : le bucket MinIO est partagé et sans RLS,
     donc une ref fournie par le client doit être contrainte au namespace du tenant,
     sinon un scénario pourrait référencer (et faire encoder) le fichier d'un autre
-    tenant. Pur, testable.
+    tenant. On rejette aussi `..` : un préfixe correct mais contenant `../` pourrait
+    pointer hors namespace si un backend de stockage normalisait les chemins. Pur,
+    testable.
     """
-    return ref.startswith(f"scenarios/{company_id}/")
+    return ".." not in ref and ref.startswith(f"scenarios/{company_id}/")
 
 
 def build_ffmpeg_command(

@@ -10,6 +10,7 @@ détail 404, lead 200 silencieux. Jamais de 500 sur input client.
 
 import logging
 import uuid
+from collections.abc import AsyncIterator
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -39,16 +40,24 @@ router = APIRouter(prefix="/public", tags=["public_site"])
 
 async def get_public_db(
     db: AsyncSession = Depends(get_db),
-) -> tuple[AsyncSession, uuid.UUID | None]:
-    """Résout la société publique + pose le GUC RLS. Retourne (db, company_id|None).
+) -> AsyncIterator[tuple[AsyncSession, uuid.UUID | None]]:
+    """Résout la société publique + pose le GUC RLS. Yield (db, company_id|None).
 
     company_id None = vitrine non configurée/introuvable → l'appelant applique le
     comportement fail-safe (vide / 404), jamais d'erreur.
+
+    **Fail-closed** : on efface le GUC en fin de requête (`finally`) — la
+    connexion `get_db` provient d'un pool, et le GUC posé au niveau session
+    survivrait au retour en pool (fuite résiduelle de la société vitrine). Même
+    contrat que `get_db_session`.
     """
     company_id = await service.get_public_company_id(db)
     if company_id is not None:
         await service.set_tenant_guc(db, company_id)
-    return db, company_id
+    try:
+        yield db, company_id
+    finally:
+        await service.clear_tenant_guc(db)
 
 
 # ── Rate-limit léger (best-effort, en mémoire process) ───────────────────────

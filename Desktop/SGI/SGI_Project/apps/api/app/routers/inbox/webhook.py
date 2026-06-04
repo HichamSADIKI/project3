@@ -311,7 +311,13 @@ async def verify_whatsapp_webhook(
     On renvoie `hub.challenge` en texte brut si le token correspond, sinon 403.
     """
     expected = os.getenv("WHATSAPP_VERIFY_TOKEN", "")
-    if hub_mode == "subscribe" and expected and hub_verify_token == expected and hub_challenge:
+    # Comparaison constant-time du token (cohérent avec verify_meta_signature).
+    token_ok = (
+        bool(expected)
+        and bool(hub_verify_token)
+        and hmac.compare_digest(hub_verify_token or "", expected)
+    )
+    if hub_mode == "subscribe" and token_ok and hub_challenge:
         return Response(content=hub_challenge, media_type="text/plain")
     return Response(
         content="forbidden", status_code=status.HTTP_403_FORBIDDEN, media_type="text/plain"

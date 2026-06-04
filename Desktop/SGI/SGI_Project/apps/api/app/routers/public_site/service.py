@@ -39,6 +39,7 @@ from app.routers.sales.models import SaleListing, SaleMandate
 
 # GUC tenant — identique au pattern inbox/webhook.py (pose manuelle hors middleware).
 _SET_TENANT = text("SELECT set_config('app.current_company_id', :cid, false)")
+_CLEAR_TENANT = text("SELECT set_config('app.current_company_id', '', false)")
 
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -118,6 +119,20 @@ async def set_tenant_guc(db: AsyncSession, company_id: uuid.UUID) -> None:
     Niveau session (is_local=false) → survit aux commits, comme get_db_session.
     """
     await db.execute(_SET_TENANT, {"cid": str(company_id)})
+
+
+async def clear_tenant_guc(db: AsyncSession) -> None:
+    """Efface le GUC RLS en fin de requête publique (fail-closed).
+
+    Le GUC est posé au niveau session sur une connexion poolée (QueuePool) ; sans
+    ce reset, la connexion retournerait au pool en gardant `app.current_company_id`
+    = société vitrine, identique au `finally` de `get_db_session`. Best-effort.
+    """
+    try:
+        await db.execute(_CLEAR_TENANT)
+        await db.commit()
+    except Exception:  # noqa: S110, BLE001  reset best-effort du GUC en fin de requête
+        pass
 
 
 # ─────────────────────────────────────────────────────────────────────────

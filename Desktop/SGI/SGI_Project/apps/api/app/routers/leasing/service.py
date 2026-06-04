@@ -415,7 +415,7 @@ async def convert_application_to_lease(
     # Contrat de location auto-généré (même format de référence que le module contracts).
     from app.routers.contracts.service import _next_contract_sequence
 
-    seq = await _next_contract_sequence(db, start.year)
+    seq = await _next_contract_sequence(db, company_id, start.year)
     contract = Contract(
         company_id=company_id,
         reference=f"CNT-{start.year}-{seq:04d}",
