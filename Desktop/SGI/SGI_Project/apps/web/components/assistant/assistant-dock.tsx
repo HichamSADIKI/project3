@@ -89,7 +89,7 @@ export function AssistantDock({
     }
   }
 
-  const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow } =
+  const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow, onAvatarPointerDown, consumeDragClick } =
     useAssistantRoaming({ open, pinned, t, screen, onSummon: summon });
 
   useEffect(() => {
@@ -170,7 +170,13 @@ export function AssistantDock({
         {/* Avatar cliquable : robot (avec bras/jambes, marche en assistance) ou
             ambulance (en cas d'anomalie/bug → accourt vers le problème). */}
         <button
-          onClick={() => setOpen((o) => !o)}
+          data-testid="assistant-avatar"
+          onPointerDown={onAvatarPointerDown}
+          onClick={() => {
+            // Un glisser ne doit pas ouvrir/fermer le chat (clic seul).
+            if (consumeDragClick()) return;
+            setOpen((o) => !o);
+          }}
           aria-label={open ? t.assistant_close : t.assistant_open}
           title={t.assistant_title}
           style={{
@@ -179,10 +185,13 @@ export function AssistantDock({
             height: 62,
             border: "none",
             background: "transparent",
-            cursor: "pointer",
+            cursor: "grab",
             position: "relative",
             padding: 0,
             display: "block",
+            touchAction: "none",
+            WebkitUserSelect: "none",
+            userSelect: "none",
           }}
         >
           {mode === "rescue" ? (
@@ -507,6 +516,15 @@ function RobotFigure({
       <span className="sgia-arm sgia-arm-l" />
       <span className="sgia-arm sgia-arm-r" />
       <span className="sgia-body" style={{ boxShadow: `0 0 10px ${glow}` }} />
+      {/* Emblème de marque sur le torse → « Infinity vous assiste ». */}
+      <span className="sgia-emblem" title="Infinity">
+        <img
+          src="/logo-hp-holding.png"
+          alt="Infinity"
+          className="sgia-emblem-img"
+          draggable={false}
+        />
+      </span>
       <span className="sgia-head">
         <span className="sgia-antenna" />
         <span className="sgia-antenna-dot" />
@@ -581,6 +599,12 @@ const ASSISTANT_CSS = `
   width: 28px; height: 6px; border-radius: 999px; background: rgba(0,0,0,.18);
 }
 .sgia-body { position: absolute; inset-block-start: 26px; inset-inline-start: 15px; width: 28px; height: 20px; border-radius: 9px; background: var(--gold); }
+.sgia-emblem {
+  position: absolute; inset-block-start: 29px; inset-inline-start: 20px; width: 18px; height: 14px;
+  border-radius: 4px; background: #fff; overflow: hidden; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08);
+  display: flex; align-items: center; justify-content: center;
+}
+.sgia-emblem-img { width: 16px; height: 16px; object-fit: cover; object-position: 34% 28%; pointer-events: none; }
 .sgia-head { position: absolute; inset-block-start: 4px; inset-inline-start: 13px; width: 32px; height: 24px; border-radius: 9px; background: var(--gold); }
 .sgia-visor { position: absolute; inset-block-start: 7px; inset-inline-start: 4px; width: 24px; height: 11px; border-radius: 6px; background: #1A1610; display: flex; align-items: center; justify-content: center; gap: 5px; }
 .sgia-antenna { position: absolute; inset-block-start: -7px; inset-inline-start: 15px; width: 2px; height: 7px; background: #1A1610; border-radius: 2px; }

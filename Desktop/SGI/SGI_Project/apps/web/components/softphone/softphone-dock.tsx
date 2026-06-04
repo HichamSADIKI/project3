@@ -334,12 +334,19 @@ export function SoftphoneDock({
             <span className="sgph-ring sgph-ring2" />
           </>
         )}
-        {/* Combiné — secoué quand ça sonne */}
+        {/* Casque call-center — secoué quand ça sonne. Plus représentatif
+            qu'un combiné : arceau + écouteurs + micro. */}
         <span
-          className={phoneState === "ringing" ? "sgph-shake" : undefined}
-          style={{ display: "inline-flex" }}
+          className={`sgph-headset${phoneState === "ringing" ? " sgph-shake" : ""}`}
+          aria-hidden
         >
-          <IcPhone />
+          <span className="sgph-band" />
+          <span className="sgph-cup sgph-cup-l" />
+          <span className="sgph-cup sgph-cup-r" />
+          <span className="sgph-boom" />
+          <span
+            className={`sgph-mic${phoneState === "incall" ? " sgph-mic-live" : ""}`}
+          />
         </span>
         {/* Ondes sonores « en communication » */}
         {phoneState === "incall" && (
@@ -349,18 +356,18 @@ export function SoftphoneDock({
             <span />
           </span>
         )}
-        {/* Combiné barré quand hors-ligne */}
+        {/* Casque barré quand hors-ligne */}
         {phoneState === "offline" && (
           <span
             aria-hidden
             style={{
               position: "absolute",
-              width: 32,
-              height: 2,
+              width: 34,
+              height: 2.5,
               background: "#1A1610",
               transform: "rotate(45deg)",
               borderRadius: 2,
-              opacity: 0.7,
+              opacity: 0.75,
             }}
           />
         )}
@@ -901,11 +908,32 @@ const keypadBtn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-// Animations du FAB téléphone selon l'état (sonnerie / en communication).
+// FAB téléphone : casque call-center dessiné en CSS + animations par état.
 const SOFTPHONE_CSS = `
 .sgph-fab.sgph-ringing { animation: sgph-bounce .6s ease-in-out infinite; }
 .sgph-fab.sgph-incall { box-shadow: 0 6px 20px rgba(0,0,0,.28), 0 0 0 4px rgba(47,158,110,.25); }
-.sgph-shake { animation: sgph-shake .5s ease-in-out infinite; transform-origin: center; }
+.sgph-shake { animation: sgph-shake .5s ease-in-out infinite; }
+/* Casque : arceau (arc), deux écouteurs, perche + micro */
+.sgph-headset { position: relative; width: 30px; height: 26px; transform-origin: center; }
+.sgph-band {
+  position: absolute; inset-inline-start: 4px; inset-block-start: 1px; width: 22px; height: 13px;
+  border: 3.5px solid #1A1610; border-bottom: none; border-radius: 13px 13px 0 0; box-sizing: border-box;
+}
+.sgph-cup {
+  position: absolute; inset-block-start: 11px; width: 7px; height: 11px; border-radius: 3px; background: #1A1610;
+}
+.sgph-cup-l { inset-inline-start: 1px; }
+.sgph-cup-r { inset-inline-end: 1px; }
+.sgph-boom {
+  position: absolute; inset-block-start: 19px; inset-inline-start: 4px; width: 9px; height: 7px;
+  border: 2px solid #1A1610; border-top: none; border-inline-end: none;
+  border-radius: 0 0 0 7px; box-sizing: border-box;
+}
+.sgph-mic {
+  position: absolute; inset-block-start: 23px; inset-inline-start: 11px; width: 5px; height: 5px;
+  border-radius: 999px; background: #1A1610;
+}
+.sgph-mic-live { background: #fff; animation: sgph-miclive .8s ease-in-out infinite; }
 .sgph-ring {
   position: absolute; inset: 0; border-radius: 999px;
   border: 2px solid var(--emerald, #2f9e6e); opacity: 0;
@@ -913,15 +941,16 @@ const SOFTPHONE_CSS = `
 }
 .sgph-ring2 { animation-delay: .7s; }
 .sgph-waves {
-  position: absolute; inset-block-end: 8px; display: flex; gap: 2px;
-  align-items: flex-end; height: 12px; pointer-events: none;
+  position: absolute; inset-block-end: 6px; inset-inline-end: 9px; display: flex; gap: 2px;
+  align-items: flex-end; height: 11px; pointer-events: none;
 }
 .sgph-waves span { width: 3px; height: 4px; background: #1A1610; border-radius: 2px; animation: sgph-wave 1s ease-in-out infinite; }
 .sgph-waves span:nth-child(2) { animation-delay: .2s; }
 .sgph-waves span:nth-child(3) { animation-delay: .4s; }
-@keyframes sgph-shake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(-18deg)} 40%{transform:rotate(16deg)} 60%{transform:rotate(-12deg)} 80%{transform:rotate(8deg)} }
+@keyframes sgph-shake { 0%,100%{transform:rotate(0)} 20%{transform:rotate(-14deg)} 40%{transform:rotate(12deg)} 60%{transform:rotate(-9deg)} 80%{transform:rotate(6deg)} }
 @keyframes sgph-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-4px)} }
 @keyframes sgph-ring { 0%{transform:scale(1);opacity:.6} 100%{transform:scale(1.65);opacity:0} }
-@keyframes sgph-wave { 0%,100%{height:4px} 50%{height:12px} }
-@media (prefers-reduced-motion: reduce){ .sgph-fab,.sgph-shake,.sgph-ring,.sgph-waves span{animation:none!important} }
+@keyframes sgph-wave { 0%,100%{height:4px} 50%{height:11px} }
+@keyframes sgph-miclive { 0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.7)} 50%{box-shadow:0 0 0 3px rgba(255,255,255,0)} }
+@media (prefers-reduced-motion: reduce){ .sgph-fab,.sgph-shake,.sgph-ring,.sgph-waves span,.sgph-mic-live{animation:none!important} }
 `;
