@@ -1,17 +1,18 @@
 "use client";
 
 /**
- * Assistant in-app (chatbot robot) : FAB persistant fixé en bas, JUSTE à côté
- * du dock softphone (inline-end décalé pour ne pas le recouvrir). Ouvre un
- * panneau de discussion qui aide l'utilisateur à utiliser l'application :
- * navigation, questions sur ses données (KPI tenant), conversation libre, et
- * actions guidées (boutons « Ouvrir » vers l'écran pertinent).
+ * Assistant in-app (chatbot robot) VIVANT & MOBILE.
  *
- * Câblé sur le module AI Copilot via le proxy :
+ * L'avatar robot se déplace de façon fluide dans la page (moteur
+ * `useAssistantRoaming`) : il suit le curseur, se colle au champ en cours de
+ * saisie, patrouille au repos, et ACCOURT comme une ambulance vers la zone
+ * fautive quand un problème est détecté (champ invalide, erreur). Son regard
+ * suit toujours la souris. Au clic, il ouvre le panneau de discussion (ancré au
+ * coin, stable) câblé sur le module AI Copilot :
  *   POST /api/admin/copilot/chat  body { messages, locale, screen? }
- * Mode SYNCHRONE (MVP) : un appel → réponse (Gemini, repli heuristique sinon).
- * Historique ÉPHÉMÈRE (state local, rien en base). CSS strictement logique
- * (Loi 3 RTL) ; chiffres latins.
+ *
+ * Historique ÉPHÉMÈRE (state local). CSS strictement logique (Loi 3 RTL).
+ * Respecte prefers-reduced-motion + bouton « figer » (pinned, persisté).
  */
 
 import React, { useEffect, useRef, useState } from "react";
@@ -20,63 +21,77 @@ import { IcClose } from "@/components/sgi-ui";
 import { useT, useLang } from "@/components/language-provider";
 import { postJson } from "@/lib/api-client";
 
+import { useAssistantRoaming, type RoamMode } from "./use-assistant-roaming";
+
 type NavSuggestion = { screen: string; label: string };
-
-type ChatMessage = {
-  role: "user" | "assistant";
-  content: string;
-  nav?: NavSuggestion[];
-};
-
+type ChatMessage = { role: "user" | "assistant"; content: string; nav?: NavSuggestion[] };
 type ChatResponse = {
   data?: { reply: string; engine: string; suggested_navigation: NavSuggestion[] };
 };
 
-// Icône robot (assistant). Tracé simple, hérite de currentColor.
-const IcRobot = (): React.ReactNode => (
-  <svg
-    width="22"
-    height="22"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="1.7"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    aria-hidden
-  >
-    <path d="M12 2v3" />
-    <circle cx="12" cy="5" r="1" fill="currentColor" stroke="none" />
-    <rect x="4" y="8" width="16" height="11" rx="3" />
-    <circle cx="9" cy="13" r="1.2" fill="currentColor" stroke="none" />
-    <circle cx="15" cy="13" r="1.2" fill="currentColor" stroke="none" />
-    <path d="M9.5 16h5" />
-    <path d="M2 12v3" />
-    <path d="M22 12v3" />
-  </svg>
-);
+const PIN_KEY = "sgi_assistant_pinned";
+
+/** Couleur du halo d'état selon le mode de déplacement. */
+function haloColor(mode: RoamMode): string {
+  if (mode === "rescue") return "var(--rose, #d6455d)";
+  if (mode === "follow") return "var(--emerald, #2f9e6e)";
+  return "var(--gold)";
+}
 
 export function AssistantDock({
   screen,
   onNavigate,
 }: {
-  /** Écran courant (clé de nav) — contexte facultatif envoyé au backend. */
   screen?: string;
-  /** Ouvre l'écran demandé (action guidée). */
   onNavigate?: (screen: string) => void;
 }): React.ReactNode {
   const t = useT();
   const { lang } = useLang();
 
   const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
   const listRef = useRef<HTMLDivElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Auto-scroll vers le dernier message à chaque ajout / ouverture.
+  // Restaure la préférence « figé ».
+  useEffect(() => {
+    try {
+      setPinned(localStorage.getItem(PIN_KEY) === "1");
+    } catch {
+      /* storage indisponible : ignore */
+    }
+  }, []);
+
+  function togglePin(): void {
+    setPinned((p) => {
+      const next = !p;
+      try {
+        localStorage.setItem(PIN_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
+
+  // Ouvre le panneau, éventuellement en pré-remplissant la saisie (depuis une
+  // bulle de secours → l'utilisateur relit puis envoie).
+  function summon(prompt?: string): void {
+    setOpen(true);
+    if (prompt) {
+      setDraft(prompt);
+      setTimeout(() => inputRef.current?.focus(), 60);
+    }
+  }
+
+  const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow } =
+    useAssistantRoaming({ open, pinned, t, onSummon: summon });
+
   useEffect(() => {
     if (!open) return;
     const el = listRef.current;
@@ -93,8 +108,6 @@ export function AssistantDock({
     setLoading(true);
     try {
       const res = await postJson("/api/admin/copilot/chat", {
-        // On n'envoie que les tours réels (role+content) — le message d'accueil
-        // est purement UI et n'est pas dans `messages`.
         messages: next.map((m) => ({ role: m.role, content: m.content })),
         locale: lang,
         screen,
@@ -104,10 +117,13 @@ export function AssistantDock({
         return;
       }
       const body = (await res.json()) as ChatResponse;
-      const reply = body.data?.reply ?? "";
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: reply, nav: body.data?.suggested_navigation ?? [] },
+        {
+          role: "assistant",
+          content: body.data?.reply ?? "",
+          nav: body.data?.suggested_navigation ?? [],
+        },
       ]);
     } catch {
       setError(true);
@@ -117,7 +133,6 @@ export function AssistantDock({
   }
 
   function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>): void {
-    // Entrée = envoyer ; Maj+Entrée = nouvelle ligne.
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void send();
@@ -129,49 +144,184 @@ export function AssistantDock({
     setOpen(false);
   }
 
+  const halo = haloColor(mode);
+
   return (
     <>
-      {/* Bouton flottant robot — à côté du softphone (décalé en inline-end). */}
-      <button
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? t.assistant_close : t.assistant_open}
-        title={t.assistant_title}
+      {/* Animations (keyframes) — injectées une fois. */}
+      <style>{ASSISTANT_CSS}</style>
+
+      {/* Conteneur mobile : translaté par le moteur ; transparent aux clics
+          sauf sur l'avatar et la bulle (pointer-events). */}
+      <div
+        ref={containerRef}
         style={{
           position: "fixed",
-          insetBlockEnd: 20,
-          insetInlineEnd: 84,
+          insetBlockStart: 0,
+          insetInlineStart: 0,
           width: 52,
           height: 52,
-          borderRadius: 999,
-          border: "none",
-          background: "var(--gold)",
-          color: "#1A1610",
-          cursor: "pointer",
-          boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 1200,
+          zIndex: 1250,
+          pointerEvents: "none",
+          willChange: "transform",
         }}
+        aria-hidden={false}
       >
-        <IcRobot />
-        {/* Pastille « en ligne » */}
-        <span
+        {/* Avatar robot cliquable */}
+        <button
+          onClick={() => setOpen((o) => !o)}
+          aria-label={open ? t.assistant_close : t.assistant_open}
+          title={t.assistant_title}
+          className={`sgia-face${mode === "rescue" ? " sgia-rescue" : ""}`}
           style={{
-            position: "absolute",
-            insetBlockStart: 6,
-            insetInlineEnd: 6,
-            width: 10,
-            height: 10,
+            pointerEvents: "auto",
+            width: 52,
+            height: 52,
             borderRadius: 999,
-            background: "var(--emerald)",
-            border: "2px solid #1A1610",
+            border: "none",
+            background: "var(--gold)",
+            color: "#1A1610",
+            cursor: "pointer",
+            boxShadow: `0 6px 20px rgba(0,0,0,0.28), 0 0 0 0 ${halo}`,
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
           }}
-        />
-      </button>
+        >
+          {/* Halo d'état */}
+          <span
+            className="sgia-halo"
+            style={{
+              position: "absolute",
+              inset: -3,
+              borderRadius: 999,
+              border: `2px solid ${halo}`,
+            }}
+          />
+          {/* Antenne */}
+          <span
+            style={{
+              position: "absolute",
+              insetBlockStart: -7,
+              width: 2,
+              height: 7,
+              background: "#1A1610",
+              borderRadius: 2,
+            }}
+          />
+          <span
+            style={{
+              position: "absolute",
+              insetBlockStart: -11,
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: mode === "rescue" ? "var(--rose)" : "var(--emerald)",
+            }}
+          />
+          {/* Visière + yeux suiveurs */}
+          <span
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              width: 34,
+              height: 17,
+              borderRadius: 9,
+              background: "#1A1610",
+            }}
+          >
+            <span className="sgia-eye">
+              <span ref={pupilLRef} className="sgia-pupil" />
+            </span>
+            <span className="sgia-eye">
+              <span ref={pupilRRef} className="sgia-pupil" />
+            </span>
+          </span>
+          {/* Bouche */}
+          <span
+            style={{
+              position: "absolute",
+              insetBlockEnd: 9,
+              width: 12,
+              height: 2,
+              borderRadius: 2,
+              background: "rgba(26,22,16,0.55)",
+            }}
+          />
+        </button>
 
-      {!open ? null : (
+        {/* Bulle proactive (suit l'avatar : enfant du conteneur translaté) */}
+        {tip && (
+          <div
+            role="status"
+            style={{
+              pointerEvents: "auto",
+              position: "absolute",
+              insetInlineEnd: 0,
+              ...(tipBelow ? { insetBlockStart: 60 } : { insetBlockEnd: 60 }),
+              width: "max-content",
+              maxWidth: 240,
+              background: "var(--bg-paper)",
+              border: `1px solid ${tip.tone === "rescue" ? "var(--rose)" : "var(--line)"}`,
+              borderRadius: 12,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.25)",
+              padding: "10px 12px",
+              display: "flex",
+              flexDirection: "column",
+              gap: 8,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+              <span style={{ fontSize: 12.5, color: "var(--ink)", lineHeight: 1.4, textAlign: "start" }}>
+                {tip.text}
+              </span>
+              <button
+                onClick={dismissTip}
+                aria-label={t.assistant_close}
+                style={{
+                  marginInlineStart: "auto",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--ink-4)",
+                  display: "inline-flex",
+                  flexShrink: 0,
+                }}
+              >
+                <IcClose />
+              </button>
+            </div>
+            <button
+              onClick={() => {
+                summon(tip.prompt);
+                dismissTip();
+              }}
+              style={{
+                alignSelf: "flex-start",
+                padding: "5px 12px",
+                border: "none",
+                borderRadius: 999,
+                background: "var(--gold)",
+                color: "#1A1610",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {t.assistant_goto}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Panneau de discussion — ancré au coin (stable, ne roame pas) */}
+      {open && (
         <div
+          data-assistant-ui
           style={{
             position: "fixed",
             insetBlockEnd: 84,
@@ -182,7 +332,7 @@ export function AssistantDock({
             border: "1px solid var(--line)",
             borderRadius: 14,
             boxShadow: "0 12px 40px rgba(0,0,0,0.3)",
-            zIndex: 1200,
+            zIndex: 1260,
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",
@@ -208,20 +358,34 @@ export function AssistantDock({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                fontSize: 18,
               }}
             >
-              <IcRobot />
+              🤖
             </span>
             <span style={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-              <span
-                className="font-display"
-                style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}
-              >
+              <span className="font-display" style={{ fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>
                 {t.assistant_title}
               </span>
               <span style={{ fontSize: 11, color: "var(--ink-4)" }}>{t.assistant_subtitle}</span>
             </span>
             <span style={{ display: "flex", gap: 4, marginInlineStart: "auto" }}>
+              <button
+                onClick={togglePin}
+                title={pinned ? t.assistant_unpin : t.assistant_pin}
+                aria-pressed={pinned}
+                style={{
+                  background: pinned ? "var(--gold-ghost, rgba(197,160,89,0.18))" : "none",
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  padding: "3px 8px",
+                  fontSize: 13,
+                  color: pinned ? "var(--gold)" : "var(--ink-4)",
+                  cursor: "pointer",
+                }}
+              >
+                {pinned ? "📌" : "📍"}
+              </button>
               {messages.length > 0 && (
                 <button
                   onClick={() => {
@@ -259,7 +423,7 @@ export function AssistantDock({
             </span>
           </div>
 
-          {/* Fil de discussion */}
+          {/* Fil */}
           <div
             ref={listRef}
             style={{
@@ -271,9 +435,7 @@ export function AssistantDock({
               gap: 10,
             }}
           >
-            {/* Accueil (UI seulement) */}
             <Bubble role="assistant">{t.assistant_welcome}</Bubble>
-
             {messages.map((m, i) => (
               <React.Fragment key={i}>
                 <Bubble role={m.role}>{m.content}</Bubble>
@@ -313,7 +475,6 @@ export function AssistantDock({
                 )}
               </React.Fragment>
             ))}
-
             {loading && (
               <div style={{ fontSize: 12, color: "var(--ink-4)", marginInlineEnd: "auto" }}>
                 {t.assistant_thinking}
@@ -337,6 +498,7 @@ export function AssistantDock({
             }}
           >
             <textarea
+              ref={inputRef}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onKeyDown}
@@ -381,7 +543,6 @@ export function AssistantDock({
   );
 }
 
-/** Bulle de message — alignement logique (RTL-safe) selon l'émetteur. */
 function Bubble({
   role,
   children,
@@ -394,7 +555,6 @@ function Bubble({
     <div
       style={{
         maxWidth: "85%",
-        // user → poussé vers l'inline-end ; assistant → vers l'inline-start.
         marginInlineStart: isUser ? "auto" : undefined,
         marginInlineEnd: isUser ? undefined : "auto",
         padding: "9px 12px",
@@ -413,3 +573,28 @@ function Bubble({
     </div>
   );
 }
+
+// Keyframes : respiration, clignement, sirène (secours). Désactivés si
+// l'utilisateur préfère un mouvement réduit.
+const ASSISTANT_CSS = `
+.sgia-face { animation: sgia-breathe 3s ease-in-out infinite; transition: box-shadow .3s ease; }
+.sgia-eye {
+  position: relative; width: 9px; height: 9px; border-radius: 999px;
+  background: #fff; display: inline-flex; align-items: center; justify-content: center;
+  animation: sgia-blink 4.6s infinite;
+}
+.sgia-pupil {
+  width: 4px; height: 4px; border-radius: 999px; background: #1A1610; display: block;
+}
+.sgia-halo { animation: sgia-pulse 2.6s ease-in-out infinite; opacity: .5; }
+.sgia-rescue { animation: sgia-shake .5s ease-in-out infinite; }
+.sgia-rescue .sgia-halo { animation: sgia-siren .7s ease-in-out infinite; }
+@keyframes sgia-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes sgia-blink { 0%,92%,100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+@keyframes sgia-pulse { 0%,100% { opacity: .35; transform: scale(1); } 50% { opacity: .7; transform: scale(1.08); } }
+@keyframes sgia-siren { 0%,100% { opacity: .4; transform: scale(1); } 50% { opacity: 1; transform: scale(1.16); } }
+@keyframes sgia-shake { 0%,100% { } 25% { margin-block-start: -1px; } 75% { margin-block-start: 1px; } }
+@media (prefers-reduced-motion: reduce) {
+  .sgia-face, .sgia-eye, .sgia-halo, .sgia-rescue, .sgia-rescue .sgia-halo { animation: none !important; }
+}
+`;
