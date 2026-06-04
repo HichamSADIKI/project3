@@ -65,8 +65,10 @@ const TOUR_SCREENS: ReadonlySet<string> = new Set([
   "marketing",
 ]);
 const SEEN_KEY = "sgi_assistant_seen_screens";
+const HOME_KEY = "sgi_assistant_home"; // position « maison » fixée au drag
 const SUBMIT_WINDOW = 25000; // fenêtre des soumissions répétées
 const SUBMIT_THRESHOLD = 3; // nb de soumissions rapprochées → « bloqué »
+const DRAG_THRESHOLD = 5; // px au-delà desquels un clic devient un drag
 
 export function useAssistantRoaming(opts: {
   open: boolean;
@@ -82,6 +84,8 @@ export function useAssistantRoaming(opts: {
   tip: AssistantTip;
   dismissTip: () => void;
   tipBelow: boolean;
+  onAvatarPointerDown: (e: React.PointerEvent) => void;
+  consumeDragClick: () => boolean;
 } {
   const { open, pinned, t, screen } = opts;
 
@@ -108,14 +112,41 @@ export function useAssistantRoaming(opts: {
   // Soumissions répétées par formulaire (détecteur « bloqué »).
   const submitLog = useRef<WeakMap<HTMLFormElement, number[]>>(new WeakMap());
   const tourTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Glisser-déposer : position « maison » fixée par l'utilisateur (sinon coin).
+  const homeOverride = useRef<XY | null>(null);
+  const dragging = useRef(false);
+  const dragMoved = useRef(false);
+  const dragGrab = useRef<XY>({ x: 0, y: 0 }); // décalage curseur→coin de l'avatar
+  const dragStart = useRef<XY>({ x: 0, y: 0 });
 
   const home = useCallback(
-    (): XY => ({
-      x: window.innerWidth - HOME_INLINE_END - HALF,
-      y: window.innerHeight - HOME_BLOCK_END - SIZE,
-    }),
+    (): XY =>
+      homeOverride.current ?? {
+        x: window.innerWidth - HOME_INLINE_END - HALF,
+        y: window.innerHeight - HOME_BLOCK_END - SIZE,
+      },
     [],
   );
+
+  // Début d'un glisser sur l'avatar (le clic simple reste géré par onClick).
+  const onAvatarPointerDown = useCallback((e: React.PointerEvent) => {
+    dragging.current = true;
+    dragMoved.current = false;
+    dragStart.current = { x: e.clientX, y: e.clientY };
+    dragGrab.current = { x: e.clientX - pos.current.x, y: e.clientY - pos.current.y };
+    try {
+      (e.target as Element).setPointerCapture?.(e.pointerId);
+    } catch {
+      /* capture optionnelle */
+    }
+  }, []);
+
+  // Vrai si la dernière interaction était un glisser (→ ne pas ouvrir le chat).
+  const consumeDragClick = useCallback((): boolean => {
+    const moved = dragMoved.current;
+    dragMoved.current = false;
+    return moved;
+  }, []);
 
   const dismissTip = useCallback(() => {
     if (tipTimer.current) clearTimeout(tipTimer.current);
@@ -156,9 +187,48 @@ export function useAssistantRoaming(opts: {
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+    // Restaure la position « maison » fixée au drag (si l'utilisateur en a une).
+    try {
+      const raw = localStorage.getItem(HOME_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as XY;
+        if (typeof p?.x === "number" && typeof p?.y === "number") homeOverride.current = p;
+      }
+    } catch {
+      /* ignore */
+    }
+
     const onMove = (e: MouseEvent): void => {
       mouse.current = { x: e.clientX, y: e.clientY, t: performance.now() };
       lastActivity.current = performance.now();
+    };
+
+    // ── Glisser-déposer du robot ──────────────────────────────────────────
+    const onPointerMove = (e: PointerEvent): void => {
+      if (!dragging.current) return;
+      if (
+        Math.abs(e.clientX - dragStart.current.x) > DRAG_THRESHOLD ||
+        Math.abs(e.clientY - dragStart.current.y) > DRAG_THRESHOLD
+      ) {
+        dragMoved.current = true;
+      }
+      pos.current = {
+        x: clamp(e.clientX - dragGrab.current.x, EDGE, window.innerWidth - SIZE - EDGE),
+        y: clamp(e.clientY - dragGrab.current.y, EDGE, window.innerHeight - SIZE - EDGE),
+      };
+    };
+    const onPointerUp = (): void => {
+      if (!dragging.current) return;
+      dragging.current = false;
+      if (dragMoved.current) {
+        // La position lâchée devient la nouvelle « maison » (persistée).
+        homeOverride.current = { ...pos.current };
+        try {
+          localStorage.setItem(HOME_KEY, JSON.stringify(homeOverride.current));
+        } catch {
+          /* ignore */
+        }
+      }
     };
     const onKey = (): void => {
       lastActivity.current = performance.now();
@@ -216,6 +286,9 @@ export function useAssistantRoaming(opts: {
     };
 
     window.addEventListener("mousemove", onMove, { passive: true });
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
     window.addEventListener("keydown", onKey, { passive: true });
     window.addEventListener("focusin", onFocusIn);
     window.addEventListener("focusout", onFocusOut);
@@ -253,6 +326,9 @@ export function useAssistantRoaming(opts: {
 
     return () => {
       window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("focusin", onFocusIn);
       window.removeEventListener("focusout", onFocusOut);
@@ -316,30 +392,39 @@ export function useAssistantRoaming(opts: {
         pupilRRef.current.style.transform = `translate(${px}px, ${py}px)`;
     };
 
-    // Mouvement réduit ou figé : on reste au coin, regard seul.
-    if (reduced.current || pinned) {
-      pos.current = open ? home() : home();
-      place();
-      let raf = 0;
-      const eyesOnly = (): void => {
-        updateEyes();
-        raf = requestAnimationFrame(eyesOnly);
-      };
-      raf = requestAnimationFrame(eyesOnly);
-      if (modeRef.current !== "idle") {
-        modeRef.current = "idle";
-        setMode("idle");
-      }
-      return () => cancelAnimationFrame(raf);
-    }
-
     let raf = 0;
     const loop = (): void => {
       const now = performance.now();
+
+      // 1) Glisser en cours : la position est pilotée par le pointeur — on rend
+      //    sans logique de cible (l'utilisateur place le robot où il veut).
+      if (dragging.current) {
+        place();
+        updateEyes();
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+
+      // 2) Mouvement réduit ou figé : on rejoint la « maison » (coin ou position
+      //    fixée au drag) et on garde le regard vivant.
+      if (reduced.current || pinned) {
+        const h = home();
+        pos.current.x += (h.x - pos.current.x) * 0.2;
+        pos.current.y += (h.y - pos.current.y) * 0.2;
+        place();
+        updateEyes();
+        if (modeRef.current !== "idle") {
+          modeRef.current = "idle";
+          setMode("idle");
+        }
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+
+      // 3) Comportement normal (automate de priorité).
       let m: RoamMode;
       let target: XY;
       let ease: number;
-
       if (open) {
         m = "parked";
         target = home();
@@ -381,5 +466,15 @@ export function useAssistantRoaming(opts: {
     return () => cancelAnimationFrame(raf);
   }, [open, pinned, home, anchorOf]);
 
-  return { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow };
+  return {
+    containerRef,
+    pupilLRef,
+    pupilRRef,
+    mode,
+    tip,
+    dismissTip,
+    tipBelow,
+    onAvatarPointerDown,
+    consumeDragClick,
+  };
 }
