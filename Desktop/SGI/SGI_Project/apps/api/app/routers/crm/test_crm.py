@@ -24,21 +24,73 @@ from app.routers.crm.schemas import (
     LeadUpdate,
 )
 from app.routers.crm.service import (
+    FOLLOWUP_MAX_ATTEMPTS,
     VALID_TRANSITIONS,
     add_activity,
     calculate_score,
     create_lead,
+    followup_next_schedule,
     generate_reference,
     get_lead,
     get_pipeline_kpis,
     list_activities,
     list_leads,
+    next_followup_action,
     update_lead,
     update_lead_status,
 )
 
 # asyncio_mode=auto : les coroutines de test sont collectées sans marqueur ;
 # pas de pytestmark module-level pour ne pas marquer les tests purs (sync).
+
+
+# ── Séquence de relance (pur) ────────────────────────────────────────────────
+
+
+class TestNextFollowupAction:
+    _CREATED = datetime(2026, 6, 1, tzinfo=UTC)
+
+    def _at(self, days: int) -> datetime:
+        return self._CREATED + timedelta(days=days)
+
+    def test_not_due_before_j1(self) -> None:
+        assert next_followup_action(self._at(0), self._CREATED, 0) is None
+
+    def test_call_due_at_j1(self) -> None:
+        assert next_followup_action(self._at(1), self._CREATED, 0) == "call"
+
+    def test_whatsapp_due_at_j2(self) -> None:
+        assert next_followup_action(self._at(2), self._CREATED, 1) == "whatsapp"
+
+    def test_email_due_at_j4(self) -> None:
+        assert next_followup_action(self._at(4), self._CREATED, 2) == "email"
+
+    def test_push_whatsapp_due_at_j7(self) -> None:
+        assert next_followup_action(self._at(7), self._CREATED, 3) == "push_whatsapp"
+
+    def test_second_attempt_not_due_before_j2(self) -> None:
+        # 1 tentative faite, mais on n'est qu'à J+1 → pas encore l'heure du J+2.
+        assert next_followup_action(self._at(1), self._CREATED, 1) is None
+
+    def test_lost_after_four_attempts(self) -> None:
+        assert next_followup_action(self._at(10), self._CREATED, FOLLOWUP_MAX_ATTEMPTS) == "lost"
+
+
+class TestFollowupNextSchedule:
+    _CREATED = datetime(2026, 6, 1, tzinfo=UTC)
+
+    def test_first_step_is_j1_call(self) -> None:
+        when, typ = followup_next_schedule(self._CREATED, 0)
+        assert typ == "call"
+        assert when == self._CREATED + timedelta(days=1)
+
+    def test_last_step_is_j7(self) -> None:
+        when, typ = followup_next_schedule(self._CREATED, 3)
+        assert typ == "push_whatsapp"
+        assert when == self._CREATED + timedelta(days=7)
+
+    def test_none_after_exhaustion(self) -> None:
+        assert followup_next_schedule(self._CREATED, FOLLOWUP_MAX_ATTEMPTS) == (None, None)
 
 
 # ── Référence (pur) ──────────────────────────────────────────────────────────

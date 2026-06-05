@@ -1,7 +1,7 @@
 """Service CRM — toutes les fonctions filtrent par company_id."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from fastapi import HTTPException
@@ -30,6 +30,52 @@ VALID_TRANSITIONS: dict[str, list[str]] = {
 }
 
 GOLDEN_VISA_THRESHOLD = Decimal("2000000")
+
+
+# ---------------------------------------------------------------------------
+# Séquence de relance automatique (CLAUDE.md) : max 4 tentatives sur 7 jours.
+# Index = nombre de tentatives déjà effectuées (CRMLead.contact_attempts).
+# ---------------------------------------------------------------------------
+FOLLOWUP_SCHEDULE: list[tuple[int, str]] = [
+    (1, "call"),  # J+1 : appel (tâche créée pour l'agent)
+    (2, "whatsapp"),  # J+2 : WhatsApp (template Meta)
+    (4, "email"),  # J+4 : e-mail personnalisé
+    (7, "push_whatsapp"),  # J+7 : push (agent) + WhatsApp (dernier recours)
+]
+FOLLOWUP_MAX_ATTEMPTS = len(FOLLOWUP_SCHEDULE)
+# Statuts encore éligibles à la relance (le lead n'a pas encore « répondu »).
+FOLLOWUP_ACTIVE_STATUSES: frozenset[str] = frozenset({"new", "contacted"})
+
+
+def next_followup_action(now: datetime, created_at: datetime, contact_attempts: int) -> str | None:
+    """Action de relance due pour un lead, ou ``None`` si rien n'est encore dû.
+
+    - ``"call"`` / ``"whatsapp"`` / ``"email"`` / ``"push_whatsapp"`` : la tentative
+      n° ``contact_attempts`` est due (seuil J+1/J+2/J+4/J+7 atteint).
+    - ``"lost"`` : les 4 tentatives sont épuisées → clôturer en ``non_respondent``.
+    - ``None`` : la prochaine tentative n'est pas encore arrivée à échéance.
+    """
+    if contact_attempts >= FOLLOWUP_MAX_ATTEMPTS:
+        return "lost"
+    threshold_day, action = FOLLOWUP_SCHEDULE[contact_attempts]
+    days_elapsed = (now - created_at).days
+    if days_elapsed >= threshold_day:
+        return action
+    return None
+
+
+def followup_next_schedule(
+    created_at: datetime, contact_attempts: int
+) -> tuple[datetime | None, str | None]:
+    """(date, type) de la PROCHAINE tentative après ``contact_attempts`` faites.
+
+    ``(None, None)`` une fois la séquence épuisée. Sert à renseigner
+    ``CRMLead.next_action_at`` / ``next_action_type`` pour l'affichage agent.
+    """
+    if contact_attempts >= FOLLOWUP_MAX_ATTEMPTS:
+        return None, None
+    threshold_day, action = FOLLOWUP_SCHEDULE[contact_attempts]
+    return created_at + timedelta(days=threshold_day), action
 
 
 # ---------------------------------------------------------------------------
