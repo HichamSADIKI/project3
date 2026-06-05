@@ -50,6 +50,32 @@ function cols(bp: "mobile" | "tablet" | "desktop"): number {
   return bp === "mobile" ? 2 : bp === "tablet" ? 3 : 4;
 }
 
+// Couleur d'identité par rubrique — rend le hub vivant et la navigation intuitive
+// (repère couleur mémorisable). Tons soutenus mais accordés au thème.
+const CAT_COLOR: Record<string, string> = {
+  dash: "#6366F1",        // indigo
+  fournisseurs: "#F59E0B",// ambre
+  clients: "#2563EB",     // bleu
+  realestate: "#10B981",  // émeraude
+  tourisme: "#06B6D4",    // cyan
+  sante: "#EF4444",       // rouge
+  assurance: "#8B5CF6",   // violet
+  banques: "#0EA5E9",     // azur
+  amazon: "#FB923C",      // orange
+  consultants: "#A855F7", // pourpre
+  admin: "#64748B",       // ardoise
+  travail: "#D97706",     // ambre foncé
+  callcenter: "#EC4899",  // rose
+  backoffice: "#3B82F6",  // bleu vif
+  appadmin: "#DC2626",    // rouge profond
+  report: "#16A34A",      // vert
+  parametres: "#6B7280",  // gris
+};
+const FALLBACK_ACCENT = "#B8924F"; // or
+function accentFor(id: string): string {
+  return CAT_COLOR[id] ?? FALLBACK_ACCENT;
+}
+
 export function NavHub({
   level,
   categoryId,
@@ -73,11 +99,11 @@ export function NavHub({
 
   const countLabel = (n: number): string => `${n} ${n > 1 ? L("functions") : L("function1")}`;
 
-  // Carte générique (icône en pastille + libellé + sous-texte optionnel).
+  // Carte générique (icône en pastille colorée + libellé + sous-texte optionnel).
   function HubCard({
-    icon, label, sub, onClick, testid,
+    icon, label, sub, onClick, testid, accent,
   }: {
-    icon: React.ReactElement; label: string; sub?: string; onClick: () => void; testid: string;
+    icon: React.ReactElement; label: string; sub?: string; onClick: () => void; testid: string; accent: string;
   }): React.ReactNode {
     return (
       <button
@@ -86,18 +112,19 @@ export function NavHub({
         onClick={onClick}
         className="sgi-animate-in"
         style={{
+          position: "relative", overflow: "hidden",
           display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-          gap: 12, textAlign: "center", padding: "26px 16px",
+          gap: 12, textAlign: "center", padding: "28px 16px",
           background: "var(--bg-paper)", border: "1px solid var(--line-soft)",
-          borderRadius: "var(--r-md)", cursor: "pointer", minHeight: 150,
-          transition: "box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease",
+          borderRadius: "var(--r-md)", cursor: "pointer", minHeight: 156,
+          transition: "box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease",
           color: "var(--ink)", font: "inherit",
         }}
         onMouseEnter={(e) => {
           const el = e.currentTarget;
-          el.style.boxShadow = "var(--shadow-2)";
-          el.style.transform = "translateY(-2px)";
-          el.style.borderColor = "var(--gold-line)";
+          el.style.boxShadow = `0 10px 30px ${accent}33, 0 2px 8px ${accent}1f`;
+          el.style.transform = "translateY(-3px)";
+          el.style.borderColor = accent;
         }}
         onMouseLeave={(e) => {
           const el = e.currentTarget;
@@ -106,21 +133,27 @@ export function NavHub({
           el.style.borderColor = "var(--line-soft)";
         }}
       >
+        {/* Liseré coloré supérieur — signature visuelle de la rubrique. */}
+        <span aria-hidden style={{
+          position: "absolute", insetBlockStart: 0, insetInlineStart: 0, insetInlineEnd: 0,
+          height: 3, background: `linear-gradient(90deg, ${accent}, ${accent}66)`,
+        }} />
         <span style={{
-          width: 54, height: 54, borderRadius: "var(--r-md)",
-          background: "var(--gold-ghost)", display: "grid", placeItems: "center",
-          color: "var(--gold)",
+          width: 56, height: 56, borderRadius: "var(--r-md)",
+          background: `linear-gradient(135deg, ${accent}26, ${accent}0d)`,
+          border: `1px solid ${accent}33`,
+          display: "grid", placeItems: "center", color: accent,
         }}>
-          <span style={{ display: "grid", placeItems: "center", transform: "scale(1.25)" }}>{icon}</span>
+          <span style={{ display: "grid", placeItems: "center", transform: "scale(1.3)" }}>{icon}</span>
         </span>
         <span
           className={lang === "ar" ? "font-ar" : "font-display"}
-          style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.25 }}
+          style={{ fontSize: 14.5, fontWeight: 600, lineHeight: 1.25, color: "var(--ink)" }}
         >
           {label}
         </span>
         {sub && (
-          <span style={{ fontSize: 11.5, color: "var(--gold-deep)", fontWeight: 600 }}>
+          <span style={{ fontSize: 11.5, color: accent, fontWeight: 700, letterSpacing: "0.01em" }}>
             {sub} <span aria-hidden>›</span>
           </span>
         )}
@@ -151,7 +184,7 @@ export function NavHub({
         const label = navLabelFor(t, e.key);
         if (q && !label.toLowerCase().includes(q)) continue;
         cards.push(
-          <HubCard key={e.key} testid={`hub-cat-${e.key}`} icon={e.icon} label={label} onClick={() => onPickScreen(e.key)} />,
+          <HubCard key={e.key} testid={`hub-cat-${e.key}`} icon={e.icon} label={label} accent={accentFor(e.key)} onClick={() => onPickScreen(e.key)} />,
         );
       } else {
         // groupe : visible si au moins un enfant autorisé (ou la clé de groupe).
@@ -160,7 +193,7 @@ export function NavHub({
         const label = navLabelFor(t, e.groupKey);
         if (q && !label.toLowerCase().includes(q)) continue;
         cards.push(
-          <HubCard key={e.id} testid={`hub-cat-${e.id}`} icon={e.icon} label={label} sub={countLabel(n)} onClick={() => onPickCategory(e.id)} />,
+          <HubCard key={e.id} testid={`hub-cat-${e.id}`} icon={e.icon} label={label} sub={countLabel(n)} accent={accentFor(e.id)} onClick={() => onPickCategory(e.id)} />,
         );
       }
     }
@@ -185,6 +218,7 @@ export function NavHub({
 
   const visibleChildren = group.children.filter((c) => navGate(c.key));
   const blocks = groupBySection(visibleChildren as NavItem[]);
+  const accent = accentFor(group.id);
 
   return (
     <Shell
@@ -202,11 +236,9 @@ export function NavHub({
           {blocks.map((block, i) => (
             <div key={block.section ?? `blk-${i}`}>
               {block.section && (
-                <div
-                  className="eyebrow"
-                  style={{ marginBlockEnd: 10, paddingInlineStart: 2 }}
-                >
-                  {navSectionLabelFor(t, block.section)}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBlockEnd: 10, paddingInlineStart: 2 }}>
+                  <span aria-hidden style={{ width: 8, height: 8, borderRadius: 999, background: accent, flexShrink: 0 }} />
+                  <span className="eyebrow" style={{ color: accent }}>{navSectionLabelFor(t, block.section)}</span>
                 </div>
               )}
               <Grid>
@@ -215,6 +247,7 @@ export function NavHub({
                     key={child.key}
                     testid={`hub-fn-${child.key}`}
                     icon={child.icon}
+                    accent={accent}
                     label={child.labelKey ? navLabelFor(t, child.labelKey) : navLabelFor(t, child.key)}
                     onClick={() => onPickScreen(child.key)}
                   />
