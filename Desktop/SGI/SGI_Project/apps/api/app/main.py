@@ -15,6 +15,7 @@ from app.routers import (
     accounting,
     acquisitions,
     admin,
+    agenda,
     ai_services,
     auth,
     bank,
@@ -126,6 +127,7 @@ TAGS_METADATA = [
     {"name": "crm", "description": "Leads, scoring, pipeline, relances."},
     {"name": "contracts", "description": "Contrats."},
     {"name": "golden_visa", "description": "Golden Visa UAE."},
+    {"name": "agenda", "description": "Agenda (RDV, visites, tâches, appels)."},
     {"name": "rentals", "description": "Locations."},
     {"name": "pdc", "description": "Chèques post-datés (UAE)."},
     {"name": "payments", "description": "Demandes de paiement & transactions."},
@@ -185,6 +187,7 @@ app.include_router(properties, prefix="/api/v1")
 app.include_router(crm, prefix="/api/v1")
 app.include_router(contracts, prefix="/api/v1")
 app.include_router(golden_visa, prefix="/api/v1")
+app.include_router(agenda, prefix="/api/v1")
 app.include_router(rentals, prefix="/api/v1")
 app.include_router(finance, prefix="/api/v1")
 app.include_router(accounting, prefix="/api/v1")
