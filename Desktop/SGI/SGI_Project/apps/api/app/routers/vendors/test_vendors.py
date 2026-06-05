@@ -139,3 +139,99 @@ class TestTradeLicenceExtraction:
 
         out = await extract_trade_licence(b"", "application/pdf")
         assert out["engine"] == "unsupported_mime"
+
+
+# ─── Synthèse annuaire fournisseurs ──────────────────────────────────────────
+
+import uuid  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
+
+from app.models.client import Client  # noqa: E402
+from app.models.company import Company  # noqa: E402
+from app.models.party_vendor import Vendor  # noqa: E402
+from app.routers.vendors.service import summarize_vendors, vendors_summary  # noqa: E402
+
+
+def _v(vendor_type: str, verification: str, active: bool):
+    return SimpleNamespace(
+        vendor_type=vendor_type, verification_status=verification, is_active=active
+    )
+
+
+class TestSummarizeVendors:
+    def test_empty(self) -> None:
+        s = summarize_vendors([])
+        assert s == {
+            "by_type": {},
+            "by_verification": {},
+            "active_count": 0,
+            "verified_count": 0,
+            "total": 0,
+        }
+
+    def test_counts(self) -> None:
+        vendors = [
+            _v("plumbing", "verified", True),
+            _v("plumbing", "pending", True),
+            _v("electrical", "verified", False),
+            _v("electrical", "rejected", True),
+        ]
+        s = summarize_vendors(vendors)
+        assert s["total"] == 4
+        assert s["by_type"] == {"plumbing": 2, "electrical": 2}
+        assert s["by_verification"] == {"verified": 2, "pending": 1, "rejected": 1}
+        assert s["active_count"] == 3
+        assert s["verified_count"] == 2
+
+
+async def _seed_vendor(
+    db, company_id, *, vendor_type: str, verification: str, active: bool
+) -> None:
+    client = Client(id=uuid.uuid4(), company_id=company_id, type="company", company_name="Vend Co")
+    db.add(client)
+    await db.flush()
+    db.add(
+        Vendor(
+            company_id=company_id,
+            party_id=client.id,
+            vendor_type=vendor_type,
+            categories=[vendor_type],
+            verification_status=verification,
+            is_active=active,
+        )
+    )
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_vendors_summary_service(db_session: AsyncSession, seed_company: Company) -> None:
+    await _seed_vendor(
+        db_session, seed_company.id, vendor_type="plumbing", verification="verified", active=True
+    )
+    await _seed_vendor(
+        db_session, seed_company.id, vendor_type="electrical", verification="pending", active=False
+    )
+    s = await vendors_summary(db_session, seed_company.id)
+    assert s["total"] == 2
+    assert s["by_type"] == {"plumbing": 1, "electrical": 1}
+    assert s["active_count"] == 1
+    assert s["verified_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_vendors_summary_tenant_isolation(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _seed_vendor(
+        db_session, seed_company.id, vendor_type="plumbing", verification="verified", active=True
+    )
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await vendors_summary(db_session, other.id)
+    assert s["total"] == 0
+    assert s["by_type"] == {}

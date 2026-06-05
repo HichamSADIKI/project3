@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +13,37 @@ from app.models.party_vendor import Vendor
 from app.routers.vendors.schemas import VendorCreate, VendorUpdate
 
 # ─── Logique métier pure ──────────────────────────────────────────────────
+
+
+def summarize_vendors(vendors: list[Any]) -> dict[str, Any]:
+    """Synthèse de l'annuaire fournisseurs : répartition par type et par statut de
+    vérification, nombre d'actifs et de vérifiés. Helper pur (sans DB)."""
+    by_type: dict[str, int] = {}
+    by_verification: dict[str, int] = {}
+    active_count = 0
+    verified_count = 0
+    for v in vendors:
+        by_type[v.vendor_type] = by_type.get(v.vendor_type, 0) + 1
+        by_verification[v.verification_status] = by_verification.get(v.verification_status, 0) + 1
+        if v.is_active:
+            active_count += 1
+        if v.verification_status == "verified":
+            verified_count += 1
+    return {
+        "by_type": by_type,
+        "by_verification": by_verification,
+        "active_count": active_count,
+        "verified_count": verified_count,
+        "total": len(vendors),
+    }
+
+
+async def vendors_summary(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Synthèse de l'annuaire fournisseurs du tenant (Loi 1 : scopé company_id)."""
+    result = await db.execute(
+        select(Vendor).where(Vendor.company_id == company_id, Vendor.deleted_at.is_(None))
+    )
+    return summarize_vendors(list(result.scalars().all()))
 
 
 def merge_rating(

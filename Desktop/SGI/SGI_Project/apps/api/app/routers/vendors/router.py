@@ -13,6 +13,7 @@ from app.routers.vendors.schemas import (
     VendorListOut,
     VendorOut,
     VendorRatingInput,
+    VendorsSummaryOut,
     VendorUpdate,
 )
 from app.routers.vendors.service import (
@@ -22,6 +23,7 @@ from app.routers.vendors.service import (
     get_vendor,
     list_vendors,
     update_vendor,
+    vendors_summary,
 )
 
 router = APIRouter(prefix="/vendors", tags=["fournisseurs"])
@@ -66,6 +68,17 @@ async def create_vendor_endpoint(
             detail="party_not_found_or_vendor_exists",
         )
     return VendorDetailOut(data=VendorOut.model_validate(vendor))
+
+
+@router.get("/summary", response_model=VendorsSummaryOut)
+async def vendors_summary_endpoint(
+    db: AsyncSession = Depends(get_db_session),
+) -> VendorsSummaryOut:
+    """Synthèse de l'annuaire fournisseurs : répartition par type et par statut de
+    vérification, nombre d'actifs et de vérifiés."""
+    company_id = await get_company_id(db)
+    summary = await vendors_summary(db, company_id)
+    return VendorsSummaryOut(data=summary, meta={})
 
 
 @router.get("/{party_id}", response_model=VendorDetailOut)
