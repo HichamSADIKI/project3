@@ -13,6 +13,9 @@ class TransactionCreate(BaseModel):
     direction: Literal["debit", "credit"] = "debit"
     amount: Decimal = Field(..., gt=0)
     currency: str = Field("AED", max_length=3)
+    # TVA (UAE) : montant = HT ; vat_amount calculé côté service.
+    tax_treatment: Literal["standard", "zero_rated", "exempt"] = "standard"
+    vat_rate: Decimal = Field(Decimal("0.05"), ge=0, le=1)
     description_en: str | None = Field(None, max_length=500)
     description_ar: str | None = Field(None, max_length=500)
     description_fr: str | None = Field(None, max_length=500)
@@ -38,6 +41,9 @@ class TransactionOut(BaseModel):
     direction: str
     amount: Decimal
     currency: str
+    tax_treatment: str
+    vat_rate: Decimal
+    vat_amount: Decimal
     status: str
     description_en: str | None
     description_ar: str | None

@@ -33,6 +33,16 @@ class FinanceTransaction(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     amount: Mapped[Decimal] = mapped_column(DECIMAL(15, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="AED")
 
+    # TVA par transaction (UAE) — montant = HT ; vat_amount = amount × vat_rate
+    # (0 si zero_rated/exempt). tax_treatment ∈ standard | zero_rated | exempt.
+    tax_treatment: Mapped[str] = mapped_column(String(20), nullable=False, default="standard")
+    vat_rate: Mapped[Decimal] = mapped_column(
+        DECIMAL(5, 4), nullable=False, default=Decimal("0.05")
+    )
+    vat_amount: Mapped[Decimal] = mapped_column(
+        DECIMAL(15, 2), nullable=False, default=Decimal("0")
+    )
+
     # Statut
     status: Mapped[str] = mapped_column(String(30), nullable=False, default="pending")
 
