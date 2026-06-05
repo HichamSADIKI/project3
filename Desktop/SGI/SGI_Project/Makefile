@@ -5,7 +5,7 @@ COMPOSE = docker compose
 API = apps/api
 # Stack d'observabilité (opt-in) : inclut l'override dev seulement s'il existe.
 MONITORING = $(COMPOSE) -f docker-compose.yml $(if $(wildcard docker-compose.override.yml),-f docker-compose.override.yml,) -f docker-compose.monitoring.yml
-MON_SERVICES = prometheus grafana node-exporter cadvisor
+MON_SERVICES = prometheus alertmanager grafana node-exporter cadvisor
 
 up:
 	$(COMPOSE) up -d
@@ -48,8 +48,9 @@ healthcheck:
 # Observabilité (opt-in) : Prometheus (9090) + Grafana (3002) + exporters.
 monitoring:
 	$(MONITORING) up -d $(MON_SERVICES)
-	@echo "✓ Prometheus → http://localhost:9090"
-	@echo "✓ Grafana    → http://localhost:3002  (admin / admin par défaut)"
+	@echo "✓ Prometheus   → http://localhost:9090"
+	@echo "✓ Alertmanager → http://localhost:9093"
+	@echo "✓ Grafana      → http://localhost:3002  (admin / admin par défaut)"
 
 monitoring-down:
 	$(MONITORING) rm -sf $(MON_SERVICES)
