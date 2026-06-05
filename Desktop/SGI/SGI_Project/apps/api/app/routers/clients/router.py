@@ -13,9 +13,11 @@ from app.routers.clients.schemas import (
     ClientDetailOut,
     ClientListOut,
     ClientOut,
+    ClientsSegmentationOut,
     ClientUpdate,
 )
 from app.routers.clients.service import (
+    clients_segmentation,
     create_client,
     delete_client,
     get_client,
@@ -151,6 +153,18 @@ async def create_client_endpoint(
     company_id = _get_company_id(request)
     client = await create_client(db, company_id, body)
     return ClientDetailOut(data=ClientOut.model_validate(client))
+
+
+@router.get("/segmentation", response_model=ClientsSegmentationOut)
+async def clients_segmentation_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> ClientsSegmentationOut:
+    """Segmentation du portefeuille clients : répartition par type et par source,
+    et nombre de clients au budget éligible Golden Visa (≥ 2 000 000 AED)."""
+    company_id = _get_company_id(request)
+    summary = await clients_segmentation(db, company_id)
+    return ClientsSegmentationOut(data=summary, meta={})
 
 
 @router.get("/{client_id}", response_model=ClientDetailOut)

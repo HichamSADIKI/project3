@@ -2,12 +2,45 @@
 
 import uuid
 from datetime import UTC, datetime
+from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
 from app.routers.clients.schemas import ClientCreate, ClientUpdate
+
+# Seuil de budget éligible Golden Visa (AED) — cf. règles CRM (CLAUDE.md).
+GOLDEN_VISA_BUDGET_THRESHOLD = Decimal("2000000")
+
+
+def summarize_clients(clients: list[Client]) -> dict[str, Any]:
+    """Segmentation du portefeuille clients : par type, par source, et nombre de
+    clients dont le budget max atteint le seuil Golden Visa. Helper pur."""
+    by_type: dict[str, int] = {}
+    by_source: dict[str, int] = {}
+    gv_budget = 0
+    for c in clients:
+        by_type[c.type] = by_type.get(c.type, 0) + 1
+        source = c.source or "unknown"
+        by_source[source] = by_source.get(source, 0) + 1
+        if c.budget_max is not None and Decimal(str(c.budget_max)) >= GOLDEN_VISA_BUDGET_THRESHOLD:
+            gv_budget += 1
+    return {
+        "by_type": by_type,
+        "by_source": by_source,
+        "golden_visa_budget_count": gv_budget,
+        "total": len(clients),
+    }
+
+
+async def clients_segmentation(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Segmentation du portefeuille clients du tenant (Loi 1 : scopé company_id)."""
+    result = await db.execute(
+        select(Client).where(Client.company_id == company_id, Client.deleted_at.is_(None))
+    )
+    return summarize_clients(list(result.scalars().all()))
 
 
 async def list_clients(

@@ -87,3 +87,16 @@ class ClientListOut(BaseModel):
 class ClientDetailOut(BaseModel):
     success: bool = True
     data: ClientOut
+
+
+class ClientsSegmentation(BaseModel):
+    by_type: dict[str, int]
+    by_source: dict[str, int]
+    golden_visa_budget_count: int
+    total: int
+
+
+class ClientsSegmentationOut(BaseModel):
+    success: bool = True
+    data: ClientsSegmentation
+    meta: dict[str, Any]
