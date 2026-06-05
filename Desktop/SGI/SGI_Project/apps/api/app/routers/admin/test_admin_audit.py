@@ -56,9 +56,9 @@ def test_csv_safe(raw: object, expected: str) -> None:
 
 @pytest.mark.asyncio
 async def test_audit_requires_role(client: AsyncClient) -> None:
-    """Anonyme (pas de rôle) → 403 (garde require_admin)."""
+    """Anonyme (non authentifié) → 401 (garde require_admin)."""
     resp = await client.get("/api/v1/admin/audit")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio

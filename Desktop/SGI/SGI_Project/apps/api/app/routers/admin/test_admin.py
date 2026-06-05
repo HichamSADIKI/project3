@@ -24,9 +24,9 @@ async def test_admin_health(client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_appadmin_users_requires_role(client: AsyncClient) -> None:
-    """Sans JWT (pas de rôle) → 403 (garde require_admin)."""
+    """Sans JWT (non authentifié) → 401 (garde require_admin)."""
     resp = await client.get("/api/v1/admin/users/health")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio

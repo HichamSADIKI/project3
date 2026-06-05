@@ -72,9 +72,9 @@ async def manager_token(db_session: AsyncSession, seed_admin) -> str:
 
 @pytest.mark.asyncio
 async def test_list_requires_role(client: AsyncClient) -> None:
-    """Sans JWT (pas de rôle) → 403 (garde require_admin)."""
+    """Sans JWT (non authentifié) → 401 (garde require_admin)."""
     resp = await client.get(BASE)
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 # ── Liste + filtres ──────────────────────────────────────────────────────────
