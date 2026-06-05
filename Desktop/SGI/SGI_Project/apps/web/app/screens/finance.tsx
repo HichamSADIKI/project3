@@ -64,6 +64,7 @@ const TR: Record<Lang, Record<string, string>> = {
     pMonth: "Ce mois", pQuarter: "Trimestre", pYtd: "Année",
     vat: "TVA (5 %)", vatOut: "TVA collectée", vatIn: "TVA déductible", vatNet: "TVA nette à payer",
     exportCsv: "Exporter CSV", invoicePdf: "Facture",
+    cashflow: "Prévision trésorerie", cfOverdue: "En retard", cf030: "0-30 j", cf3160: "31-60 j", cf6190: "61-90 j", cfLater: "Plus tard", cfIn: "Encaissements", cfOut: "Décaissements",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -79,6 +80,7 @@ const TR: Record<Lang, Record<string, string>> = {
     pMonth: "This month", pQuarter: "Quarter", pYtd: "Year",
     vat: "VAT (5%)", vatOut: "Output VAT", vatIn: "Input VAT", vatNet: "Net VAT payable",
     exportCsv: "Export CSV", invoicePdf: "Invoice",
+    cashflow: "Cash-flow forecast", cfOverdue: "Overdue", cf030: "0-30 d", cf3160: "31-60 d", cf6190: "61-90 d", cfLater: "Later", cfIn: "Expected in", cfOut: "Expected out",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -94,6 +96,7 @@ const TR: Record<Lang, Record<string, string>> = {
     pMonth: "هذا الشهر", pQuarter: "ربع سنة", pYtd: "السنة",
     vat: "ضريبة القيمة المضافة (5%)", vatOut: "ضريبة المخرجات", vatIn: "ضريبة المدخلات", vatNet: "صافي الضريبة المستحقة",
     exportCsv: "تصدير CSV", invoicePdf: "فاتورة",
+    cashflow: "توقّع التدفّق النقدي", cfOverdue: "متأخر", cf030: "0-30 يوم", cf3160: "31-60 يوم", cf6190: "61-90 يوم", cfLater: "لاحقاً", cfIn: "مقبوضات", cfOut: "مدفوعات",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -383,12 +386,19 @@ type Vat = {
   input_vat: string;
   net_vat: string;
 };
+type CashFlow = {
+  buckets: { label: string; expected_in: string; expected_out: string; net: string }[];
+  total_in: string;
+  total_out: string;
+  net: string;
+};
 
 function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.ReactNode {
   const [period, setPeriod] = useState<"month" | "quarter" | "ytd">("month");
   const [pnl, setPnl] = useState<Pnl | null>(null);
   const [aged, setAged] = useState<Aged | null>(null);
   const [vat, setVat] = useState<Vat | null>(null);
+  const [cash, setCash] = useState<CashFlow | null>(null);
 
   useEffect(() => {
     getJson<Pnl>(`/api/admin/finance/reports/pnl?period=${period}`).then(setPnl).catch(() => setPnl(null));
@@ -396,7 +406,12 @@ function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.
   }, [period]);
   useEffect(() => {
     getJson<Aged>("/api/admin/finance/reports/aged-receivables").then(setAged).catch(() => setAged(null));
+    getJson<CashFlow>("/api/admin/finance/reports/cashflow").then(setCash).catch(() => setCash(null));
   }, []);
+
+  const cfLabel: Record<string, string> = {
+    overdue: L("cfOverdue"), d0_30: L("cf030"), d31_60: L("cf3160"), d61_90: L("cf6190"), later: L("cfLater"),
+  };
 
   const card: React.CSSProperties = { background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 12, padding: 16 };
   const row = (label: string, value: string, accent?: string): React.ReactNode => (
@@ -469,6 +484,27 @@ function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.
               {row(L("vatIn"), aed(vat.input_vat), "var(--rose)")}
               <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
               {row(L("vatNet"), aed(vat.net_vat), Number(vat.net_vat) >= 0 ? "var(--ink)" : "var(--emerald)")}
+            </>
+          ) : (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
+          )}
+        </div>
+
+        {/* Prévision de trésorerie */}
+        <div style={{ ...card, flex: "1 1 320px" }}>
+          <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 10 }}>{L("cashflow")}</div>
+          {cash ? (
+            <>
+              {cash.buckets.map((b) => (
+                <div key={b.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5 }}>
+                  <span style={{ color: "var(--ink-3)" }}>{cfLabel[b.label] ?? b.label}</span>
+                  <span style={{ fontWeight: 600, color: Number(b.net) >= 0 ? "var(--emerald)" : "var(--rose)" }}>{aed(b.net)}</span>
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
+              {row(L("cfIn"), aed(cash.total_in), "var(--emerald)")}
+              {row(L("cfOut"), aed(cash.total_out), "var(--rose)")}
+              {row(L("net"), aed(cash.net), Number(cash.net) >= 0 ? "var(--emerald)" : "var(--rose)")}
             </>
           ) : (
             <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>

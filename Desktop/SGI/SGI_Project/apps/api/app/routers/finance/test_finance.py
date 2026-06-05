@@ -417,3 +417,46 @@ async def test_generate_invoice_cross_tenant_not_found(db_session, seed_company:
     with pytest.raises(InvoiceError) as exc:
         await generate_and_store_invoice(db_session, other.id, txn.id)
     assert exc.value.code == "transaction_not_found"
+
+
+# ── Prévision de trésorerie ─────────────────────────────────────────────────
+
+
+def test_bucket_cashflow() -> None:
+    from datetime import date
+
+    from app.routers.finance.service import bucket_cashflow
+
+    today = date(2026, 6, 5)
+    items = [
+        (Decimal("1000"), date(2026, 6, 20), "credit"),  # +15 j → d0_30 in
+        (Decimal("500"), date(2026, 5, 1), "debit"),  # passé → overdue out
+        (Decimal("200"), date(2026, 8, 1), "credit"),  # +57 j → d31_60 in
+        (Decimal("100"), None, "credit"),  # sans échéance → d0_30 in
+    ]
+    b = bucket_cashflow(items, today)
+    assert b["d0_30"]["in"] == Decimal("1100")
+    assert b["overdue"]["out"] == Decimal("500")
+    assert b["d31_60"]["in"] == Decimal("200")
+
+
+async def test_cash_flow_forecast_totals(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.service import cash_flow_forecast
+
+    cid = seed_company.id
+    await create_transaction(
+        db_session,
+        cid,
+        _txn(type="invoice", direction="credit", amount=Decimal("3000"), due_date=date(2026, 7, 1)),
+    )
+    await create_transaction(
+        db_session,
+        cid,
+        _txn(type="expense", direction="debit", amount=Decimal("1000"), due_date=date(2026, 1, 1)),
+    )
+    fc = await cash_flow_forecast(db_session, cid)
+    assert fc.total_in == Decimal("3000")
+    assert fc.total_out == Decimal("1000")
+    assert fc.net == Decimal("2000")
