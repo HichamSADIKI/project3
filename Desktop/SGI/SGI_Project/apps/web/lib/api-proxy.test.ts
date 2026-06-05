@@ -71,7 +71,7 @@ describe("proxyMultipart — relai authentifié", () => {
     const req = new Request("http://web/up", { method: "POST", body: fd });
     await mod.proxyMultipart(req, { path: "golden-visa/1/documents/passport" });
 
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const [url, init] = fetchSpy.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("http://api:8000/api/v1/golden-visa/1/documents/passport");
     expect(init.method).toBe("POST");
     expect(init.headers).toEqual({ Authorization: "Bearer tok123" });

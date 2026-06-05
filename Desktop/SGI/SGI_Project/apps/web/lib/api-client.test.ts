@@ -145,7 +145,7 @@ describe("postForm", () => {
     fd.append("file", new Blob(["x"], { type: "application/pdf" }), "p.pdf");
     const res = await postForm("/api/admin/golden-visa/1/documents/passport", fd);
     expect(res.status).toBe(201);
-    const [url, init] = spy.mock.calls[0];
+    const [url, init] = spy.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe("/api/admin/golden-visa/1/documents/passport");
     expect(init.method).toBe("POST");
     expect(init.body).toBe(fd);
