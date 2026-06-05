@@ -133,3 +133,84 @@ La création du rôle est idempotente et sans risque. Pour revenir temporairemen
 au comportement historique (RLS inerte) : retirer `APP_DB_PASSWORD` de
 l'environnement de l'API et recréer le conteneur — l'API repasse en `sgi_user`.
 Le rôle `sgi_app` peut rester en place (inoffensif).
+
+---
+
+# Activation du module « Administration application » (infra-admin)
+
+Le module `admin` (réf. [apps/api/app/routers/admin/CLAUDE.md](apps/api/app/routers/admin/CLAUDE.md))
+est **livré inerte** : sans les étapes ci-dessous, l'app-admin (users/audit/alertes) fonctionne,
+mais l'infra-admin (serveurs/réseau/backups) est en **lecture seule / dry-run** — aucune action
+réelle. On active par paliers, du moins au plus sensible. **Chaque flag est `false` par défaut.**
+
+## 0. Pré-requis transverses
+
+1. **Super-admin plateforme** — au moins un utilisateur avec `is_platform_admin=true` (lu en DB
+   à chaque requête, pas dans le JWT) :
+   ```sql
+   UPDATE users SET is_platform_admin = true WHERE email = 'ops@infinity.ae';
+   ```
+2. **Migrations à jour** : `make migrate` (head ≥ `0056_backup_runs_kind_restore`).
+
+## 1. Observabilité (lecture — non destructif)
+
+Sans Prometheus, les écrans Serveurs/Réseau/Tendance dégradent proprement (`available:false`,
+jamais de 500). Pour des données réelles :
+
+```bash
+make monitoring                 # Prometheus :9090 / Grafana :3002 (docker-compose.monitoring.yml)
+export PROMETHEUS_URL=http://prometheus:9090
+docker compose exec -e PYTHONPATH=/app api uv run python scripts/seed_infra_services.py
+```
+`seed_infra_services` peuple le registre `infra_services` (le `name` doit == le `job` Prometheus).
+
+## 2. Sauvegardes — déclenchement (`BACKUP_TRIGGER_ENABLED`)
+
+Non destructif (créer un dump ne touche pas aux données). Requiert `pg_dump` (postgresql-client)
+dans l'image worker.
+```bash
+BACKUP_TRIGGER_ENABLED=true
+BACKUP_DIR=/backups            # volume persistant monté sur le worker
+```
+Flag off → l'endpoint reste en dry-run. Double confirmation = nom de la cible (`db`).
+
+## 3. Contrôle serveurs réel (`INFRA_CONTROL_ENABLED` + profil `control`)
+
+**Double verrou** : le flag ET le profil compose. Démarrer le worker dédié + le proxy Docker
+durci (seule la section API `CONTAINERS`+`POST` est autorisée ; `api`/`db`/`valkey`/`minio`
+sont exclus de `is_controllable` en dur) :
+```bash
+INFRA_CONTROL_ENABLED=true
+docker compose --profile control up -d   # démarre worker-infra + docker-socket-proxy
+```
+Flag off OU profil non démarré → les actions restent en dry-run. Whitelist : restart/stop/start/
+suspend (suspend→pause). Double confirmation = nom du service.
+
+## 4. Auto-remédiation (`AUTO_REMEDIATION_ENABLED`)
+
+Boucle préventive : le beat `auto_remediate` (toutes les 2 min) mappe une alerte Prometheus
+*firing* → action D2. **Requiert l'étape 1 (Prometheus) ET l'étape 3 (contrôle réel)**.
+```bash
+AUTO_REMEDIATION_ENABLED=true
+```
+Anti-rebond : pas de 2ᵉ action sur un service déjà actionné < 10 min. Reste 100 % plateforme
+(ne franchit jamais un tenant). Flag off → les règles sont évaluées en dry-run.
+
+## 5. Restauration de backup (`RESTORE_ENABLED`) — la plus sensible
+
+Restaure un dump **dans une base CIBLE jetable** (`RESTORE_TARGET_DB`, défaut
+`<POSTGRES_DB>_restore_check`) — **JAMAIS la base de production** : sert à *vérifier qu'un dump
+est restaurable*. Le worker refuse si la cible == base live. Requiert `pg_restore`/`psql` worker.
+```bash
+RESTORE_ENABLED=true
+RESTORE_TARGET_DB=sgi_restore_check     # doit être ≠ POSTGRES_DB
+```
+Flag off → dry-run (intention journalisée, aucune base touchée). Double confirmation = token
+littéral `restore`. **La promotion de la base de vérification vers la prod reste un acte ops
+manuel et hors scope** — ne jamais automatiser sans revue.
+
+## Ordre d'activation conseillé & rollback
+
+1 (observabilité) → 2 (backups) → 3 (contrôle) → 4 (auto-rem) → 5 (restauration). **Rollback** :
+repasser n'importe quel flag à `false` (effet immédiat, retour au dry-run) ; pour couper le
+contrôle réel, `docker compose --profile control down` suffit même flag laissé à `true`.
