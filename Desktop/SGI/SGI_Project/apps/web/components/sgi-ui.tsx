@@ -131,7 +131,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 export type NavKey =
   | "dash" | "crm" | "orders"
   | "clients" | "personne" | "societe"
-  | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_website" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_golden_visa" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
+  | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_website" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_golden_visa" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_inspections" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
   | "assurance" | "assurance_crm" | "assurance_news"
@@ -193,6 +193,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "realestate_cheques", icon: <IcReport />, section: "finance" },
       // 🛠️ SUPPORT & ADMIN — exploitation, relation client, config
       { key: "realestate_maintenance", icon: <IcClock />, section: "support" },
+      { key: "realestate_inspections", icon: <IcAudit />, section: "support" },
       { key: "realestate_comms", icon: <IcChat />, section: "support" },
       { key: "realestate_inbox", icon: <IcMail />, section: "support" },
       { key: "realestate_tickets", icon: <IcReport />, section: "support" },
@@ -381,7 +382,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
       realestate: t.nav_realestate, realestate_process: t.nav_re_process,
       realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing, realestate_website: t.nav_re_website,
-      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_golden_visa: t.nav_golden_visa, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
+      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_golden_visa: t.nav_golden_visa, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_inspections: t.nav_inspections, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
       realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
       appadmin: t.nav_appadmin, appadmin_users: t.nav_appadmin_users, appadmin_audit: t.nav_appadmin_audit, appadmin_infra: t.nav_appadmin_infra, appadmin_backups: t.nav_appadmin_backups,
       admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
