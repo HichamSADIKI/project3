@@ -46,6 +46,68 @@ _MANDATE_TRANSITIONS: dict[str, frozenset[str]] = {
 }
 
 
+def _count_by_status(rows: list[Any]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for r in rows:
+        out[r.status] = out.get(r.status, 0) + 1
+    return out
+
+
+def summarize_acquisitions_pipeline(mandates: list[Any], offers: list[Any]) -> dict[str, Any]:
+    """Synthèse du pipeline d'acquisition (helper pur, sans DB).
+
+    - mandates : répartition par statut + nb de mandats actifs ;
+    - offers : répartition par statut + montant des offres soumises (en cours) +
+      nombre et montant des offres acceptées. Montants en ``Decimal`` AED.
+    """
+    submitted_amount = sum(
+        (Decimal(str(o.amount)) for o in offers if o.status == "submitted"), Decimal("0.00")
+    )
+    accepted = [o for o in offers if o.status == "accepted"]
+    accepted_amount = sum((Decimal(str(o.amount)) for o in accepted), Decimal("0.00"))
+    return {
+        "mandates": {
+            "by_status": _count_by_status(mandates),
+            "active_count": sum(1 for m in mandates if m.status == "active"),
+        },
+        "offers": {
+            "by_status": _count_by_status(offers),
+            "submitted_amount_aed": submitted_amount,
+            "accepted_count": len(accepted),
+            "accepted_amount_aed": accepted_amount,
+        },
+    }
+
+
+async def acquisitions_pipeline_summary(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Synthèse du pipeline d'acquisition du tenant (Loi 1 : scopé company_id)."""
+    mandates = (
+        (
+            await db.execute(
+                select(BuyerMandate).where(
+                    BuyerMandate.company_id == company_id,
+                    BuyerMandate.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    offers = (
+        (
+            await db.execute(
+                select(PurchaseOffer).where(
+                    PurchaseOffer.company_id == company_id,
+                    PurchaseOffer.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return summarize_acquisitions_pipeline(list(mandates), list(offers))
+
+
 def generate_reference(year: int, sequence: int) -> str:
     """Référence triable : `ACQ-2026-000042`."""
     return f"ACQ-{year:04d}-{sequence:06d}"
