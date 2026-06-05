@@ -16,11 +16,13 @@ from __future__ import annotations
 import logging
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
-from sqlalchemy import update
+from sqlalchemy import Select, select, update
 
 from app.core import mailer
 from app.core.database import sync_session_maker
+from app.models.client import Client
 from app.models.notification import Notification
 from app.tasks.celery_app import celery_app
 
@@ -94,6 +96,50 @@ def deliver_email_notification(notif: Notification, *, to: str, html: str | None
         notification_id=str(notif.id),
         company_id=str(notif.company_id),
     )
+
+
+def build_party_email_notification(
+    db: Any,
+    company_id: uuid.UUID,
+    party_id: uuid.UUID | None,
+    *,
+    notif_type: str,
+    title: str,
+    body: str,
+    payload: dict[str, Any] | None = None,
+) -> tuple[Notification, str] | None:
+    """Côté worker (session sync) : prépare le doublon e-mail d'une alerte.
+
+    Résout l'e-mail du party (Client) ; s'il existe, construit une notification
+    ``channel="email"`` (statut ``pending``, id généré côté Python pour pouvoir
+    l'enfiler sans flush) et l'``add`` à la session. Renvoie ``(notif, email)``,
+    ou ``None`` si pas de party / pas d'adresse. Le caller **commit** puis appelle
+    ``deliver_email_notification(notif, to=email)`` (après commit, pour ne pas
+    enfiler un envoi si la transaction est annulée). Scopé ``company_id`` (Loi 1).
+    """
+    if party_id is None:
+        return None
+    stmt: Select[tuple[str | None]] = select(Client.email).where(
+        Client.id == party_id,
+        Client.company_id == company_id,
+        Client.deleted_at.is_(None),
+    )
+    email = db.execute(stmt).scalar_one_or_none()
+    if not email:
+        return None
+    notif = Notification(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        recipient_party_id=party_id,
+        type=notif_type,
+        channel="email",
+        title=title,
+        body=body,
+        payload=payload or {},
+        status="pending",
+    )
+    db.add(notif)
+    return notif, email
 
 
 @celery_app.task(name="app.tasks.notifications.send_whatsapp_template", queue="notifications")

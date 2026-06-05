@@ -22,6 +22,7 @@ from app.models.pdc_cheque import PdcCheque
 from app.models.rental import Rental
 from app.routers.pdc.service import pdc_reminder_level
 from app.tasks.celery_app import celery_app
+from app.tasks.notifications import build_party_email_notification, deliver_email_notification
 
 logger = logging.getLogger(__name__)
 
@@ -74,32 +75,51 @@ def check_rental_renewals() -> dict:
                 .all()
             )
 
+            # Doublons e-mail à enfiler APRÈS commit (pas avant : on n'envoie
+            # pas si la transaction est annulée).
+            pending_emails: list[tuple[Notification, str]] = []
             for rental in rentals:
                 rental.renewal_alert_sent = True
                 alerted += 1
+                title = "Renouvellement de bail à prévoir"
+                body = (
+                    "Votre bail arrive à échéance le "
+                    f"{rental.end_date.isoformat()} (J-{RENEWAL_HORIZON_DAYS})."
+                )
                 # Notification in-app au locataire (le bail ne porte pas de FK
                 # gestionnaire ; recipient_party_id = client_id). Idempotence via
-                # renewal_alert_sent (posé ci-dessus). Canaux externes
-                # (email/WhatsApp/push) à brancher via le module comms.
+                # renewal_alert_sent (posé ci-dessus).
                 db.add(
                     Notification(
                         company_id=rental.company_id,
                         recipient_party_id=rental.client_id,
                         type="rental_renewal_due",
                         channel="in_app",
-                        title="Renouvellement de bail à prévoir",
-                        body=(
-                            "Votre bail arrive à échéance le "
-                            f"{rental.end_date.isoformat()} (J-{RENEWAL_HORIZON_DAYS})."
-                        ),
+                        title=title,
+                        body=body,
                         payload={"rental_id": str(rental.id)},
                         status="sent",
                         sent_at=datetime.now(UTC),
                     )
                 )
+                # Doublon e-mail si le locataire a une adresse (canal email, pending).
+                email_pair = build_party_email_notification(
+                    db,
+                    rental.company_id,
+                    rental.client_id,
+                    notif_type="rental_renewal_due",
+                    title=title,
+                    body=body,
+                    payload={"rental_id": str(rental.id)},
+                )
+                if email_pair is not None:
+                    pending_emails.append(email_pair)
 
             if alerted:
                 db.commit()
+                # Enfile les envois après le commit (notifs email persistées).
+                for notif, email in pending_emails:
+                    deliver_email_notification(notif, to=email)
                 logger.info("check_rental_renewals : %d bail(s) alerté(s) J-120", alerted)
             return {"status": "ok", "alerts_sent": alerted}
     except Exception as exc:  # noqa: BLE001

@@ -95,3 +95,70 @@ def test_deliver_email_falls_back_to_title_when_no_body(monkeypatch: pytest.Monk
     )
     notif_tasks.deliver_email_notification(notif, to="a@b.com")
     assert captured["body"] == "Titre seul"  # repli sur le titre
+
+
+# ─── build_party_email_notification (helper worker, session sync simulée) ────
+
+
+class _FakeResult:
+    def __init__(self, value: object) -> None:
+        self._value = value
+
+    def scalar_one_or_none(self) -> object:
+        return self._value
+
+
+class _FakeSyncDB:
+    """Double de la session sync du worker : execute() renvoie l'e-mail."""
+
+    def __init__(self, email: object) -> None:
+        self._email = email
+        self.added: list[object] = []
+
+    def execute(self, stmt: object) -> _FakeResult:
+        return _FakeResult(self._email)
+
+    def add(self, obj: object) -> None:
+        self.added.append(obj)
+
+
+def test_build_party_email_none_when_no_party() -> None:
+    db = _FakeSyncDB("a@b.com")
+    out = notif_tasks.build_party_email_notification(
+        db, uuid.uuid4(), None, notif_type="x", title="t", body="b"
+    )
+    assert out is None
+    assert db.added == []
+
+
+def test_build_party_email_none_when_no_email() -> None:
+    db = _FakeSyncDB(None)  # party sans adresse
+    out = notif_tasks.build_party_email_notification(
+        db, uuid.uuid4(), uuid.uuid4(), notif_type="x", title="t", body="b"
+    )
+    assert out is None
+    assert db.added == []
+
+
+def test_build_party_email_builds_pending_email_notification() -> None:
+    db = _FakeSyncDB("tenant@example.com")
+    company_id = uuid.uuid4()
+    party_id = uuid.uuid4()
+    out = notif_tasks.build_party_email_notification(
+        db,
+        company_id,
+        party_id,
+        notif_type="rental_renewal_due",
+        title="Renouvellement",
+        body="Votre bail expire bientôt.",
+        payload={"rental_id": "r1"},
+    )
+    assert out is not None
+    notif, email = out
+    assert email == "tenant@example.com"
+    assert notif.channel == "email"
+    assert notif.status == "pending"
+    assert notif.company_id == company_id
+    assert notif.recipient_party_id == party_id
+    assert notif.id is not None  # id généré côté Python (enfilable sans flush)
+    assert db.added == [notif]
