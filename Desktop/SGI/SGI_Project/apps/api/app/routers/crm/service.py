@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.references import commit_with_reference_retry
 from app.models.client import Client
 from app.models.crm import CRMActivity, CRMLead
+from app.models.golden_visa import GoldenVisaApplication
 
 from .schemas import ActivityCreate, LeadCreate, LeadStatusUpdate, LeadUpdate
 
@@ -293,6 +294,46 @@ async def update_lead(
     return lead
 
 
+async def _ensure_golden_visa_application(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    *,
+    client_id: uuid.UUID,
+    agent_id: uuid.UUID | None,
+    amount: Decimal,
+) -> bool:
+    """Crée un dossier Golden Visa (statut pending) pour le client, si absent.
+
+    Idempotent : ne crée rien si un dossier non terminal (≠ rejected/expired)
+    existe déjà pour ce client dans le tenant. Renvoie True si un dossier a été
+    créé. Scopé company_id (Loi 1). Ajouté à la session ; commit par l'appelant.
+    """
+    existing = (
+        await db.execute(
+            select(GoldenVisaApplication.id).where(
+                GoldenVisaApplication.company_id == company_id,
+                GoldenVisaApplication.client_id == client_id,
+                GoldenVisaApplication.deleted_at.is_(None),
+                GoldenVisaApplication.status.notin_(["rejected", "expired"]),
+            )
+        )
+    ).first()
+    if existing is not None:
+        return False
+    db.add(
+        GoldenVisaApplication(
+            company_id=company_id,
+            client_id=client_id,
+            assigned_agent_id=agent_id,
+            status="pending",
+            notes=(
+                f"Créé automatiquement à la clôture d'un deal gagné ({amount} AED ≥ 2 000 000 AED)."
+            ),
+        )
+    )
+    return True
+
+
 async def update_lead_status(
     db: AsyncSession,
     company_id: str,
@@ -338,21 +379,35 @@ async def update_lead_status(
     if new_status == "won":
         if data.won_amount is not None:
             lead.won_amount = data.won_amount
-        # Automatisme Golden Visa : vente ≥ 2 000 000 AED
+        # Automatisme post-close Golden Visa : vente ≥ 2 000 000 AED
         effective_amount = data.won_amount or lead.budget
         if effective_amount and effective_amount >= GOLDEN_VISA_THRESHOLD:
-            # Log de l'éligibilité Golden Visa pour déclenchement du workflow
-            activity_gv = CRMActivity(
-                company_id=uuid.UUID(company_id),
-                lead_id=lead.id,
-                user_id=user_id,
-                type="note",
-                content=(
-                    f"Golden Visa éligible — montant {effective_amount} AED "
-                    f"(seuil 2 000 000 AED atteint). Workflow Golden Visa à déclencher."
-                ),
+            lead.golden_visa_eligible = True
+            created = await _ensure_golden_visa_application(
+                db,
+                uuid.UUID(company_id),
+                client_id=lead.client_id,
+                agent_id=lead.agent_id or user_id,
+                amount=effective_amount,
             )
-            db.add(activity_gv)
+            note = (
+                f"Golden Visa éligible — montant {effective_amount} AED "
+                f"(seuil 2 000 000 AED atteint). "
+                + (
+                    "Dossier Golden Visa créé (statut pending)."
+                    if created
+                    else "Dossier Golden Visa déjà existant."
+                )
+            )
+            db.add(
+                CRMActivity(
+                    company_id=uuid.UUID(company_id),
+                    lead_id=lead.id,
+                    user_id=user_id,
+                    type="note",
+                    content=note,
+                )
+            )
 
     # Journal de la transition de statut
     activity = CRMActivity(

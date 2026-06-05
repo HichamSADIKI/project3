@@ -356,6 +356,78 @@ async def test_status_won_logs_golden_visa_activity(
     assert any(a.type == "note" and "Golden Visa" in (a.content or "") for a in acts)
 
 
+async def _advance_to_won(db, cid: str, lead, admin: User, won_amount: Decimal | None):
+    for target in ("contacted", "qualified", "proposal_sent", "negotiation"):
+        await update_lead_status(db, cid, lead.id, LeadStatusUpdate(status=target), admin.id)
+    return await update_lead_status(
+        db, cid, lead.id, LeadStatusUpdate(status="won", won_amount=won_amount), admin.id
+    )
+
+
+async def _gv_apps(db, company_id: uuid.UUID, client_id: uuid.UUID):
+    from sqlalchemy import select as _select
+
+    from app.models.golden_visa import GoldenVisaApplication
+
+    rows = await db.execute(
+        _select(GoldenVisaApplication).where(
+            GoldenVisaApplication.company_id == company_id,
+            GoldenVisaApplication.client_id == client_id,
+            GoldenVisaApplication.deleted_at.is_(None),
+        )
+    )
+    return list(rows.scalars().all())
+
+
+async def test_won_above_threshold_creates_golden_visa_application(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    """Vente ≥ 2M AED → un dossier Golden Visa (statut pending) est créé."""
+    admin, _ = seed_admin
+    cid = str(admin.company_id)
+    lead = await _lead(db_session, admin)
+    won = await _advance_to_won(db_session, cid, lead, admin, Decimal("2500000"))
+    assert won is not None and won.golden_visa_eligible is True
+    apps = await _gv_apps(db_session, admin.company_id, lead.client_id)
+    assert len(apps) == 1
+    assert apps[0].status == "pending"
+    assert apps[0].assigned_agent_id == lead.agent_id or admin.id
+
+
+async def test_won_below_threshold_no_golden_visa(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    """Vente < 2M AED → aucun dossier Golden Visa créé."""
+    admin, _ = seed_admin
+    cid = str(admin.company_id)
+    lead = await _lead(db_session, admin, budget=Decimal("500000"), golden_visa_eligible=False)
+    await _advance_to_won(db_session, cid, lead, admin, Decimal("500000"))
+    apps = await _gv_apps(db_session, admin.company_id, lead.client_id)
+    assert apps == []
+
+
+async def test_won_idempotent_when_gv_application_exists(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    """Un dossier Golden Visa non terminal déjà présent → pas de doublon."""
+    from app.models.golden_visa import GoldenVisaApplication
+
+    admin, _ = seed_admin
+    cid = str(admin.company_id)
+    lead = await _lead(db_session, admin)
+    db_session.add(
+        GoldenVisaApplication(
+            company_id=admin.company_id,
+            client_id=lead.client_id,
+            status="submitted",
+        )
+    )
+    await db_session.commit()
+    await _advance_to_won(db_session, cid, lead, admin, Decimal("3000000"))
+    apps = await _gv_apps(db_session, admin.company_id, lead.client_id)
+    assert len(apps) == 1  # pas de second dossier
+
+
 # ── Activités ────────────────────────────────────────────────────────────────
 
 
