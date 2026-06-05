@@ -103,8 +103,33 @@ export function AssistantDock({
     }
   }
 
+  // ── Machine d'« activité » (par-dessus les modes de déplacement) ──
+  //  rest/offer/search/found + mise en scène au clic :
+  //  summon (se lève, marche au centre) → ask (« Que voulez-vous ? ») →
+  //  listen (chat ouvert, attend) → understood (« J'ai compris ! ») → wander (déambule).
+  type Activity =
+    | "rest"
+    | "offer"
+    | "search"
+    | "found"
+    | "summon"
+    | "ask"
+    | "listen"
+    | "understood"
+    | "wander";
+  const [activity, setActivity] = useState<Activity>("rest");
+  const [held, setHeld] = useState(false); // pointeur maintenu sur le robot → debout
+
+  // Commande de position envoyée au moteur : centre pour la mise en scène, errance ensuite.
+  const command: "center" | "wander" | null =
+    activity === "summon" || activity === "ask"
+      ? "center"
+      : activity === "wander"
+        ? "wander"
+        : null;
+
   const { containerRef, pupilLRef, pupilRRef, mode, tip, dismissTip, tipBelow, onAvatarPointerDown, consumeDragClick, resetHome } =
-    useAssistantRoaming({ open, pinned, t, screen, onSummon: summon });
+    useAssistantRoaming({ open, pinned, t, screen, onSummon: summon, command });
 
   // Humeur transitoire : le robot sourit brièvement après une réponse réussie.
   const [mood, setMood] = useState<"neutral" | "happy">("neutral");
@@ -116,30 +141,43 @@ export function AssistantDock({
     moodTimer.current = setTimeout(() => setMood("neutral"), 2500);
   }
 
-  // ── Machine d'« activité » (par-dessus les modes de déplacement) ───────────
-  //  rest   : au repos, assis sur sa chaise (à son coin = sa « maison »)
-  //  offer  : après 90 s d'inactivité → réfléchit et propose son aide
-  //  search : une question est posée → se lève et marche pendant la recherche
-  //  found  : la réponse arrive → lève le bras « Trouvé ! » puis se rassoit
-  type Activity = "rest" | "offer" | "search" | "found";
-  const [activity, setActivity] = useState<Activity>("rest");
-  const [held, setHeld] = useState(false); // pointeur maintenu sur le robot → debout
   const wasLoading = useRef(false);
-  const foundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (foundTimer.current) clearTimeout(foundTimer.current); }, []);
+  const seqTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearSeq = (): void => {
+    seqTimers.current.forEach(clearTimeout);
+    seqTimers.current = [];
+  };
+  useEffect(() => clearSeq, []);
 
-  // Recherche → réponse : se lève et marche pendant le chargement, puis « Trouvé ! ».
+  // Mise en scène au clic : se lève → marche au centre → « Que voulez-vous ? »
+  // → ouvre le chat et attend la question.
+  function startSummon(): void {
+    clearSeq();
+    setActivity("summon");
+    seqTimers.current.push(setTimeout(() => setActivity("ask"), 1500));
+    seqTimers.current.push(
+      setTimeout(() => {
+        setOpen(true);
+        setActivity("listen");
+      }, 3000),
+    );
+  }
+
+  // Envoi d'une question → « J'ai compris ! » à la validation, puis marche pendant
+  // la recherche, « Trouvé ! » à la réponse, déambulation, puis retour à la chaise.
   useEffect(() => {
     if (loading && !wasLoading.current) {
-      if (foundTimer.current) clearTimeout(foundTimer.current);
-      setActivity("search");
+      clearSeq();
+      setActivity("understood");
+      seqTimers.current.push(setTimeout(() => setActivity("search"), 1000));
     } else if (!loading && wasLoading.current) {
+      clearSeq();
       if (error) {
         setActivity("rest");
       } else {
         setActivity("found");
-        if (foundTimer.current) clearTimeout(foundTimer.current);
-        foundTimer.current = setTimeout(() => setActivity("rest"), 1800);
+        seqTimers.current.push(setTimeout(() => setActivity("wander"), 1600));
+        seqTimers.current.push(setTimeout(() => setActivity("rest"), 5200));
       }
     }
     wasLoading.current = loading;
@@ -341,7 +379,14 @@ export function AssistantDock({
           onClick={() => {
             // Un glisser ne doit pas ouvrir/fermer le chat (clic seul).
             if (consumeDragClick()) return;
-            setOpen((o) => !o);
+            if (open) {
+              setOpen(false);
+              clearSeq();
+              setActivity("rest");
+            } else {
+              // Mise en scène : se lève, marche au centre, demande, puis ouvre le chat.
+              startSummon();
+            }
           }}
           aria-label={open ? t.assistant_close : t.assistant_open}
           title={t.assistant_title}
@@ -370,17 +415,21 @@ export function AssistantDock({
               pose={
                 held
                   ? "stand"
-                  : activity === "search"
-                    ? "search"
-                    : activity === "found"
-                      ? "found"
-                      : mode === "follow" || mode === "field"
-                        ? "walk"
-                        : open
+                  : activity === "summon" || activity === "wander"
+                    ? "walk"
+                    : activity === "search"
+                      ? "search"
+                      : activity === "found"
+                        ? "found"
+                        : activity === "ask" || activity === "listen" || activity === "understood"
                           ? "stand"
-                          : activity === "offer"
-                            ? "offer"
-                            : "sit"
+                          : mode === "follow" || mode === "field"
+                            ? "walk"
+                            : open
+                              ? "stand"
+                              : activity === "offer"
+                                ? "offer"
+                                : "sit"
               }
               showChair={!held && mode !== "follow" && mode !== "field"}
               glow={halo}
@@ -391,38 +440,56 @@ export function AssistantDock({
           )}
         </button>
 
-        {/* Bulle d'« activité » : propose l'aide (repos prolongé) ou annonce la
-            solution trouvée. Masquée si une bulle proactive du moteur est déjà là. */}
-        {!tip && (activity === "offer" || activity === "found") && (
-          <button
-            type="button"
-            onClick={() => {
-              if (activity === "offer") setOpen(true);
-            }}
-            style={{
-              pointerEvents: "auto",
-              position: "absolute",
-              insetInlineEnd: 0,
-              insetBlockEnd: 68,
-              width: "max-content",
-              maxWidth: "min(220px, calc(100vw - 32px))",
-              background: activity === "found" ? "var(--gold)" : "var(--bg-paper)",
-              color: activity === "found" ? "#1A1610" : "var(--ink)",
-              border: `1px solid ${activity === "found" ? "var(--gold)" : "var(--line)"}`,
-              borderRadius: 12,
-              padding: "8px 11px",
-              fontSize: 13,
-              fontWeight: 600,
-              lineHeight: 1.4,
-              textAlign: "start",
-              cursor: activity === "offer" ? "pointer" : "default",
-              boxShadow: "0 6px 18px rgba(0,0,0,.16)",
-              animation: "sgia-bubble-in .25s ease-out both",
-            }}
-          >
-            {activity === "found" ? t.assistant_found : t.assistant_need_help}
-          </button>
-        )}
+        {/* Bulle d'« activité » : propose l'aide (repos), demande ce qu'on veut
+            (mise en scène), accuse réception (« compris »), ou annonce la solution.
+            Masquée si une bulle proactive du moteur est déjà là. */}
+        {!tip &&
+          (activity === "offer" ||
+            activity === "found" ||
+            activity === "ask" ||
+            activity === "understood") &&
+          (() => {
+            const positive = activity === "found" || activity === "understood";
+            const clickable = activity === "offer" || activity === "ask";
+            const label =
+              activity === "found"
+                ? t.assistant_found
+                : activity === "understood"
+                  ? t.assistant_understood
+                  : activity === "ask"
+                    ? t.assistant_what_help
+                    : t.assistant_need_help;
+            return (
+              <button
+                type="button"
+                onClick={() => {
+                  if (clickable) setOpen(true);
+                }}
+                style={{
+                  pointerEvents: "auto",
+                  position: "absolute",
+                  insetInlineEnd: 0,
+                  insetBlockEnd: 68,
+                  width: "max-content",
+                  maxWidth: "min(220px, calc(100vw - 32px))",
+                  background: positive ? "var(--gold)" : "var(--bg-paper)",
+                  color: positive ? "#1A1610" : "var(--ink)",
+                  border: `1px solid ${positive ? "var(--gold)" : "var(--line)"}`,
+                  borderRadius: 12,
+                  padding: "8px 11px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  lineHeight: 1.4,
+                  textAlign: "start",
+                  cursor: clickable ? "pointer" : "default",
+                  boxShadow: "0 6px 18px rgba(0,0,0,.16)",
+                  animation: "sgia-bubble-in .25s ease-out both",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })()}
 
         {/* Bulle proactive (suit l'avatar : enfant du conteneur translaté) */}
         {tip && (
