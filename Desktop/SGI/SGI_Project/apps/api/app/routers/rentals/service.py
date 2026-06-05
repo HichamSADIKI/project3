@@ -3,12 +3,47 @@
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.rental import Rental
 from app.routers.rentals.schemas import RentalCreate, RentalUpdate
+
+
+def summarize_rent_roll(rentals: list[Rental]) -> dict[str, Any]:
+    """Rent roll : revenu locatif récurrent des baux ACTIFS + répartition par statut.
+
+    - ``monthly_rent_aed`` / ``annual_rent_aed`` : somme des loyers des baux ``active`` ;
+    - ``active_count`` / ``total_count`` ; ``by_status`` : nb de baux par statut.
+    Montants en ``Decimal`` AED.
+    """
+    by_status: dict[str, int] = {}
+    monthly = Decimal("0.00")
+    annual = Decimal("0.00")
+    active_count = 0
+    for r in rentals:
+        by_status[r.status] = by_status.get(r.status, 0) + 1
+        if r.status == "active":
+            active_count += 1
+            monthly += Decimal(str(r.monthly_rent))
+            annual += Decimal(str(r.annual_rent))
+    return {
+        "by_status": by_status,
+        "active_count": active_count,
+        "total_count": len(rentals),
+        "monthly_rent_aed": monthly,
+        "annual_rent_aed": annual,
+    }
+
+
+async def rent_roll_summary(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Synthèse rent roll du tenant (Loi 1 : scopé company_id)."""
+    result = await db.execute(
+        select(Rental).where(Rental.company_id == company_id, Rental.deleted_at.is_(None))
+    )
+    return summarize_rent_roll(list(result.scalars().all()))
 
 
 def _add_months(d: date, months: int) -> date:

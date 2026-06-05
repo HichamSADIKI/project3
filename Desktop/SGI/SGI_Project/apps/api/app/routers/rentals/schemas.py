@@ -55,3 +55,17 @@ class RentalListOut(BaseModel):
 class RentalDetailOut(BaseModel):
     success: bool = True
     data: RentalOut
+
+
+class RentRollSummary(BaseModel):
+    by_status: dict[str, int]
+    active_count: int
+    total_count: int
+    monthly_rent_aed: Decimal
+    annual_rent_aed: Decimal
+
+
+class RentRollSummaryOut(BaseModel):
+    success: bool = True
+    data: RentRollSummary
+    meta: dict[str, Any]

@@ -13,12 +13,14 @@ from app.routers.rentals.schemas import (
     RentalListOut,
     RentalOut,
     RentalUpdate,
+    RentRollSummaryOut,
 )
 from app.routers.rentals.service import (
     create_rental,
     get_expiring_rentals,
     get_rental,
     list_rentals,
+    rent_roll_summary,
     update_rental,
 )
 
@@ -54,6 +56,17 @@ async def list_expiring_rentals(
         data=[RentalOut.model_validate(r) for r in rentals],
         meta={"total": len(rentals), "page": 1, "limit": len(rentals)},
     )
+
+
+@router.get("/rent-roll", response_model=RentRollSummaryOut)
+async def rent_roll_endpoint(
+    db: AsyncSession = Depends(get_db_session),
+) -> RentRollSummaryOut:
+    """Rent roll : revenu locatif récurrent (loyers mensuel/annuel des baux
+    actifs) et répartition des baux par statut."""
+    company_id = await _get_company_id(db)
+    summary = await rent_roll_summary(db, company_id)
+    return RentRollSummaryOut(data=summary, meta={})
 
 
 @router.get("/", response_model=RentalListOut)
