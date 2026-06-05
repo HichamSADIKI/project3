@@ -116,6 +116,14 @@ class Settings(BaseSettings):
     WHATSAPP_DEFAULT_LANG: str = "ar"
     WHATSAPP_TIMEOUT_S: int = 15
 
+    # ── Push mobile (Firebase Cloud Messaging) ───────────────────────────
+    # Si FCM_SERVER_KEY est vide → backend « console » : le push est journalisé
+    # au lieu d'être envoyé (dev sans projet Firebase). La notification passe
+    # quand même pending → sent.
+    FCM_SERVER_KEY: str = ""
+    FCM_ENDPOINT: str = "https://fcm.googleapis.com/fcm/send"
+    FCM_TIMEOUT_S: int = 15
+
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
     # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus

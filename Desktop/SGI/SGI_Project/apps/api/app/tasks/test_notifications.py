@@ -224,3 +224,80 @@ def test_deliver_whatsapp_notification_enqueues(monkeypatch: pytest.MonkeyPatch)
     assert captured["language"] == "ar"
     assert captured["notification_id"] == str(notif.id)
     assert captured["company_id"] == str(notif.company_id)
+
+
+# ─── send_push (canal push) ──────────────────────────────────────────────────
+
+
+class _FakeScalars:
+    def __init__(self, vals: list[object]) -> None:
+        self._vals = vals
+
+    def all(self) -> list[object]:
+        return self._vals
+
+
+class _FakePushResult:
+    def __init__(self, vals: list[object]) -> None:
+        self._vals = vals
+
+    def scalars(self) -> _FakeScalars:
+        return _FakeScalars(self._vals)
+
+
+def _push_db_maker(tokens: list[str]):
+    class _FakePushDB:
+        def execute(self, stmt: object) -> _FakePushResult:
+            return _FakePushResult(list(tokens))
+
+        def commit(self) -> None:
+            pass
+
+    @contextmanager
+    def _maker():
+        yield _FakePushDB()
+
+    return _maker
+
+
+def test_push_task_no_device(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(notif_tasks, "sync_session_maker", _push_db_maker([]))
+    out = notif_tasks.send_push.run(
+        user_id=str(uuid.uuid4()), company_id=str(uuid.uuid4()), title="t", body="b"
+    )
+    assert out == {"status": "no_device", "sent": 0}
+
+
+def test_push_task_console_backend_marks_sent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "FCM_SERVER_KEY", "")  # backend console
+    monkeypatch.setattr(notif_tasks, "sync_session_maker", _push_db_maker(["tok1", "tok2"]))
+    out = notif_tasks.send_push.run(
+        user_id=str(uuid.uuid4()),
+        company_id=str(uuid.uuid4()),
+        title="t",
+        body="b",
+        notification_id=str(uuid.uuid4()),
+    )
+    assert out["status"] == "console"
+    assert out["sent"] == 2
+
+
+def test_deliver_push_notification_enqueues(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(notif_tasks.send_push, "delay", lambda **kw: captured.update(kw))
+    notif = Notification(
+        id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        type="golden_visa_expiry",
+        channel="push",
+        title="Visa",
+        body="Expire bientôt",
+        status="pending",
+    )
+    user_id = uuid.uuid4()
+    notif_tasks.deliver_push_notification(notif, user_id=user_id, data={"k": "v"})
+    assert captured["user_id"] == str(user_id)
+    assert captured["company_id"] == str(notif.company_id)
+    assert captured["title"] == "Visa"
+    assert captured["data"] == {"k": "v"}
+    assert captured["notification_id"] == str(notif.id)
