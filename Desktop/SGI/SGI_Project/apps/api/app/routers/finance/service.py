@@ -14,6 +14,8 @@ from app.models.finance import FinanceTransaction
 from app.routers.finance.schemas import (
     AgedBuckets,
     AgedReceivables,
+    CashFlowBucket,
+    CashFlowForecast,
     FinanceSummary,
     PnlReport,
     TransactionCreate,
@@ -457,3 +459,74 @@ async def transactions_csv(
             ]
         )
     return buf.getvalue()
+
+
+# ── Prévision de trésorerie (cash-flow) ─────────────────────────────────────
+
+CASHFLOW_LABELS = ("overdue", "d0_30", "d31_60", "d61_90", "later")
+
+
+def bucket_cashflow(
+    items: list[tuple[Decimal, date | None, str]], today: date
+) -> dict[str, dict[str, Decimal]]:
+    """Ventile des flux attendus (montant, échéance, direction) par tranche.
+
+    Pur (testable). direction 'credit' = encaissement (in), 'debit' = décaissement
+    (out). Échéance passée → 'overdue' ; pas d'échéance → 'd0_30' (court terme)."""
+    result: dict[str, dict[str, Decimal]] = {
+        label: {"in": Decimal(0), "out": Decimal(0)} for label in CASHFLOW_LABELS
+    }
+    for amount, due, direction in items:
+        amt = Decimal(str(amount))
+        if due is None:
+            label = "d0_30"
+        else:
+            delta = (due - today).days
+            if delta < 0:
+                label = "overdue"
+            elif delta <= 30:
+                label = "d0_30"
+            elif delta <= 60:
+                label = "d31_60"
+            elif delta <= 90:
+                label = "d61_90"
+            else:
+                label = "later"
+        result[label]["in" if direction == "credit" else "out"] += amt
+    return result
+
+
+async def cash_flow_forecast(db: AsyncSession, company_id: uuid.UUID) -> CashFlowForecast:
+    """Prévision de trésorerie : transactions non réglées (pending/overdue) ventilées
+    par tranche d'échéance, encaissements (credit) vs décaissements (debit)."""
+    rows = (
+        await db.execute(
+            select(
+                FinanceTransaction.amount,
+                FinanceTransaction.due_date,
+                FinanceTransaction.direction,
+            ).where(
+                FinanceTransaction.company_id == company_id,
+                FinanceTransaction.deleted_at.is_(None),
+                FinanceTransaction.status.in_(("pending", "overdue")),
+            )
+        )
+    ).all()
+    items: list[tuple[Decimal, date | None, str]] = [
+        (amt, due, direction) for amt, due, direction in rows
+    ]
+    buckets_map = bucket_cashflow(items, datetime.now(UTC).date())
+    buckets = [
+        CashFlowBucket(
+            label=label,
+            expected_in=buckets_map[label]["in"],
+            expected_out=buckets_map[label]["out"],
+            net=buckets_map[label]["in"] - buckets_map[label]["out"],
+        )
+        for label in CASHFLOW_LABELS
+    ]
+    total_in = sum((b.expected_in for b in buckets), Decimal(0))
+    total_out = sum((b.expected_out for b in buckets), Decimal(0))
+    return CashFlowForecast(
+        buckets=buckets, total_in=total_in, total_out=total_out, net=total_in - total_out
+    )

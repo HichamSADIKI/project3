@@ -11,6 +11,7 @@ from app.core.deps import get_db_session
 from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
 from app.routers.finance.schemas import (
     AgedReceivables,
+    CashFlowForecast,
     FinanceSummary,
     InvoicePdfOut,
     PnlReport,
@@ -22,6 +23,7 @@ from app.routers.finance.schemas import (
     VatReport,
 )
 from app.routers.finance.service import (
+    cash_flow_forecast,
     create_transaction,
     get_aged_receivables,
     get_pnl,
@@ -103,6 +105,15 @@ async def get_vat_report_endpoint(
     """Rapport TVA (UAE 5 %) du tenant sur la période (déclaration trimestrielle)."""
     company_id = await _get_company_id(db)
     return await get_vat_report(db, company_id, period)  # type: ignore[arg-type]
+
+
+@router.get("/reports/cashflow", response_model=CashFlowForecast)
+async def get_cashflow_forecast(
+    db: AsyncSession = Depends(get_db_session),
+) -> CashFlowForecast:
+    """Prévision de trésorerie du tenant (flux attendus par tranche d'échéance)."""
+    company_id = await _get_company_id(db)
+    return await cash_flow_forecast(db, company_id)
 
 
 @router.get("/transactions", response_model=TransactionListOut)

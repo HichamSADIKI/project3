@@ -132,3 +132,21 @@ class InvoicePdfOut(BaseModel):
 
     success: bool = True
     data: dict[str, str]  # {"url": "..."}
+
+
+class CashFlowBucket(BaseModel):
+    """Prévision d'encaissements/décaissements attendus sur une tranche d'échéance."""
+
+    label: str
+    expected_in: Decimal
+    expected_out: Decimal
+    net: Decimal
+
+
+class CashFlowForecast(BaseModel):
+    """Prévision de trésorerie : flux attendus des transactions non encore réglées."""
+
+    buckets: list[CashFlowBucket]
+    total_in: Decimal
+    total_out: Decimal
+    net: Decimal
