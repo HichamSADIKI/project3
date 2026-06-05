@@ -87,6 +87,10 @@ celery_app.conf.update(
             "task": "app.tasks.reminders.check_pdc_due",
             "schedule": 86400.0,
         },
+        "overdue-invoice-dunning": {
+            "task": "app.tasks.reminders.check_overdue_invoices",
+            "schedule": 86400.0,
+        },
         # ── Maintenance (toutes les heures) ──────────────────────────────
         "maintenance-sla-check": {
             "task": "app.tasks.maintenance.check_maintenance_sla",

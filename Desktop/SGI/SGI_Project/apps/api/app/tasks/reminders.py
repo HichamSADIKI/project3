@@ -15,11 +15,13 @@ import logging
 import uuid
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.core.database import sync_session_maker
 from app.models.client import Client
 from app.models.crm import CRMLead
+from app.models.dunning import DunningEvent
+from app.models.finance import FinanceTransaction
 from app.models.golden_visa import GoldenVisaApplication
 from app.models.notification import Notification
 from app.models.pdc_cheque import PdcCheque
@@ -29,6 +31,7 @@ from app.routers.crm.service import (
     followup_next_schedule,
     next_followup_action,
 )
+from app.routers.finance.dunning import days_overdue, dunning_level, should_escalate
 from app.routers.golden_visa.service import visa_alert_level
 from app.routers.pdc.service import pdc_reminder_level
 from app.tasks.celery_app import celery_app
@@ -513,3 +516,118 @@ def check_pdc_due() -> dict:
     except Exception as exc:  # noqa: BLE001
         logger.error("check_pdc_due failed: %s", exc)
         return {"status": "error", "alerts_sent": created}
+
+
+@celery_app.task(name="app.tasks.reminders.check_overdue_invoices", queue="reminders")
+def check_overdue_invoices() -> dict:
+    """Relances automatiques des factures impayées (échéancier & relances).
+
+    Cron quotidien (toutes sociétés). Pour chaque facture (`type='invoice'`)
+    en retard, calcule le niveau d'escalade (J+1/J+7/J+15) et envoie une relance
+    au client SI le niveau a monté depuis la dernière relance journalisée
+    (`DunningEvent`). Réutilise l'infra de notification (in-app + e-mail/WhatsApp).
+    Worker = rôle privilégié (scan multi-société volontaire, voir C1).
+    """
+    today = datetime.now(UTC).date()
+    sent = 0
+    try:
+        with sync_session_maker() as db:
+            invoices = (
+                db.execute(
+                    select(FinanceTransaction).where(
+                        FinanceTransaction.deleted_at.is_(None),
+                        FinanceTransaction.type == "invoice",
+                        FinanceTransaction.status.in_(["pending", "overdue"]),
+                        FinanceTransaction.due_date.isnot(None),
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            # Anti-N+1 : dernier niveau de relance déjà envoyé par transaction.
+            last_levels: dict[uuid.UUID, int] = {
+                tid: (lvl or 0)
+                for tid, lvl in db.execute(
+                    select(
+                        DunningEvent.transaction_id,
+                        func.max(DunningEvent.level),
+                    ).group_by(DunningEvent.transaction_id)
+                ).all()
+            }
+
+            pending_emails: list[tuple[Notification, str]] = []
+            pending_whatsapp: list[tuple[Notification, str]] = []
+            for inv in invoices:
+                days = days_overdue(inv.due_date, today)
+                level = dunning_level(days)
+                # Passe le statut à overdue dès qu'une échéance est dépassée.
+                if days > 0 and inv.status == "pending":
+                    inv.status = "overdue"
+                if not should_escalate(level, last_levels.get(inv.id, 0)):
+                    continue
+                sent += 1
+                title = f"Relance facture {inv.reference}"
+                body = (
+                    f"Facture {inv.reference} ({inv.amount} {inv.currency}) impayée — "
+                    f"retard de {days} jour(s)."
+                )
+                payload = {"transaction_id": str(inv.id), "level": level}
+                db.add(
+                    Notification(
+                        company_id=inv.company_id,
+                        recipient_party_id=inv.related_client_id,
+                        type="invoice_overdue",
+                        channel="in_app",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                        status="sent",
+                        sent_at=datetime.now(UTC),
+                    )
+                )
+                db.add(
+                    DunningEvent(
+                        company_id=inv.company_id,
+                        transaction_id=inv.id,
+                        channel="in_app",
+                        level=level,
+                        message=body,
+                    )
+                )
+                if inv.related_client_id is not None:
+                    email_pair = build_party_email_notification(
+                        db,
+                        inv.company_id,
+                        inv.related_client_id,
+                        notif_type="invoice_overdue",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                    )
+                    if email_pair is not None:
+                        pending_emails.append(email_pair)
+                    wa_pair = build_party_whatsapp_notification(
+                        db,
+                        inv.company_id,
+                        inv.related_client_id,
+                        notif_type="invoice_overdue",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                    )
+                    if wa_pair is not None:
+                        pending_whatsapp.append(wa_pair)
+
+            if sent or invoices:
+                db.commit()
+                for notif, email in pending_emails:
+                    deliver_email_notification(notif, to=email)
+                for notif, phone in pending_whatsapp:
+                    deliver_whatsapp_notification(notif, to=phone, template_name="invoice_overdue")
+                if sent:
+                    logger.info("check_overdue_invoices : %d relance(s) envoyée(s)", sent)
+            return {"status": "ok", "alerts_sent": sent}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("check_overdue_invoices failed: %s", exc)
+        return {"status": "error", "alerts_sent": sent}

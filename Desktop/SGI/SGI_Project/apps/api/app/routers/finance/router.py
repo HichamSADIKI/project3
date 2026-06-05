@@ -14,16 +14,26 @@ from app.routers.finance.closure import (
     close_period,
     list_closures,
 )
+from app.routers.finance.dunning import (
+    DunningError,
+    list_overdue,
+    send_reminder,
+)
 from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
 from app.routers.finance.schemas import (
     AgedReceivables,
     CashFlowForecast,
+    DunningEventDetailOut,
+    DunningEventOut,
+    DunningListOut,
+    DunningRow,
     FinanceSummary,
     InvoicePdfOut,
     PeriodClosureCreate,
     PeriodClosureListOut,
     PeriodClosureOut,
     PnlReport,
+    RemindRequest,
     TransactionCreate,
     TransactionDetailOut,
     TransactionListOut,
@@ -123,6 +133,16 @@ async def get_cashflow_forecast(
     """Prévision de trésorerie du tenant (flux attendus par tranche d'échéance)."""
     company_id = await _get_company_id(db)
     return await cash_flow_forecast(db, company_id)
+
+
+@router.get("/dunning", response_model=DunningListOut)
+async def list_dunning(
+    db: AsyncSession = Depends(get_db_session),
+) -> DunningListOut:
+    """Échéancier des factures impayées du tenant + résumé des relances."""
+    company_id = await _get_company_id(db)
+    rows = await list_overdue(db, company_id)
+    return DunningListOut(data=[DunningRow(**row) for row in rows])  # type: ignore[arg-type]
 
 
 @router.get("/period-closures", response_model=PeriodClosureListOut)
@@ -273,3 +293,27 @@ async def generate_invoice_endpoint(
         )
         raise HTTPException(status_code=code, detail=err.code) from err
     return InvoicePdfOut(data={"url": url})
+
+
+@router.post(
+    "/transactions/{txn_id}/remind",
+    response_model=DunningEventDetailOut,
+    dependencies=[Depends(_require_roles("admin", "manager", "accounting"))],
+)
+async def remind_transaction_endpoint(
+    txn_id: uuid.UUID,
+    body: RemindRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> DunningEventDetailOut:
+    """Envoie une relance (e-mail/WhatsApp) pour une facture impayée et la journalise."""
+    company_id = await _get_company_id(db)
+    try:
+        event = await send_reminder(db, company_id, txn_id, body.channel)
+    except DunningError as err:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if err.code == "transaction_not_found"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=err.code) from err
+    return DunningEventDetailOut(data=DunningEventOut.model_validate(event))
