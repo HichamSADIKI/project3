@@ -87,6 +87,22 @@ class Settings(BaseSettings):
     # UserEvent Asterisk portant le consentement effectif.
     TELEPHONY_ASSUME_RECORDING_CONSENT: bool = False
 
+    # ── E-mail transactionnel (SMTP) ─────────────────────────────────────
+    # Si SMTP_HOST est vide → backend « console » : l'e-mail est journalisé
+    # (logger INFO) au lieu d'être envoyé. Dev fonctionne sans serveur mail et
+    # sans secret ; la notification passe quand même pending → sent.
+    # En prod : renseigner SMTP_HOST/PORT/USER/PASSWORD + SMTP_FROM.
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    # STARTTLS (port 587). Mettre False pour un relais local sans TLS (dev).
+    SMTP_STARTTLS: bool = True
+    # Adresse d'expéditeur (From). Doit être validée chez le relais en prod.
+    SMTP_FROM: str = "no-reply@sgi.ae"
+    SMTP_FROM_NAME: str = "SGI"
+    SMTP_TIMEOUT_S: int = 15
+
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
     # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus
