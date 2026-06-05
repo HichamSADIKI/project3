@@ -169,6 +169,7 @@ export function ScreenAccounting(): React.ReactNode {
 
   const tab = (key: typeof view, label: string): React.ReactNode => (
     <button
+      data-testid={`tab-${key}`}
       onClick={() => setView(key)}
       style={{
         padding: "8px 16px", borderRadius: 999, border: "1px solid var(--line)", cursor: "pointer",
@@ -182,7 +183,7 @@ export function ScreenAccounting(): React.ReactNode {
   );
 
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+    <div data-testid="screen-accounting" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={L("title")} />
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px", background: "var(--bg-cream)", display: "flex", flexDirection: "column", gap: 18 }}>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
