@@ -1,7 +1,7 @@
 """Finance — TVA par transaction (UAE).
 
-Revision ID: 0051_finance_vat_per_transaction
-Revises: 0050_bank_reconciliation
+Revision ID: 0052_finance_vat_per_transaction
+Revises: 0051_infra_compose_service
 Create Date: 2026-06-05
 
 Ajoute 3 colonnes à finance_transactions pour une TVA explicite par transaction :
@@ -15,8 +15,8 @@ Backfill : les transactions existantes sont 'standard' → vat_amount = amount×
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0051_finance_vat_per_transaction"
-down_revision = "0050_bank_reconciliation"
+revision = "0052_finance_vat_per_transaction"
+down_revision = "0051_infra_compose_service"
 branch_labels = None
 depends_on = None
 
