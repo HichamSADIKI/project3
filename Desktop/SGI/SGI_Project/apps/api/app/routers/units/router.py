@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.units.schemas import (
+    OccupancySummaryOut,
     UnitCreate,
     UnitDetailOut,
     UnitListOut,
@@ -21,6 +22,7 @@ from app.routers.units.service import (
     delete_unit,
     get_unit,
     list_units,
+    occupancy_summary,
     update_unit,
 )
 
@@ -70,6 +72,20 @@ async def create_unit_endpoint(
             detail="building_or_floor_not_found",
         )
     return UnitDetailOut(data=UnitOut.model_validate(unit))
+
+
+@router.get("/occupancy", response_model=OccupancySummaryOut)
+async def occupancy_endpoint(
+    building_id: uuid.UUID | None = Query(None),
+    db: AsyncSession = Depends(get_db_session),
+) -> OccupancySummaryOut:
+    """Taux d'occupation et répartition des unités par statut (option : un
+    bâtiment via `building_id`). Le parc louable exclut les unités hors marché."""
+    company_id = await get_company_id(db)
+    summary = await occupancy_summary(db, company_id, building_id)
+    return OccupancySummaryOut(
+        data=summary, meta={"building_id": str(building_id) if building_id else None}
+    )
 
 
 @router.get("/{unit_id}", response_model=UnitDetailOut)

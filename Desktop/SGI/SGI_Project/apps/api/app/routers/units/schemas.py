@@ -106,3 +106,15 @@ class UnitListOut(BaseModel):
 class UnitDetailOut(BaseModel):
     success: bool = True
     data: UnitOut
+
+
+class OccupancySummary(BaseModel):
+    by_status: dict[str, int]
+    total_units: int
+    occupancy_rate_pct: int
+
+
+class OccupancySummaryOut(BaseModel):
+    success: bool = True
+    data: OccupancySummary
+    meta: dict[str, Any]

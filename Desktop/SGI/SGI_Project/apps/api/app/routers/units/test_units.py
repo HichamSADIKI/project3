@@ -139,3 +139,98 @@ async def test_unit_not_found_404(client: AsyncClient, seed_admin: tuple[User, s
         json={"target_status": "reserved"},
     )
     assert resp.status_code == 404
+
+
+# ─── Taux d'occupation (pur) ─────────────────────────────────────────────────
+
+from types import SimpleNamespace  # noqa: E402
+
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
+
+from app.models.building import Building  # noqa: E402
+from app.models.company import Company  # noqa: E402
+from app.models.unit import Unit  # noqa: E402
+from app.routers.units.service import summarize_occupancy  # noqa: E402
+
+
+def _u(status: str):
+    return SimpleNamespace(status=status)
+
+
+class TestSummarizeOccupancy:
+    def test_empty(self) -> None:
+        s = summarize_occupancy([])
+        assert s["total_units"] == 0
+        assert s["occupancy_rate_pct"] == 0
+
+    def test_rate_excludes_off_market(self) -> None:
+        # 2 occupées sur parc louable de 3 (off_market exclu) → 67 %
+        units = [_u("occupied"), _u("occupied"), _u("vacant"), _u("off_market")]
+        s = summarize_occupancy(units)
+        assert s["total_units"] == 4
+        assert s["by_status"]["occupied"] == 2
+        assert s["by_status"]["off_market"] == 1
+        assert s["occupancy_rate_pct"] == 67
+
+    def test_all_off_market_rate_zero(self) -> None:
+        s = summarize_occupancy([_u("off_market"), _u("off_market")])
+        assert s["occupancy_rate_pct"] == 0
+        assert s["total_units"] == 2
+
+
+# ─── Endpoint /units/occupancy (intégration) ─────────────────────────────────
+
+
+async def _seed_units(db: AsyncSession, company_id, statuses: list[str]):
+    building = Building(
+        id=_uuid.uuid4(),
+        company_id=company_id,
+        reference=f"BLD-{_uuid.uuid4().hex[:10]}",
+        building_type="residential_tower",
+    )
+    db.add(building)
+    await db.commit()
+    for n, st in enumerate(statuses):
+        db.add(
+            Unit(
+                id=_uuid.uuid4(),
+                company_id=company_id,
+                building_id=building.id,
+                unit_number=f"U-{n}-{_uuid.uuid4().hex[:4]}",
+                unit_type="apartment_1br",
+                status=st,
+            )
+        )
+    await db.commit()
+    return building.id
+
+
+async def test_occupancy_endpoint(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+) -> None:
+    _admin, token = seed_admin
+    await _seed_units(db_session, seed_company.id, ["occupied", "occupied", "vacant", "off_market"])
+    r = await client.get("/api/v1/units/occupancy", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["total_units"] == 4
+    assert data["by_status"]["occupied"] == 2
+    assert data["occupancy_rate_pct"] == 67
+
+
+async def test_occupancy_tenant_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    _admin, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    await _seed_units(db_session, seed_company.id, ["occupied", "vacant"])
+    r = await client.get("/api/v1/units/occupancy", headers=_auth(token_b))
+    assert r.status_code == 200
+    assert r.json()["data"]["total_units"] == 0
