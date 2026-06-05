@@ -24,6 +24,7 @@ from app.routers.admin import infra as infra_module
 from app.routers.admin.infra import (
     _availability_expr,
     _live_state_from_value,
+    control_enabled,
     map_prometheus_alert,
 )
 from app.routers.admin.prometheus import PrometheusUnavailableError
@@ -306,3 +307,134 @@ async def test_alerts_unavailable_degrades(
     body = resp.json()
     assert body["meta"]["available"] is False
     assert body["data"] == []
+
+
+# ── /servers/{id}/actions — control-plane dry-run (D1) ──────────────────────────
+
+
+def test_control_enabled_default_false(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("INFRA_CONTROL_ENABLED", raising=False)
+    assert control_enabled() is False
+    monkeypatch.setenv("INFRA_CONTROL_ENABLED", "true")
+    assert control_enabled() is True
+    monkeypatch.setenv("INFRA_CONTROL_ENABLED", "false")
+    assert control_enabled() is False
+
+
+async def _seed_service(db: AsyncSession, *, controllable: bool) -> InfraService:
+    svc = InfraService(
+        id=uuid.uuid4(),
+        name=f"svc-{uuid.uuid4().hex[:8]}",
+        kind="container",
+        is_controllable=controllable,
+    )
+    db.add(svc)
+    await db.commit()
+    await db.refresh(svc)
+    return svc
+
+
+@pytest.mark.asyncio
+async def test_action_requires_platform_admin(
+    client: AsyncClient, db_session: AsyncSession, seed_admin
+) -> None:
+    svc = await _seed_service(db_session, controllable=True)
+    body = {"action": "restart", "confirmation": svc.name}
+    # anonyme → 401
+    assert (
+        await client.post(f"/api/v1/admin/platform/servers/{svc.id}/actions", json=body)
+    ).status_code == 401
+    # admin de société sans is_platform_admin → 403
+    _a, token = seed_admin
+    resp = await client.post(
+        f"/api/v1/admin/platform/servers/{svc.id}/actions",
+        json=body,
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_action_dry_run_records(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin, monkeypatch
+) -> None:
+    monkeypatch.setenv("INFRA_CONTROL_ENABLED", "false")
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    svc = await _seed_service(db_session, controllable=True)
+
+    resp = await client.post(
+        f"/api/v1/admin/platform/servers/{svc.id}/actions",
+        json={"action": "restart", "confirmation": svc.name},
+        headers=h,
+    )
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["action"] == "restart"
+    assert data["status"] == "done"
+    assert "dry_run" in data["detail"]
+
+    # Historique : l'action apparaît.
+    hist = await client.get(f"/api/v1/admin/platform/actions?service_id={svc.id}", headers=h)
+    assert hist.status_code == 200
+    assert hist.json()["meta"]["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_action_guards(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin, monkeypatch
+) -> None:
+    monkeypatch.setenv("INFRA_CONTROL_ENABLED", "false")
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+
+    # service non contrôlable → 409
+    locked = await _seed_service(db_session, controllable=False)
+    r = await client.post(
+        f"/api/v1/admin/platform/servers/{locked.id}/actions",
+        json={"action": "stop", "confirmation": locked.name},
+        headers=h,
+    )
+    assert r.status_code == 409
+
+    # mauvaise confirmation → 400
+    svc = await _seed_service(db_session, controllable=True)
+    r = await client.post(
+        f"/api/v1/admin/platform/servers/{svc.id}/actions",
+        json={"action": "stop", "confirmation": "WRONG"},
+        headers=h,
+    )
+    assert r.status_code == 400
+
+    # action invalide → 422
+    r = await client.post(
+        f"/api/v1/admin/platform/servers/{svc.id}/actions",
+        json={"action": "nuke", "confirmation": svc.name},
+        headers=h,
+    )
+    assert r.status_code == 422
+
+    # service inexistant → 404
+    r = await client.post(
+        f"/api/v1/admin/platform/servers/{uuid.uuid4()}/actions",
+        json={"action": "stop", "confirmation": "x"},
+        headers=h,
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_action_real_execution_blocked_by_flag(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin, monkeypatch
+) -> None:
+    """Flag activé (D2 non livré) → 503, et AUCUNE action journalisée."""
+    monkeypatch.setenv("INFRA_CONTROL_ENABLED", "true")
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    svc = await _seed_service(db_session, controllable=True)
+    resp = await client.post(
+        f"/api/v1/admin/platform/servers/{svc.id}/actions",
+        json={"action": "restart", "confirmation": svc.name},
+        headers=h,
+    )
+    assert resp.status_code == 503

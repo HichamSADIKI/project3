@@ -21,7 +21,7 @@ import React, { useEffect, useState } from "react";
 
 import { Topbar } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
-import { getJson } from "@/lib/api-client";
+import { getJson, postJson, extractError } from "@/lib/api-client";
 
 type Lang = "ar" | "en" | "fr";
 
@@ -68,6 +68,25 @@ type AlertList = {
   meta: { available: boolean; total: number };
 };
 
+type ServerAction = "start" | "stop" | "restart" | "suspend";
+
+type ActionRow = {
+  id: string;
+  service_id: string;
+  action: string;
+  status: string;
+  detail: string | null;
+  created_at: string;
+};
+
+type ActionList = {
+  success: boolean;
+  data: ActionRow[];
+  meta: { total: number };
+};
+
+const ACTIONS: ServerAction[] = ["restart", "stop", "start", "suspend"];
+
 const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Serveurs & réseau",
@@ -87,6 +106,18 @@ const TR: Record<Lang, Record<string, string>> = {
     alertsEmpty: "Aucune alerte active",
     firing: "Active",
     pending: "En attente",
+    act_restart: "Redémarrer",
+    act_stop: "Arrêter",
+    act_start: "Démarrer",
+    act_suspend: "Suspendre",
+    confirmTitle: "Confirmer l'action",
+    confirmHint: "Tapez le nom du service pour confirmer :",
+    confirm: "Confirmer",
+    cancel: "Annuler",
+    actionFailed: "Échec de l'action",
+    dryRunNote: "Mode simulation — aucune exécution réelle (D1).",
+    history: "Historique des actions",
+    noActions: "Aucune action",
     metricsUnavailable: "Métriques indisponibles — Prometheus est injoignable.",
     up: "En ligne",
     down: "Hors ligne",
@@ -113,6 +144,18 @@ const TR: Record<Lang, Record<string, string>> = {
     alertsEmpty: "No active alerts",
     firing: "Firing",
     pending: "Pending",
+    act_restart: "Restart",
+    act_stop: "Stop",
+    act_start: "Start",
+    act_suspend: "Suspend",
+    confirmTitle: "Confirm action",
+    confirmHint: "Type the service name to confirm:",
+    confirm: "Confirm",
+    cancel: "Cancel",
+    actionFailed: "Action failed",
+    dryRunNote: "Dry-run — no real execution (D1).",
+    history: "Action history",
+    noActions: "No action",
     metricsUnavailable: "Metrics unavailable — Prometheus is unreachable.",
     up: "Up",
     down: "Down",
@@ -139,6 +182,18 @@ const TR: Record<Lang, Record<string, string>> = {
     alertsEmpty: "لا توجد تنبيهات نشطة",
     firing: "نشط",
     pending: "قيد الانتظار",
+    act_restart: "إعادة التشغيل",
+    act_stop: "إيقاف",
+    act_start: "تشغيل",
+    act_suspend: "تعليق",
+    confirmTitle: "تأكيد الإجراء",
+    confirmHint: "اكتب اسم الخدمة للتأكيد:",
+    confirm: "تأكيد",
+    cancel: "إلغاء",
+    actionFailed: "فشل الإجراء",
+    dryRunNote: "وضع المحاكاة — لا تنفيذ فعلي (D1).",
+    history: "سجل الإجراءات",
+    noActions: "لا إجراءات",
     metricsUnavailable: "المقاييس غير متاحة — تعذّر الوصول إلى Prometheus.",
     up: "متصل",
     down: "غير متصل",
@@ -191,6 +246,17 @@ const kpiCard: React.CSSProperties = {
   padding: "14px 16px",
 };
 
+const actionBtn: React.CSSProperties = {
+  fontSize: 11,
+  fontWeight: 600,
+  padding: "3px 8px",
+  borderRadius: 6,
+  border: "1px solid var(--line-soft)",
+  background: "var(--bg-paper)",
+  color: "var(--ink)",
+  cursor: "pointer",
+};
+
 export function ScreenAppAdminInfra(): React.ReactNode {
   const { lang } = useLang();
   const lg = (lang as Lang) in TR ? (lang as Lang) : "fr";
@@ -199,8 +265,19 @@ export function ScreenAppAdminInfra(): React.ReactNode {
   const [servers, setServers] = useState<ServerList | null>(null);
   const [network, setNetwork] = useState<Network | null>(null);
   const [alerts, setAlerts] = useState<AlertList | null>(null);
+  const [history, setHistory] = useState<ActionList | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
+
+  // Confirmation d'action : on exige la saisie EXACTE du nom du service.
+  const [pending, setPending] = useState<{
+    id: string;
+    name: string;
+    action: ServerAction;
+  } | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [actionErr, setActionErr] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -210,12 +287,14 @@ export function ScreenAppAdminInfra(): React.ReactNode {
       getJson<ServerList>("/api/admin/platform/servers"),
       getJson<Network>("/api/admin/platform/network"),
       getJson<AlertList>("/api/admin/platform/alerts"),
+      getJson<ActionList>("/api/admin/platform/actions?limit=10"),
     ])
-      .then(([srv, net, alr]) => {
+      .then(([srv, net, alr, act]) => {
         if (!alive) return;
         setServers(srv);
         setNetwork(net);
         setAlerts(alr);
+        setHistory(act);
       })
       .catch(() => {
         if (!alive) return;
@@ -228,6 +307,35 @@ export function ScreenAppAdminInfra(): React.ReactNode {
       alive = false;
     };
   }, []);
+
+  async function submitAction(): Promise<void> {
+    if (!pending) return;
+    setSubmitting(true);
+    setActionErr(null);
+    try {
+      const res = await postJson(
+        `/api/admin/platform/servers/${pending.id}/actions`,
+        {
+          action: pending.action,
+          confirmation: confirmText,
+        },
+      );
+      if (!res.ok) {
+        setActionErr(await extractError(res, "action_failed"));
+        return;
+      }
+      setPending(null);
+      setConfirmText("");
+      const act = await getJson<ActionList>(
+        "/api/admin/platform/actions?limit=10",
+      );
+      setHistory(act);
+    } catch {
+      setActionErr(L("actionFailed"));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const prometheusDown =
     (servers !== null && !servers.meta.prometheus_available) ||
@@ -494,11 +602,35 @@ export function ScreenAppAdminInfra(): React.ReactNode {
                           color: "var(--ink-4)",
                         }}
                       >
-                        <span title={L("controllable")}>
-                          {L("controllable")}:{" "}
-                          {svc.is_controllable ? L("yes") : L("no")}
-                        </span>
                         {stateBadge(svc)}
+                        {svc.is_controllable && (
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: 6,
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            {ACTIONS.map((a) => (
+                              <button
+                                key={a}
+                                type="button"
+                                style={actionBtn}
+                                onClick={() => {
+                                  setPending({
+                                    id: svc.id,
+                                    name: svc.name,
+                                    action: a,
+                                  });
+                                  setConfirmText("");
+                                  setActionErr(null);
+                                }}
+                              >
+                                {L(`act_${a}`)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -509,9 +641,158 @@ export function ScreenAppAdminInfra(): React.ReactNode {
                 </div>
               )}
             </div>
+
+            {/* Historique des actions (D1 — dry-run) */}
+            <div style={card}>
+              <div
+                className="font-display"
+                style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 12 }}
+              >
+                {L("history")}
+              </div>
+              {history && history.data.length > 0 ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 0 }}
+                >
+                  {history.data.map((a) => (
+                    <div
+                      key={a.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "8px 0",
+                        borderBottom: "1px solid var(--line-soft)",
+                        fontSize: 12,
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+                        {L(`act_${a.action}`) ?? a.action}
+                      </span>
+                      <span style={{ color: "var(--ink-4)", textAlign: "end" }}>
+                        {a.status}
+                        {a.detail ? ` · ${a.detail}` : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>
+                  {L("noActions")}
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
+
+      {pending && (
+        <div
+          onClick={() => !submitting && setPending(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 50,
+            padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "var(--bg-paper)",
+              border: "1px solid var(--line-soft)",
+              borderRadius: 12,
+              padding: 20,
+              width: "min(420px, 100%)",
+              textAlign: "start",
+            }}
+          >
+            <div
+              className="font-display"
+              style={{ fontSize: 15, fontWeight: 700 }}
+            >
+              {L("confirmTitle")} · {L(`act_${pending.action}`)}
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--gold-deep)",
+                marginBlockStart: 6,
+              }}
+            >
+              ⚠ {L("dryRunNote")}
+            </div>
+            <div
+              style={{
+                fontSize: 12.5,
+                marginBlockStart: 12,
+                color: "var(--ink)",
+              }}
+            >
+              {L("confirmHint")} <b>{pending.name}</b>
+            </div>
+            <input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              autoFocus
+              style={{
+                width: "100%",
+                marginBlockStart: 8,
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--line-soft)",
+                fontSize: 13,
+              }}
+            />
+            {actionErr && (
+              <div
+                style={{
+                  color: "var(--rose)",
+                  fontSize: 12,
+                  marginBlockStart: 8,
+                }}
+              >
+                {actionErr}
+              </div>
+            )}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                justifyContent: "flex-end",
+                marginBlockStart: 14,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setPending(null)}
+                disabled={submitting}
+                style={actionBtn}
+              >
+                {L("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={submitAction}
+                disabled={submitting || confirmText !== pending.name}
+                style={{
+                  ...actionBtn,
+                  background: "var(--rose)",
+                  color: "#fff",
+                  borderColor: "var(--rose)",
+                  opacity: submitting || confirmText !== pending.name ? 0.5 : 1,
+                }}
+              >
+                {L("confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
