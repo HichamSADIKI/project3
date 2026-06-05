@@ -275,6 +275,7 @@ export type Translations = {
   assistant_tip_field: string; assistant_tip_error: string; assistant_tip_idle: string;
   assistant_pin: string; assistant_unpin: string;
   assistant_tip_tour: string; assistant_tip_stuck: string; assistant_tour_prompt: string;
+  assistant_need_help: string; assistant_found: string;
   assistant_prefill: string; assistant_recenter: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
@@ -558,6 +559,7 @@ const ar: Translations = {
   assistant_title: "مساعد SGI", assistant_subtitle: "هنا لمساعدتك", assistant_welcome: "مرحباً! أنا مساعد SGI. كيف يمكنني مساعدتك في استخدام التطبيق؟",
   assistant_placeholder: "اكتب سؤالك…", assistant_send: "إرسال", assistant_error: "تعذّر الحصول على رد، حاول مرة أخرى.",
   assistant_open: "فتح المساعد", assistant_close: "إغلاق", assistant_thinking: "يكتب…",
+  assistant_need_help: "هل تحتاج إلى مساعدة؟", assistant_found: "وجدت الحل!",
   assistant_goto: "افتح", assistant_clear: "محادثة جديدة",
   assistant_tip_field: "هل تحتاج مساعدة في ملء هذا الحقل؟", assistant_tip_error: "حدث خطأ — هل أساعدك؟", assistant_tip_idle: "هل تحتاج مساعدة في هذه الصفحة؟",
   assistant_pin: "تثبيت المساعد", assistant_unpin: "تحرير المساعد",
@@ -845,6 +847,7 @@ const en: Translations = {
   assistant_title: "SGI Assistant", assistant_subtitle: "Here to help", assistant_welcome: "Hi! I'm the SGI assistant. How can I help you use the app?",
   assistant_placeholder: "Type your question…", assistant_send: "Send", assistant_error: "Couldn't get a reply, please try again.",
   assistant_open: "Open assistant", assistant_close: "Close", assistant_thinking: "Typing…",
+  assistant_need_help: "Need a hand?", assistant_found: "Found it!",
   assistant_goto: "Open", assistant_clear: "New chat",
   assistant_tip_field: "Need help filling this field?", assistant_tip_error: "Something went wrong — can I help?", assistant_tip_idle: "Need help on this page?",
   assistant_pin: "Pin assistant", assistant_unpin: "Unpin assistant",
@@ -1132,6 +1135,7 @@ const fr: Translations = {
   assistant_title: "Assistant SGI", assistant_subtitle: "Là pour vous aider", assistant_welcome: "Bonjour ! Je suis l'assistant SGI. Comment puis-je vous aider à utiliser l'application ?",
   assistant_placeholder: "Saisissez votre question…", assistant_send: "Envoyer", assistant_error: "Impossible d'obtenir une réponse, réessayez.",
   assistant_open: "Ouvrir l'assistant", assistant_close: "Fermer", assistant_thinking: "Rédige…",
+  assistant_need_help: "Besoin d'aide ?", assistant_found: "Trouvé !",
   assistant_goto: "Ouvrir", assistant_clear: "Nouvelle discussion",
   assistant_tip_field: "Besoin d'aide pour remplir ce champ ?", assistant_tip_error: "Une erreur est survenue — je peux vous aider ?", assistant_tip_idle: "Besoin d'aide sur cette page ?",
   assistant_pin: "Figer l'assistant", assistant_unpin: "Libérer l'assistant",

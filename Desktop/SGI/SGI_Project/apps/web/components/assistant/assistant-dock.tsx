@@ -116,6 +116,66 @@ export function AssistantDock({
     moodTimer.current = setTimeout(() => setMood("neutral"), 2500);
   }
 
+  // ── Machine d'« activité » (par-dessus les modes de déplacement) ───────────
+  //  rest   : au repos, assis sur sa chaise (à son coin = sa « maison »)
+  //  offer  : après 90 s d'inactivité → réfléchit et propose son aide
+  //  search : une question est posée → se lève et marche pendant la recherche
+  //  found  : la réponse arrive → lève le bras « Trouvé ! » puis se rassoit
+  type Activity = "rest" | "offer" | "search" | "found";
+  const [activity, setActivity] = useState<Activity>("rest");
+  const [held, setHeld] = useState(false); // pointeur maintenu sur le robot → debout
+  const wasLoading = useRef(false);
+  const foundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (foundTimer.current) clearTimeout(foundTimer.current); }, []);
+
+  // Recherche → réponse : se lève et marche pendant le chargement, puis « Trouvé ! ».
+  useEffect(() => {
+    if (loading && !wasLoading.current) {
+      if (foundTimer.current) clearTimeout(foundTimer.current);
+      setActivity("search");
+    } else if (!loading && wasLoading.current) {
+      if (error) {
+        setActivity("rest");
+      } else {
+        setActivity("found");
+        if (foundTimer.current) clearTimeout(foundTimer.current);
+        foundTimer.current = setTimeout(() => setActivity("rest"), 1800);
+      }
+    }
+    wasLoading.current = loading;
+  }, [loading, error]);
+
+  // Repos prolongé (90 s, assis & chat fermé) → propose son aide.
+  useEffect(() => {
+    if (open || mode !== "idle" || activity !== "rest") return;
+    const id = setTimeout(() => setActivity("offer"), 90_000);
+    return () => clearTimeout(id);
+  }, [open, mode, activity]);
+
+  // L'utilisateur redevient actif (ouvre le chat, bouge le robot, il roame) →
+  // on retire l'offre d'aide.
+  useEffect(() => {
+    if (
+      activity === "offer" &&
+      (open || held || mode === "follow" || mode === "field" || mode === "rescue")
+    ) {
+      setActivity("rest");
+    }
+  }, [open, held, mode, activity]);
+
+  // Pointeur maintenu sur le robot (on le bouge) → il se met debout.
+  function handleAvatarPointerDown(e: React.PointerEvent<HTMLButtonElement>): void {
+    setHeld(true);
+    const release = (): void => {
+      setHeld(false);
+      window.removeEventListener("pointerup", release);
+      window.removeEventListener("pointercancel", release);
+    };
+    window.addEventListener("pointerup", release);
+    window.addEventListener("pointercancel", release);
+    onAvatarPointerDown(e);
+  }
+
   useEffect(() => {
     if (!open) return;
     const el = listRef.current;
@@ -277,7 +337,7 @@ export function AssistantDock({
             ambulance (en cas d'anomalie/bug → accourt vers le problème). */}
         <button
           data-testid="assistant-avatar"
-          onPointerDown={onAvatarPointerDown}
+          onPointerDown={handleAvatarPointerDown}
           onClick={() => {
             // Un glisser ne doit pas ouvrir/fermer le chat (clic seul).
             if (consumeDragClick()) return;
@@ -307,7 +367,22 @@ export function AssistantDock({
             <AmbulanceFigure />
           ) : (
             <RobotFigure
-              walking={mode === "follow" || mode === "field"}
+              pose={
+                held
+                  ? "stand"
+                  : activity === "search"
+                    ? "search"
+                    : activity === "found"
+                      ? "found"
+                      : mode === "follow" || mode === "field"
+                        ? "walk"
+                        : open
+                          ? "stand"
+                          : activity === "offer"
+                            ? "offer"
+                            : "sit"
+              }
+              showChair={!held && mode !== "follow" && mode !== "field"}
               glow={halo}
               mood={mood}
               pupilLRef={pupilLRef}
@@ -315,6 +390,39 @@ export function AssistantDock({
             />
           )}
         </button>
+
+        {/* Bulle d'« activité » : propose l'aide (repos prolongé) ou annonce la
+            solution trouvée. Masquée si une bulle proactive du moteur est déjà là. */}
+        {!tip && (activity === "offer" || activity === "found") && (
+          <button
+            type="button"
+            onClick={() => {
+              if (activity === "offer") setOpen(true);
+            }}
+            style={{
+              pointerEvents: "auto",
+              position: "absolute",
+              insetInlineEnd: 0,
+              insetBlockEnd: 68,
+              width: "max-content",
+              maxWidth: "min(220px, calc(100vw - 32px))",
+              background: activity === "found" ? "var(--gold)" : "var(--bg-paper)",
+              color: activity === "found" ? "#1A1610" : "var(--ink)",
+              border: `1px solid ${activity === "found" ? "var(--gold)" : "var(--line)"}`,
+              borderRadius: 12,
+              padding: "8px 11px",
+              fontSize: 13,
+              fontWeight: 600,
+              lineHeight: 1.4,
+              textAlign: "start",
+              cursor: activity === "offer" ? "pointer" : "default",
+              boxShadow: "0 6px 18px rgba(0,0,0,.16)",
+              animation: "sgia-bubble-in .25s ease-out both",
+            }}
+          >
+            {activity === "found" ? t.assistant_found : t.assistant_need_help}
+          </button>
+        )}
 
         {/* Bulle proactive (suit l'avatar : enfant du conteneur translaté) */}
         {tip && (
@@ -649,21 +757,40 @@ export function AssistantDock({
 
 /** Robot complet (tête + visière yeux suiveurs, corps, bras, jambes). En
  *  assistance (`walking`), bras et jambes balancent → effet « il marche ». */
+type RobotPose = "sit" | "offer" | "stand" | "walk" | "search" | "found";
+
 function RobotFigure({
-  walking,
+  pose,
+  showChair,
   glow,
   mood,
   pupilLRef,
   pupilRRef,
 }: {
-  walking: boolean;
+  pose: RobotPose;
+  showChair: boolean;
   glow: string;
   mood: "neutral" | "happy";
   pupilLRef: React.RefObject<HTMLSpanElement | null>;
   pupilRRef: React.RefObject<HTMLSpanElement | null>;
 }): React.ReactNode {
+  // Allure : assis (chaise) · réfléchit (assis + tête qui penche) · debout ·
+  // marche · recherche (marche + va-et-vient 3 pas D / 4 pas G) · trouvé (bras levé).
+  const poseClass =
+    pose === "sit"
+      ? "sgia-sit"
+      : pose === "offer"
+        ? "sgia-sit sgia-think"
+        : pose === "walk"
+          ? "sgia-walk"
+          : pose === "search"
+            ? "sgia-walk sgia-search"
+            : pose === "found"
+              ? "sgia-found"
+              : ""; // stand
   return (
-    <span className={`sgia-robot${walking ? " sgia-walk" : ""}`}>
+    <span className={`sgia-robot ${poseClass}`}>
+      {showChair && <span className="sgia-chair" aria-hidden />}
       <span className="sgia-shadow" />
       <span className="sgia-leg sgia-leg-l" />
       <span className="sgia-leg sgia-leg-r" />
@@ -805,8 +932,44 @@ const ASSISTANT_CSS = `
 @keyframes sgia-drive { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
 @keyframes sgia-roll { from { transform: rotate(0); } to { transform: rotate(360deg); } }
 @keyframes sgia-siren { 0% { background: var(--rose,#d6455d); } 50% { background: #3b6fd6; } }
+/* ── États « vivants » : chaise, assise, réflexion, recherche (va-et-vient), trouvé ── */
+/* Chaise/tabouret : reste à son coin (sa « maison ») ; le robot la quitte puis y revient. */
+.sgia-chair { position: absolute; inset-block-end: 1px; inset-inline-start: 13px; width: 32px; height: 12px; pointer-events: none; }
+.sgia-chair::before { content: ""; position: absolute; inset-block-start: 0; inset-inline-start: 0; width: 32px; height: 4px; border-radius: 2px; background: #6c6457; }
+.sgia-chair::after { content: ""; position: absolute; inset-block-start: 4px; inset-inline-start: 3px; width: 3px; height: 8px; border-radius: 0 0 1px 1px; background: #544e42; box-shadow: 23px 0 0 0 #544e42; }
+/* Assis : descend sur l'assise, jambes repliées vers l'avant, respiration douce. */
+.sgia-sit { animation: sgia-breathe 4s ease-in-out infinite; }
+.sgia-sit .sgia-leg { height: 9px; inset-block-start: 47px; transform: rotate(72deg); }
+.sgia-sit .sgia-arm { inset-block-start: 30px; }
+/* Réfléchit (repos prolongé) : la tête penche, pensif. */
+.sgia-think .sgia-head { animation: sgia-ponder 1.8s ease-in-out infinite; transform-origin: bottom center; }
+/* Recherche : marche sur place + va-et-vient (3 pas droite, 4 pas gauche) puis revient.
+   La propriété translate (indépendante de transform) compose avec le rebond de marche. */
+.sgia-search { animation: sgia-pace 2.8s ease-in-out infinite, sgia-walkbob .5s ease-in-out infinite; }
+/* Trouvé : petit saut + bras droit levé qui salue. */
+.sgia-found { animation: sgia-jump .55s ease-in-out 2; }
+.sgia-found .sgia-arm-r { animation: sgia-wave .4s ease-in-out 4; }
+@keyframes sgia-breathe { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1px); } }
+@keyframes sgia-ponder { 0%,100% { transform: rotate(0); } 50% { transform: rotate(-7deg); } }
+@keyframes sgia-jump { 0%,100% { transform: translateY(0); } 35% { transform: translateY(-7px); } 70% { transform: translateY(-2px); } }
+@keyframes sgia-wave { 0%,100% { transform: rotate(-150deg); } 50% { transform: rotate(-115deg); } }
+@keyframes sgia-pace {
+  0% { translate: 0; }
+  11% { translate: 8px; } 22% { translate: 16px; } 33% { translate: 24px; }  /* 3 pas → droite */
+  39% { translate: 24px; }                                                   /* demi-tour */
+  50% { translate: 16px; } 61% { translate: 8px; } 72% { translate: 0; } 83% { translate: -8px; }  /* 4 pas ← gauche */
+  89% { translate: -8px; }                                                   /* demi-tour */
+  100% { translate: 0; }                                                     /* retour à la chaise */
+}
+@keyframes sgia-bubble-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
+/* Responsive : robot + chaise + accessoires réduits sur petits écrans
+   (scale indépendant de transform — compose avec les animations). */
+@media (max-width: 600px) { .sgia-robot, .sgia-amb { scale: .82; } }
+@media (max-width: 380px) { .sgia-robot, .sgia-amb { scale: .72; } }
 @media (prefers-reduced-motion: reduce) {
   .sgia-robot, .sgia-amb, .sgia-eye, .sgia-antenna-dot, .sgia-walk .sgia-arm-l, .sgia-walk .sgia-arm-r,
-  .sgia-walk .sgia-leg-l, .sgia-walk .sgia-leg-r, .sgia-amb-light, .sgia-wheel { animation: none !important; }
+  .sgia-walk .sgia-leg-l, .sgia-walk .sgia-leg-r, .sgia-amb-light, .sgia-wheel,
+  .sgia-sit, .sgia-think .sgia-head, .sgia-search, .sgia-found, .sgia-found .sgia-arm-r { animation: none !important; }
+  .sgia-search { translate: none !important; }
 }
 `;
