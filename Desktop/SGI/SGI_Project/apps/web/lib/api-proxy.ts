@@ -96,3 +96,27 @@ export async function proxy(
   const upstream = await fetch(url, init);
   return relay(upstream);
 }
+
+/**
+ * Proxy multipart (upload de fichier) : garde 401, relaie le `FormData` entrant
+ * vers l'upstream avec le Bearer. On ne fixe PAS le Content-Type — `fetch`
+ * regénère le boundary à partir du `FormData`. Utilisé pour les uploads
+ * (ex. documents Golden Visa) que le proxy JSON ne peut pas transmettre.
+ */
+export async function proxyMultipart(
+  req: Request,
+  opts: { path: string; method?: string },
+): Promise<NextResponse> {
+  const token = await getSessionToken();
+  if (!token) {
+    return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  }
+  const form = await req.formData();
+  const upstream = await fetch(backendUrl(opts.path), {
+    method: opts.method ?? "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+    cache: "no-store",
+  });
+  return relay(upstream);
+}

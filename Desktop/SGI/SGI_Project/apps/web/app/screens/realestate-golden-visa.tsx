@@ -17,16 +17,20 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Topbar, IcPlus } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
-import { getJson, postJson, patchJson, extractError } from "@/lib/api-client";
+import { getJson, postJson, patchJson, postForm, extractError } from "@/lib/api-client";
 import { CreateModal, Field, fieldInput } from "@/components/create-modal";
 import {
   type GoldenVisaApp,
   type ClientLite,
+  type GvDoc,
   GV_STATUSES,
+  GV_DOCS,
   clientLabel,
   docsProgress,
   daysUntil,
   expiryBucket,
+  docTypeFor,
+  acceptFor,
 } from "@/lib/golden-visa";
 
 type Lang = "ar" | "en" | "fr";
@@ -42,6 +46,11 @@ const TR: Record<Lang, Record<string, string>> = {
     notes: "Notes", save_failed: "Échec de l'enregistrement", required: "Client requis",
     st_pending: "En attente", st_submitted: "Soumise", st_approved: "Approuvée",
     st_rejected: "Rejetée", st_expired: "Expirée", eligible: "≥ 2 M AED",
+    docTitle: "Documents du dossier", upload: "Téléverser", replace: "Remplacer",
+    download: "Télécharger", uploading: "Envoi…", upload_failed: "Échec de l'envoi",
+    present: "Fourni", missing: "Manquant", close: "Fermer",
+    d_passport_doc: "Passeport", d_dld_doc: "DLD", d_gdrfa_doc: "GDRFA",
+    d_insurance_doc: "Assurance", d_biometric_photo: "Photo biométrique",
   },
   en: {
     title: "Golden Visa", newApp: "New application", all: "All", expiring: "Expiring",
@@ -53,6 +62,11 @@ const TR: Record<Lang, Record<string, string>> = {
     notes: "Notes", save_failed: "Save failed", required: "Client required",
     st_pending: "Pending", st_submitted: "Submitted", st_approved: "Approved",
     st_rejected: "Rejected", st_expired: "Expired", eligible: "≥ 2M AED",
+    docTitle: "Application documents", upload: "Upload", replace: "Replace",
+    download: "Download", uploading: "Uploading…", upload_failed: "Upload failed",
+    present: "Provided", missing: "Missing", close: "Close",
+    d_passport_doc: "Passport", d_dld_doc: "DLD", d_gdrfa_doc: "GDRFA",
+    d_insurance_doc: "Insurance", d_biometric_photo: "Biometric photo",
   },
   ar: {
     title: "الإقامة الذهبية", newApp: "طلب جديد", all: "الكل", expiring: "قرب الانتهاء",
@@ -64,6 +78,11 @@ const TR: Record<Lang, Record<string, string>> = {
     notes: "ملاحظات", save_failed: "فشل الحفظ", required: "العميل مطلوب",
     st_pending: "قيد الانتظار", st_submitted: "مُقدّمة", st_approved: "مقبولة",
     st_rejected: "مرفوضة", st_expired: "منتهية", eligible: "≥ 2م درهم",
+    docTitle: "مستندات الطلب", upload: "رفع", replace: "استبدال",
+    download: "تنزيل", uploading: "جارٍ الرفع…", upload_failed: "فشل الرفع",
+    present: "مُقدّم", missing: "ناقص", close: "إغلاق",
+    d_passport_doc: "جواز السفر", d_dld_doc: "دائرة الأراضي", d_gdrfa_doc: "الإقامة",
+    d_insurance_doc: "التأمين", d_biometric_photo: "صورة بيومترية",
   },
 };
 
@@ -163,6 +182,39 @@ export function ScreenRealEstateGoldenVisa(): React.ReactNode {
   async function changeStatus(a: GoldenVisaApp, status: string): Promise<void> {
     const res = await patchJson(`/api/admin/golden-visa/${a.id}`, { status });
     if (res.ok) reload();
+  }
+
+  // Documents (upload/téléchargement MinIO)
+  const [docsApp, setDocsApp] = useState<GoldenVisaApp | null>(null);
+  const [uploading, setUploading] = useState<GvDoc | null>(null);
+  const [docError, setDocError] = useState<string | null>(null);
+
+  async function uploadDoc(app: GoldenVisaApp, doc: GvDoc, file: File): Promise<void> {
+    setUploading(doc);
+    setDocError(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await postForm(`/api/admin/golden-visa/${app.id}/documents/${docTypeFor(doc)}`, fd);
+      if (!res.ok) {
+        setDocError(await extractError(res, L("upload_failed")));
+        return;
+      }
+      const body = (await res.json()) as { data: GoldenVisaApp };
+      setDocsApp(body.data);
+      reload();
+    } catch {
+      setDocError(L("upload_failed"));
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  async function downloadDoc(app: GoldenVisaApp, doc: GvDoc): Promise<void> {
+    const data = await getJson<{ url: string }>(
+      `/api/admin/golden-visa/${app.id}/documents/${docTypeFor(doc)}/download`,
+    ).catch(() => null);
+    if (data?.url) window.open(data.url, "_blank", "noopener");
   }
 
   const kpi = (label: string, value: string | number, accent?: string): React.ReactNode => (
@@ -278,9 +330,18 @@ export function ScreenRealEstateGoldenVisa(): React.ReactNode {
                         </select>
                       </td>
                       <td style={{ padding: "9px 12px" }}>
-                        <span style={{ color: dp.complete ? "var(--emerald)" : "var(--ink-3)", fontWeight: 600 }}>
+                        <button
+                          type="button"
+                          onClick={() => { setDocsApp(a); setDocError(null); }}
+                          title={L("docTitle")}
+                          style={{
+                            cursor: "pointer", border: "1px solid var(--line-soft)", background: "var(--bg-cream)",
+                            borderRadius: 999, padding: "2px 10px", fontWeight: 600, fontSize: 11.5,
+                            color: dp.complete ? "var(--emerald)" : "var(--ink-3)",
+                          }}
+                        >
                           {dp.done}/{dp.total}
-                        </span>
+                        </button>
                       </td>
                       <td style={{ padding: "9px 12px", color: "var(--ink-3)" }}>{a.submission_date ?? "—"}</td>
                       <td style={{ padding: "9px 12px" }}><ExpiryCell iso={a.visa_expiry_date} /></td>
@@ -326,6 +387,58 @@ export function ScreenRealEstateGoldenVisa(): React.ReactNode {
           <input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} style={fieldInput} />
         </Field>
       </CreateModal>
+
+      {docsApp && (
+        <div
+          role="dialog"
+          aria-label={L("docTitle")}
+          onClick={() => setDocsApp(null)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 60, padding: 16 }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 14, width: "min(560px, 100%)", maxHeight: "86vh", overflow: "auto", padding: 20 }}
+          >
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBlockEnd: 14 }}>
+              <h3 className="font-display" style={{ fontSize: 16, fontWeight: 700 }}>{L("docTitle")}</h3>
+              <button type="button" onClick={() => setDocsApp(null)} style={{ cursor: "pointer", border: "none", background: "transparent", color: "var(--ink-4)", fontSize: 13 }}>{L("close")}</button>
+            </div>
+            {docError && <div style={{ color: "var(--rose)", fontSize: 12.5, marginBlockEnd: 10 }}>{docError}</div>}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {GV_DOCS.map((doc) => {
+                const present = Boolean((docsApp as Record<GvDoc, string | null>)[doc]);
+                const busy = uploading === doc;
+                return (
+                  <div key={doc} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: "1px solid var(--line-soft)", borderRadius: 10, padding: "10px 12px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 999, background: present ? "var(--emerald)" : "var(--line-soft)" }} />
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{L(`d_${doc}`)}</div>
+                        <div style={{ fontSize: 11, color: present ? "var(--emerald)" : "var(--ink-4)" }}>{present ? L("present") : L("missing")}</div>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {present && (
+                        <button type="button" onClick={() => void downloadDoc(docsApp, doc)} style={{ cursor: "pointer", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", borderRadius: 8, padding: "5px 10px", fontSize: 12 }}>{L("download")}</button>
+                      )}
+                      <label style={{ cursor: busy ? "default" : "pointer", border: "1px solid var(--line-soft)", background: present ? "var(--bg-cream)" : "var(--gold-soft, rgba(192,160,98,0.16))", color: "var(--ink)", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, opacity: busy ? 0.6 : 1 }}>
+                        {busy ? L("uploading") : present ? L("replace") : L("upload")}
+                        <input
+                          type="file"
+                          accept={acceptFor(doc)}
+                          disabled={busy}
+                          style={{ display: "none" }}
+                          onChange={(e) => { const f = e.target.files?.[0]; if (f) void uploadDoc(docsApp, doc, f); e.target.value = ""; }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

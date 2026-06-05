@@ -85,3 +85,16 @@ class DocumentChecklist(BaseModel):
 class DocumentChecklistOut(BaseModel):
     success: bool = True
     data: DocumentChecklist
+
+
+class GoldenVisaDocUploadOut(BaseModel):
+    """Réponse d'upload d'un document : dossier mis à jour + URL présignée."""
+
+    success: bool = True
+    data: GoldenVisaOut
+    url: str | None = None
+
+
+class GoldenVisaDocDownloadOut(BaseModel):
+    success: bool = True
+    url: str
