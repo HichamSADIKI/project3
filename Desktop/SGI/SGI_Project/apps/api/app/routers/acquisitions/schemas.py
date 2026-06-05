@@ -112,3 +112,26 @@ class MatchListOut(BaseModel):
     success: bool = True
     data: list[dict[str, Any]]
     meta: dict[str, Any]
+
+
+class AcqMandatesBlock(BaseModel):
+    by_status: dict[str, int]
+    active_count: int
+
+
+class AcqOffersBlock(BaseModel):
+    by_status: dict[str, int]
+    submitted_amount_aed: Decimal
+    accepted_count: int
+    accepted_amount_aed: Decimal
+
+
+class AcquisitionsPipeline(BaseModel):
+    mandates: AcqMandatesBlock
+    offers: AcqOffersBlock
+
+
+class AcquisitionsPipelineOut(BaseModel):
+    success: bool = True
+    data: AcquisitionsPipeline
+    meta: dict[str, Any]

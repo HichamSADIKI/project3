@@ -475,3 +475,119 @@ async def test_matches_unknown_mandate_404(
         f"/api/v1/acquisitions/mandates/{uuid.uuid4()}/matches", headers=headers
     )
     assert resp.status_code == 404, resp.text
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Pipeline d'acquisition (synthèse)
+# ═════════════════════════════════════════════════════════════════════════
+
+from types import SimpleNamespace  # noqa: E402
+
+import pytest  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
+
+from app.models.client import Client  # noqa: E402
+from app.models.property import Property  # noqa: E402
+from app.routers.acquisitions.models import BuyerMandate, PurchaseOffer  # noqa: E402
+
+
+def test_summarize_acquisitions_pipeline_pure() -> None:
+    mandates = [
+        SimpleNamespace(status="active"),
+        SimpleNamespace(status="active"),
+        SimpleNamespace(status="fulfilled"),
+    ]
+    offers = [
+        SimpleNamespace(status="submitted", amount=Decimal("900000")),
+        SimpleNamespace(status="accepted", amount=Decimal("1200000")),
+        SimpleNamespace(status="rejected", amount=Decimal("1")),
+    ]
+    s = service.summarize_acquisitions_pipeline(mandates, offers)
+    assert s["mandates"]["active_count"] == 2
+    assert s["offers"]["submitted_amount_aed"] == Decimal("900000")
+    assert s["offers"]["accepted_count"] == 1
+    assert s["offers"]["accepted_amount_aed"] == Decimal("1200000")
+
+
+def test_summarize_acquisitions_pipeline_empty() -> None:
+    s = service.summarize_acquisitions_pipeline([], [])
+    assert s["mandates"]["active_count"] == 0
+    assert s["offers"]["submitted_amount_aed"] == Decimal("0.00")
+    assert s["offers"]["accepted_count"] == 0
+
+
+async def _seed_offer(
+    db, company_id, *, mandate_status: str, offer_status: str, amount: str
+) -> None:
+    client = Client(
+        id=uuid.uuid4(), company_id=company_id, type="individual", first_name="Acq", last_name="T"
+    )
+    prop = Property(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        reference=f"PROP-{uuid.uuid4().hex[:8]}",
+        type="apartment",
+        price=Decimal("1000000"),
+        status="available",
+    )
+    db.add_all([client, prop])
+    await db.flush()
+    mandate = BuyerMandate(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        reference=f"ACQ-{uuid.uuid4().hex[:8]}",
+        buyer_client_id=client.id,
+        status=mandate_status,
+    )
+    db.add(mandate)
+    await db.flush()
+    db.add(
+        PurchaseOffer(
+            id=uuid.uuid4(),
+            company_id=company_id,
+            reference=f"OFF-{uuid.uuid4().hex[:8]}",
+            mandate_id=mandate.id,
+            property_id=prop.id,
+            amount=Decimal(amount),
+            status=offer_status,
+        )
+    )
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_acquisitions_pipeline_summary_service(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _seed_offer(
+        db_session,
+        seed_company.id,
+        mandate_status="active",
+        offer_status="submitted",
+        amount="900000",
+    )
+    s = await service.acquisitions_pipeline_summary(db_session, seed_company.id)
+    assert s["mandates"]["active_count"] == 1
+    assert s["offers"]["submitted_amount_aed"] == Decimal("900000")
+    assert s["offers"]["by_status"].get("submitted") == 1
+
+
+@pytest.mark.asyncio
+async def test_acquisitions_pipeline_summary_tenant_isolation(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _seed_offer(
+        db_session,
+        seed_company.id,
+        mandate_status="active",
+        offer_status="submitted",
+        amount="900000",
+    )
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await service.acquisitions_pipeline_summary(db_session, other.id)
+    assert s["mandates"]["by_status"] == {}
+    assert s["offers"]["submitted_amount_aed"] == Decimal("0.00")

@@ -18,6 +18,7 @@ from app.models.client import Client
 from app.models.property import Property
 from app.routers.acquisitions import service
 from app.routers.acquisitions.schemas import (
+    AcquisitionsPipelineOut,
     MandateCreate,
     MandateItemOut,
     MandateListOut,
@@ -103,6 +104,22 @@ async def _assert_property_in_company(
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "acquisitions", "status": "ok"}
+
+
+@router.get(
+    "/pipeline",
+    response_model=AcquisitionsPipelineOut,
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
+)
+async def acquisitions_pipeline_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> AcquisitionsPipelineOut:
+    """Synthèse du pipeline d'acquisition : mandats et offres d'achat par statut,
+    avec le montant des offres soumises et la valeur des offres acceptées."""
+    company_id = _get_company_id(request)
+    summary = await service.acquisitions_pipeline_summary(db, company_id)
+    return AcquisitionsPipelineOut(data=summary, meta={})
 
 
 # ── Mandats d'achat ──────────────────────────────────────────────────────────
