@@ -23,6 +23,7 @@ docker compose -f docker-compose.yml -f docker-compose.override.yml \
 | Service | URL | Identifiants |
 |---|---|---|
 | Prometheus | http://localhost:9090 | — |
+| Alertmanager | http://localhost:9093 | — |
 | Grafana | http://localhost:3002 | `admin` / `admin` (override via `GRAFANA_USER` / `GRAFANA_PASSWORD`) |
 
 Grafana est **provisionné** automatiquement : datasource Prometheus + dashboard
@@ -44,11 +45,18 @@ erreurs 5xx, mémoire, top handlers.
 `ApiDown` (up==0, 1 min) · `HighHttp5xxRate` (>0,5 req/s 5xx, 5 min) ·
 `HighRequestLatencyP95` (p95 > 1 s, 5 min) · `ApiHighMemory` (>1,5 Go, 10 min).
 
-Pour router les alertes (e-mail/Slack/WhatsApp), ajouter un **Alertmanager** —
-non inclus ici (les règles sont évaluées par Prometheus, visibles dans l'onglet *Alerts*).
+## Routage des alertes (`infra/monitoring/alertmanager/alertmanager.yml`)
+
+Prometheus envoie les alertes à **Alertmanager** (service inclus, port 9093) qui les
+regroupe et les route :
+- **`default`** / **`critical`** → `webhook_configs` vers `http://api:8000/api/v1/alerts/webhook`
+  (pont prévu vers **WhatsApp / e-mail** via le module `comms` — endpoint backend à exposer).
+- **E-mail** : renseigner le bloc `global.smtp_*` puis décommenter `email_configs`.
+- Les alertes **critical** se répètent toutes les heures ; une critical masque le
+  warning de même `alertname` (inhibition). Voir l'état dans http://localhost:9093.
 
 ## Prod
 
-- Ne pas exposer 9090/3002 publiquement : passer par Nginx + auth, ou réseau privé.
+- Ne pas exposer 9090/9093/3002 publiquement : passer par Nginx + auth, ou réseau privé.
 - Définir `GRAFANA_PASSWORD` (et idéalement un secret) dans l'environnement.
 - Ajuster `--storage.tsdb.retention.time` selon la rétention voulue.
