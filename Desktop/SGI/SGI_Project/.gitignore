@@ -41,7 +41,9 @@ venv/
 .uv/
 
 # ── Database / Backups ──────────────────────────────────────────────────
-backups/
+# Ancré à la racine du projet : NE PAS matcher les dossiers `backups` imbriqués
+# (ex. apps/web/app/api/admin/platform/backups/ = routes proxy Next, à versionner).
+/backups/
 *.dump
 *.sql.gz
 
