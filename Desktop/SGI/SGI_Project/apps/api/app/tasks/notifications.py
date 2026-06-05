@@ -20,7 +20,7 @@ from typing import Any
 
 from sqlalchemy import Select, select, update
 
-from app.core import mailer
+from app.core import mailer, whatsapp
 from app.core.database import sync_session_maker
 from app.models.client import Client
 from app.models.notification import Notification
@@ -142,11 +142,64 @@ def build_party_email_notification(
     return notif, email
 
 
-@celery_app.task(name="app.tasks.notifications.send_whatsapp_template", queue="notifications")
-def send_whatsapp_template(*, to: str, template_id: str, payload: dict) -> dict:
-    """Envoi d'un template WhatsApp Meta approuvé. À brancher au provider."""
-    logger.info("send_whatsapp_template stub", extra={"to": to, "template": template_id})
-    return {"status": "noop", "to": to, "template_id": template_id}
+@celery_app.task(
+    name="app.tasks.notifications.send_whatsapp_template",
+    queue="notifications",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+)
+def send_whatsapp_template(
+    self,
+    *,
+    to: str,
+    template_name: str,
+    language: str | None = None,
+    components: list[dict[str, Any]] | None = None,
+    notification_id: str | None = None,
+    company_id: str | None = None,
+) -> dict:
+    """Envoi d'un template WhatsApp Meta approuvé.
+
+    Backend Cloud API si configuré, sinon console (journalisé). Retry 3× sur
+    erreur API ; à la livraison, passe la notification associée ``pending → sent``.
+    """
+    try:
+        result = whatsapp.send_template(
+            to=to, template_name=template_name, language=language, components=components
+        )
+    except Exception as exc:
+        logger.warning("send_whatsapp_template échec (retry) to=%s: %s", to, exc)
+        raise self.retry(exc=exc) from exc
+
+    if notification_id and company_id:
+        _mark_sent(notification_id, company_id)
+
+    return {"status": result["backend"], "to": to}
+
+
+def deliver_whatsapp_notification(
+    notif: Notification,
+    *,
+    to: str,
+    template_name: str,
+    language: str | None = None,
+    components: list[dict[str, Any]] | None = None,
+) -> None:
+    """Enfile l'envoi WhatsApp d'une notification (canal ``whatsapp``).
+
+    À appeler après ``create_notification(..., channel="whatsapp")``. Le contenu
+    réel part d'un template Meta approuvé (``template_name``) ; la notification
+    sert au suivi de statut (``pending → sent``).
+    """
+    send_whatsapp_template.delay(
+        to=to,
+        template_name=template_name,
+        language=language,
+        components=components,
+        notification_id=str(notif.id),
+        company_id=str(notif.company_id),
+    )
 
 
 @celery_app.task(name="app.tasks.notifications.send_push", queue="notifications")
