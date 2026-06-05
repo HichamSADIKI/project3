@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +19,73 @@ from app.models.contract import Contract
 from app.models.rental import Rental
 from app.models.unit import Unit
 from app.routers.leasing.models import RentalApplication, RentalListing
+
+# Sous-ensembles « actifs » du pipeline locatif.
+_ACTIVE_LISTING_STATUSES: frozenset[str] = frozenset({"published", "reserved"})
+_OPEN_APPLICATION_STATUSES: frozenset[str] = frozenset({"submitted", "screening", "approved"})
+
+
+def _count_by_status(rows: list[Any]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for r in rows:
+        out[r.status] = out.get(r.status, 0) + 1
+    return out
+
+
+def summarize_leasing_pipeline(listings: list[Any], applications: list[Any]) -> dict[str, Any]:
+    """Synthèse du pipeline locatif (helper pur, sans DB).
+
+    - listings : répartition par statut + nb d'annonces actives (publiées /
+      réservées) + loyer mensuel cumulé de ces annonces ;
+    - applications : répartition par statut + nb en cours (soumise/screening/
+      approuvée) + nb converties (bail signé). Montants en ``Decimal`` AED.
+    """
+    active = [ls for ls in listings if ls.status in _ACTIVE_LISTING_STATUSES]
+    active_rent = sum((Decimal(str(ls.monthly_rent)) for ls in active), Decimal("0.00"))
+    return {
+        "listings": {
+            "by_status": _count_by_status(listings),
+            "active_count": len(active),
+            "active_monthly_rent_aed": active_rent,
+        },
+        "applications": {
+            "by_status": _count_by_status(applications),
+            "in_progress_count": sum(
+                1 for a in applications if a.status in _OPEN_APPLICATION_STATUSES
+            ),
+            "converted_count": sum(1 for a in applications if a.status == "converted"),
+        },
+    }
+
+
+async def leasing_pipeline_summary(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Synthèse du pipeline locatif du tenant (Loi 1 : scopé company_id)."""
+    listings = (
+        (
+            await db.execute(
+                select(RentalListing).where(
+                    RentalListing.company_id == company_id,
+                    RentalListing.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    applications = (
+        (
+            await db.execute(
+                select(RentalApplication).where(
+                    RentalApplication.company_id == company_id,
+                    RentalApplication.deleted_at.is_(None),
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return summarize_leasing_pipeline(list(listings), list(applications))
+
 
 # ─────────────────────────────────────────────────────────────────────────
 # Helpers purs

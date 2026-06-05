@@ -25,6 +25,7 @@ from app.routers.leasing.schemas import (
     ApplicationListOut,
     ApplicationOut,
     ApplicationTransitionBody,
+    LeasingPipelineOut,
     ListingCreate,
     ListingFlagsUpdate,
     ListingItemOut,
@@ -109,6 +110,22 @@ async def _assert_rental_in_company(
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "leasing", "status": "ok"}
+
+
+@router.get(
+    "/pipeline",
+    response_model=LeasingPipelineOut,
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
+)
+async def leasing_pipeline_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> LeasingPipelineOut:
+    """Synthèse du pipeline locatif : annonces et candidatures par statut, avec le
+    loyer mensuel des annonces actives et le nombre de candidatures converties."""
+    company_id = _get_company_id(request)
+    summary = await service.leasing_pipeline_summary(db, company_id)
+    return LeasingPipelineOut(data=summary, meta={})
 
 
 # ── Annonces de location ──────────────────────────────────────────────────────
