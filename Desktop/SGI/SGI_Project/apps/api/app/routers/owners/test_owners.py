@@ -4,12 +4,19 @@ Couverture : helpers de mandat (actif, jours restants, alerte renouvellement).
 Tests d'intégration DB → à ajouter avec conftest.py async + tenant fixture.
 """
 
-from datetime import date
+import uuid
+from datetime import date, timedelta
 
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.client import Client
+from app.models.company import Company
+from app.models.party_owner import Owner
 from app.routers.owners.service import (
     days_until_mandate_expiry,
+    expiring_mandates,
+    mandate_expiry_state,
     mandate_is_active,
     needs_renewal_alert,
 )
@@ -91,3 +98,88 @@ class TestNeedsRenewalAlert:
         today = date(2026, 5, 28)
         end = today + timedelta(days=days_ahead)
         assert needs_renewal_alert(today, end, threshold) is expected
+
+
+# ─── mandate_expiry_state (pur) ──────────────────────────────────────────────
+
+
+class TestMandateExpiryState:
+    today = date(2026, 6, 1)
+
+    def test_none_when_no_end(self) -> None:
+        assert mandate_expiry_state(self.today, None) is None
+
+    def test_expired(self) -> None:
+        assert mandate_expiry_state(self.today, date(2026, 5, 20)) == "expired"
+
+    def test_expiring_soon(self) -> None:
+        assert mandate_expiry_state(self.today, date(2026, 6, 20)) == "expiring_soon"
+        # borne 60 jours → encore expiring_soon
+        assert mandate_expiry_state(self.today, date(2026, 7, 31)) == "expiring_soon"
+
+    def test_active(self) -> None:
+        assert mandate_expiry_state(self.today, date(2026, 12, 1)) == "active"
+
+
+# ─── expiring_mandates (intégration service) ─────────────────────────────────
+
+
+async def _seed_owner(db: AsyncSession, company_id, *, mandate_end: date | None):
+    client = Client(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="individual",
+        first_name="Prop",
+        last_name="Test",
+    )
+    db.add(client)
+    await db.commit()
+    owner = Owner(
+        company_id=company_id,
+        party_id=client.id,
+        mandate_reference=f"MND-{uuid.uuid4().hex[:6]}",
+        mandate_end_date=mandate_end,
+    )
+    db.add(owner)
+    await db.commit()
+    return client.id
+
+
+@pytest.mark.asyncio
+async def test_expiring_mandates_states_and_order(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    today = date.today()
+    soon_id = await _seed_owner(db_session, seed_company.id, mandate_end=today + timedelta(days=20))
+    overdue_id = await _seed_owner(
+        db_session, seed_company.id, mandate_end=today - timedelta(days=5)
+    )
+    await _seed_owner(
+        db_session, seed_company.id, mandate_end=today + timedelta(days=200)
+    )  # hors 90j
+    await _seed_owner(db_session, seed_company.id, mandate_end=None)  # sans échéance → exclu
+
+    rows = await expiring_mandates(db_session, seed_company.id, today, days=90)
+    by_id = {r["party_id"]: r for r in rows}
+    assert soon_id in by_id and by_id[soon_id]["state"] == "expiring_soon"
+    assert overdue_id in by_id and by_id[overdue_id]["state"] == "expired"
+    assert len(rows) == 2  # le lointain et le sans-échéance sont exclus
+    # tri par date de fin → l'expiré avant le proche
+    ids = [r["party_id"] for r in rows]
+    assert ids.index(overdue_id) < ids.index(soon_id)
+    assert by_id[soon_id]["needs_renewal"] is True
+
+
+@pytest.mark.asyncio
+async def test_expiring_mandates_tenant_isolation(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    today = date.today()
+    await _seed_owner(db_session, seed_company.id, mandate_end=today + timedelta(days=10))
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    rows = await expiring_mandates(db_session, other.id, today, days=90)
+    assert rows == []
