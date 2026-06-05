@@ -181,3 +181,31 @@ class TransactionListOut(BaseModel):
 class TransactionItemOut(BaseModel):
     success: bool = True
     data: TransactionOut
+
+
+class PipelineListingsBlock(BaseModel):
+    by_status: dict[str, int]
+    active_count: int
+
+
+class PipelineOffersBlock(BaseModel):
+    by_status: dict[str, int]
+    open_amount_aed: Decimal
+
+
+class PipelineTransactionsBlock(BaseModel):
+    by_status: dict[str, int]
+    completed_value_aed: Decimal
+    completed_commission_aed: Decimal
+
+
+class SalesPipeline(BaseModel):
+    listings: PipelineListingsBlock
+    offers: PipelineOffersBlock
+    transactions: PipelineTransactionsBlock
+
+
+class SalesPipelineOut(BaseModel):
+    success: bool = True
+    data: SalesPipeline
+    meta: dict[str, Any]

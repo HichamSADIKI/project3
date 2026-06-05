@@ -481,3 +481,85 @@ async def test_http_create_mandate_rejects_foreign_client(
     )
     assert r.status_code == 400
     assert r.json()["detail"] == "client_not_in_company"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Pipeline de vente (synthèse)
+# ═════════════════════════════════════════════════════════════════════════
+
+from types import SimpleNamespace  # noqa: E402
+
+
+def test_summarize_sales_pipeline_pure() -> None:
+    listings = [
+        SimpleNamespace(status="published"),
+        SimpleNamespace(status="draft"),
+        SimpleNamespace(status="under_offer"),
+    ]
+    offers = [
+        SimpleNamespace(status="submitted", amount=Decimal("950000")),
+        SimpleNamespace(status="rejected", amount=Decimal("100")),
+    ]
+    transactions = [
+        SimpleNamespace(
+            status="completed", final_price=Decimal("950000"), commission_amount=Decimal("19000")
+        ),
+        SimpleNamespace(status="pending", final_price=Decimal("1"), commission_amount=Decimal("0")),
+    ]
+    s = service.summarize_sales_pipeline(listings, offers, transactions)
+    assert s["listings"]["active_count"] == 2  # published + under_offer
+    assert s["listings"]["by_status"] == {"published": 1, "draft": 1, "under_offer": 1}
+    assert s["offers"]["open_amount_aed"] == Decimal("950000")  # seules les offres soumises
+    assert s["transactions"]["completed_value_aed"] == Decimal("950000")
+    assert s["transactions"]["completed_commission_aed"] == Decimal("19000")
+
+
+def test_summarize_sales_pipeline_empty() -> None:
+    s = service.summarize_sales_pipeline([], [], [])
+    assert s["listings"]["active_count"] == 0
+    assert s["offers"]["open_amount_aed"] == Decimal("0.00")
+    assert s["transactions"]["completed_value_aed"] == Decimal("0.00")
+
+
+async def _seed_completed_deal(db: AsyncSession, cid: uuid.UUID) -> None:
+    seller = await _seed_client(db, cid)
+    buyer = await _seed_client(db, cid)
+    m = await service.create_mandate(db, cid, seller_client_id=seller, commission_rate=Decimal("2"))
+    listing = await service.create_listing(db, cid, mandate_id=m.id, list_price=Decimal("1000000"))
+    offer = await service.create_offer(
+        db, cid, listing_id=listing.id, buyer_client_id=buyer, amount=Decimal("950000")
+    )
+    accepted = await service.transition_offer(db, cid, offer.id, "accepted")
+    tx = await service.create_transaction_from_offer(
+        db, cid, offer=accepted, listing=listing, mandate=m
+    )
+    await service.transition_transaction(db, cid, tx.id, "completed")
+
+
+@pytest.mark.asyncio
+async def test_sales_pipeline_summary_service(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    cid = seed_company.id
+    await _seed_completed_deal(db_session, cid)
+    s = await service.sales_pipeline_summary(db_session, cid)
+    assert s["transactions"]["by_status"].get("completed") == 1
+    assert s["transactions"]["completed_value_aed"] == Decimal("950000")
+    assert s["transactions"]["completed_commission_aed"] == Decimal("19000.00")
+    assert s["listings"]["by_status"]  # au moins une annonce
+
+
+@pytest.mark.asyncio
+async def test_sales_pipeline_summary_tenant_isolation(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    cid = seed_company.id
+    await _seed_completed_deal(db_session, cid)
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await service.sales_pipeline_summary(db_session, other.id)
+    assert s["listings"]["by_status"] == {}
+    assert s["transactions"]["completed_value_aed"] == Decimal("0.00")

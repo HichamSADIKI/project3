@@ -28,6 +28,53 @@ from app.routers.sales.models import (
 
 _TWO_PLACES = Decimal("0.01")
 
+# Statuts « actifs » du pipeline (sous-ensembles non terminaux pertinents).
+_ACTIVE_LISTING_STATUSES: frozenset[str] = frozenset({"published", "under_offer"})
+_OPEN_OFFER_STATUSES: frozenset[str] = frozenset({"submitted"})
+
+
+def _count_by_status(rows: list[Any]) -> dict[str, int]:
+    out: dict[str, int] = {}
+    for r in rows:
+        out[r.status] = out.get(r.status, 0) + 1
+    return out
+
+
+def summarize_sales_pipeline(
+    listings: list[Any], offers: list[Any], transactions: list[Any]
+) -> dict[str, Any]:
+    """Synthèse du pipeline de vente (helper pur, sans DB).
+
+    - listings : répartition par statut + nb d'annonces actives (publiées / sous offre) ;
+    - offers : répartition par statut + montant total des offres ouvertes (soumises) ;
+    - transactions : répartition par statut + valeur et commission des transactions
+      finalisées (``completed``). Montants en ``Decimal`` AED.
+    """
+    open_offers = sum(
+        (Decimal(str(o.amount)) for o in offers if o.status in _OPEN_OFFER_STATUSES),
+        Decimal("0.00"),
+    )
+    completed = [t for t in transactions if t.status == "completed"]
+    completed_value = sum((Decimal(str(t.final_price)) for t in completed), Decimal("0.00"))
+    completed_commission = sum(
+        (Decimal(str(t.commission_amount)) for t in completed), Decimal("0.00")
+    )
+    return {
+        "listings": {
+            "by_status": _count_by_status(listings),
+            "active_count": sum(1 for ls in listings if ls.status in _ACTIVE_LISTING_STATUSES),
+        },
+        "offers": {
+            "by_status": _count_by_status(offers),
+            "open_amount_aed": open_offers,
+        },
+        "transactions": {
+            "by_status": _count_by_status(transactions),
+            "completed_value_aed": completed_value,
+            "completed_commission_aed": completed_commission,
+        },
+    }
+
 
 def generate_reference(year: int, sequence: int) -> str:
     """Référence triable lexicographiquement : `SALE-2026-000042`."""
@@ -137,6 +184,21 @@ async def next_reference(db: AsyncSession, company_id: uuid.UUID, model: type[An
         )
     )
     return generate_reference(year, result.scalar_one() + 1)
+
+
+async def sales_pipeline_summary(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Synthèse du pipeline de vente du tenant (Loi 1 : scopé company_id)."""
+
+    async def _rows(model: type[Any]) -> list[Any]:
+        result = await db.execute(
+            select(model).where(model.company_id == company_id, model.deleted_at.is_(None))
+        )
+        return list(result.scalars().all())
+
+    listings = await _rows(SaleListing)
+    offers = await _rows(SaleOffer)
+    transactions = await _rows(SaleTransaction)
+    return summarize_sales_pipeline(listings, offers, transactions)
 
 
 # ── Mandats ────────────────────────────────────────────────────────────────
