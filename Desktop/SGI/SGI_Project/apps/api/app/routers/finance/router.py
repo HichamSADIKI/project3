@@ -8,9 +8,21 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
+from app.routers.finance.closure import (
+    ClosureError,
+    PeriodClosedError,
+    close_period,
+    list_closures,
+)
+from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
 from app.routers.finance.schemas import (
     AgedReceivables,
+    CashFlowForecast,
     FinanceSummary,
+    InvoicePdfOut,
+    PeriodClosureCreate,
+    PeriodClosureListOut,
+    PeriodClosureOut,
     PnlReport,
     TransactionCreate,
     TransactionDetailOut,
@@ -20,6 +32,7 @@ from app.routers.finance.schemas import (
     VatReport,
 )
 from app.routers.finance.service import (
+    cash_flow_forecast,
     create_transaction,
     get_aged_receivables,
     get_pnl,
@@ -101,6 +114,46 @@ async def get_vat_report_endpoint(
     """Rapport TVA (UAE 5 %) du tenant sur la période (déclaration trimestrielle)."""
     company_id = await _get_company_id(db)
     return await get_vat_report(db, company_id, period)  # type: ignore[arg-type]
+
+
+@router.get("/reports/cashflow", response_model=CashFlowForecast)
+async def get_cashflow_forecast(
+    db: AsyncSession = Depends(get_db_session),
+) -> CashFlowForecast:
+    """Prévision de trésorerie du tenant (flux attendus par tranche d'échéance)."""
+    company_id = await _get_company_id(db)
+    return await cash_flow_forecast(db, company_id)
+
+
+@router.get("/period-closures", response_model=PeriodClosureListOut)
+async def list_period_closures(
+    db: AsyncSession = Depends(get_db_session),
+) -> PeriodClosureListOut:
+    """Liste les clôtures de période du tenant."""
+    company_id = await _get_company_id(db)
+    closures = await list_closures(db, company_id)
+    return PeriodClosureListOut(data=[PeriodClosureOut.model_validate(c) for c in closures])
+
+
+@router.post(
+    "/period-closures",
+    response_model=PeriodClosureOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_require_roles("admin", "manager", "accounting"))],
+)
+async def create_period_closure(
+    body: PeriodClosureCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> PeriodClosureOut:
+    """Clôture une période (verrouille les transactions <= period_end)."""
+    company_id = await _get_company_id(db)
+    closed_by = getattr(request.state, "user_email", None) or getattr(request.state, "role", None)
+    try:
+        closure = await close_period(db, company_id, body.period_end, body.note, closed_by)
+    except ClosureError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=err.code) from err
+    return PeriodClosureOut.model_validate(closure)
 
 
 @router.get("/transactions", response_model=TransactionListOut)
@@ -190,7 +243,33 @@ async def update_transaction_endpoint(
     db: AsyncSession = Depends(get_db_session),
 ) -> TransactionDetailOut:
     company_id = await _get_company_id(db)
-    txn = await update_transaction(db, company_id, txn_id, body)
+    try:
+        txn = await update_transaction(db, company_id, txn_id, body)
+    except PeriodClosedError as err:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err.code) from err
     if not txn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found")
     return TransactionDetailOut(data=TransactionOut.model_validate(txn))
+
+
+@router.post(
+    "/transactions/{txn_id}/invoice",
+    response_model=InvoicePdfOut,
+    dependencies=[Depends(_require_roles("admin", "manager", "accounting"))],
+)
+async def generate_invoice_endpoint(
+    txn_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> InvoicePdfOut:
+    """Génère la facture PDF d'une transaction (type=invoice) et renvoie son URL."""
+    company_id = await _get_company_id(db)
+    try:
+        url = await generate_and_store_invoice(db, company_id, txn_id)
+    except InvoiceError as err:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if err.code == "transaction_not_found"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=err.code) from err
+    return InvoicePdfOut(data={"url": url})

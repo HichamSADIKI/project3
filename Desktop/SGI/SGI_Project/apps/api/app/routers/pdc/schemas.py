@@ -130,3 +130,23 @@ class DepositCalendarOut(BaseModel):
     success: bool = True
     data: list[DepositCalendarEntry]
     meta: dict[str, Any]
+
+
+class AgingBucket(BaseModel):
+    count: int
+    amount_aed: Decimal
+
+
+class PdcAgingSummary(BaseModel):
+    overdue: AgingBucket
+    due_7: AgingBucket
+    due_30: AgingBucket
+    later: AgingBucket
+    total_count: int
+    total_amount_aed: Decimal
+
+
+class PdcAgingSummaryOut(BaseModel):
+    success: bool = True
+    data: PdcAgingSummary
+    meta: dict[str, Any]

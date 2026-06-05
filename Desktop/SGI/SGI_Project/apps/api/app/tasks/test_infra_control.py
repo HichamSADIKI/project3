@@ -10,7 +10,13 @@ import json
 
 import pytest
 
-from app.tasks.infra_control import _compose_filter, docker_proxy_url, op_for_action
+from app.tasks.infra_control import (
+    _compose_filter,
+    auto_remediation_enabled,
+    docker_proxy_url,
+    firing_alert_names,
+    op_for_action,
+)
 
 
 @pytest.mark.parametrize(
@@ -46,3 +52,28 @@ def test_docker_proxy_url(monkeypatch: pytest.MonkeyPatch) -> None:
     assert docker_proxy_url() == "http://docker-socket-proxy:2375"
     monkeypatch.setenv("DOCKER_PROXY_URL", "  ")
     assert docker_proxy_url() is None
+
+
+def test_auto_remediation_enabled_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("AUTO_REMEDIATION_ENABLED", raising=False)
+    assert auto_remediation_enabled() is False
+    monkeypatch.setenv("AUTO_REMEDIATION_ENABLED", "true")
+    assert auto_remediation_enabled() is True
+
+
+def test_firing_alert_names_extracts_only_firing() -> None:
+    payload = {
+        "data": {
+            "alerts": [
+                {"state": "firing", "labels": {"alertname": "ServiceDown"}},
+                {"state": "pending", "labels": {"alertname": "HighCPU"}},  # ignoré
+                {"state": "firing", "labels": {"alertname": "DiskFull"}},
+                {"state": "firing", "labels": {}},  # pas d'alertname → ignoré
+            ]
+        }
+    }
+    assert firing_alert_names(payload) == {"ServiceDown", "DiskFull"}
+
+
+def test_firing_alert_names_empty() -> None:
+    assert firing_alert_names({}) == set()

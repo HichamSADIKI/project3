@@ -413,6 +413,47 @@ async def test_status_won_golden_visa_no_duplicate(
     assert gv[0].status == "submitted"  # le dossier existant est préservé
 
 
+async def test_status_won_golden_visa_recreated_after_rejected(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    """Un dossier rejected/expired ne bloque pas : won en recrée un nouveau (pending)."""
+    admin, _ = seed_admin
+    cid = str(admin.company_id)
+    lead = await _lead(db_session, admin)
+    db_session.add(
+        GoldenVisaApplication(
+            company_id=admin.company_id, client_id=lead.client_id, status="rejected"
+        )
+    )
+    await db_session.commit()
+    for target in ("contacted", "qualified", "proposal_sent", "negotiation"):
+        await update_lead_status(
+            db_session, cid, lead.id, LeadStatusUpdate(status=target), admin.id
+        )
+    await update_lead_status(
+        db_session,
+        cid,
+        lead.id,
+        LeadStatusUpdate(status="won", won_amount=Decimal("3000000")),
+        admin.id,
+    )
+    gv = (
+        (
+            await db_session.execute(
+                select(GoldenVisaApplication).where(
+                    GoldenVisaApplication.company_id == admin.company_id,
+                    GoldenVisaApplication.client_id == lead.client_id,
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(gv) == 2  # l'ancien rejeté + un nouveau dossier
+    assert {a.status for a in gv} == {"rejected", "pending"}
+    assert lead.golden_visa_eligible is True
+
+
 # ── Activités ────────────────────────────────────────────────────────────────
 
 

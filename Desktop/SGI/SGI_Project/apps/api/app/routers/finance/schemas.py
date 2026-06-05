@@ -125,3 +125,48 @@ class VatReport(BaseModel):
     output_vat: Decimal
     input_vat: Decimal
     net_vat: Decimal
+
+
+class InvoicePdfOut(BaseModel):
+    """URL de téléchargement de la facture PDF générée."""
+
+    success: bool = True
+    data: dict[str, str]  # {"url": "..."}
+
+
+class CashFlowBucket(BaseModel):
+    """Prévision d'encaissements/décaissements attendus sur une tranche d'échéance."""
+
+    label: str
+    expected_in: Decimal
+    expected_out: Decimal
+    net: Decimal
+
+
+class CashFlowForecast(BaseModel):
+    """Prévision de trésorerie : flux attendus des transactions non encore réglées."""
+
+    buckets: list[CashFlowBucket]
+    total_in: Decimal
+    total_out: Decimal
+    net: Decimal
+
+
+class PeriodClosureCreate(BaseModel):
+    period_end: date
+    note: str | None = Field(None, max_length=500)
+
+
+class PeriodClosureOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    period_end: date
+    note: str | None
+    closed_by: str | None
+    created_at: datetime
+
+
+class PeriodClosureListOut(BaseModel):
+    success: bool = True
+    data: list[PeriodClosureOut]

@@ -363,3 +363,140 @@ async def test_vat_report_excludes_zero_rated_from_vat(db_session, seed_company:
     assert vat.input_vat == Decimal("400.00")
     assert vat.net_vat == Decimal("600.00")
     assert vat.taxable_revenue == Decimal("20000")  # zéro-rated exclu de la base
+
+
+# ── Factures PDF ────────────────────────────────────────────────────────────
+
+
+def test_build_invoice_html_contains_amounts() -> None:
+    from datetime import date as _date
+
+    from app.routers.finance.invoice import build_invoice_html
+
+    out = build_invoice_html(
+        reference="TXN-2026-00042",
+        company_name="Infinity FM",
+        issue_date=_date(2026, 6, 5),
+        description="Commission vente Marina",
+        amount_ht=Decimal("1000"),
+        vat_rate=Decimal("0.05"),
+        vat_amount=Decimal("50"),
+    )
+    assert "TXN-2026-00042" in out
+    assert "AED 1,000.00" in out  # HT
+    assert "AED 50.00" in out  # TVA
+    assert "AED 1,050.00" in out  # TTC
+    assert "Commission vente Marina" in out
+    assert "5.00%" in out
+
+
+def test_render_pdf_produces_pdf_bytes() -> None:
+    pytest.importorskip("weasyprint")  # CI sans libs système → skip
+    from app.routers.finance.invoice import render_pdf
+
+    pdf = render_pdf("<html><body><h1>Test</h1></body></html>")
+    assert pdf[:4] == b"%PDF"
+
+
+async def test_generate_invoice_rejects_non_invoice(db_session, seed_company: Company) -> None:
+    from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
+
+    txn = await create_transaction(
+        db_session, seed_company.id, _txn(type="payment", direction="credit")
+    )
+    with pytest.raises(InvoiceError) as exc:
+        await generate_and_store_invoice(db_session, seed_company.id, txn.id)
+    assert exc.value.code == "not_an_invoice"
+
+
+async def test_generate_invoice_cross_tenant_not_found(db_session, seed_company: Company) -> None:
+    from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
+
+    other = await _other_company(db_session)
+    txn = await create_transaction(db_session, seed_company.id, _txn(type="invoice"))
+    with pytest.raises(InvoiceError) as exc:
+        await generate_and_store_invoice(db_session, other.id, txn.id)
+    assert exc.value.code == "transaction_not_found"
+
+
+# ── Prévision de trésorerie ─────────────────────────────────────────────────
+
+
+def test_bucket_cashflow() -> None:
+    from datetime import date
+
+    from app.routers.finance.service import bucket_cashflow
+
+    today = date(2026, 6, 5)
+    items = [
+        (Decimal("1000"), date(2026, 6, 20), "credit"),  # +15 j → d0_30 in
+        (Decimal("500"), date(2026, 5, 1), "debit"),  # passé → overdue out
+        (Decimal("200"), date(2026, 8, 1), "credit"),  # +57 j → d31_60 in
+        (Decimal("100"), None, "credit"),  # sans échéance → d0_30 in
+    ]
+    b = bucket_cashflow(items, today)
+    assert b["d0_30"]["in"] == Decimal("1100")
+    assert b["overdue"]["out"] == Decimal("500")
+    assert b["d31_60"]["in"] == Decimal("200")
+
+
+async def test_cash_flow_forecast_totals(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.service import cash_flow_forecast
+
+    cid = seed_company.id
+    await create_transaction(
+        db_session,
+        cid,
+        _txn(type="invoice", direction="credit", amount=Decimal("3000"), due_date=date(2026, 7, 1)),
+    )
+    await create_transaction(
+        db_session,
+        cid,
+        _txn(type="expense", direction="debit", amount=Decimal("1000"), due_date=date(2026, 1, 1)),
+    )
+    fc = await cash_flow_forecast(db_session, cid)
+    assert fc.total_in == Decimal("3000")
+    assert fc.total_out == Decimal("1000")
+    assert fc.net == Decimal("2000")
+
+
+# ── Clôture de période ──────────────────────────────────────────────────────
+
+
+async def test_close_period_and_duplicate(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.closure import ClosureError, close_period, list_closures
+
+    c = await close_period(db_session, seed_company.id, date(2026, 3, 31))
+    assert c.period_end == date(2026, 3, 31)
+    with pytest.raises(ClosureError) as exc:
+        await close_period(db_session, seed_company.id, date(2026, 3, 31))
+    assert exc.value.code == "period_already_closed"
+    assert len(await list_closures(db_session, seed_company.id)) == 1
+
+
+async def test_is_date_closed(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.closure import close_period, is_date_closed
+
+    assert await is_date_closed(db_session, seed_company.id, date(2026, 1, 1)) is False
+    await close_period(db_session, seed_company.id, date(2026, 6, 30))
+    assert await is_date_closed(db_session, seed_company.id, date(2026, 6, 1)) is True
+    assert await is_date_closed(db_session, seed_company.id, date(2026, 7, 1)) is False
+
+
+async def test_update_blocked_in_closed_period(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.closure import PeriodClosedError, close_period
+
+    txn = await create_transaction(db_session, seed_company.id, _txn(type="invoice"))
+    await close_period(db_session, seed_company.id, date(2026, 12, 31))  # couvre created_at
+    with pytest.raises(PeriodClosedError):
+        await update_transaction(
+            db_session, seed_company.id, txn.id, TransactionUpdate(status="paid")
+        )

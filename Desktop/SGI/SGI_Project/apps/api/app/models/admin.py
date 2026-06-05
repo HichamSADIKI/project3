@@ -130,3 +130,24 @@ class BackupRun(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class InfraRemediationRule(Base, TimestampMixin):
+    """Mapping alerte Prometheus → action de contrôle (auto-remédiation). PLATEFORME.
+
+    Cross-tenant (pas de company_id) : si l'alerte `alert_name` est *firing*, le beat
+    `auto_remediate` déclenche `action` sur `service_id` (dry-run tant que le flag est off).
+    """
+
+    __tablename__ = "infra_remediation_rules"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    alert_name: Mapped[str] = mapped_column(String(160), nullable=False, index=True)
+    service_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("infra_services.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    action: Mapped[str] = mapped_column(String(20), nullable=False)  # restart|stop|start|pause
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

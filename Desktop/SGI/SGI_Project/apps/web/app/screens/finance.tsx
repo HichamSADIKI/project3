@@ -63,7 +63,9 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "Courant", b30: "1-30 j", b60: "31-60 j", b90: "61-90 j", b90p: "90+ j", total: "Total",
     pMonth: "Ce mois", pQuarter: "Trimestre", pYtd: "Année",
     vat: "TVA (5 %)", vatOut: "TVA collectée", vatIn: "TVA déductible", vatNet: "TVA nette à payer",
-    exportCsv: "Exporter CSV",
+    exportCsv: "Exporter CSV", invoicePdf: "Facture",
+    cashflow: "Prévision trésorerie", cfOverdue: "En retard", cf030: "0-30 j", cf3160: "31-60 j", cf6190: "61-90 j", cfLater: "Plus tard", cfIn: "Encaissements", cfOut: "Décaissements",
+    closure: "Clôture de période", closeBtn: "Clôturer", noClosure: "Aucune clôture.",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -78,7 +80,9 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "Current", b30: "1-30 d", b60: "31-60 d", b90: "61-90 d", b90p: "90+ d", total: "Total",
     pMonth: "This month", pQuarter: "Quarter", pYtd: "Year",
     vat: "VAT (5%)", vatOut: "Output VAT", vatIn: "Input VAT", vatNet: "Net VAT payable",
-    exportCsv: "Export CSV",
+    exportCsv: "Export CSV", invoicePdf: "Invoice",
+    cashflow: "Cash-flow forecast", cfOverdue: "Overdue", cf030: "0-30 d", cf3160: "31-60 d", cf6190: "61-90 d", cfLater: "Later", cfIn: "Expected in", cfOut: "Expected out",
+    closure: "Period closure", closeBtn: "Close", noClosure: "No closure.",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -93,7 +97,9 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "جارٍ", b30: "1-30 يوم", b60: "31-60 يوم", b90: "61-90 يوم", b90p: "+90 يوم", total: "الإجمالي",
     pMonth: "هذا الشهر", pQuarter: "ربع سنة", pYtd: "السنة",
     vat: "ضريبة القيمة المضافة (5%)", vatOut: "ضريبة المخرجات", vatIn: "ضريبة المدخلات", vatNet: "صافي الضريبة المستحقة",
-    exportCsv: "تصدير CSV",
+    exportCsv: "تصدير CSV", invoicePdf: "فاتورة",
+    cashflow: "توقّع التدفّق النقدي", cfOverdue: "متأخر", cf030: "0-30 يوم", cf3160: "31-60 يوم", cf6190: "61-90 يوم", cfLater: "لاحقاً", cfIn: "مقبوضات", cfOut: "مدفوعات",
+    closure: "إقفال الفترة", closeBtn: "إقفال", noClosure: "لا إقفال.",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -143,6 +149,21 @@ export function ScreenFinance(): React.ReactNode {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "invoice", direction: "credit", amount: "", tax_treatment: "standard", description: "", due_date: "" });
+
+  // Facture PDF (transactions de type invoice)
+  const [invoicing, setInvoicing] = useState<string | null>(null);
+  async function genInvoice(txnId: string): Promise<void> {
+    setInvoicing(txnId);
+    try {
+      const res = await postJson(`/api/admin/finance/transactions/${txnId}/invoice`, {});
+      if (res.ok) {
+        const body = (await res.json()) as { data?: { url?: string } };
+        if (body.data?.url) window.open(body.data.url, "_blank");
+      }
+    } finally {
+      setInvoicing(null);
+    }
+  }
 
   async function submit(): Promise<void> {
     if (!form.amount || Number(form.amount) <= 0) {
@@ -272,6 +293,7 @@ export function ScreenFinance(): React.ReactNode {
                   <th style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600 }}>{L("vatCol")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("status")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("date")}</th>
+                  <th style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600 }} />
                 </tr>
               </thead>
               <tbody>
@@ -293,6 +315,14 @@ export function ScreenFinance(): React.ReactNode {
                         </span>
                       </td>
                       <td style={{ padding: "10px 14px", color: "var(--ink-4)", direction: "ltr", textAlign: "start" }}>{tx.created_at.slice(0, 10)}</td>
+                      <td style={{ padding: "10px 14px", textAlign: "end" }}>
+                        {tx.type === "invoice" && (
+                          <button onClick={() => void genInvoice(tx.id)} disabled={invoicing === tx.id}
+                            style={{ border: "1px solid var(--line)", background: "var(--bg-paper)", color: "var(--ink)", borderRadius: 8, padding: "4px 10px", fontSize: 11.5, fontWeight: 600, cursor: "pointer", opacity: invoicing === tx.id ? 0.5 : 1 }}>
+                            {invoicing === tx.id ? "…" : `⬇ ${L("invoicePdf")}`}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -359,20 +389,49 @@ type Vat = {
   input_vat: string;
   net_vat: string;
 };
+type CashFlow = {
+  buckets: { label: string; expected_in: string; expected_out: string; net: string }[];
+  total_in: string;
+  total_out: string;
+  net: string;
+};
+type Closure = { id: string; period_end: string; note: string | null; closed_by: string | null };
 
 function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.ReactNode {
   const [period, setPeriod] = useState<"month" | "quarter" | "ytd">("month");
   const [pnl, setPnl] = useState<Pnl | null>(null);
   const [aged, setAged] = useState<Aged | null>(null);
   const [vat, setVat] = useState<Vat | null>(null);
+  const [cash, setCash] = useState<CashFlow | null>(null);
+  const [closures, setClosures] = useState<Closure[] | null>(null);
+  const [closeDate, setCloseDate] = useState("");
+  const [closeErr, setCloseErr] = useState<string | null>(null);
 
+  function loadClosures(): void {
+    getJson<{ data: Closure[] }>("/api/admin/finance/period-closures")
+      .then((r) => setClosures(r.data)).catch(() => setClosures(null));
+  }
   useEffect(() => {
     getJson<Pnl>(`/api/admin/finance/reports/pnl?period=${period}`).then(setPnl).catch(() => setPnl(null));
     getJson<Vat>(`/api/admin/finance/reports/vat?period=${period}`).then(setVat).catch(() => setVat(null));
   }, [period]);
   useEffect(() => {
     getJson<Aged>("/api/admin/finance/reports/aged-receivables").then(setAged).catch(() => setAged(null));
+    getJson<CashFlow>("/api/admin/finance/reports/cashflow").then(setCash).catch(() => setCash(null));
+    loadClosures();
   }, []);
+
+  async function submitClosure(): Promise<void> {
+    if (!closeDate) { setCloseErr("date"); return; }
+    setCloseErr(null);
+    const res = await postJson("/api/admin/finance/period-closures", { period_end: closeDate });
+    if (res.ok) { setCloseDate(""); loadClosures(); }
+    else setCloseErr(await extractError(res, "save_failed"));
+  }
+
+  const cfLabel: Record<string, string> = {
+    overdue: L("cfOverdue"), d0_30: L("cf030"), d31_60: L("cf3160"), d61_90: L("cf6190"), later: L("cfLater"),
+  };
 
   const card: React.CSSProperties = { background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 12, padding: 16 };
   const row = (label: string, value: string, accent?: string): React.ReactNode => (
@@ -449,6 +508,45 @@ function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.
           ) : (
             <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
           )}
+        </div>
+
+        {/* Prévision de trésorerie */}
+        <div style={{ ...card, flex: "1 1 320px" }}>
+          <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 10 }}>{L("cashflow")}</div>
+          {cash ? (
+            <>
+              {cash.buckets.map((b) => (
+                <div key={b.label} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", fontSize: 12.5 }}>
+                  <span style={{ color: "var(--ink-3)" }}>{cfLabel[b.label] ?? b.label}</span>
+                  <span style={{ fontWeight: 600, color: Number(b.net) >= 0 ? "var(--emerald)" : "var(--rose)" }}>{aed(b.net)}</span>
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid var(--line)", margin: "8px 0" }} />
+              {row(L("cfIn"), aed(cash.total_in), "var(--emerald)")}
+              {row(L("cfOut"), aed(cash.total_out), "var(--rose)")}
+              {row(L("net"), aed(cash.net), Number(cash.net) >= 0 ? "var(--emerald)" : "var(--rose)")}
+            </>
+          ) : (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
+          )}
+        </div>
+
+        {/* Clôture de période */}
+        <div style={{ ...card, flex: "1 1 320px" }}>
+          <div className="font-display" style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 10 }}>{L("closure")}</div>
+          {closures === null ? (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
+          ) : closures.length === 0 ? (
+            <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("noClosure")}</div>
+          ) : (
+            closures.map((c) => row(c.period_end, c.closed_by ?? "—"))
+          )}
+          <div style={{ borderTop: "1px solid var(--line)", margin: "10px 0 8px" }} />
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <input type="date" value={closeDate} onChange={(e) => setCloseDate(e.target.value)} style={{ ...fieldInput, flex: 1 }} />
+            <button onClick={() => void submitClosure()} style={{ border: "none", borderRadius: 8, padding: "8px 12px", background: "var(--gold)", color: "#1A1610", fontWeight: 600, fontSize: 12.5, cursor: "pointer" }}>{L("closeBtn")}</button>
+          </div>
+          {closeErr && <div style={{ fontSize: 11.5, color: "var(--rose)", marginBlockStart: 6 }}>{closeErr}</div>}
         </div>
       </div>
     </div>

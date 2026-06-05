@@ -524,3 +524,62 @@ async def test_trend_unavailable_degrades(
     body = resp.json()
     assert body["meta"]["available"] is False
     assert body["data"] == []
+
+
+# ── Règles d'auto-remédiation (CRUD plateforme) ────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_remediation_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    assert (await client.get("/api/v1/admin/platform/remediation-rules")).status_code == 401
+    _a, token = seed_admin
+    resp = await client.get(
+        "/api/v1/admin/platform/remediation-rules", headers={AUTH: f"Bearer {token}"}
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_remediation_crud(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin
+) -> None:
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    svc = await _seed_service(db_session, controllable=True)
+
+    resp = await client.post(
+        "/api/v1/admin/platform/remediation-rules",
+        json={"alert_name": "ServiceDown", "service_id": str(svc.id), "action": "restart"},
+        headers=h,
+    )
+    assert resp.status_code == 201
+    rule_id = resp.json()["data"]["id"]
+
+    lst = await client.get("/api/v1/admin/platform/remediation-rules", headers=h)
+    assert lst.status_code == 200
+    assert any(r["id"] == rule_id for r in lst.json()["data"])
+
+    assert (
+        await client.delete(f"/api/v1/admin/platform/remediation-rules/{rule_id}", headers=h)
+    ).status_code == 204
+
+
+@pytest.mark.asyncio
+async def test_remediation_guards(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin
+) -> None:
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    locked = await _seed_service(db_session, controllable=False)
+    r = await client.post(
+        "/api/v1/admin/platform/remediation-rules",
+        json={"alert_name": "X", "service_id": str(locked.id), "action": "restart"},
+        headers=h,
+    )
+    assert r.status_code == 409
+    r = await client.post(
+        "/api/v1/admin/platform/remediation-rules",
+        json={"alert_name": "X", "service_id": str(uuid.uuid4()), "action": "restart"},
+        headers=h,
+    )
+    assert r.status_code == 404

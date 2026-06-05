@@ -101,6 +101,20 @@ type TrendList = {
   meta: { available: boolean };
 };
 
+type RemediationRule = {
+  id: string;
+  alert_name: string;
+  service_id: string;
+  action: string;
+  is_active: boolean;
+};
+
+type RemediationList = {
+  success: boolean;
+  data: RemediationRule[];
+  meta: { total: number };
+};
+
 const ACTIONS: ServerAction[] = ["restart", "stop", "start", "suspend"];
 
 const TR: Record<Lang, Record<string, string>> = {
@@ -126,6 +140,11 @@ const TR: Record<Lang, Record<string, string>> = {
     unitDay: "j",
     unitHour: "h",
     threshold: "Seuil",
+    remediation: "Auto-remédiation",
+    remHint: "Alerte Prometheus → action sur un service pilotable",
+    remAlert: "Nom d'alerte",
+    remAdd: "Ajouter",
+    remEmpty: "Aucune règle d'auto-remédiation",
     firing: "Active",
     pending: "En attente",
     act_restart: "Redémarrer",
@@ -170,6 +189,11 @@ const TR: Record<Lang, Record<string, string>> = {
     unitDay: "d",
     unitHour: "h",
     threshold: "Threshold",
+    remediation: "Auto-remediation",
+    remHint: "Prometheus alert → action on a controllable service",
+    remAlert: "Alert name",
+    remAdd: "Add",
+    remEmpty: "No auto-remediation rule",
     firing: "Firing",
     pending: "Pending",
     act_restart: "Restart",
@@ -214,6 +238,11 @@ const TR: Record<Lang, Record<string, string>> = {
     unitDay: "ي",
     unitHour: "س",
     threshold: "العتبة",
+    remediation: "المعالجة التلقائية",
+    remHint: "تنبيه Prometheus ← إجراء على خدمة قابلة للتحكم",
+    remAlert: "اسم التنبيه",
+    remAdd: "إضافة",
+    remEmpty: "لا قاعدة معالجة تلقائية",
     firing: "نشط",
     pending: "قيد الانتظار",
     act_restart: "إعادة التشغيل",
@@ -301,8 +330,16 @@ export function ScreenAppAdminInfra(): React.ReactNode {
   const [alerts, setAlerts] = useState<AlertList | null>(null);
   const [history, setHistory] = useState<ActionList | null>(null);
   const [trend, setTrend] = useState<TrendList | null>(null);
+  const [remediation, setRemediation] = useState<RemediationList | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
+
+  // Formulaire d'ajout d'une règle d'auto-remédiation.
+  const [remForm, setRemForm] = useState({
+    alert_name: "",
+    service_id: "",
+    action: "restart" as ServerAction,
+  });
 
   // Confirmation d'action : on exige la saisie EXACTE du nom du service.
   const [pending, setPending] = useState<{
@@ -324,14 +361,16 @@ export function ScreenAppAdminInfra(): React.ReactNode {
       getJson<AlertList>("/api/admin/platform/alerts"),
       getJson<ActionList>("/api/admin/platform/actions?limit=10"),
       getJson<TrendList>("/api/admin/platform/trend"),
+      getJson<RemediationList>("/api/admin/platform/remediation-rules"),
     ])
-      .then(([srv, net, alr, act, trd]) => {
+      .then(([srv, net, alr, act, trd, rem]) => {
         if (!alive) return;
         setTrend(trd);
         setServers(srv);
         setNetwork(net);
         setAlerts(alr);
         setHistory(act);
+        setRemediation(rem);
       })
       .catch(() => {
         if (!alive) return;
@@ -344,6 +383,32 @@ export function ScreenAppAdminInfra(): React.ReactNode {
       alive = false;
     };
   }, []);
+
+  async function reloadRemediation(): Promise<void> {
+    setRemediation(
+      await getJson<RemediationList>("/api/admin/platform/remediation-rules"),
+    );
+  }
+
+  async function createRemRule(): Promise<void> {
+    if (!remForm.alert_name.trim() || !remForm.service_id) return;
+    const res = await postJson("/api/admin/platform/remediation-rules", {
+      alert_name: remForm.alert_name,
+      service_id: remForm.service_id,
+      action: remForm.action,
+    });
+    if (res.ok) {
+      setRemForm({ alert_name: "", service_id: "", action: "restart" });
+      await reloadRemediation();
+    }
+  }
+
+  async function deleteRemRule(id: string): Promise<void> {
+    await fetch(`/api/admin/platform/remediation-rules/${id}`, {
+      method: "DELETE",
+    });
+    await reloadRemediation();
+  }
 
   async function submitAction(): Promise<void> {
     if (!pending) return;
@@ -500,6 +565,155 @@ export function ScreenAppAdminInfra(): React.ReactNode {
                 L("conns"),
                 fmtInt(network?.data.active_connections ?? null),
               )}
+            </div>
+
+            {/* Auto-remédiation (alerte Prometheus → action) */}
+            <div style={card}>
+              <div
+                className="font-display"
+                style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 4 }}
+              >
+                {L("remediation")}
+              </div>
+              <div
+                style={{
+                  fontSize: 11.5,
+                  color: "var(--ink-4)",
+                  marginBlockEnd: 12,
+                }}
+              >
+                {L("remHint")}
+              </div>
+              {remediation && remediation.data.length > 0 ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 0 }}
+                >
+                  {remediation.data.map((r) => {
+                    const svc = servers?.data.find(
+                      (s) => s.id === r.service_id,
+                    );
+                    return (
+                      <div
+                        key={r.id}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          padding: "8px 0",
+                          borderBottom: "1px solid var(--line-soft)",
+                          fontSize: 12.5,
+                        }}
+                      >
+                        <span style={{ color: "var(--ink)" }}>
+                          <b>{r.alert_name}</b> →{" "}
+                          {L(`act_${r.action}`) ?? r.action}{" "}
+                          <span style={{ color: "var(--ink-4)" }}>
+                            ({svc?.name ?? r.service_id})
+                          </span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => deleteRemRule(r.id)}
+                          style={{ ...actionBtn, color: "var(--rose)" }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    fontSize: 12.5,
+                    color: "var(--ink-4)",
+                    marginBlockEnd: 10,
+                  }}
+                >
+                  {L("remEmpty")}
+                </div>
+              )}
+              {/* Formulaire d'ajout */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  flexWrap: "wrap",
+                  marginBlockStart: 12,
+                }}
+              >
+                <input
+                  value={remForm.alert_name}
+                  onChange={(e) =>
+                    setRemForm({ ...remForm, alert_name: e.target.value })
+                  }
+                  placeholder={L("remAlert")}
+                  style={{
+                    flex: "1 1 160px",
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--line-soft)",
+                    fontSize: 12.5,
+                  }}
+                />
+                <select
+                  value={remForm.service_id}
+                  onChange={(e) =>
+                    setRemForm({ ...remForm, service_id: e.target.value })
+                  }
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--line-soft)",
+                    fontSize: 12.5,
+                  }}
+                >
+                  <option value="">—</option>
+                  {(servers?.data ?? [])
+                    .filter((s) => s.is_controllable)
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+                <select
+                  value={remForm.action}
+                  onChange={(e) =>
+                    setRemForm({
+                      ...remForm,
+                      action: e.target.value as ServerAction,
+                    })
+                  }
+                  style={{
+                    padding: "6px 10px",
+                    borderRadius: 8,
+                    border: "1px solid var(--line-soft)",
+                    fontSize: 12.5,
+                  }}
+                >
+                  {ACTIONS.map((a) => (
+                    <option key={a} value={a}>
+                      {L(`act_${a}`)}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={createRemRule}
+                  disabled={!remForm.alert_name.trim() || !remForm.service_id}
+                  style={{
+                    ...actionBtn,
+                    opacity:
+                      !remForm.alert_name.trim() || !remForm.service_id
+                        ? 0.5
+                        : 1,
+                  }}
+                >
+                  {L("remAdd")}
+                </button>
+              </div>
             </div>
 
             {/* Prévisions de tendance (B3) */}

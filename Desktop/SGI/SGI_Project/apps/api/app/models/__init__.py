@@ -10,6 +10,7 @@ from app.models.admin import (
     AlertRule,
     BackupRun,
     InfraAction,
+    InfraRemediationRule,
     InfraService,
 )
 from app.models.agenda import AgendaEvent
@@ -42,6 +43,7 @@ from app.models.party_technician import Technician
 from app.models.party_tenant import TenantProfile
 from app.models.party_vendor import Vendor
 from app.models.pdc_cheque import PdcCheque
+from app.models.period_closure import PeriodClosure
 from app.models.property import Property
 from app.models.property_submission import PropertySubmission
 from app.models.refresh_token import RefreshToken
@@ -88,6 +90,7 @@ __all__ = [
     "Notification",
     "RefreshToken",
     "BankAccount",
+    "PeriodClosure",
     "BankStatementLine",
     "ChartAccount",
     "JournalEntry",
@@ -96,6 +99,7 @@ __all__ = [
     "AlertEvent",
     "InfraService",
     "InfraAction",
+    "InfraRemediationRule",
     "BackupRun",
     "DeviceToken",
 ]
