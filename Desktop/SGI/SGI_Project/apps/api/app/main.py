@@ -12,6 +12,7 @@ from app.core.database import create_db_pool
 from app.middleware.audit import AuditMiddleware
 from app.middleware.tenant import TenantMiddleware
 from app.routers import (
+    accounting,
     acquisitions,
     ai_services,
     auth,
@@ -127,6 +128,7 @@ TAGS_METADATA = [
     {"name": "pdc", "description": "Chèques post-datés (UAE)."},
     {"name": "payments", "description": "Demandes de paiement & transactions."},
     {"name": "finance", "description": "Finance & comptabilité."},
+    {"name": "accounting", "description": "Plan comptable + grand-livre (double entrée)."},
     {"name": "maintenance", "description": "Tickets, devis, plans préventifs."},
     {"name": "inspections", "description": "États des lieux (check-in/out)."},
     {"name": "workflows", "description": "Moteur de workflows générique."},
@@ -177,6 +179,7 @@ app.include_router(contracts, prefix="/api/v1")
 app.include_router(golden_visa, prefix="/api/v1")
 app.include_router(rentals, prefix="/api/v1")
 app.include_router(finance, prefix="/api/v1")
+app.include_router(accounting, prefix="/api/v1")
 app.include_router(reporting, prefix="/api/v1")
 app.include_router(scraping, prefix="/api/v1")
 
