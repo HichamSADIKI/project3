@@ -12,19 +12,32 @@ les services CRM / Golden Visa / Rentals existants.
 from __future__ import annotations
 
 import logging
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
 from app.core.database import sync_session_maker
+from app.models.client import Client
+from app.models.crm import CRMLead
 from app.models.golden_visa import GoldenVisaApplication
 from app.models.notification import Notification
 from app.models.pdc_cheque import PdcCheque
 from app.models.rental import Rental
+from app.routers.crm.service import (
+    FOLLOWUP_ACTIVE_STATUSES,
+    followup_next_schedule,
+    next_followup_action,
+)
 from app.routers.golden_visa.service import visa_alert_level
 from app.routers.pdc.service import pdc_reminder_level
 from app.tasks.celery_app import celery_app
-from app.tasks.notifications import build_party_email_notification, deliver_email_notification
+from app.tasks.notifications import (
+    build_party_email_notification,
+    deliver_email_notification,
+    deliver_push_notification,
+    deliver_whatsapp_notification,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -32,15 +45,173 @@ RENEWAL_HORIZON_DAYS = 120
 PDC_DUE_SOON_DAYS = 7
 
 
+_CRM_FOLLOWUP_TEMPLATE = "crm_followup"
+
+
+def _crm_followup_message(action: str, lead: CRMLead) -> tuple[str, str]:
+    """Titre + corps FR de la relance selon l'étape."""
+    ref = lead.reference or str(lead.id)[:8]
+    labels = {
+        "call": ("Relance prospect : appel à passer (J+1)", f"Appeler le prospect {ref}."),
+        "whatsapp": (
+            "Relance prospect : WhatsApp (J+2)",
+            f"Message WhatsApp de relance envoyé au prospect {ref}.",
+        ),
+        "email": (
+            "Relance prospect : e-mail (J+4)",
+            f"E-mail de relance envoyé au prospect {ref}.",
+        ),
+        "push_whatsapp": (
+            "Relance prospect : dernier recours (J+7)",
+            f"Dernière relance (push + WhatsApp) pour le prospect {ref}.",
+        ),
+    }
+    return labels[action]
+
+
 @celery_app.task(name="app.tasks.reminders.check_crm_followups", queue="reminders")
 def check_crm_followups() -> dict:
-    """Lance la séquence de relance CRM (4 tentatives sur 7 jours).
+    """Séquence de relance CRM automatique (max 4 tentatives sur 7 jours).
 
-    Sélectionne les prospects 'new' sans réponse récente, pousse les
-    tâches d'appel/WhatsApp/email selon le calendrier J+1/J+2/J+4/J+7.
+    Cron horaire (toutes sociétés, rôle privilégié — voir C1). Pour chaque lead
+    encore actif (statut new/contacted) dont la prochaine tentative est due :
+    J+1 appel (tâche in-app à l'agent), J+2 WhatsApp (client), J+4 e-mail (client),
+    J+7 push (agent) + WhatsApp (client). Après la 4ᵉ tentative sans réponse :
+    statut ``lost`` / ``lost_reason='non_respondent'``. Les envois externes
+    (e-mail/WhatsApp/push) sont enfilés APRÈS commit.
     """
-    logger.info("check_crm_followups stub — à implémenter")
-    return {"status": "noop", "processed": 0}
+    now = datetime.now(UTC)
+    processed = 0
+    closed = 0
+    try:
+        with sync_session_maker() as db:
+            leads = (
+                db.execute(
+                    select(CRMLead).where(
+                        CRMLead.deleted_at.is_(None),
+                        CRMLead.status.in_(tuple(FOLLOWUP_ACTIVE_STATUSES)),
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            # Précharge les clients (anti-N+1) pour résoudre e-mail/téléphone.
+            client_ids = {lead.client_id for lead in leads}
+            clients: dict[uuid.UUID, Client] = {}
+            if client_ids:
+                rows = db.execute(select(Client).where(Client.id.in_(client_ids))).scalars().all()
+                clients = {c.id: c for c in rows}
+
+            pending_emails: list[tuple[Notification, str]] = []
+            pending_whatsapp: list[tuple[Notification, str]] = []
+            pending_push: list[tuple[Notification, uuid.UUID]] = []
+
+            for lead in leads:
+                action = next_followup_action(now, lead.created_at, lead.contact_attempts)
+                if action is None:
+                    continue
+                if action == "lost":
+                    lead.status = "lost"
+                    lead.lost_reason = "non_respondent"
+                    lead.next_action_at = None
+                    lead.next_action_type = None
+                    closed += 1
+                    continue
+
+                title, body = _crm_followup_message(action, lead)
+                payload = {"lead_id": str(lead.id), "step": action}
+                client = clients.get(lead.client_id)
+
+                # J+1 appel → tâche in-app à l'agent.
+                if action == "call" and lead.agent_id is not None:
+                    db.add(
+                        Notification(
+                            company_id=lead.company_id,
+                            recipient_user_id=lead.agent_id,
+                            type="crm_followup",
+                            channel="in_app",
+                            title=title,
+                            body=body,
+                            payload=payload,
+                            status="sent",
+                            sent_at=now,
+                        )
+                    )
+
+                # J+4 e-mail → client (si adresse).
+                if action == "email":
+                    email_pair = build_party_email_notification(
+                        db,
+                        lead.company_id,
+                        lead.client_id,
+                        notif_type="crm_followup",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                    )
+                    if email_pair is not None:
+                        pending_emails.append(email_pair)
+
+                # J+2 et J+7 → WhatsApp au client (si téléphone).
+                if action in ("whatsapp", "push_whatsapp") and client is not None and client.phone:
+                    wa_notif = Notification(
+                        id=uuid.uuid4(),
+                        company_id=lead.company_id,
+                        recipient_party_id=lead.client_id,
+                        type="crm_followup",
+                        channel="whatsapp",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                        status="pending",
+                    )
+                    db.add(wa_notif)
+                    pending_whatsapp.append((wa_notif, client.phone))
+
+                # J+7 → push à l'agent (escalade).
+                if action == "push_whatsapp" and lead.agent_id is not None:
+                    push_notif = Notification(
+                        id=uuid.uuid4(),
+                        company_id=lead.company_id,
+                        recipient_user_id=lead.agent_id,
+                        type="crm_followup",
+                        channel="push",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                        status="pending",
+                    )
+                    db.add(push_notif)
+                    pending_push.append((push_notif, lead.agent_id))
+
+                # Avance le compteur + planifie la prochaine étape.
+                lead.contact_attempts += 1
+                lead.last_contact_at = now
+                lead.next_action_at, lead.next_action_type = followup_next_schedule(
+                    lead.created_at, lead.contact_attempts
+                )
+                processed += 1
+
+            if processed or closed:
+                db.commit()
+                # Enfile les envois externes après le commit (rien si rollback).
+                for notif, email in pending_emails:
+                    deliver_email_notification(notif, to=email)
+                for notif, phone in pending_whatsapp:
+                    deliver_whatsapp_notification(
+                        notif, to=phone, template_name=_CRM_FOLLOWUP_TEMPLATE
+                    )
+                for notif, agent_id in pending_push:
+                    deliver_push_notification(notif, user_id=agent_id)
+                logger.info(
+                    "check_crm_followups : %d relance(s), %d clôturé(s) non_respondent",
+                    processed,
+                    closed,
+                )
+            return {"status": "ok", "processed": processed, "closed": closed}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("check_crm_followups failed: %s", exc)
+        return {"status": "error", "processed": processed, "closed": closed}
 
 
 @celery_app.task(name="app.tasks.reminders.check_visa_expiry", queue="reminders")
