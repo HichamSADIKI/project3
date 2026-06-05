@@ -298,6 +298,9 @@ export function AssistantDock({
             touchAction: "none",
             WebkitUserSelect: "none",
             userSelect: "none",
+            // Pulsation d'échelle au chargement (quelques rebonds puis s'arrête)
+            // → aide à repérer le robot. Désactivée une fois le chat ouvert.
+            animation: open ? undefined : "sgia-pulse 0.9s ease-in-out 6",
           }}
         >
           {mode === "rescue" ? (
