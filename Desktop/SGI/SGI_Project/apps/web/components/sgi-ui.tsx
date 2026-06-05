@@ -5,7 +5,7 @@ import { useTheme } from "@/components/theme-provider";
 import { useLang, useT } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
 import { useBreakpoint } from "@/lib/hooks";
-import { useNavGate } from "@/lib/permissions";
+import { useNavGate, useCurrentUser } from "@/lib/permissions";
 
 /* ─── Icon wrapper ──────────────────────────────────────────────── */
 export function Ic({ s = 16, children }: { s?: number; children: React.ReactNode }) {
@@ -391,6 +391,15 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
   const { lang } = useLang();
   const bp = useBreakpoint();
   const navGate = useNavGate();
+  const { fullName } = useCurrentUser();
+  // Identité affichée au footer : nom de session, repli neutre avant hydratation.
+  const displayName = fullName ?? "—";
+  const initials = (fullName ?? "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("") || "•";
   const isMob = bp === "mobile";
   const isTab = bp === "tablet";
 
@@ -784,13 +793,13 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
               title={statusLabel}
               style={{ position: "relative", flexShrink: 0, cursor: "pointer" }}
             >
-              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Roboto', sans-serif", fontSize: 15, fontWeight: 600 }}>HS</div>
+              <div style={{ width: 34, height: 34, borderRadius: "50%", background: "var(--ink)", color: "var(--gold)", display: "grid", placeItems: "center", fontFamily: "'Roboto', sans-serif", fontSize: 15, fontWeight: 600 }}>{initials}</div>
               <span style={{ position: "absolute", bottom: 1, insetInlineEnd: 1, width: 9, height: 9, borderRadius: "50%", background: currentStatus.color, border: "2px solid var(--bg-paper)", display: "block" }} />
             </div>
             {!col && (
               <>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>Hicham Sadiki</div>
+                  <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink)" }}>{displayName}</div>
                   <button
                     onClick={e => { e.stopPropagation(); const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
                     aria-label="Change status"
