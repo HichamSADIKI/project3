@@ -170,3 +170,52 @@ class PeriodClosureOut(BaseModel):
 class PeriodClosureListOut(BaseModel):
     success: bool = True
     data: list[PeriodClosureOut]
+
+
+# ── Échéancier & relances (dunning) ────────────────────────────────────────
+
+
+class DunningRow(BaseModel):
+    """Une facture impayée dans l'échéancier, avec résumé des relances."""
+
+    id: uuid.UUID
+    reference: str
+    amount: Decimal
+    currency: str
+    due_date: date | None
+    status: str
+    client_id: uuid.UUID | None
+    client_name: str | None
+    client_email: str | None
+    client_phone: str | None
+    days_overdue: int
+    level: int
+    reminders_sent: int
+    last_reminder_level: int
+    last_reminder_at: datetime | None
+
+
+class DunningListOut(BaseModel):
+    success: bool = True
+    data: list[DunningRow]
+
+
+class RemindRequest(BaseModel):
+    channel: Literal["email", "whatsapp", "in_app"] = "email"
+
+
+class DunningEventOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    transaction_id: uuid.UUID
+    channel: str
+    level: int
+    recipient: str | None
+    message: str | None
+    created_at: datetime
+
+
+class DunningEventDetailOut(BaseModel):
+    success: bool = True
+    data: DunningEventOut

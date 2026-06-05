@@ -66,6 +66,9 @@ const TR: Record<Lang, Record<string, string>> = {
     exportCsv: "Exporter CSV", invoicePdf: "Facture",
     cashflow: "Prévision trésorerie", cfOverdue: "En retard", cf030: "0-30 j", cf3160: "31-60 j", cf6190: "61-90 j", cfLater: "Plus tard", cfIn: "Encaissements", cfOut: "Décaissements",
     closure: "Clôture de période", closeBtn: "Clôturer", noClosure: "Aucune clôture.",
+    dunning: "Impayés & relances", client: "Client", daysLate: "Retard (j)", level: "Niveau",
+    reminders: "Relances", remind: "Relancer", noOverdue: "Aucun impayé.", sent: "Relance envoyée",
+    byEmail: "E-mail", byWhatsapp: "WhatsApp", lastReminder: "Dernière relance",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -83,6 +86,9 @@ const TR: Record<Lang, Record<string, string>> = {
     exportCsv: "Export CSV", invoicePdf: "Invoice",
     cashflow: "Cash-flow forecast", cfOverdue: "Overdue", cf030: "0-30 d", cf3160: "31-60 d", cf6190: "61-90 d", cfLater: "Later", cfIn: "Expected in", cfOut: "Expected out",
     closure: "Period closure", closeBtn: "Close", noClosure: "No closure.",
+    dunning: "Overdue & dunning", client: "Client", daysLate: "Days late", level: "Level",
+    reminders: "Reminders", remind: "Remind", noOverdue: "No overdue invoices.", sent: "Reminder sent",
+    byEmail: "Email", byWhatsapp: "WhatsApp", lastReminder: "Last reminder",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -100,6 +106,9 @@ const TR: Record<Lang, Record<string, string>> = {
     exportCsv: "تصدير CSV", invoicePdf: "فاتورة",
     cashflow: "توقّع التدفّق النقدي", cfOverdue: "متأخر", cf030: "0-30 يوم", cf3160: "31-60 يوم", cf6190: "61-90 يوم", cfLater: "لاحقاً", cfIn: "مقبوضات", cfOut: "مدفوعات",
     closure: "إقفال الفترة", closeBtn: "إقفال", noClosure: "لا إقفال.",
+    dunning: "متأخرات ومطالبات", client: "العميل", daysLate: "أيام التأخير", level: "المستوى",
+    reminders: "المطالبات", remind: "مطالبة", noOverdue: "لا فواتير متأخرة.", sent: "تم إرسال المطالبة",
+    byEmail: "بريد", byWhatsapp: "واتساب", lastReminder: "آخر مطالبة",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -142,7 +151,7 @@ export function ScreenFinance(): React.ReactNode {
       .catch(() => setSummary(null));
   }, [items]);
 
-  const [view, setView] = useState<"ledger" | "reports">("ledger");
+  const [view, setView] = useState<"ledger" | "reports" | "dunning">("ledger");
 
   // Création
   const [open, setOpen] = useState(false);
@@ -228,7 +237,7 @@ export function ScreenFinance(): React.ReactNode {
 
         {/* Onglets Journal / Rapports */}
         <div style={{ display: "flex", gap: 6 }}>
-          {(["ledger", "reports"] as const).map((v) => (
+          {(["ledger", "reports", "dunning"] as const).map((v) => (
             <button
               key={v}
               data-testid={`tab-${v}`}
@@ -245,6 +254,8 @@ export function ScreenFinance(): React.ReactNode {
         </div>
 
         {view === "reports" && <ReportsPanel lg={lg} L={L} />}
+
+        {view === "dunning" && <DunningPanel L={L} />}
 
         {view === "ledger" && (
           <>
@@ -549,6 +560,124 @@ function ReportsPanel({ lg, L }: { lg: Lang; L: (k: string) => string }): React.
           {closeErr && <div style={{ fontSize: 11.5, color: "var(--rose)", marginBlockStart: 6 }}>{closeErr}</div>}
         </div>
       </div>
+    </div>
+  );
+}
+
+type DunningRow = {
+  id: string;
+  reference: string;
+  amount: string;
+  currency: string;
+  due_date: string | null;
+  client_name: string | null;
+  days_overdue: number;
+  level: number;
+  reminders_sent: number;
+  last_reminder_level: number;
+  last_reminder_at: string | null;
+};
+
+const LEVEL_COLOR: Record<number, { c: string; bg: string }> = {
+  0: { c: "var(--ink-4)", bg: "var(--line-soft)" },
+  1: { c: "var(--gold)", bg: "rgba(193,154,91,0.14)" },
+  2: { c: "#c2772e", bg: "rgba(194,119,46,0.14)" },
+  3: { c: "var(--rose)", bg: "var(--rose-soft, rgba(214,69,93,0.12))" },
+};
+
+function DunningPanel({ L }: { L: (k: string) => string }): React.ReactNode {
+  const [rows, setRows] = useState<DunningRow[] | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+
+  function load(): void {
+    getJson<{ data: DunningRow[] }>("/api/admin/finance/dunning")
+      .then((r) => setRows(r.data))
+      .catch(() => setRows([]));
+  }
+  useEffect(load, []);
+
+  async function remind(id: string, channel: "email" | "whatsapp"): Promise<void> {
+    setBusy(id + channel);
+    const res = await postJson(`/api/admin/finance/transactions/${id}/remind`, { channel });
+    setBusy(null);
+    if (res.ok) {
+      setFlash(L("sent"));
+      window.setTimeout(() => setFlash(null), 2500);
+      load();
+    }
+  }
+
+  const card: React.CSSProperties = { background: "var(--bg-paper)", border: "1px solid var(--line-soft)", borderRadius: 12, padding: 16 };
+  const th: React.CSSProperties = { textAlign: "start", fontSize: 11, color: "var(--ink-4)", fontWeight: 600, padding: "6px 8px" };
+  const td: React.CSSProperties = { fontSize: 12.5, color: "var(--ink-2)", padding: "8px", borderBlockStart: "1px solid var(--line-soft)" };
+
+  return (
+    <div style={card} data-testid="dunning-panel">
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBlockEnd: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "var(--ink-1)" }}>{L("dunning")}</div>
+        {flash && <div style={{ fontSize: 12, color: "var(--emerald)" }}>{flash}</div>}
+      </div>
+      {rows === null ? (
+        <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("loading")}</div>
+      ) : rows.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>{L("noOverdue")}</div>
+      ) : (
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th style={th}>{L("ref")}</th>
+                <th style={th}>{L("client")}</th>
+                <th style={th}>{L("amount")}</th>
+                <th style={th}>{L("dueDate")}</th>
+                <th style={th}>{L("daysLate")}</th>
+                <th style={th}>{L("level")}</th>
+                <th style={th}>{L("reminders")}</th>
+                <th style={th}>{L("remind")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => {
+                const lc = LEVEL_COLOR[r.level] ?? LEVEL_COLOR[0];
+                return (
+                  <tr key={r.id}>
+                    <td style={td}>{r.reference}</td>
+                    <td style={td}>{r.client_name ?? "—"}</td>
+                    <td style={td}>{aed(r.amount)}</td>
+                    <td style={td}>{r.due_date ?? "—"}</td>
+                    <td style={{ ...td, color: r.days_overdue > 0 ? "var(--rose)" : "var(--ink-3)" }}>{r.days_overdue}</td>
+                    <td style={td}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999, color: lc.c, background: lc.bg }}>
+                        {r.level === 0 ? "—" : `J+${[0, 1, 7, 15][r.level]}`}
+                      </span>
+                    </td>
+                    <td style={td}>{r.reminders_sent}</td>
+                    <td style={td}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button
+                          disabled={r.days_overdue <= 0 || busy === r.id + "email"}
+                          onClick={() => void remind(r.id, "email")}
+                          style={{ border: "1px solid var(--line)", borderRadius: 7, padding: "4px 9px", background: "transparent", color: "var(--ink-2)", fontSize: 11.5, cursor: r.days_overdue > 0 ? "pointer" : "not-allowed", opacity: r.days_overdue > 0 ? 1 : 0.4 }}
+                        >
+                          {L("byEmail")}
+                        </button>
+                        <button
+                          disabled={r.days_overdue <= 0 || busy === r.id + "whatsapp"}
+                          onClick={() => void remind(r.id, "whatsapp")}
+                          style={{ border: "1px solid var(--line)", borderRadius: 7, padding: "4px 9px", background: "transparent", color: "var(--ink-2)", fontSize: 11.5, cursor: r.days_overdue > 0 ? "pointer" : "not-allowed", opacity: r.days_overdue > 0 ? 1 : 0.4 }}
+                        >
+                          {L("byWhatsapp")}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

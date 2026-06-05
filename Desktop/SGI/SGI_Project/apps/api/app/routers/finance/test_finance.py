@@ -500,3 +500,171 @@ async def test_update_blocked_in_closed_period(db_session, seed_company: Company
         await update_transaction(
             db_session, seed_company.id, txn.id, TransactionUpdate(status="paid")
         )
+
+
+# ── Échéancier & relances (dunning) ────────────────────────────────────────
+
+
+def test_days_overdue_and_level() -> None:
+    from datetime import date
+
+    from app.routers.finance.dunning import days_overdue, dunning_level
+
+    today = date(2026, 6, 20)
+    assert days_overdue(None, today) == 0
+    assert days_overdue(date(2026, 6, 25), today) == 0  # futur
+    assert days_overdue(date(2026, 6, 19), today) == 1
+    assert days_overdue(date(2026, 6, 5), today) == 15
+
+    assert dunning_level(0) == 0
+    assert dunning_level(1) == 1
+    assert dunning_level(6) == 1
+    assert dunning_level(7) == 2
+    assert dunning_level(14) == 2
+    assert dunning_level(15) == 3
+    assert dunning_level(99) == 3
+
+
+def test_should_escalate() -> None:
+    from app.routers.finance.dunning import should_escalate
+
+    assert should_escalate(2, 1) is True  # niveau monté
+    assert should_escalate(1, 1) is False  # déjà relancé à ce niveau
+    assert should_escalate(0, 0) is False  # pas en retard
+    assert should_escalate(3, 1) is True
+
+
+def test_client_name_and_message_helpers() -> None:
+    from app.routers.finance.dunning import _client_name, _reminder_message
+
+    assert _client_name(None) is None
+    msg = _reminder_message("INV-1", 3, Decimal("1000"), "AED")
+    assert "INV-1" in msg and "1000" in msg and "AED" in msg
+
+
+async def test_list_overdue_detail_and_levels(db_session, seed_company: Company) -> None:
+    from datetime import date, timedelta
+
+    from app.routers.finance.dunning import list_overdue
+
+    today = date(2026, 6, 20)
+    cid = seed_company.id
+    # Facture échue depuis 10 jours → niveau 2.
+    await create_transaction(
+        db_session,
+        cid,
+        _txn(
+            type="invoice",
+            direction="credit",
+            amount=Decimal("500"),
+            due_date=today - timedelta(days=10),
+        ),
+    )
+    # Facture pas encore échue → niveau 0 mais présente (pending).
+    await create_transaction(
+        db_session,
+        cid,
+        _txn(
+            type="invoice",
+            direction="credit",
+            amount=Decimal("200"),
+            due_date=today + timedelta(days=5),
+        ),
+    )
+    rows = await list_overdue(db_session, cid, today)
+    assert len(rows) == 2
+    by_amount = {r["amount"]: r for r in rows}
+    assert by_amount[Decimal("500.00")]["days_overdue"] == 10
+    assert by_amount[Decimal("500.00")]["level"] == 2
+    assert by_amount[Decimal("200.00")]["days_overdue"] == 0
+    assert by_amount[Decimal("200.00")]["level"] == 0
+
+
+async def test_send_reminder_records_event(db_session, seed_company: Company) -> None:
+    from datetime import date, timedelta
+
+    from app.routers.finance.dunning import list_overdue, send_reminder
+
+    today = date(2026, 6, 20)
+    cid = seed_company.id
+    txn = await create_transaction(
+        db_session,
+        cid,
+        _txn(
+            type="invoice",
+            direction="credit",
+            amount=Decimal("900"),
+            due_date=today - timedelta(days=8),
+        ),
+    )
+    event = await send_reminder(db_session, cid, txn.id, "email", today)
+    assert event.level == 2
+    assert event.channel == "email"
+    # Le résumé de l'échéancier reflète la relance envoyée.
+    rows = await list_overdue(db_session, cid, today)
+    row = next(r for r in rows if r["id"] == txn.id)
+    assert row["reminders_sent"] == 1
+    assert row["last_reminder_level"] == 2
+
+
+async def test_send_reminder_rejects_not_overdue(db_session, seed_company: Company) -> None:
+    from datetime import date, timedelta
+
+    from app.routers.finance.dunning import DunningError, send_reminder
+
+    today = date(2026, 6, 20)
+    cid = seed_company.id
+    txn = await create_transaction(
+        db_session,
+        cid,
+        _txn(
+            type="invoice",
+            direction="credit",
+            amount=Decimal("100"),
+            due_date=today + timedelta(days=3),
+        ),
+    )
+    with pytest.raises(DunningError) as exc:
+        await send_reminder(db_session, cid, txn.id, "email", today)
+    assert exc.value.code == "not_overdue"
+
+
+async def test_send_reminder_invalid_channel_and_not_found(
+    db_session, seed_company: Company
+) -> None:
+    from datetime import date
+
+    from app.routers.finance.dunning import DunningError, send_reminder
+
+    cid = seed_company.id
+    with pytest.raises(DunningError) as exc:
+        await send_reminder(db_session, cid, uuid.uuid4(), "sms", date(2026, 6, 20))
+    assert exc.value.code == "invalid_channel"
+    with pytest.raises(DunningError) as exc2:
+        await send_reminder(db_session, cid, uuid.uuid4(), "email", date(2026, 6, 20))
+    assert exc2.value.code == "transaction_not_found"
+
+
+async def test_dunning_cross_tenant_isolation(db_session, seed_company: Company) -> None:
+    from datetime import date, timedelta
+
+    from app.routers.finance.dunning import DunningError, list_overdue, send_reminder
+
+    today = date(2026, 6, 20)
+    cid = seed_company.id
+    txn = await create_transaction(
+        db_session,
+        cid,
+        _txn(
+            type="invoice",
+            direction="credit",
+            amount=Decimal("700"),
+            due_date=today - timedelta(days=20),
+        ),
+    )
+    other = await _other_company(db_session)
+    # L'autre tenant ne voit pas la facture et ne peut pas la relancer (Loi 1).
+    assert await list_overdue(db_session, other.id, today) == []
+    with pytest.raises(DunningError) as exc:
+        await send_reminder(db_session, other.id, txn.id, "email", today)
+    assert exc.value.code == "transaction_not_found"
