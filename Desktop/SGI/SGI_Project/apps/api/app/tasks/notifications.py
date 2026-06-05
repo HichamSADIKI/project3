@@ -143,6 +143,49 @@ def build_party_email_notification(
     return notif, email
 
 
+def build_party_whatsapp_notification(
+    db: Any,
+    company_id: uuid.UUID,
+    party_id: uuid.UUID | None,
+    *,
+    notif_type: str,
+    title: str,
+    body: str,
+    payload: dict[str, Any] | None = None,
+) -> tuple[Notification, str] | None:
+    """Côté worker : prépare le doublon WhatsApp d'une alerte (miroir e-mail).
+
+    Résout le téléphone du party (Client) ; s'il existe, construit une
+    notification ``channel="whatsapp"`` (statut ``pending``, id généré côté
+    Python) et l'``add``. Renvoie ``(notif, phone)`` ou ``None``. Le caller
+    **commit** puis appelle ``deliver_whatsapp_notification(notif, to=phone,
+    template_name=…)``. Scopé ``company_id`` (Loi 1).
+    """
+    if party_id is None:
+        return None
+    stmt: Select[tuple[str | None]] = select(Client.phone).where(
+        Client.id == party_id,
+        Client.company_id == company_id,
+        Client.deleted_at.is_(None),
+    )
+    phone = db.execute(stmt).scalar_one_or_none()
+    if not phone:
+        return None
+    notif = Notification(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        recipient_party_id=party_id,
+        type=notif_type,
+        channel="whatsapp",
+        title=title,
+        body=body,
+        payload=payload or {},
+        status="pending",
+    )
+    db.add(notif)
+    return notif, phone
+
+
 @celery_app.task(
     name="app.tasks.notifications.send_whatsapp_template",
     queue="notifications",

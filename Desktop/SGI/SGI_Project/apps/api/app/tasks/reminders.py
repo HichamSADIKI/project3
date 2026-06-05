@@ -34,6 +34,7 @@ from app.routers.pdc.service import pdc_reminder_level
 from app.tasks.celery_app import celery_app
 from app.tasks.notifications import (
     build_party_email_notification,
+    build_party_whatsapp_notification,
     deliver_email_notification,
     deliver_push_notification,
     deliver_whatsapp_notification,
@@ -243,6 +244,7 @@ def check_visa_expiry() -> dict:
             )
 
             pending_emails: list[tuple[Notification, str]] = []
+            pending_whatsapp: list[tuple[Notification, str]] = []
             for app in applications:
                 level = visa_alert_level(
                     today, app.visa_expiry_date, app.alert_90_sent, app.alert_30_sent
@@ -282,11 +284,26 @@ def check_visa_expiry() -> dict:
                 )
                 if email_pair is not None:
                     pending_emails.append(email_pair)
+                wa_pair = build_party_whatsapp_notification(
+                    db,
+                    app.company_id,
+                    app.client_id,
+                    notif_type="golden_visa_expiry",
+                    title=title,
+                    body=body,
+                    payload=payload,
+                )
+                if wa_pair is not None:
+                    pending_whatsapp.append(wa_pair)
 
             if alerted:
                 db.commit()
                 for notif, email in pending_emails:
                     deliver_email_notification(notif, to=email)
+                for notif, phone in pending_whatsapp:
+                    deliver_whatsapp_notification(
+                        notif, to=phone, template_name="golden_visa_expiry"
+                    )
                 logger.info("check_visa_expiry : %d alerte(s) Golden Visa émise(s)", alerted)
             return {"status": "ok", "alerts_sent": alerted}
     except Exception as exc:  # noqa: BLE001
@@ -321,9 +338,10 @@ def check_rental_renewals() -> dict:
                 .all()
             )
 
-            # Doublons e-mail à enfiler APRÈS commit (pas avant : on n'envoie
-            # pas si la transaction est annulée).
+            # Doublons e-mail/WhatsApp à enfiler APRÈS commit (pas avant : on
+            # n'envoie pas si la transaction est annulée).
             pending_emails: list[tuple[Notification, str]] = []
+            pending_whatsapp: list[tuple[Notification, str]] = []
             for rental in rentals:
                 rental.renewal_alert_sent = True
                 alerted += 1
@@ -332,6 +350,7 @@ def check_rental_renewals() -> dict:
                     "Votre bail arrive à échéance le "
                     f"{rental.end_date.isoformat()} (J-{RENEWAL_HORIZON_DAYS})."
                 )
+                payload = {"rental_id": str(rental.id)}
                 # Notification in-app au locataire (le bail ne porte pas de FK
                 # gestionnaire ; recipient_party_id = client_id). Idempotence via
                 # renewal_alert_sent (posé ci-dessus).
@@ -343,7 +362,7 @@ def check_rental_renewals() -> dict:
                         channel="in_app",
                         title=title,
                         body=body,
-                        payload={"rental_id": str(rental.id)},
+                        payload=payload,
                         status="sent",
                         sent_at=datetime.now(UTC),
                     )
@@ -356,16 +375,32 @@ def check_rental_renewals() -> dict:
                     notif_type="rental_renewal_due",
                     title=title,
                     body=body,
-                    payload={"rental_id": str(rental.id)},
+                    payload=payload,
                 )
                 if email_pair is not None:
                     pending_emails.append(email_pair)
+                # Doublon WhatsApp si le locataire a un téléphone.
+                wa_pair = build_party_whatsapp_notification(
+                    db,
+                    rental.company_id,
+                    rental.client_id,
+                    notif_type="rental_renewal_due",
+                    title=title,
+                    body=body,
+                    payload=payload,
+                )
+                if wa_pair is not None:
+                    pending_whatsapp.append(wa_pair)
 
             if alerted:
                 db.commit()
-                # Enfile les envois après le commit (notifs email persistées).
+                # Enfile les envois après le commit (notifs persistées).
                 for notif, email in pending_emails:
                     deliver_email_notification(notif, to=email)
+                for notif, phone in pending_whatsapp:
+                    deliver_whatsapp_notification(
+                        notif, to=phone, template_name="rental_renewal_due"
+                    )
                 logger.info("check_rental_renewals : %d bail(s) alerté(s) J-120", alerted)
             return {"status": "ok", "alerts_sent": alerted}
     except Exception as exc:  # noqa: BLE001
@@ -409,8 +444,9 @@ def check_pdc_due() -> dict:
                 ).all()
             }
 
-            # Doublons e-mail au tireur, enfilés APRÈS commit.
+            # Doublons e-mail/WhatsApp au tireur, enfilés APRÈS commit.
             pending_emails: list[tuple[Notification, str]] = []
+            pending_whatsapp: list[tuple[Notification, str]] = []
             for pdc in cheques:
                 level = pdc_reminder_level(today, pdc.due_date, pdc.status, PDC_DUE_SOON_DAYS)
                 if level is None:
@@ -452,12 +488,26 @@ def check_pdc_due() -> dict:
                 )
                 if email_pair is not None:
                     pending_emails.append(email_pair)
+                # Doublon WhatsApp si le tireur a un téléphone.
+                wa_pair = build_party_whatsapp_notification(
+                    db,
+                    pdc.company_id,
+                    pdc.drawer_party_id,
+                    notif_type=notif_type,
+                    title=title,
+                    body=body,
+                    payload=payload,
+                )
+                if wa_pair is not None:
+                    pending_whatsapp.append(wa_pair)
 
             if created:
                 db.commit()
-                # Enfile les envois après le commit (notifs email persistées).
+                # Enfile les envois après le commit (notifs persistées).
                 for notif, email in pending_emails:
                     deliver_email_notification(notif, to=email)
+                for notif, phone in pending_whatsapp:
+                    deliver_whatsapp_notification(notif, to=phone, template_name=notif.type)
                 logger.info("check_pdc_due : %d notification(s) PDC créée(s)", created)
             return {"status": "ok", "alerts_sent": created}
     except Exception as exc:  # noqa: BLE001

@@ -301,3 +301,48 @@ def test_deliver_push_notification_enqueues(monkeypatch: pytest.MonkeyPatch) -> 
     assert captured["title"] == "Visa"
     assert captured["data"] == {"k": "v"}
     assert captured["notification_id"] == str(notif.id)
+
+
+# ─── build_party_whatsapp_notification (miroir e-mail) ───────────────────────
+
+
+def test_build_party_whatsapp_none_when_no_party() -> None:
+    db = _FakeSyncDB("+971500000000")
+    out = notif_tasks.build_party_whatsapp_notification(
+        db, uuid.uuid4(), None, notif_type="x", title="t", body="b"
+    )
+    assert out is None
+    assert db.added == []
+
+
+def test_build_party_whatsapp_none_when_no_phone() -> None:
+    db = _FakeSyncDB(None)  # party sans téléphone
+    out = notif_tasks.build_party_whatsapp_notification(
+        db, uuid.uuid4(), uuid.uuid4(), notif_type="x", title="t", body="b"
+    )
+    assert out is None
+    assert db.added == []
+
+
+def test_build_party_whatsapp_builds_pending_notification() -> None:
+    db = _FakeSyncDB("+971500000000")
+    company_id = uuid.uuid4()
+    party_id = uuid.uuid4()
+    out = notif_tasks.build_party_whatsapp_notification(
+        db,
+        company_id,
+        party_id,
+        notif_type="rental_renewal_due",
+        title="Renouvellement",
+        body="Votre bail expire bientôt.",
+        payload={"rental_id": "r1"},
+    )
+    assert out is not None
+    notif, phone = out
+    assert phone == "+971500000000"
+    assert notif.channel == "whatsapp"
+    assert notif.status == "pending"
+    assert notif.company_id == company_id
+    assert notif.recipient_party_id == party_id
+    assert notif.id is not None
+    assert db.added == [notif]
