@@ -34,6 +34,7 @@ from app.routers.sales.schemas import (
     OfferListOut,
     OfferOut,
     OfferTransition,
+    SalesPipelineOut,
     TransactionCreate,
     TransactionItemOut,
     TransactionListOut,
@@ -104,6 +105,22 @@ async def _assert_property_in_tenant(
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "sales", "status": "ok"}
+
+
+@router.get(
+    "/pipeline",
+    response_model=SalesPipelineOut,
+    dependencies=[Depends(_require_roles(*_WRITE_ROLES))],
+)
+async def sales_pipeline_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> SalesPipelineOut:
+    """Synthèse du pipeline de vente : annonces, offres et transactions par
+    statut, avec le montant des offres ouvertes et la valeur des ventes finalisées."""
+    company_id = _get_company_id(request)
+    summary = await service.sales_pipeline_summary(db, company_id)
+    return SalesPipelineOut(data=summary, meta={})
 
 
 # ── Mandats ──────────────────────────────────────────────────────────────────
