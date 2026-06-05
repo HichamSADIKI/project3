@@ -4,6 +4,7 @@ Tous les modèles sont importés ici pour qu'Alembic les détecte
 lors de la génération des migrations (autogenerate).
 """
 
+from app.models.accounting import ChartAccount, JournalEntry, JournalLine
 from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.branch import Branch
@@ -75,4 +76,7 @@ __all__ = [
     "OwnerStatement",
     "Notification",
     "RefreshToken",
+    "ChartAccount",
+    "JournalEntry",
+    "JournalLine",
 ]

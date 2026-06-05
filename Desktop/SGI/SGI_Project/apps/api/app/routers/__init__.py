@@ -1,3 +1,4 @@
+from app.routers.accounting import router as accounting
 from app.routers.auth import router as auth
 from app.routers.buildings import router as buildings
 from app.routers.client_portal import router as client_portal
@@ -19,6 +20,7 @@ from app.routers.units import router as units
 from app.routers.vendors import router as vendors
 
 __all__ = [
+    "accounting",
     "auth",
     "clients",
     "properties",
