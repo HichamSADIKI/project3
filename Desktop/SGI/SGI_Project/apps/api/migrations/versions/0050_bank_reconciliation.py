@@ -1,7 +1,7 @@
 """Bank reconciliation — comptes bancaires + lignes de relevé + rapprochement.
 
-Revision ID: 0049_bank_reconciliation
-Revises: 0048_admin_console
+Revision ID: 0050_bank_reconciliation
+Revises: 0049_device_tokens
 Create Date: 2026-06-05
 
 2 tables métier (RLS Loi 1 — company_id + policy + index) :
@@ -15,8 +15,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = "0049_bank_reconciliation"
-down_revision = "0048_admin_console"
+revision = "0050_bank_reconciliation"
+down_revision = "0049_device_tokens"
 branch_labels = None
 depends_on = None
 
