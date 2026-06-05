@@ -12,10 +12,12 @@ from decimal import Decimal
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.client import Client
 from app.models.company import Company
+from app.models.golden_visa import GoldenVisaApplication
 from app.models.user import User
 from app.routers.crm.schemas import (
     ActivityCreate,
@@ -354,6 +356,61 @@ async def test_status_won_logs_golden_visa_activity(
     assert won is not None and won.status == "won"
     acts = await list_activities(db_session, cid, lead.id)
     assert any(a.type == "note" and "Golden Visa" in (a.content or "") for a in acts)
+    # Le dossier Golden Visa est créé automatiquement pour le client du lead gagné.
+    gv = (
+        (
+            await db_session.execute(
+                select(GoldenVisaApplication).where(
+                    GoldenVisaApplication.client_id == lead.client_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(gv) == 1
+    assert gv[0].status == "pending"
+    assert gv[0].company_id == admin.company_id
+
+
+async def test_status_won_golden_visa_no_duplicate(
+    db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    """Si un dossier Golden Visa existe déjà pour le client, won n'en crée pas un 2ᵉ."""
+    admin, _ = seed_admin
+    cid = str(admin.company_id)
+    lead = await _lead(db_session, admin)
+    # Dossier pré-existant pour ce client.
+    db_session.add(
+        GoldenVisaApplication(
+            company_id=admin.company_id, client_id=lead.client_id, status="submitted"
+        )
+    )
+    await db_session.commit()
+    for target in ("contacted", "qualified", "proposal_sent", "negotiation"):
+        await update_lead_status(
+            db_session, cid, lead.id, LeadStatusUpdate(status=target), admin.id
+        )
+    await update_lead_status(
+        db_session,
+        cid,
+        lead.id,
+        LeadStatusUpdate(status="won", won_amount=Decimal("3000000")),
+        admin.id,
+    )
+    gv = (
+        (
+            await db_session.execute(
+                select(GoldenVisaApplication).where(
+                    GoldenVisaApplication.client_id == lead.client_id
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    assert len(gv) == 1  # pas de doublon
+    assert gv[0].status == "submitted"  # le dossier existant est préservé
 
 
 # ── Activités ────────────────────────────────────────────────────────────────

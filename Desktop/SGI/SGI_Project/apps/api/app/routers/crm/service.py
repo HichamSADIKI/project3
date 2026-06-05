@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.references import commit_with_reference_retry
 from app.models.client import Client
 from app.models.crm import CRMActivity, CRMLead
+from app.models.golden_visa import GoldenVisaApplication
 
 from .schemas import ActivityCreate, LeadCreate, LeadStatusUpdate, LeadUpdate
 
@@ -341,15 +342,40 @@ async def update_lead_status(
         # Automatisme Golden Visa : vente ≥ 2 000 000 AED
         effective_amount = data.won_amount or lead.budget
         if effective_amount and effective_amount >= GOLDEN_VISA_THRESHOLD:
-            # Log de l'éligibilité Golden Visa pour déclenchement du workflow
+            # Automatisme Golden Visa (CLAUDE.md) : créer le dossier s'il n'existe
+            # pas déjà pour ce client, puis tracer l'événement.
+            existing_gv = await db.execute(
+                select(GoldenVisaApplication.id).where(
+                    GoldenVisaApplication.client_id == lead.client_id,
+                    GoldenVisaApplication.deleted_at.is_(None),
+                )
+            )
+            gv_created = existing_gv.first() is None
+            if gv_created:
+                db.add(
+                    GoldenVisaApplication(
+                        company_id=uuid.UUID(company_id),
+                        client_id=lead.client_id,
+                        property_id=lead.preferred_property_id,
+                        status="pending",
+                        notes=(
+                            f"Créé automatiquement depuis un lead gagné "
+                            f"(vente {effective_amount} AED ≥ 2 000 000 AED)."
+                        ),
+                    )
+                )
             activity_gv = CRMActivity(
                 company_id=uuid.UUID(company_id),
                 lead_id=lead.id,
                 user_id=user_id,
                 type="note",
                 content=(
-                    f"Golden Visa éligible — montant {effective_amount} AED "
-                    f"(seuil 2 000 000 AED atteint). Workflow Golden Visa à déclencher."
+                    f"Golden Visa éligible — montant {effective_amount} AED. "
+                    + (
+                        "Dossier Golden Visa créé automatiquement."
+                        if gv_created
+                        else "Dossier Golden Visa déjà existant pour ce client."
+                    )
                 ),
             )
             db.add(activity_gv)
