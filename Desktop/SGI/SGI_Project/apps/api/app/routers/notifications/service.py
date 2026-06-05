@@ -7,9 +7,16 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.device_token import DeviceToken
 from app.models.notification import Notification
 
 VALID_CHANNELS: frozenset[str] = frozenset({"in_app", "email", "whatsapp", "push"})
+VALID_PLATFORMS: frozenset[str] = frozenset({"ios", "android", "web"})
+
+
+def is_valid_platform(platform: str) -> bool:
+    return platform in VALID_PLATFORMS
+
 
 # Transitions de statut d'une notification.
 _STATUS_TRANSITIONS: dict[str, set[str]] = {
@@ -107,3 +114,95 @@ async def mark_read(db: AsyncSession, notif: Notification) -> Notification:
     await db.commit()
     await db.refresh(notif)
     return notif
+
+
+# ─── Jetons d'appareils (push) ───────────────────────────────────────────────
+
+
+async def register_device_token(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    user_id: uuid.UUID,
+    *,
+    token: str,
+    platform: str,
+) -> DeviceToken:
+    """Enregistre (ou réactive) un jeton push. Idempotent par (company_id, token).
+
+    Si le token existe déjà dans le tenant, on le rattache à l'utilisateur courant,
+    met à jour la plateforme et le réactive (au cas où il aurait été supprimé) —
+    plutôt que d'insérer un doublon (la contrainte d'unicité l'interdirait).
+    """
+    existing = (
+        await db.execute(
+            select(DeviceToken).where(
+                DeviceToken.company_id == company_id,
+                DeviceToken.token == token,
+            )
+        )
+    ).scalar_one_or_none()
+    now = datetime.now(UTC)
+    if existing is not None:
+        existing.user_id = user_id
+        existing.platform = platform
+        existing.deleted_at = None
+        existing.last_seen_at = now
+        existing.updated_at = now
+        await db.commit()
+        await db.refresh(existing)
+        return existing
+    device = DeviceToken(
+        company_id=company_id,
+        user_id=user_id,
+        token=token,
+        platform=platform,
+        last_seen_at=now,
+    )
+    db.add(device)
+    await db.commit()
+    await db.refresh(device)
+    return device
+
+
+async def delete_device_token(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    user_id: uuid.UUID,
+    token: str,
+) -> bool:
+    """Soft-delete d'un jeton de l'utilisateur courant. Renvoie False si absent.
+
+    Scopé à ``user_id`` : un utilisateur ne peut désinscrire que ses propres
+    appareils (BOLA horizontal).
+    """
+    device = (
+        await db.execute(
+            select(DeviceToken).where(
+                DeviceToken.company_id == company_id,
+                DeviceToken.user_id == user_id,
+                DeviceToken.token == token,
+                DeviceToken.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if device is None:
+        return False
+    device.deleted_at = datetime.now(UTC)
+    await db.commit()
+    return True
+
+
+async def list_device_tokens(
+    db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
+) -> list[DeviceToken]:
+    """Jetons actifs de l'utilisateur courant."""
+    result = await db.execute(
+        select(DeviceToken)
+        .where(
+            DeviceToken.company_id == company_id,
+            DeviceToken.user_id == user_id,
+            DeviceToken.deleted_at.is_(None),
+        )
+        .order_by(DeviceToken.created_at.desc())
+    )
+    return list(result.scalars().all())

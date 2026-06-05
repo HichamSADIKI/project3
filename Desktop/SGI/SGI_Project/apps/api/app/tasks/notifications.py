@@ -20,9 +20,10 @@ from typing import Any
 
 from sqlalchemy import Select, select, update
 
-from app.core import mailer, whatsapp
+from app.core import mailer, push, whatsapp
 from app.core.database import sync_session_maker
 from app.models.client import Client
+from app.models.device_token import DeviceToken
 from app.models.notification import Notification
 from app.tasks.celery_app import celery_app
 
@@ -202,8 +203,80 @@ def deliver_whatsapp_notification(
     )
 
 
-@celery_app.task(name="app.tasks.notifications.send_push", queue="notifications")
-def send_push(*, user_id: str, title: str, body: str, data: dict | None = None) -> dict:
-    """Envoi d'une push notification mobile. À brancher à FCM/APNs."""
-    logger.info("send_push stub", extra={"user_id": user_id})
-    return {"status": "noop", "user_id": user_id}
+@celery_app.task(
+    name="app.tasks.notifications.send_push",
+    queue="notifications",
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+)
+def send_push(
+    self,
+    *,
+    user_id: str,
+    company_id: str,
+    title: str,
+    body: str,
+    data: dict | None = None,
+    notification_id: str | None = None,
+) -> dict:
+    """Envoi push à tous les appareils actifs d'un utilisateur (FCM).
+
+    Backend FCM si configuré, sinon console. Résout les jetons via la session
+    worker (rôle privilégié → on filtre explicitement par ``company_id``, Loi 1).
+    Retry 3× sur erreur API ; à la livraison, passe la notification ``pending → sent``.
+    """
+    try:
+        with sync_session_maker() as db:
+            tokens = (
+                db.execute(
+                    select(DeviceToken.token).where(
+                        DeviceToken.company_id == uuid.UUID(company_id),
+                        DeviceToken.user_id == uuid.UUID(user_id),
+                        DeviceToken.deleted_at.is_(None),
+                    )
+                )
+                .scalars()
+                .all()
+            )
+    except Exception as exc:
+        logger.warning("send_push : lecture des jetons échouée user=%s: %s", user_id, exc)
+        raise self.retry(exc=exc) from exc
+
+    if not tokens:
+        logger.info("send_push : aucun appareil pour user=%s", user_id)
+        return {"status": "no_device", "sent": 0}
+
+    backend = "console"
+    try:
+        for token in tokens:
+            result = push.send_to_token(token=token, title=title, body=body, data=data)
+            backend = result["backend"]
+    except Exception as exc:
+        logger.warning("send_push échec (retry) user=%s: %s", user_id, exc)
+        raise self.retry(exc=exc) from exc
+
+    if notification_id and company_id:
+        _mark_sent(notification_id, company_id)
+
+    return {"status": backend, "sent": len(tokens)}
+
+
+def deliver_push_notification(
+    notif: Notification,
+    *,
+    user_id: uuid.UUID,
+    data: dict[str, Any] | None = None,
+) -> None:
+    """Enfile l'envoi push d'une notification (canal ``push``).
+
+    À appeler après ``create_notification(..., channel="push", recipient_user_id=…)``.
+    """
+    send_push.delay(
+        user_id=str(user_id),
+        company_id=str(notif.company_id),
+        title=notif.title,
+        body=notif.body or notif.title,
+        data=data,
+        notification_id=str(notif.id),
+    )

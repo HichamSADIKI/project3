@@ -22,6 +22,7 @@ from app.models.company import Company
 from app.models.company_settings import CompanySettings
 from app.models.contract import Contract
 from app.models.crm import CRMActivity, CRMLead
+from app.models.device_token import DeviceToken
 from app.models.document import Document
 from app.models.document_signature import DocumentSignature
 from app.models.document_version import DocumentVersion
@@ -94,4 +95,5 @@ __all__ = [
     "InfraService",
     "InfraAction",
     "BackupRun",
+    "DeviceToken",
 ]
