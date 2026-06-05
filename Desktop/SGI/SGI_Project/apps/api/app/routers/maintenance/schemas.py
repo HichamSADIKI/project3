@@ -225,3 +225,15 @@ class CalendarOut(BaseModel):
     success: bool = True
     data: list[CalendarEntry]
     meta: dict[str, Any]
+
+
+class SlaSummary(BaseModel):
+    by_sla: dict[str, int]
+    by_priority: dict[str, int]
+    total_open: int
+
+
+class SlaSummaryOut(BaseModel):
+    success: bool = True
+    data: SlaSummary
+    meta: dict[str, Any]

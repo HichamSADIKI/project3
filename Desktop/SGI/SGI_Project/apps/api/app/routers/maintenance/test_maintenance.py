@@ -17,6 +17,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from fastapi import HTTPException
+from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.building import Building
@@ -44,7 +45,9 @@ from app.routers.maintenance.service import (
     list_tickets,
     next_cron_run,
     reject_quote,
+    sla_state,
     soft_delete_ticket,
+    summarize_sla,
     update_ticket,
     update_ticket_status,
 )
@@ -188,6 +191,63 @@ def test_is_sla_breached_no_due_date() -> None:
     ticket.status = "new"
     ticket.sla_due_at = None
     assert is_sla_breached(ticket) is False
+
+
+# ── sla_state / summarize_sla (purs) ─────────────────────────────────────────
+
+
+_NOW = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
+
+
+def test_sla_state_terminal_is_none() -> None:
+    for st in ("resolved", "closed", "cancelled"):
+        assert sla_state(_NOW, _NOW + timedelta(hours=5), st) is None
+
+
+def test_sla_state_no_sla() -> None:
+    assert sla_state(_NOW, None, "new") == "no_sla"
+
+
+def test_sla_state_breached() -> None:
+    assert sla_state(_NOW, _NOW - timedelta(hours=1), "in_progress") == "breached"
+
+
+def test_sla_state_due_soon() -> None:
+    assert sla_state(_NOW, _NOW + timedelta(hours=10), "assigned") == "due_soon"
+    # borne : exactement 24 h → encore due_soon
+    assert sla_state(_NOW, _NOW + timedelta(hours=24), "assigned") == "due_soon"
+
+
+def test_sla_state_on_track() -> None:
+    assert sla_state(_NOW, _NOW + timedelta(hours=48), "triaged") == "on_track"
+
+
+def _mock_ticket(status: str, priority: str, sla_due_at: datetime | None) -> MagicMock:
+    t = MagicMock()
+    t.status = status
+    t.priority = priority
+    t.sla_due_at = sla_due_at
+    return t
+
+
+def test_summarize_sla_counts() -> None:
+    tickets = [
+        _mock_ticket("in_progress", "urgent", _NOW - timedelta(hours=1)),  # breached
+        _mock_ticket("assigned", "high", _NOW + timedelta(hours=5)),  # due_soon
+        _mock_ticket("new", "medium", _NOW + timedelta(hours=48)),  # on_track
+        _mock_ticket("triaged", "low", None),  # no_sla
+        _mock_ticket("closed", "urgent", _NOW - timedelta(hours=1)),  # ignoré (terminal)
+    ]
+    s = summarize_sla(tickets, _NOW)
+    assert s["by_sla"] == {"breached": 1, "due_soon": 1, "on_track": 1, "no_sla": 1}
+    assert s["by_priority"] == {"urgent": 1, "high": 1, "medium": 1, "low": 1}
+    assert s["total_open"] == 4
+
+
+def test_summarize_sla_empty() -> None:
+    s = summarize_sla([], _NOW)
+    assert s["total_open"] == 0
+    assert s["by_sla"]["breached"] == 0
 
 
 # ── Tests d'intégration : CRUD tickets + devis (DB) ──────────────────────────
@@ -432,8 +492,6 @@ async def test_reject_quote_then_cannot_reapprove(
 # couche réseau/auth que les tests « service » ci-dessus n'exercent pas.
 # Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
 
-from httpx import AsyncClient  # noqa: E402
-
 
 def _auth(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
@@ -565,3 +623,41 @@ async def test_ticket_tenant_isolation_http(
     assert list_b.status_code == 200
     ids_b = [t["id"] for t in list_b.json()["data"]]
     assert ticket_id not in ids_b
+
+
+# ── Endpoint /maintenance/sla-summary (intégration) ──────────────────────────
+
+
+def _bearer(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def test_sla_summary_endpoint(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+) -> None:
+    admin, token = seed_admin
+    await _ticket(db_session, seed_company, admin, priority="medium")
+    r = await client.get("/api/v1/maintenance/sla-summary", headers=_bearer(token))
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["total_open"] >= 1
+    assert data["by_priority"]["medium"] >= 1
+
+
+async def test_sla_summary_tenant_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    """La synthèse de B ne compte pas les tickets de A (Loi 1)."""
+    admin, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    await _ticket(db_session, seed_company, admin, priority="high")
+    r = await client.get("/api/v1/maintenance/sla-summary", headers=_bearer(token_b))
+    assert r.status_code == 200
+    assert r.json()["data"]["total_open"] == 0
