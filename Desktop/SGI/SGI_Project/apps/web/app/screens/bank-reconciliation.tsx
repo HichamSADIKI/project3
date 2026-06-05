@@ -106,7 +106,7 @@ export function ScreenBankReconciliation(): React.ReactNode {
   async function loadLines(acc: string): Promise<void> {
     if (!acc) { setLines([]); return; }
     try {
-      const r = await getJson<{ data: Line[] }>(`/api/admin/bank/lines?bank_account_id=${acc}&limit=200`);
+      const r = await getJson<{ data: Line[] }>(`/api/admin/bank/lines?bank_account_id=${acc}&limit=100`);
       setLines(r.data);
     } catch { setLines([]); }
   }
