@@ -7,6 +7,7 @@ is_sla_breached) sont testables sans DB.
 
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
@@ -83,6 +84,65 @@ def is_sla_breached(ticket: MaintenanceTicket) -> bool:
     if due.tzinfo is None:
         due = due.replace(tzinfo=UTC)
     return datetime.now(UTC) > due
+
+
+# Statuts « ouverts » (le SLA court encore). resolved/closed/cancelled exclus.
+OPEN_STATUSES: frozenset[str] = frozenset({"new", "triaged", "assigned", "in_progress", "on_hold"})
+SLA_DUE_SOON_HOURS = 24
+
+
+def sla_state(
+    now: datetime,
+    sla_due_at: datetime | None,
+    status: str,
+    due_soon_hours: int = SLA_DUE_SOON_HOURS,
+) -> str | None:
+    """État SLA d'un ticket ouvert, ou ``None`` si terminal/clôturé.
+
+    - ``"breached"`` : échéance SLA dépassée ;
+    - ``"due_soon"`` : échéance dans ≤ ``due_soon_hours`` heures ;
+    - ``"on_track"`` : échéance plus lointaine ;
+    - ``"no_sla"`` : aucune échéance SLA renseignée.
+    """
+    if status not in OPEN_STATUSES:
+        return None
+    if sla_due_at is None:
+        return "no_sla"
+    due = sla_due_at if sla_due_at.tzinfo else sla_due_at.replace(tzinfo=UTC)
+    remaining = (due - now).total_seconds()
+    if remaining < 0:
+        return "breached"
+    if remaining <= due_soon_hours * 3600:
+        return "due_soon"
+    return "on_track"
+
+
+def summarize_sla(tickets: list[MaintenanceTicket], now: datetime) -> dict[str, Any]:
+    """Synthèse des tickets OUVERTS : répartition par état SLA et par priorité."""
+    by_sla = {"breached": 0, "due_soon": 0, "on_track": 0, "no_sla": 0}
+    by_priority = {"urgent": 0, "high": 0, "medium": 0, "low": 0}
+    total_open = 0
+    for t in tickets:
+        state = sla_state(now, t.sla_due_at, t.status)
+        if state is None:
+            continue
+        by_sla[state] += 1
+        if t.priority in by_priority:
+            by_priority[t.priority] += 1
+        total_open += 1
+    return {"by_sla": by_sla, "by_priority": by_priority, "total_open": total_open}
+
+
+async def sla_summary(db: AsyncSession, company_id: uuid.UUID, now: datetime) -> dict[str, Any]:
+    """Synthèse SLA des tickets ouverts du tenant (Loi 1 : scopé company_id)."""
+    result = await db.execute(
+        select(MaintenanceTicket).where(
+            MaintenanceTicket.company_id == company_id,
+            MaintenanceTicket.deleted_at.is_(None),
+            MaintenanceTicket.status.in_(tuple(OPEN_STATUSES)),
+        )
+    )
+    return summarize_sla(list(result.scalars().all()), now)
 
 
 # ── Parsing cron (sans dépendance externe) ─────────────────────────────────

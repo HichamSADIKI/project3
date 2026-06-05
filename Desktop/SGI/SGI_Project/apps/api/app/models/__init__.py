@@ -13,6 +13,7 @@ from app.models.admin import (
     InfraRemediationRule,
     InfraService,
 )
+from app.models.agenda import AgendaEvent
 from app.models.audit_log import AuditLog
 from app.models.bank import BankAccount, BankStatementLine
 from app.models.base import Base
@@ -53,6 +54,7 @@ from app.models.visit_request import VisitRequest
 
 __all__ = [
     "Base",
+    "AgendaEvent",
     "User",
     "Company",
     "Client",

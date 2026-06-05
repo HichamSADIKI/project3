@@ -17,6 +17,7 @@ from .schemas import (
     PlanUpdate,
     QuoteCreate,
     QuoteOut,
+    SlaSummaryOut,
     TicketAssign,
     TicketCreate,
     TicketDetailOut,
@@ -38,6 +39,7 @@ from .service import (
     list_quotes,
     list_tickets,
     reject_quote,
+    sla_summary,
     soft_delete_ticket,
     update_plan,
     update_ticket,
@@ -88,6 +90,21 @@ async def list_tickets_endpoint(
         data=items,
         meta={"total": total, "page": page, "limit": limit, "pages": pages},
     )
+
+
+@router.get("/sla-summary", response_model=SlaSummaryOut)
+async def sla_summary_endpoint(
+    db: AsyncSession = Depends(get_db_session),
+    _: None = Depends(require_roles("admin", "manager", "agent")),
+) -> SlaSummaryOut:
+    """Synthèse SLA des tickets ouverts : répartition par état (breached /
+    due_soon / on_track / no_sla) et par priorité, plus le total ouvert."""
+    from datetime import UTC, datetime
+
+    company_id = await get_company_id(db)
+    now = datetime.now(UTC)
+    summary = await sla_summary(db, company_id, now)
+    return SlaSummaryOut(data=summary, meta={"reference_time": now.isoformat()})
 
 
 # ── Création ──────────────────────────────────────────────────────────────
