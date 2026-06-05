@@ -20,7 +20,7 @@ export type Translations = {
   nav_travail: string;
   nav_callcenter: string;
   nav_erp: string; nav_workspace: string; nav_audit: string;
-  nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_marketing: string;
+  nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_accounting: string; nav_marketing: string;
   nav_fournisseurs: string; nav_fournisseurs_fiches: string; nav_fournisseurs_validation: string;
   nav_news: string;
   nav_buildings: string;
@@ -316,7 +316,7 @@ const ar: Translations = {
   nav_travail: "التوظيف",
   nav_callcenter: "مركز الاتصال",
   nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة",
-  nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_marketing: "التسويق",
+  nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_accounting: "المحاسبة", nav_marketing: "التسويق",
   nav_fournisseurs: "المورّدون", nav_fournisseurs_fiches: "بطاقات المورّدين", nav_fournisseurs_validation: "اعتماد المورّدين",
   nav_news: "الأخبار",
   nav_buildings: "المباني",
@@ -605,7 +605,7 @@ const en: Translations = {
   nav_travail: "Employment",
   nav_callcenter: "Call Center",
   nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit",
-  nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
+  nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_accounting: "Accounting", nav_marketing: "Marketing",
   nav_fournisseurs: "Suppliers", nav_fournisseurs_fiches: "Supplier records", nav_fournisseurs_validation: "Vendor approval",
   nav_news: "News",
   nav_buildings: "Buildings",
@@ -894,7 +894,7 @@ const fr: Translations = {
   nav_travail: "Travail",
   nav_callcenter: "Call Center",
   nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit",
-  nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
+  nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_accounting: "Comptabilité", nav_marketing: "Marketing",
   nav_fournisseurs: "Fournisseurs", nav_fournisseurs_fiches: "Fiches fournisseurs", nav_fournisseurs_validation: "Validation fournisseurs",
   nav_news: "Actualités",
   nav_buildings: "Bâtiments",
