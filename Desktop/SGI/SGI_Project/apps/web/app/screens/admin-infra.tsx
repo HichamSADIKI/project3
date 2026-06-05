@@ -54,6 +54,20 @@ type Network = {
   meta: { available: boolean };
 };
 
+type InfraAlert = {
+  name: string;
+  severity: string | null;
+  state: string | null;
+  summary: string | null;
+  active_at: string | null;
+};
+
+type AlertList = {
+  success: boolean;
+  data: InfraAlert[];
+  meta: { available: boolean; total: number };
+};
+
 const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Serveurs & réseau",
@@ -69,6 +83,10 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "Chargement…",
     error: "Impossible de charger les données",
     emptyServers: "Aucun service supervisé",
+    alerts: "Alertes infra (Prometheus)",
+    alertsEmpty: "Aucune alerte active",
+    firing: "Active",
+    pending: "En attente",
     metricsUnavailable: "Métriques indisponibles — Prometheus est injoignable.",
     up: "En ligne",
     down: "Hors ligne",
@@ -91,6 +109,10 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "Loading…",
     error: "Unable to load data",
     emptyServers: "No monitored services",
+    alerts: "Infra alerts (Prometheus)",
+    alertsEmpty: "No active alerts",
+    firing: "Firing",
+    pending: "Pending",
     metricsUnavailable: "Metrics unavailable — Prometheus is unreachable.",
     up: "Up",
     down: "Down",
@@ -113,6 +135,10 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "جارٍ التحميل…",
     error: "تعذّر تحميل البيانات",
     emptyServers: "لا توجد خدمات مراقَبة",
+    alerts: "تنبيهات البنية (Prometheus)",
+    alertsEmpty: "لا توجد تنبيهات نشطة",
+    firing: "نشط",
+    pending: "قيد الانتظار",
     metricsUnavailable: "المقاييس غير متاحة — تعذّر الوصول إلى Prometheus.",
     up: "متصل",
     down: "غير متصل",
@@ -172,6 +198,7 @@ export function ScreenAppAdminInfra(): React.ReactNode {
 
   const [servers, setServers] = useState<ServerList | null>(null);
   const [network, setNetwork] = useState<Network | null>(null);
+  const [alerts, setAlerts] = useState<AlertList | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
 
@@ -182,11 +209,13 @@ export function ScreenAppAdminInfra(): React.ReactNode {
     Promise.all([
       getJson<ServerList>("/api/admin/platform/servers"),
       getJson<Network>("/api/admin/platform/network"),
+      getJson<AlertList>("/api/admin/platform/alerts"),
     ])
-      .then(([srv, net]) => {
+      .then(([srv, net, alr]) => {
         if (!alive) return;
         setServers(srv);
         setNetwork(net);
+        setAlerts(alr);
       })
       .catch(() => {
         if (!alive) return;
@@ -325,6 +354,88 @@ export function ScreenAppAdminInfra(): React.ReactNode {
               {kpi(
                 L("conns"),
                 fmtInt(network?.data.active_connections ?? null),
+              )}
+            </div>
+
+            {/* Alertes infra Prometheus (B2) */}
+            <div style={card}>
+              <div
+                className="font-display"
+                style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 12 }}
+              >
+                {L("alerts")}
+              </div>
+              {alerts && alerts.data.length > 0 ? (
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 0 }}
+                >
+                  {alerts.data.map((al, i) => (
+                    <div
+                      key={`${al.name}-${i}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "10px 0",
+                        borderBottom: "1px solid var(--line-soft)",
+                      }}
+                    >
+                      <div style={{ minWidth: 0, textAlign: "start" }}>
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 600,
+                            color: "var(--ink)",
+                          }}
+                        >
+                          {al.name}
+                        </div>
+                        {al.summary && (
+                          <div
+                            style={{
+                              fontSize: 11.5,
+                              color: "var(--ink-4)",
+                              marginBlockStart: 2,
+                            }}
+                          >
+                            {al.summary}
+                          </div>
+                        )}
+                      </div>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 12,
+                          flexShrink: 0,
+                          fontSize: 11.5,
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              al.severity === "critical"
+                                ? "var(--rose)"
+                                : al.severity === "warning"
+                                  ? "var(--gold-deep)"
+                                  : "var(--ink-4)",
+                          }}
+                        >
+                          {al.severity ?? "—"}
+                        </span>
+                        <span style={{ color: "var(--ink-4)" }}>
+                          {al.state === "firing" ? L("firing") : L("pending")}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={{ fontSize: 12.5, color: "var(--ink-4)" }}>
+                  {L("alertsEmpty")}
+                </div>
               )}
             </div>
 
