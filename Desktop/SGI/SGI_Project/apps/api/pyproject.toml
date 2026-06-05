@@ -124,9 +124,9 @@ module = [
     "app.routers.scraping.parsers", "app.routers.scraping.service",
     "app.routers.workflows.service",
     "app.tasks.alerts", "app.tasks.audit", "app.tasks.celery_app", "app.tasks.comms",
-    "app.tasks.exports", "app.tasks.maintenance", "app.tasks.notifications",
-    "app.tasks.reminders", "app.tasks.scenarios", "app.tasks.ticketing",
-    "app.tasks.watcher", "app.tasks.workflows",
+    "app.tasks.exports", "app.tasks.infra_control", "app.tasks.maintenance",
+    "app.tasks.notifications", "app.tasks.reminders", "app.tasks.scenarios",
+    "app.tasks.ticketing", "app.tasks.watcher", "app.tasks.workflows",
 ]
 
 [tool.pytest.ini_options]

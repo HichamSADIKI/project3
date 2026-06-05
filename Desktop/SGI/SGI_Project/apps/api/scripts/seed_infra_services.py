@@ -22,25 +22,32 @@ from sqlalchemy import select
 from app.core.database import async_session_maker
 from app.models.admin import InfraService
 
-# (name == job Prometheus, kind, description, is_controllable)
-# is_controllable=True : cible des actions start/stop/restart de Phase 3.
-_SERVICES: list[tuple[str, str, str, bool]] = [
-    ("sgi-api", "api", "API FastAPI (scrapée up{job=sgi-api})", True),
-    ("postgres", "db", "PostgreSQL 17 + PostGIS (pas d'exporter en Phase 1)", True),
-    ("valkey", "cache", "Valkey 8 — cache & broker Celery", True),
-    ("minio", "storage", "MinIO — stockage objets (médias/contrats)", True),
-    ("nginx", "proxy", "Nginx — reverse proxy / TLS", True),
-    ("node-exporter", "exporter", "node-exporter — métriques hôte", False),
-    ("cadvisor", "exporter", "cAdvisor — métriques conteneurs", False),
-    ("prometheus", "monitoring", "Prometheus — collecte des métriques", False),
-    ("grafana", "monitoring", "Grafana — dashboards (pas d'exporter)", False),
+# (name == job Prometheus, kind, description, is_controllable, compose_service)
+#
+# ⚠️ ALLOWLIST DE CONTRÔLE (D2) — is_controllable=True UNIQUEMENT pour les services
+# sûrs à redémarrer. `api`/`db`/`valkey`/`minio` sont DÉLIBÉRÉMENT exclus (redémarrer
+# l'API/la DB depuis l'API serait dangereux/auto-destructeur) ; à traiter à part plus
+# tard si besoin. `compose_service` = label com.docker.compose.service (résolution du
+# conteneur par l'exécuteur). None pour les services du compose monitoring séparé.
+_SERVICES: list[tuple[str, str, str, bool, str | None]] = [
+    ("sgi-api", "api", "API FastAPI (scrapée up{job=sgi-api})", False, "api"),
+    ("postgres", "db", "PostgreSQL 17 + PostGIS", False, "db"),
+    ("valkey", "cache", "Valkey 8 — cache & broker Celery", False, "valkey"),
+    ("minio", "storage", "MinIO — stockage objets (médias/contrats)", False, "minio"),
+    ("meilisearch", "search", "Meilisearch — recherche", True, "meilisearch"),
+    ("nginx", "proxy", "Nginx — reverse proxy / TLS", True, "nginx"),
+    ("asterisk", "telephony", "Asterisk — centre de contact WebRTC", True, "asterisk"),
+    ("node-exporter", "exporter", "node-exporter — métriques hôte", False, None),
+    ("cadvisor", "exporter", "cAdvisor — métriques conteneurs", False, None),
+    ("prometheus", "monitoring", "Prometheus — collecte des métriques", False, None),
+    ("grafana", "monitoring", "Grafana — dashboards", False, None),
 ]
 
 
 async def main() -> None:
     created = 0
     async with async_session_maker() as db:
-        for name, kind, description, controllable in _SERVICES:
+        for name, kind, description, controllable, compose_service in _SERVICES:
             exists = (
                 await db.execute(select(InfraService.id).where(InfraService.name == name))
             ).scalar_one_or_none()
@@ -52,6 +59,7 @@ async def main() -> None:
                     kind=kind,
                     description=description,
                     is_controllable=controllable,
+                    compose_service=compose_service,
                 )
             )
             created += 1

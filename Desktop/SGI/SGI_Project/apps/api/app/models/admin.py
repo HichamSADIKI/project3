@@ -87,6 +87,9 @@ class InfraService(Base, TimestampMixin, SoftDeleteMixin):
     last_known_state: Mapped[str | None] = mapped_column(String(40), nullable=True)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_controllable: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Nom du service Docker Compose (label com.docker.compose.service) — résolution
+    # du conteneur par l'exécuteur D2. NULL si non pilotable.
+    compose_service: Mapped[str | None] = mapped_column(String(120), nullable=True)
 
 
 class InfraAction(Base):
