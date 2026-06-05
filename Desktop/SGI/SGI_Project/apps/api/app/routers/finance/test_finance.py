@@ -363,3 +363,57 @@ async def test_vat_report_excludes_zero_rated_from_vat(db_session, seed_company:
     assert vat.input_vat == Decimal("400.00")
     assert vat.net_vat == Decimal("600.00")
     assert vat.taxable_revenue == Decimal("20000")  # zéro-rated exclu de la base
+
+
+# ── Factures PDF ────────────────────────────────────────────────────────────
+
+
+def test_build_invoice_html_contains_amounts() -> None:
+    from datetime import date as _date
+
+    from app.routers.finance.invoice import build_invoice_html
+
+    out = build_invoice_html(
+        reference="TXN-2026-00042",
+        company_name="Infinity FM",
+        issue_date=_date(2026, 6, 5),
+        description="Commission vente Marina",
+        amount_ht=Decimal("1000"),
+        vat_rate=Decimal("0.05"),
+        vat_amount=Decimal("50"),
+    )
+    assert "TXN-2026-00042" in out
+    assert "AED 1,000.00" in out  # HT
+    assert "AED 50.00" in out  # TVA
+    assert "AED 1,050.00" in out  # TTC
+    assert "Commission vente Marina" in out
+    assert "5.00%" in out
+
+
+def test_render_pdf_produces_pdf_bytes() -> None:
+    pytest.importorskip("weasyprint")  # CI sans libs système → skip
+    from app.routers.finance.invoice import render_pdf
+
+    pdf = render_pdf("<html><body><h1>Test</h1></body></html>")
+    assert pdf[:4] == b"%PDF"
+
+
+async def test_generate_invoice_rejects_non_invoice(db_session, seed_company: Company) -> None:
+    from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
+
+    txn = await create_transaction(
+        db_session, seed_company.id, _txn(type="payment", direction="credit")
+    )
+    with pytest.raises(InvoiceError) as exc:
+        await generate_and_store_invoice(db_session, seed_company.id, txn.id)
+    assert exc.value.code == "not_an_invoice"
+
+
+async def test_generate_invoice_cross_tenant_not_found(db_session, seed_company: Company) -> None:
+    from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
+
+    other = await _other_company(db_session)
+    txn = await create_transaction(db_session, seed_company.id, _txn(type="invoice"))
+    with pytest.raises(InvoiceError) as exc:
+        await generate_and_store_invoice(db_session, other.id, txn.id)
+    assert exc.value.code == "transaction_not_found"

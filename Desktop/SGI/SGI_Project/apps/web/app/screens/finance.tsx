@@ -63,7 +63,7 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "Courant", b30: "1-30 j", b60: "31-60 j", b90: "61-90 j", b90p: "90+ j", total: "Total",
     pMonth: "Ce mois", pQuarter: "Trimestre", pYtd: "Année",
     vat: "TVA (5 %)", vatOut: "TVA collectée", vatIn: "TVA déductible", vatNet: "TVA nette à payer",
-    exportCsv: "Exporter CSV",
+    exportCsv: "Exporter CSV", invoicePdf: "Facture",
   },
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
@@ -78,7 +78,7 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "Current", b30: "1-30 d", b60: "31-60 d", b90: "61-90 d", b90p: "90+ d", total: "Total",
     pMonth: "This month", pQuarter: "Quarter", pYtd: "Year",
     vat: "VAT (5%)", vatOut: "Output VAT", vatIn: "Input VAT", vatNet: "Net VAT payable",
-    exportCsv: "Export CSV",
+    exportCsv: "Export CSV", invoicePdf: "Invoice",
   },
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
@@ -93,7 +93,7 @@ const TR: Record<Lang, Record<string, string>> = {
     bCurrent: "جارٍ", b30: "1-30 يوم", b60: "31-60 يوم", b90: "61-90 يوم", b90p: "+90 يوم", total: "الإجمالي",
     pMonth: "هذا الشهر", pQuarter: "ربع سنة", pYtd: "السنة",
     vat: "ضريبة القيمة المضافة (5%)", vatOut: "ضريبة المخرجات", vatIn: "ضريبة المدخلات", vatNet: "صافي الضريبة المستحقة",
-    exportCsv: "تصدير CSV",
+    exportCsv: "تصدير CSV", invoicePdf: "فاتورة",
   },
 };
 const TYPES = ["invoice", "payment", "expense", "commission", "refund"] as const;
@@ -143,6 +143,21 @@ export function ScreenFinance(): React.ReactNode {
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [form, setForm] = useState({ type: "invoice", direction: "credit", amount: "", tax_treatment: "standard", description: "", due_date: "" });
+
+  // Facture PDF (transactions de type invoice)
+  const [invoicing, setInvoicing] = useState<string | null>(null);
+  async function genInvoice(txnId: string): Promise<void> {
+    setInvoicing(txnId);
+    try {
+      const res = await postJson(`/api/admin/finance/transactions/${txnId}/invoice`, {});
+      if (res.ok) {
+        const body = (await res.json()) as { data?: { url?: string } };
+        if (body.data?.url) window.open(body.data.url, "_blank");
+      }
+    } finally {
+      setInvoicing(null);
+    }
+  }
 
   async function submit(): Promise<void> {
     if (!form.amount || Number(form.amount) <= 0) {
@@ -272,6 +287,7 @@ export function ScreenFinance(): React.ReactNode {
                   <th style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600 }}>{L("vatCol")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("status")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("date")}</th>
+                  <th style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600 }} />
                 </tr>
               </thead>
               <tbody>
@@ -293,6 +309,14 @@ export function ScreenFinance(): React.ReactNode {
                         </span>
                       </td>
                       <td style={{ padding: "10px 14px", color: "var(--ink-4)", direction: "ltr", textAlign: "start" }}>{tx.created_at.slice(0, 10)}</td>
+                      <td style={{ padding: "10px 14px", textAlign: "end" }}>
+                        {tx.type === "invoice" && (
+                          <button onClick={() => void genInvoice(tx.id)} disabled={invoicing === tx.id}
+                            style={{ border: "1px solid var(--line)", background: "var(--bg-paper)", color: "var(--ink)", borderRadius: 8, padding: "4px 10px", fontSize: 11.5, fontWeight: 600, cursor: "pointer", opacity: invoicing === tx.id ? 0.5 : 1 }}>
+                            {invoicing === tx.id ? "…" : `⬇ ${L("invoicePdf")}`}
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

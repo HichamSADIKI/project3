@@ -8,9 +8,11 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
+from app.routers.finance.invoice import InvoiceError, generate_and_store_invoice
 from app.routers.finance.schemas import (
     AgedReceivables,
     FinanceSummary,
+    InvoicePdfOut,
     PnlReport,
     TransactionCreate,
     TransactionDetailOut,
@@ -194,3 +196,26 @@ async def update_transaction_endpoint(
     if not txn:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="transaction_not_found")
     return TransactionDetailOut(data=TransactionOut.model_validate(txn))
+
+
+@router.post(
+    "/transactions/{txn_id}/invoice",
+    response_model=InvoicePdfOut,
+    dependencies=[Depends(_require_roles("admin", "manager", "accounting"))],
+)
+async def generate_invoice_endpoint(
+    txn_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> InvoicePdfOut:
+    """Génère la facture PDF d'une transaction (type=invoice) et renvoie son URL."""
+    company_id = await _get_company_id(db)
+    try:
+        url = await generate_and_store_invoice(db, company_id, txn_id)
+    except InvoiceError as err:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if err.code == "transaction_not_found"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=err.code) from err
+    return InvoicePdfOut(data={"url": url})

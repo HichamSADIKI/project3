@@ -125,3 +125,10 @@ class VatReport(BaseModel):
     output_vat: Decimal
     input_vat: Decimal
     net_vat: Decimal
+
+
+class InvoicePdfOut(BaseModel):
+    """URL de téléchargement de la facture PDF générée."""
+
+    success: bool = True
+    data: dict[str, str]  # {"url": "..."}
