@@ -14,17 +14,18 @@ GUC tenant, pas de RLS sur ces tables). Dégradation propre si Prometheus injoig
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.admin import InfraService
+from app.models.admin import InfraAction, InfraService
 from app.routers.admin.deps import require_platform_admin
 from app.routers.admin.prometheus import (
     PrometheusUnavailableError,
@@ -220,3 +221,123 @@ async def list_infra_alerts(
     _sev_rank = {"critical": 0, "warning": 1, "info": 2}
     data.sort(key=lambda a: (a.state != "firing", _sev_rank.get(a.severity or "", 9)))
     return AlertsOut(data=data, meta={"available": True, "total": len(data)})
+
+
+# ── Contrôle des serveurs (D1 — dry-run derrière un flag) ───────────────────────
+#
+# ⚠️ SÉCURITÉ : en Phase 1/D1 l'exécution est SIMULÉE — aucun accès Docker. Le flag
+# `INFRA_CONTROL_ENABLED` est le seul point d'activation de l'exécution réelle (D2),
+# qui passera par un exécuteur à privilège minimal (jamais docker.sock dans cette API).
+# Garde-fous déjà en place ici : allowlist (`is_controllable`), double confirmation
+# (saisie du nom du service), journalisation `infra_actions` + acteur, audit middleware.
+
+ActionLiteral = Literal["start", "stop", "restart", "suspend"]
+
+
+def control_enabled() -> bool:
+    """Exécution réelle activée ? (D2). Défaut false → dry-run. Helper pur (testable)."""
+    return os.getenv("INFRA_CONTROL_ENABLED", "false").strip().lower() == "true"
+
+
+class ActionRequest(BaseModel):
+    action: ActionLiteral
+    # Double confirmation : doit être EXACTEMENT le nom du service ciblé.
+    confirmation: str
+
+
+class InfraActionOut(BaseModel):
+    id: uuid.UUID
+    service_id: uuid.UUID
+    action: str
+    requested_by: uuid.UUID | None
+    status: str
+    detail: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InfraActionDetailOut(BaseModel):
+    success: bool = True
+    data: InfraActionOut
+
+
+class InfraActionListOut(BaseModel):
+    success: bool = True
+    data: list[InfraActionOut]
+    meta: dict[str, Any]
+
+
+@infra_router.post(
+    "/servers/{service_id}/actions",
+    response_model=InfraActionDetailOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def request_server_action(
+    service_id: uuid.UUID,
+    body: ActionRequest,
+    actor: uuid.UUID = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+) -> InfraActionDetailOut:
+    """Demande une action de contrôle sur un service (start/stop/restart/suspend).
+
+    Garde-fous : service existant + `is_controllable` (allowlist), double confirmation
+    (`confirmation` == nom du service). En dry-run (flag off), l'action est JOURNALISÉE
+    (`infra_actions`, status='done', detail='dry_run') sans aucune exécution réelle.
+    Si `INFRA_CONTROL_ENABLED=true` (D2, pas encore livré) → 503.
+    """
+    svc = (
+        await db.execute(
+            select(InfraService).where(
+                InfraService.id == service_id, InfraService.deleted_at.is_(None)
+            )
+        )
+    ).scalar_one_or_none()
+    if svc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="service_not_found")
+    if not svc.is_controllable:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="service_not_controllable")
+    if body.confirmation != svc.name:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="confirmation_mismatch")
+
+    if control_enabled():
+        # D2 : exécution réelle non encore branchée (exécuteur à privilège minimal).
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="real_execution_not_implemented"
+        )
+
+    action = InfraAction(
+        service_id=svc.id,
+        action=body.action,
+        requested_by=actor,
+        status="done",
+        detail="dry_run (INFRA_CONTROL_ENABLED=false)",
+    )
+    db.add(action)
+    await db.commit()
+    await db.refresh(action)
+    return InfraActionDetailOut(data=InfraActionOut.model_validate(action))
+
+
+@infra_router.get("/actions", response_model=InfraActionListOut)
+async def list_actions(
+    service_id: uuid.UUID | None = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(20, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> InfraActionListOut:
+    """Historique des actions de contrôle (cross-tenant plateforme, tri desc)."""
+    base = select(InfraAction)
+    if service_id is not None:
+        base = base.where(InfraAction.service_id == service_id)
+    total = (await db.execute(select(func.count()).select_from(base.subquery()))).scalar_one()
+    offset = (page - 1) * limit
+    rows = (
+        (await db.execute(base.order_by(InfraAction.created_at.desc()).offset(offset).limit(limit)))
+        .scalars()
+        .all()
+    )
+    return InfraActionListOut(
+        data=[InfraActionOut.model_validate(a) for a in rows],
+        meta={"total": total, "page": page, "limit": limit},
+    )
