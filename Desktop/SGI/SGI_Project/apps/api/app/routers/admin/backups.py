@@ -24,7 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.admin import BackupRun
 from app.routers.admin.deps import require_platform_admin
-from app.tasks.backups import run_backup
+from app.tasks.backups import execute_restore, restore_enabled, run_backup
 
 backups_router = APIRouter(
     prefix="/platform/backups",
@@ -150,6 +150,67 @@ async def trigger_backup(
         kind="manual",
         status="success",
         location="dry_run (BACKUP_TRIGGER_ENABLED=false)",
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    return BackupTriggerOut(data=BackupRunOut.model_validate(run))
+
+
+class RestoreRequest(BaseModel):
+    # Double confirmation : doit valoir exactement le token littéral "restore".
+    confirmation: str
+
+
+@backups_router.post(
+    "/{backup_run_id}/restore",
+    response_model=BackupTriggerOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def restore_backup(
+    backup_run_id: uuid.UUID,
+    body: RestoreRequest,
+    db: AsyncSession = Depends(get_db),
+) -> BackupTriggerOut:
+    """Restaure un dump DANS UNE BASE CIBLE SÉPARÉE — jamais la base live.
+
+    Vérifie qu'une sauvegarde DB réussie est restaurable (usage n°1 d'un backup).
+    Double confirmation = le token littéral « restore ». Flag `RESTORE_ENABLED` OFF
+    (défaut) → dry-run : journalise l'intention, AUCUNE base touchée. ON → délègue au
+    worker (`execute_restore`) qui recrée `RESTORE_TARGET_DB` (base jetable) et y rejoue
+    le dump via pg_restore — la base de production n'est JAMAIS modifiée. La promotion
+    vers live reste un acte ops manuel (hors scope).
+    """
+    if body.confirmation != "restore":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="confirmation_mismatch")
+
+    src = (
+        await db.execute(select(BackupRun).where(BackupRun.id == backup_run_id))
+    ).scalar_one_or_none()
+    if src is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="backup_not_found")
+    if (
+        src.target != "db"
+        or src.status != "success"
+        or not src.location
+        or src.location.startswith("dry_run")
+    ):
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="backup_not_restorable")
+
+    if restore_enabled():
+        run = BackupRun(target="db", kind="restore", status="running", location=src.location)
+        db.add(run)
+        await db.commit()
+        await db.refresh(run)
+        # délégation worker — l'API ne lance pas pg_restore ; cible = base jetable
+        execute_restore.delay(str(run.id), src.location)
+        return BackupTriggerOut(data=BackupRunOut.model_validate(run))
+
+    run = BackupRun(
+        target="db",
+        kind="restore",
+        status="success",
+        location=f"dry_run (RESTORE_ENABLED=false) ← {src.location}",
     )
     db.add(run)
     await db.commit()
