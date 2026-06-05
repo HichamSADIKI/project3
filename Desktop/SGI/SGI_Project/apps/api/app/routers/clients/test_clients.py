@@ -24,10 +24,12 @@ from app.models.company import Company
 from app.models.user import User, UserRole, UserStatus
 from app.routers.clients.schemas import ClientCreate, ClientUpdate
 from app.routers.clients.service import (
+    clients_segmentation,
     create_client,
     delete_client,
     get_client,
     list_clients,
+    summarize_clients,
     update_client,
 )
 
@@ -410,3 +412,59 @@ async def test_export_csv_sanitizes_formula_injection(
     assert r.status_code == 200
     assert "'=cmd|calc" in r.text  # préfixée
     assert ",=cmd|calc" not in r.text  # jamais une formule brute en début de cellule
+
+
+# ── Segmentation du portefeuille ─────────────────────────────────────────────
+
+from decimal import Decimal as _Decimal  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+
+async def test_summarize_clients_pure() -> None:
+    clients = [
+        SimpleNamespace(type="individual", source="crm", budget_max=_Decimal("2500000")),
+        SimpleNamespace(type="individual", source="website", budget_max=_Decimal("500000")),
+        SimpleNamespace(type="company", source="crm", budget_max=None),
+        SimpleNamespace(type="individual", source=None, budget_max=_Decimal("2000000")),
+    ]
+    s = summarize_clients(clients)
+    assert s["total"] == 4
+    assert s["by_type"] == {"individual": 3, "company": 1}
+    assert s["by_source"]["crm"] == 2
+    assert s["by_source"]["unknown"] == 1
+    # budget_max >= 2 000 000 → 2 clients (2.5M et 2.0M pile)
+    assert s["golden_visa_budget_count"] == 2
+
+
+async def _mk_client(db, company_id, **kw):
+    base = dict(type="individual", first_name="X", last_name="Y")
+    base.update(kw)
+    return await create_client(db, company_id, ClientCreate(**base))
+
+
+async def test_clients_segmentation_service(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _mk_client(db_session, seed_company.id, source="crm", budget_max=_Decimal("3000000"))
+    await _mk_client(db_session, seed_company.id, source="website", budget_max=_Decimal("400000"))
+    await _mk_client(db_session, seed_company.id, type="company", company_name="ACME", source="crm")
+    s = await clients_segmentation(db_session, seed_company.id)
+    assert s["total"] == 3
+    assert s["by_type"]["individual"] == 2
+    assert s["by_type"]["company"] == 1
+    assert s["by_source"]["crm"] == 2
+    assert s["golden_visa_budget_count"] == 1
+
+
+async def test_clients_segmentation_tenant_isolation(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _mk_client(db_session, seed_company.id, source="crm", budget_max=_Decimal("3000000"))
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await clients_segmentation(db_session, other.id)
+    assert s["total"] == 0
+    assert s["golden_visa_budget_count"] == 0
