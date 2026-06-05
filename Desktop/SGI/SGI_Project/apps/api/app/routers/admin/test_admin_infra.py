@@ -35,8 +35,14 @@ def test_availability_expr_filters_by_job() -> None:
 
 
 def test_availability_expr_strips_quotes() -> None:
-    """Anti-injection PromQL basique : les guillemets sont retirés du label."""
-    assert '"' not in _availability_expr('api"} or up{job="x')
+    """Anti-injection PromQL basique : les guillemets INTERNES sont retirés du label.
+
+    Le résultat n'a que les 2 guillemets qui encadrent la valeur du label `job`
+    (aucun guillemet injecté ne survit → impossible de fermer le label prématurément).
+    """
+    expr = _availability_expr('api"} or up{job="x')
+    assert expr == 'up{job="api} or up{job=x"}'
+    assert expr.count('"') == 2
 
 
 @pytest.mark.parametrize(
