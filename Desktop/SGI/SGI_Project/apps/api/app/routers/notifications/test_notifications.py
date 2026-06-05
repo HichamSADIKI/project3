@@ -212,3 +212,74 @@ async def test_other_user_same_tenant_cannot_delete(
     # Le jeton existe toujours pour le propriétaire.
     listed = await client.get("/api/v1/notifications/devices", headers=_auth(token))
     assert any(d["token"] == _TOKEN_A for d in listed.json()["data"])
+
+
+# ─── Tests d'intégration — centre de notifications (badge + tout-lu) ──────────
+
+
+async def _seed_notif(
+    db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID, *, channel: str = "in_app"
+):
+    from app.routers.notifications.service import create_notification
+
+    return await create_notification(
+        db,
+        company_id,
+        notif_type="invoice_overdue",
+        title="Relance facture",
+        body="Facture impayée.",
+        channel=channel,
+        recipient_user_id=user_id,
+    )
+
+
+async def test_unread_count_and_mark_all_read(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    admin, token = seed_admin
+    for _ in range(3):
+        await _seed_notif(db_session, admin.company_id, admin.id)
+
+    cnt = await client.get("/api/v1/notifications/unread-count", headers=_auth(token))
+    assert cnt.status_code == 200
+    assert cnt.json()["data"]["count"] == 3
+
+    allread = await client.post("/api/v1/notifications/read-all", headers=_auth(token))
+    assert allread.status_code == 200
+    assert allread.json()["data"]["updated"] == 3
+
+    cnt2 = await client.get("/api/v1/notifications/unread-count", headers=_auth(token))
+    assert cnt2.json()["data"]["count"] == 0
+    # Toutes les notifs sont désormais 'read'.
+    listed = await client.get("/api/v1/notifications/", headers=_auth(token))
+    assert all(n["status"] == "read" for n in listed.json()["data"])
+
+
+async def test_unread_count_excludes_already_read(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    admin, token = seed_admin
+    n1 = await _seed_notif(db_session, admin.company_id, admin.id)
+    await _seed_notif(db_session, admin.company_id, admin.id)
+    # Marque la 1ʳᵉ comme lue.
+    r = await client.post(f"/api/v1/notifications/{n1.id}/read", headers=_auth(token))
+    assert r.status_code == 200
+    cnt = await client.get("/api/v1/notifications/unread-count", headers=_auth(token))
+    assert cnt.json()["data"]["count"] == 1
+
+
+async def test_unread_count_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    admin, token = seed_admin
+    await _seed_notif(db_session, admin.company_id, admin.id)
+    # Notif d'une AUTRE société (company_id différent) → ne doit pas compter (Loi 1).
+    other_company = uuid.uuid4()
+    await _seed_notif(db_session, other_company, admin.id)
+    cnt = await client.get("/api/v1/notifications/unread-count", headers=_auth(token))
+    assert cnt.json()["data"]["count"] == 1
+
+
+async def test_read_all_requires_auth(client: AsyncClient) -> None:
+    resp = await client.post("/api/v1/notifications/read-all")
+    assert resp.status_code in (401, 403)

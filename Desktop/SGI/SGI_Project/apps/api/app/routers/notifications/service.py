@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.device_token import DeviceToken
@@ -114,6 +114,38 @@ async def mark_read(db: AsyncSession, notif: Notification) -> Notification:
     await db.commit()
     await db.refresh(notif)
     return notif
+
+
+async def count_unread(
+    db: AsyncSession, company_id: uuid.UUID, recipient_user_id: uuid.UUID
+) -> int:
+    """Nombre de notifications non lues (statut != 'read') de l'utilisateur courant."""
+    result = await db.execute(
+        select(func.count(Notification.id)).where(
+            Notification.company_id == company_id,
+            Notification.recipient_user_id == recipient_user_id,
+            Notification.status != "read",
+        )
+    )
+    return int(result.scalar_one())
+
+
+async def mark_all_read(
+    db: AsyncSession, company_id: uuid.UUID, recipient_user_id: uuid.UUID
+) -> int:
+    """Marque comme lues toutes les notifications non lues de l'utilisateur. Renvoie le nombre."""
+    now = datetime.now(UTC)
+    result = await db.execute(
+        update(Notification)
+        .where(
+            Notification.company_id == company_id,
+            Notification.recipient_user_id == recipient_user_id,
+            Notification.status != "read",
+        )
+        .values(status="read", read_at=now, updated_at=now)
+    )
+    await db.commit()
+    return int(result.rowcount or 0)  # type: ignore[attr-defined]
 
 
 # ─── Jetons d'appareils (push) ───────────────────────────────────────────────

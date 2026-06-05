@@ -13,9 +13,11 @@ from app.routers.notifications.schemas import (
     DeviceTokenOut,
     DeviceTokenRegister,
     DeviceTokenResponse,
+    MarkAllReadOut,
     NotificationListOut,
     NotificationOut,
     NotificationResponse,
+    UnreadCountOut,
 )
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -72,6 +74,31 @@ def _require_user_id(request: Request) -> uuid.UUID:
     if user_id is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthenticated")
     return user_id
+
+
+@router.get("/unread-count", response_model=UnreadCountOut)
+async def unread_count_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> UnreadCountOut:
+    """Nombre de notifications non lues de l'utilisateur courant (badge cloche)."""
+    company_id = await get_company_id(db)
+    user_id = _current_user_id(request)
+    if user_id is None:
+        return UnreadCountOut(data={"count": 0})
+    count = await service.count_unread(db, company_id, user_id)
+    return UnreadCountOut(data={"count": count})
+
+
+@router.post("/read-all", response_model=MarkAllReadOut)
+async def mark_all_read_endpoint(
+    user_id: uuid.UUID = Depends(_require_user_id),
+    db: AsyncSession = Depends(get_db_session),
+) -> MarkAllReadOut:
+    """Marque toutes les notifications de l'utilisateur courant comme lues."""
+    company_id = await get_company_id(db)
+    updated = await service.mark_all_read(db, company_id, user_id)
+    return MarkAllReadOut(data={"updated": updated})
 
 
 @router.post("/devices", response_model=DeviceTokenResponse, status_code=status.HTTP_201_CREATED)

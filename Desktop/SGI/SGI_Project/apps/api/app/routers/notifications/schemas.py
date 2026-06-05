@@ -33,6 +33,16 @@ class NotificationResponse(BaseModel):
     data: NotificationOut
 
 
+class UnreadCountOut(BaseModel):
+    success: bool = True
+    data: dict[str, int]  # {"count": N}
+
+
+class MarkAllReadOut(BaseModel):
+    success: bool = True
+    data: dict[str, int]  # {"updated": N}
+
+
 class DeviceTokenRegister(BaseModel):
     token: str = Field(min_length=8, max_length=512)
     platform: str = Field(pattern="^(ios|android|web)$")
