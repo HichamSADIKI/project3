@@ -1,10 +1,22 @@
 """Router FastAPI — Notifications in-app (M6)."""
 
 import uuid
+from datetime import timedelta
+from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    WebSocket,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import decode_jwt, encode_jwt
 from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id
 from app.routers.notifications import service
@@ -19,6 +31,7 @@ from app.routers.notifications.schemas import (
     NotificationResponse,
     UnreadCountOut,
 )
+from app.routers.notifications.ws import notifications_ws_handler
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -144,3 +157,48 @@ async def unregister_device_endpoint(
     if not removed:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="device_not_found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/ws-ticket")
+async def ws_ticket_endpoint(request: Request) -> dict[str, Any]:
+    """Jeton WS court (60 s) pour ouvrir le flux temps réel depuis le navigateur.
+
+    Le JWT de session est httpOnly (inaccessible au JS) : on délivre ici un
+    jeton dédié, à durée de vie très courte, portant uniquement (sub, company_id,
+    role). Réduit la fenêtre d'exposition si le ticket fuite côté client."""
+    user_id = _current_user_id(request)
+    company_id = getattr(request.state, "company_id", None)
+    role = getattr(request.state, "role", None)
+    if user_id is None or not company_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthenticated")
+    ticket = encode_jwt(
+        {"sub": str(user_id), "company_id": str(company_id), "role": role},
+        expires_delta=timedelta(seconds=60),
+    )
+    return {"success": True, "data": {"ticket": ticket}}
+
+
+@router.websocket("/ws")
+async def notifications_ws_endpoint(
+    websocket: WebSocket,
+    token: str = Query(..., description="JWT d'authentification"),
+) -> None:
+    """WS /api/v1/notifications/ws?token=<jwt> — flux personnel temps réel.
+
+    Auth JWT en query param (le middleware tenant ne tourne pas sur le scope WS).
+    Le channel est dérivé **du token** (company_id + sub) : un utilisateur ne
+    peut s'abonner qu'à SON propre flux — pas d'injection de cible (Loi 1 + BOLA).
+    """
+    try:
+        payload = decode_jwt(token)
+        company_id = payload.get("company_id")
+        user_id = payload.get("sub")
+        if not company_id or not user_id or payload.get("mfa_pending"):
+            await websocket.close(code=4401)
+            return
+        uuid.UUID(company_id)
+        uuid.UUID(user_id)
+    except Exception:  # noqa: BLE001
+        await websocket.close(code=4401)
+        return
+    await notifications_ws_handler(websocket, company_id, user_id)

@@ -69,6 +69,25 @@ async def create_notification(
     if commit:
         await db.commit()
         await db.refresh(notif)
+        # Push temps réel best-effort : notif in-app destinée à un utilisateur
+        # précis → flux WS personnel. N'échoue jamais la requête métier.
+        if channel == "in_app" and recipient_user_id is not None:
+            from app.routers.notifications.ws import publish_notification
+
+            await publish_notification(
+                company_id,
+                recipient_user_id,
+                {
+                    "type": "notification.created",
+                    "data": {
+                        "id": str(notif.id),
+                        "type": notif.type,
+                        "title": notif.title,
+                        "body": notif.body,
+                        "created_at": notif.created_at.isoformat() if notif.created_at else None,
+                    },
+                },
+            )
     return notif
 
 

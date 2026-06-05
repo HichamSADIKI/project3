@@ -283,3 +283,123 @@ async def test_unread_count_tenant_isolation(
 async def test_read_all_requires_auth(client: AsyncClient) -> None:
     resp = await client.post("/api/v1/notifications/read-all")
     assert resp.status_code in (401, 403)
+
+
+# ── WebSocket temps réel : channels (purs) + hook de publication ──────────────
+
+from app.routers.notifications.ws import publish_notification, user_channel  # noqa: E402
+
+
+def test_user_channel_namespaced_by_tenant_and_user() -> None:
+    cid = "11111111-1111-1111-1111-111111111111"
+    uid = "22222222-2222-2222-2222-222222222222"
+    assert user_channel(cid, uid) == f"notif:{cid}:{uid}"
+
+
+def test_user_channel_tenant_isolation() -> None:
+    """Deux tenants (même user_id improbable) → channels disjoints (Loi 1)."""
+    a, b = "aaaaaaaa-...-a", "bbbbbbbb-...-b"
+    uid = "33333333-3333-3333-3333-333333333333"
+    assert user_channel(a, uid) != user_channel(b, uid)
+
+
+def test_distinct_users_distinct_channels() -> None:
+    cid = "11111111-1111-1111-1111-111111111111"
+    assert user_channel(cid, "u1") != user_channel(cid, "u2")
+
+
+async def test_publish_notification_is_best_effort() -> None:
+    """Valkey indisponible (CI) → publish ne lève jamais (confort temps réel)."""
+    await publish_notification(uuid.uuid4(), uuid.uuid4(), {"type": "ping"})
+
+
+async def test_create_in_app_notification_publishes_ws(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch
+) -> None:
+    """Une notif in-app destinée à un user déclenche un push WS personnel."""
+    admin, _token = seed_admin
+    calls: list[tuple[str, str, dict]] = []
+
+    async def _fake_pub(cid, uid, event) -> None:  # type: ignore[no-untyped-def]
+        calls.append((str(cid), str(uid), event))
+
+    monkeypatch.setattr("app.routers.notifications.ws.publish_notification", _fake_pub)
+    from app.routers.notifications.service import create_notification
+
+    await create_notification(
+        db_session,
+        admin.company_id,
+        notif_type="test",
+        title="Bonjour",
+        recipient_user_id=admin.id,
+    )
+    assert len(calls) == 1
+    cid, uid, event = calls[0]
+    assert cid == str(admin.company_id) and uid == str(admin.id)
+    assert event["type"] == "notification.created"
+    assert event["data"]["title"] == "Bonjour"
+
+
+async def test_email_notification_does_not_publish_ws(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch
+) -> None:
+    """Un canal non in-app (email) ne pousse PAS sur le WS personnel."""
+    admin, _token = seed_admin
+    calls: list[int] = []
+
+    async def _fake_pub(cid, uid, event) -> None:  # type: ignore[no-untyped-def]
+        calls.append(1)
+
+    monkeypatch.setattr("app.routers.notifications.ws.publish_notification", _fake_pub)
+    from app.routers.notifications.service import create_notification
+
+    await create_notification(
+        db_session,
+        admin.company_id,
+        notif_type="test",
+        title="x",
+        channel="email",
+        recipient_user_id=admin.id,
+    )
+    assert calls == []
+
+
+async def test_no_recipient_does_not_publish_ws(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch
+) -> None:
+    """Notif in-app sans destinataire user (broadcast party) → pas de push perso."""
+    admin, _token = seed_admin
+    calls: list[int] = []
+
+    async def _fake_pub(cid, uid, event) -> None:  # type: ignore[no-untyped-def]
+        calls.append(1)
+
+    monkeypatch.setattr("app.routers.notifications.ws.publish_notification", _fake_pub)
+    from app.routers.notifications.service import create_notification
+
+    await create_notification(db_session, admin.company_id, notif_type="t", title="x")
+    assert calls == []
+
+
+# ── Jeton WS court (ws-ticket) ───────────────────────────────────────────────
+
+
+async def test_ws_ticket_requires_auth(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/notifications/ws-ticket")
+    assert r.status_code in (401, 403)
+
+
+async def test_ws_ticket_returns_token_with_user_claims(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    """Le ticket porte (sub, company_id) du demandeur → un user ne peut ouvrir
+    QUE son propre flux WS (Loi 1 + BOLA)."""
+    admin, token = seed_admin
+    r = await client.get("/api/v1/notifications/ws-ticket", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    ticket = r.json()["data"]["ticket"]
+    from app.core.auth import decode_jwt
+
+    payload = decode_jwt(ticket)
+    assert payload["sub"] == str(admin.id)
+    assert payload["company_id"] == str(admin.company_id)
