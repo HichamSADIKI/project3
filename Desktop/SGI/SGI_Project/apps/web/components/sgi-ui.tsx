@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { useLang, useT } from "@/components/language-provider";
+import type { Translations } from "@/lib/i18n";
 import { useBreakpoint } from "@/lib/hooks";
 import { useNavGate } from "@/lib/permissions";
 
@@ -147,13 +148,13 @@ export type NavKey =
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation"
   | "report" | "parametres";
 
-type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey; section?: string };
-type NavEntry =
+export type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey; section?: string };
+export type NavEntry =
   | ({ type: "item"  } & NavItem)
   | { type: "group"; id: string; groupKey: NavKey; icon: React.ReactElement; badge?: number; children: NavItem[] }
   | { type: "spacer"; id: string };
 
-const NAV_ENTRIES: NavEntry[] = [
+export const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "dash",        icon: <IcDash /> },
   { type: "group", id: "fournisseurs", groupKey: "fournisseurs", icon: <IcDoc />,
     children: [
@@ -293,6 +294,48 @@ const NAV_ENTRIES: NavEntry[] = [
   { type: "item",  key: "parametres",  icon: <IcSettings /> },
 ];
 
+/* ─── Libellés de nav (purs, réutilisés par la Sidebar ET le hub) ────── */
+export function navLabelFor(t: Translations, key: NavKey): string {
+  const map: Record<NavKey, string> = {
+    dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
+    clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
+    realestate: t.nav_realestate, realestate_process: t.nav_re_process,
+    realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing, realestate_website: t.nav_re_website,
+    realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_golden_visa: t.nav_golden_visa, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_inspections: t.nav_inspections, realestate_agenda: t.nav_agenda, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
+    realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
+    appadmin: t.nav_appadmin, appadmin_users: t.nav_appadmin_users, appadmin_audit: t.nav_appadmin_audit, appadmin_alerts: t.nav_appadmin_alerts, appadmin_infra: t.nav_appadmin_infra, appadmin_backups: t.nav_appadmin_backups,
+    admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
+    assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
+    travail: t.nav_travail, callcenter: t.nav_callcenter,
+    tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
+    assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
+    consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
+    callcenter_crm: t.nav_crm,
+    tourisme_news: t.nav_news, sante_news: t.nav_news,
+    assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
+    consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
+    callcenter_news: t.nav_news,
+    erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
+    backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, accounting: t.nav_accounting, bank_recon: t.nav_bank, marketing: t.nav_marketing,
+    fournisseurs: t.nav_fournisseurs,
+    fournisseurs_fiches: t.nav_fournisseurs_fiches,
+    fournisseurs_validation: t.nav_fournisseurs_validation,
+    report: t.nav_report, parametres: t.nav_parametres,
+  };
+  return map[key];
+}
+
+export function navSectionLabelFor(t: Translations, section: string): string {
+  const map: Record<string, string> = {
+    commercial: t.nav_re_sec_commercial,
+    patrimoine: t.nav_re_sec_patrimoine,
+    tiers: t.nav_re_sec_tiers,
+    finance: t.nav_re_sec_finance,
+    support: t.nav_re_sec_support,
+  };
+  return map[section] ?? section;
+}
+
 /* ─── User status ─────────────────────────────────────────────────── */
 type UserStatus = "online" | "available" | "busy" | "away" | "offline";
 
@@ -333,10 +376,16 @@ function useFocusRing() {
 }
 
 /* ─── Sidebar ─────────────────────────────────────────────────────── */
-export function Sidebar({ active, onNavigate, onLogout }: {
+export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", scope = null, onHome, onToggleMode }: {
   active: string;
   onNavigate: (key: string) => void;
   onLogout?: () => void;
+  /** "hub" = sidebar limitée à la rubrique active (fonctions) + retour Accueil. */
+  navMode?: "hub" | "classic";
+  /** id de la rubrique à afficher seule en mode hub (null = item simple). */
+  scope?: string | null;
+  onHome?: () => void;
+  onToggleMode?: () => void;
 }) {
   const t = useT();
   const { lang } = useLang();
@@ -379,47 +428,10 @@ export function Sidebar({ active, onNavigate, onLogout }: {
     }
   }, [active]);
 
-  const navLabel = (key: NavKey): string => {
-    const map: Record<NavKey, string> = {
-      dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
-      clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
-      realestate: t.nav_realestate, realestate_process: t.nav_re_process,
-      realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing, realestate_website: t.nav_re_website,
-      realestate_buildings: t.nav_buildings, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_golden_visa: t.nav_golden_visa, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_inspections: t.nav_inspections, realestate_agenda: t.nav_agenda, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
-      realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
-      appadmin: t.nav_appadmin, appadmin_users: t.nav_appadmin_users, appadmin_audit: t.nav_appadmin_audit, appadmin_alerts: t.nav_appadmin_alerts, appadmin_infra: t.nav_appadmin_infra, appadmin_backups: t.nav_appadmin_backups,
-      admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
-      assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
-      travail: t.nav_travail, callcenter: t.nav_callcenter,
-      tourisme_crm: t.nav_crm,  sante_crm: t.nav_crm,
-      assurance_crm: t.nav_crm,  banques_crm: t.nav_crm,   amazon_crm: t.nav_crm,
-      consultants_crm: t.nav_crm, admin_crm: t.nav_crm,   travail_crm: t.nav_crm,
-      callcenter_crm: t.nav_crm,
-      tourisme_news: t.nav_news, sante_news: t.nav_news,
-      assurance_news: t.nav_news,  banques_news: t.nav_news,  amazon_news: t.nav_news,
-      consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
-      callcenter_news: t.nav_news,
-      erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
-      backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, accounting: t.nav_accounting, bank_recon: t.nav_bank, marketing: t.nav_marketing,
-      fournisseurs: t.nav_fournisseurs,
-      fournisseurs_fiches: t.nav_fournisseurs_fiches,
-      fournisseurs_validation: t.nav_fournisseurs_validation,
-      report: t.nav_report, parametres: t.nav_parametres,
-    };
-    return map[key];
-  };
+  const navLabel = (key: NavKey): string => navLabelFor(t, key);
 
   // Libellé d'un sous-thème (sous-titre interne à la rubrique Immobilier).
-  const navSectionLabel = (section: string): string => {
-    const map: Record<string, string> = {
-      commercial: t.nav_re_sec_commercial,
-      patrimoine: t.nav_re_sec_patrimoine,
-      tiers: t.nav_re_sec_tiers,
-      finance: t.nav_re_sec_finance,
-      support: t.nav_re_sec_support,
-    };
-    return map[section] ?? section;
-  };
+  const navSectionLabel = (section: string): string => navSectionLabelFor(t, section);
 
   // Icône par pôle (5 pôles Immobilier) — repère visuel fort et lisible.
   const navSectionIcon = (section: string): React.ReactElement => {
@@ -694,12 +706,45 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
   function NavContent() {
     const col = collapsed && !isMob;
+    // Mode hub : sidebar limitée à la rubrique active (ses fonctions) ; sinon arbre complet.
+    const scoped = navMode === "hub" && scope != null;
+    const entriesToRender = scoped
+      ? NAV_ENTRIES.filter(e =>
+          (e.type === "group" && e.id === scope) || (e.type === "item" && e.key === scope),
+        )
+      : NAV_ENTRIES;
+    const homeLabel = lang === "ar" ? "الرئيسية" : lang === "fr" ? "Accueil" : "Home";
+    const toggleLabel = navMode === "hub"
+      ? (lang === "ar" ? "القائمة الكلاسيكية" : lang === "fr" ? "Menu classique" : "Classic menu")
+      : (lang === "ar" ? "عرض الواجهة" : lang === "fr" ? "Vue hub" : "Hub view");
     return (
       <>
         <div style={{ padding: col ? "12px 6px" : "14px 10px", display: "flex", flexDirection: "column", gap: 2, flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-          {!col && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
-          {NAV_ENTRIES.map(entry => {
+          {/* Retour Accueil (hub) — ramène au lanceur de rubriques. */}
+          {navMode === "hub" && onHome && (
+            <div
+              role="button"
+              tabIndex={0}
+              data-testid="nav-home"
+              onClick={() => { onHome(); if (isMob) setMobileOpen(false); }}
+              onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { onHome(); if (isMob) setMobileOpen(false); } }}
+              aria-label={homeLabel}
+              title={col ? homeLabel : undefined}
+              style={{
+                display: "flex", alignItems: "center", gap: col ? 0 : 11,
+                padding: col ? "10px 0" : "9px 10px", justifyContent: col ? "center" : undefined,
+                borderRadius: "var(--r)", cursor: "pointer", color: "var(--ink-2)",
+                marginBottom: 4,
+              }}
+            >
+              <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: "var(--gold)", flexShrink: 0 }}><IcGrid /></span>
+              {!col && <span className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: 14, fontWeight: 500 }}>{homeLabel}</span>}
+            </div>
+          )}
+          {!col && navMode !== "hub" && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
+          {entriesToRender.map(entry => {
             if (entry.type === "spacer") {
+              if (scoped) return null;
               return <div key={entry.id} style={{ height: 1, background: "var(--line-soft)", margin: "8px 10px" }} />;
             }
             if (entry.type === "item") {
@@ -716,6 +761,23 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
         {/* User footer */}
         <div style={{ padding: col ? "12px 6px" : 12, borderTop: "1px solid var(--line-soft)", flexShrink: 0 }}>
+          {/* Bascule hub ⇄ menu classique (préférence mémorisée côté shell). */}
+          {!col && onToggleMode && (
+            <button
+              type="button"
+              data-testid="nav-toggle-mode"
+              onClick={onToggleMode}
+              style={{
+                width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                background: "transparent", border: "1px solid var(--line-soft)", borderRadius: "var(--r)",
+                padding: "7px 10px", marginBottom: 8, cursor: "pointer",
+                color: "var(--ink-3)", fontSize: 11.5, fontWeight: 600, font: "inherit",
+              }}
+            >
+              <span style={{ width: 15, height: 15, display: "grid", placeItems: "center", color: "var(--gold)" }}><IcGrid /></span>
+              {toggleLabel}
+            </button>
+          )}
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 8, justifyContent: col ? "center" : undefined }}>
             <div
               onClick={e => { const r = e.currentTarget.getBoundingClientRect(); setStatusBounds(r); setShowStatus(p => !p); }}
