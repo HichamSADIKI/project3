@@ -3,16 +3,16 @@
 Table métier Agenda (RLS Loi 1 — company_id + policy + index) :
 - agenda_events : RDV / visites / tâches / appels, rattachables à client/bien/agent.
 
-Revision ID: 0053_agenda_events
-Revises: 0052_finance_vat_per_transaction
+Revision ID: 0054_agenda_events
+Revises: 0053_infra_remediation_rules
 """
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = "0053_agenda_events"
-down_revision = "0052_finance_vat_per_transaction"
+revision = "0054_agenda_events"
+down_revision = "0053_infra_remediation_rules"
 branch_labels = None
 depends_on = None
 
