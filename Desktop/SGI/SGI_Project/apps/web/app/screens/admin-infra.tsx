@@ -85,6 +85,22 @@ type ActionList = {
   meta: { total: number };
 };
 
+type TrendItem = {
+  key: string;
+  label: string;
+  unit: string;
+  current: number | null;
+  threshold: number;
+  eta_seconds: number | null;
+  trending: boolean;
+};
+
+type TrendList = {
+  success: boolean;
+  data: TrendItem[];
+  meta: { available: boolean };
+};
+
 const ACTIONS: ServerAction[] = ["restart", "stop", "start", "suspend"];
 
 const TR: Record<Lang, Record<string, string>> = {
@@ -104,6 +120,12 @@ const TR: Record<Lang, Record<string, string>> = {
     emptyServers: "Aucun service supervisé",
     alerts: "Alertes infra (Prometheus)",
     alertsEmpty: "Aucune alerte active",
+    trend: "Prévisions de tendance",
+    trendStable: "Stable",
+    trendReach: "seuil atteint dans",
+    unitDay: "j",
+    unitHour: "h",
+    threshold: "Seuil",
     firing: "Active",
     pending: "En attente",
     act_restart: "Redémarrer",
@@ -142,6 +164,12 @@ const TR: Record<Lang, Record<string, string>> = {
     emptyServers: "No monitored services",
     alerts: "Infra alerts (Prometheus)",
     alertsEmpty: "No active alerts",
+    trend: "Trend forecast",
+    trendStable: "Stable",
+    trendReach: "threshold reached in",
+    unitDay: "d",
+    unitHour: "h",
+    threshold: "Threshold",
     firing: "Firing",
     pending: "Pending",
     act_restart: "Restart",
@@ -180,6 +208,12 @@ const TR: Record<Lang, Record<string, string>> = {
     emptyServers: "لا توجد خدمات مراقَبة",
     alerts: "تنبيهات البنية (Prometheus)",
     alertsEmpty: "لا توجد تنبيهات نشطة",
+    trend: "توقعات الاتجاه",
+    trendStable: "مستقر",
+    trendReach: "تُبلغ العتبة خلال",
+    unitDay: "ي",
+    unitHour: "س",
+    threshold: "العتبة",
     firing: "نشط",
     pending: "قيد الانتظار",
     act_restart: "إعادة التشغيل",
@@ -266,6 +300,7 @@ export function ScreenAppAdminInfra(): React.ReactNode {
   const [network, setNetwork] = useState<Network | null>(null);
   const [alerts, setAlerts] = useState<AlertList | null>(null);
   const [history, setHistory] = useState<ActionList | null>(null);
+  const [trend, setTrend] = useState<TrendList | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
 
@@ -288,9 +323,11 @@ export function ScreenAppAdminInfra(): React.ReactNode {
       getJson<Network>("/api/admin/platform/network"),
       getJson<AlertList>("/api/admin/platform/alerts"),
       getJson<ActionList>("/api/admin/platform/actions?limit=10"),
+      getJson<TrendList>("/api/admin/platform/trend"),
     ])
-      .then(([srv, net, alr, act]) => {
+      .then(([srv, net, alr, act, trd]) => {
         if (!alive) return;
+        setTrend(trd);
         setServers(srv);
         setNetwork(net);
         setAlerts(alr);
@@ -464,6 +501,63 @@ export function ScreenAppAdminInfra(): React.ReactNode {
                 fmtInt(network?.data.active_connections ?? null),
               )}
             </div>
+
+            {/* Prévisions de tendance (B3) */}
+            {trend && trend.data.length > 0 && (
+              <div style={card}>
+                <div
+                  className="font-display"
+                  style={{ fontSize: 14, fontWeight: 600, marginBlockEnd: 12 }}
+                >
+                  {L("trend")}
+                </div>
+                {trend.data.map((t) => {
+                  const eta =
+                    t.eta_seconds == null
+                      ? L("trendStable")
+                      : t.eta_seconds >= 86400
+                        ? `${L("trendReach")} ~${Math.round(t.eta_seconds / 86400)} ${L("unitDay")}`
+                        : `${L("trendReach")} ~${Math.round(t.eta_seconds / 3600)} ${L("unitHour")}`;
+                  return (
+                    <div
+                      key={t.key}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        padding: "10px 0",
+                        borderBottom: "1px solid var(--line-soft)",
+                        fontSize: 12.5,
+                      }}
+                    >
+                      <div style={{ textAlign: "start" }}>
+                        <span style={{ fontWeight: 600, color: "var(--ink)" }}>
+                          {t.label}
+                        </span>{" "}
+                        <span style={{ color: "var(--ink-4)" }}>
+                          {t.current != null
+                            ? `${t.current.toFixed(1)}${t.unit}`
+                            : "—"}{" "}
+                          / {t.threshold}
+                          {t.unit} ({L("threshold")})
+                        </span>
+                      </div>
+                      <span
+                        style={{
+                          fontWeight: 600,
+                          color: t.trending
+                            ? "var(--gold-deep)"
+                            : "var(--ink-4)",
+                        }}
+                      >
+                        {eta}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Alertes infra Prometheus (B2) */}
             <div style={card}>
