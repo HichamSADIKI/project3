@@ -17,6 +17,7 @@ from app.models.bank import BankAccount, BankStatementLine
 from app.models.finance import FinanceTransaction
 from app.routers.bank.schemas import (
     BankAccountCreate,
+    ImportLineRow,
     MatchSuggestion,
     ReconSummary,
     StatementLineCreate,
@@ -306,3 +307,61 @@ async def reconciliation_summary(
         reconciled_amount=amounts["reconciled"],
         unreconciled_amount=amounts["unreconciled"],
     )
+
+
+# ── Import CSV + auto-rapprochement ──────────────────────────────────────────
+
+
+async def import_statement_lines(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    bank_account_id: uuid.UUID,
+    rows: list[ImportLineRow],
+) -> int:
+    """Crée en masse des lignes de relevé (import CSV). Ignore les montants nuls.
+
+    Retourne le nombre de lignes créées. Lève si le compte n'est pas du tenant."""
+    account = await get_bank_account(db, company_id, bank_account_id)
+    if account is None:
+        raise BankError("bank_account_not_found")
+    created = 0
+    for row in rows:
+        if row.amount == _ZERO:
+            continue
+        db.add(
+            BankStatementLine(
+                company_id=company_id,
+                bank_account_id=bank_account_id,
+                value_date=row.value_date,
+                label=row.label,
+                amount=row.amount,
+                status="unreconciled",
+            )
+        )
+        created += 1
+    await db.commit()
+    return created
+
+
+async def auto_match(db: AsyncSession, company_id: uuid.UUID, bank_account_id: uuid.UUID) -> int:
+    """Rapproche automatiquement les lignes non rapprochées ayant EXACTEMENT une
+    suggestion. Retourne le nombre de rapprochements effectués.
+
+    Re-fetch chaque ligne (évite les objets expirés après commit du match précédent)."""
+    account = await get_bank_account(db, company_id, bank_account_id)
+    if account is None:
+        raise BankError("bank_account_not_found")
+    lines, _ = await list_statement_lines(
+        db, company_id, bank_account_id=bank_account_id, status="unreconciled", limit=1000
+    )
+    line_ids = [line.id for line in lines]
+    matched = 0
+    for line_id in line_ids:
+        line = await get_statement_line(db, company_id, line_id)
+        if line is None or line.status != "unreconciled":
+            continue
+        suggestions = await suggest_matches(db, company_id, line)
+        if len(suggestions) == 1:
+            await match_line(db, company_id, line_id, suggestions[0].transaction_id)
+            matched += 1
+    return matched

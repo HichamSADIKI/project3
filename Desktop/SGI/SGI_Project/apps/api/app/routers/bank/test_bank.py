@@ -214,3 +214,85 @@ async def test_statement_line_cross_tenant_returns_none(db_session, seed_company
         ),
     )
     assert await get_statement_line(db_session, other.id, line.id) is None
+
+
+# ── Import CSV + auto-rapprochement ──────────────────────────────────────────
+
+
+async def test_import_statement_lines_skips_zero(db_session, seed_company: Company) -> None:
+    from app.routers.bank.schemas import ImportLineRow
+    from app.routers.bank.service import import_statement_lines, list_statement_lines
+
+    acc = await _account(db_session, seed_company.id)
+    created = await import_statement_lines(
+        db_session,
+        seed_company.id,
+        acc.id,
+        [
+            ImportLineRow(value_date=date(2026, 6, 1), label="a", amount=Decimal("100")),
+            ImportLineRow(value_date=date(2026, 6, 2), label="zero", amount=Decimal("0")),
+            ImportLineRow(value_date=date(2026, 6, 3), label="b", amount=Decimal("-50")),
+        ],
+    )
+    assert created == 2  # la ligne à 0 est ignorée
+    lines, total = await list_statement_lines(db_session, seed_company.id, bank_account_id=acc.id)
+    assert total == 2
+
+
+async def test_import_rejects_unknown_account(db_session, seed_company: Company) -> None:
+    from app.routers.bank.schemas import ImportLineRow
+    from app.routers.bank.service import import_statement_lines
+
+    with pytest.raises(BankError) as exc:
+        await import_statement_lines(
+            db_session,
+            seed_company.id,
+            uuid.uuid4(),
+            [ImportLineRow(value_date=date(2026, 6, 1), label="a", amount=Decimal("100"))],
+        )
+    assert exc.value.code == "bank_account_not_found"
+
+
+async def test_auto_match_unique_suggestions(db_session, seed_company: Company) -> None:
+    from app.routers.bank.schemas import ImportLineRow
+    from app.routers.bank.service import (
+        auto_match,
+        import_statement_lines,
+        reconciliation_summary,
+    )
+
+    acc = await _account(db_session, seed_company.id)
+    await _txn(db_session, seed_company.id, amount="100", direction="credit")
+    await _txn(db_session, seed_company.id, amount="200", direction="credit")
+    await import_statement_lines(
+        db_session,
+        seed_company.id,
+        acc.id,
+        [
+            ImportLineRow(value_date=date(2026, 6, 5), label="a", amount=Decimal("100")),
+            ImportLineRow(value_date=date(2026, 6, 5), label="b", amount=Decimal("200")),
+        ],
+    )
+    matched = await auto_match(db_session, seed_company.id, acc.id)
+    assert matched == 2
+    summary = await reconciliation_summary(db_session, seed_company.id, acc.id)
+    assert summary.reconciled_count == 2
+    assert summary.unreconciled_count == 0
+
+
+async def test_auto_match_skips_ambiguous(db_session, seed_company: Company) -> None:
+    from app.routers.bank.schemas import ImportLineRow
+    from app.routers.bank.service import auto_match, import_statement_lines
+
+    acc = await _account(db_session, seed_company.id)
+    # 2 transactions identiques (100 credit) → 2 suggestions → ambigu, non rapproché.
+    await _txn(db_session, seed_company.id, amount="100", direction="credit")
+    await _txn(db_session, seed_company.id, amount="100", direction="credit")
+    await import_statement_lines(
+        db_session,
+        seed_company.id,
+        acc.id,
+        [ImportLineRow(value_date=date(2026, 6, 5), label="a", amount=Decimal("100"))],
+    )
+    matched = await auto_match(db_session, seed_company.id, acc.id)
+    assert matched == 0  # 2 suggestions → ne tranche pas
