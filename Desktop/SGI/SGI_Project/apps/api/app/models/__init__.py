@@ -10,6 +10,7 @@ from app.models.admin import (
     AlertRule,
     BackupRun,
     InfraAction,
+    InfraRemediationRule,
     InfraService,
 )
 from app.models.audit_log import AuditLog
@@ -94,6 +95,7 @@ __all__ = [
     "AlertEvent",
     "InfraService",
     "InfraAction",
+    "InfraRemediationRule",
     "BackupRun",
     "DeviceToken",
 ]

@@ -20,12 +20,12 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.models.admin import InfraAction, InfraService
+from app.models.admin import InfraAction, InfraRemediationRule, InfraService
 from app.routers.admin.deps import require_platform_admin
 from app.routers.admin.prometheus import (
     PrometheusUnavailableError,
@@ -455,3 +455,100 @@ async def trend_endpoint(
     except PrometheusUnavailableError:
         return TrendOut(data=[], meta={"available": False})
     return TrendOut(data=items, meta={"available": True})
+
+
+# ── Règles d'auto-remédiation (alerte Prometheus → action D2) ──────────────────
+
+
+class RemediationRuleCreate(BaseModel):
+    alert_name: str = Field(min_length=1, max_length=160)
+    service_id: uuid.UUID
+    action: ActionLiteral  # restart|stop|start|suspend (réutilise la whitelist D1)
+    is_active: bool = True
+
+
+class RemediationRuleOut(BaseModel):
+    id: uuid.UUID
+    alert_name: str
+    service_id: uuid.UUID
+    action: str
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RemediationListOut(BaseModel):
+    success: bool = True
+    data: list[RemediationRuleOut]
+    meta: dict[str, Any]
+
+
+class RemediationDetailOut(BaseModel):
+    success: bool = True
+    data: RemediationRuleOut
+
+
+@infra_router.get("/remediation-rules", response_model=RemediationListOut)
+async def list_remediation_rules(
+    db: AsyncSession = Depends(get_db),
+) -> RemediationListOut:
+    """Liste les règles d'auto-remédiation (plateforme, cross-tenant)."""
+    rows = (
+        (await db.execute(select(InfraRemediationRule).order_by(InfraRemediationRule.alert_name)))
+        .scalars()
+        .all()
+    )
+    return RemediationListOut(
+        data=[RemediationRuleOut.model_validate(r) for r in rows], meta={"total": len(rows)}
+    )
+
+
+@infra_router.post(
+    "/remediation-rules",
+    response_model=RemediationDetailOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_remediation_rule(
+    body: RemediationRuleCreate,
+    db: AsyncSession = Depends(get_db),
+) -> RemediationDetailOut:
+    """Crée une règle. Le service cible doit exister ET être `is_controllable`."""
+    svc = (
+        await db.execute(
+            select(InfraService).where(
+                InfraService.id == body.service_id, InfraService.deleted_at.is_(None)
+            )
+        )
+    ).scalar_one_or_none()
+    if svc is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="service_not_found")
+    if not svc.is_controllable:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="service_not_controllable")
+    rule = InfraRemediationRule(
+        alert_name=body.alert_name,
+        service_id=body.service_id,
+        action=body.action,
+        is_active=body.is_active,
+    )
+    db.add(rule)
+    await db.commit()
+    await db.refresh(rule)
+    return RemediationDetailOut(data=RemediationRuleOut.model_validate(rule))
+
+
+@infra_router.delete(
+    "/remediation-rules/{rule_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_remediation_rule(
+    rule_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    rule = (
+        await db.execute(select(InfraRemediationRule).where(InfraRemediationRule.id == rule_id))
+    ).scalar_one_or_none()
+    if rule is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="rule_not_found")
+    await db.delete(rule)
+    await db.commit()
