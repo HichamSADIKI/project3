@@ -24,6 +24,8 @@ from app.routers.rentals.service import (
     get_expiring_rentals,
     get_rental,
     list_rentals,
+    rent_roll_summary,
+    summarize_rent_roll,
     update_rental,
 )
 
@@ -241,3 +243,63 @@ async def test_soft_deleted_excluded_from_list(db_session, seed_company: Company
     assert await get_rental(db_session, seed_company.id, r.id) is None
     _, total = await list_rentals(db_session, seed_company.id)
     assert total == 0
+
+
+# ── Rent roll (pur + service) ────────────────────────────────────────────────
+
+from types import SimpleNamespace  # noqa: E402
+
+
+def _r(status: str, monthly: str, annual: str):
+    return SimpleNamespace(
+        status=status, monthly_rent=Decimal(monthly), annual_rent=Decimal(annual)
+    )
+
+
+class TestSummarizeRentRoll:
+    def test_empty(self) -> None:
+        s = summarize_rent_roll([])
+        assert s["total_count"] == 0
+        assert s["active_count"] == 0
+        assert s["monthly_rent_aed"] == Decimal("0.00")
+
+    def test_only_active_counted_in_rent(self) -> None:
+        rentals = [
+            _r("active", "5000", "60000"),
+            _r("active", "3000", "36000"),
+            _r("expired", "9999", "119988"),  # exclu du rent roll
+        ]
+        s = summarize_rent_roll(rentals)
+        assert s["total_count"] == 3
+        assert s["active_count"] == 2
+        assert s["monthly_rent_aed"] == Decimal("8000")
+        assert s["annual_rent_aed"] == Decimal("96000")
+        assert s["by_status"] == {"active": 2, "expired": 1}
+
+
+@pytest.mark.asyncio
+async def test_rent_roll_summary_service(db_session, seed_company: Company) -> None:
+    cid_, client_id, prop_id = await _seed_chain(db_session, seed_company)
+    r1 = await create_rental(
+        db_session,
+        seed_company.id,
+        _rental_create(cid_, client_id, prop_id, monthly_rent=Decimal("5000")),
+    )
+    assert r1.status == "active"
+    s = await rent_roll_summary(db_session, seed_company.id)
+    assert s["active_count"] >= 1
+    assert s["monthly_rent_aed"] >= Decimal("5000")
+
+
+@pytest.mark.asyncio
+async def test_rent_roll_summary_tenant_isolation(db_session, seed_company: Company) -> None:
+    cid_, client_id, prop_id = await _seed_chain(db_session, seed_company)
+    await create_rental(db_session, seed_company.id, _rental_create(cid_, client_id, prop_id))
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await rent_roll_summary(db_session, other.id)
+    assert s["total_count"] == 0
+    assert s["monthly_rent_aed"] == Decimal("0.00")
