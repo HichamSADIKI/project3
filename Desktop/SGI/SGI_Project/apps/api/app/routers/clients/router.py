@@ -1,8 +1,10 @@
 """Router FastAPI — Clients."""
 
+import csv
+import io
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
@@ -69,6 +71,69 @@ async def list_clients_endpoint(
     return ClientListOut(
         data=[ClientOut.model_validate(c) for c in clients],
         meta={"total": total, "page": page, "limit": limit},
+    )
+
+
+# ⚠️ Doit être déclaré AVANT `/{client_id}` (sinon "export.csv" est parsé en UUID → 422).
+_EXPORT_COLUMNS = (
+    "id",
+    "type",
+    "first_name",
+    "last_name",
+    "company_name",
+    "email",
+    "phone",
+    "phone2",
+    "nationality",
+    "country_of_residence",
+    "source",
+    "budget_min",
+    "budget_max",
+    "preferred_property_type",
+    "preferred_location",
+)
+_EXPORT_MAX = 10000
+
+# Caractères qui déclenchent une formule à l'ouverture du CSV dans un tableur.
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _csv_safe(value: object) -> str:
+    """Neutralise l'injection de formule CSV (OWASP) : préfixe d'une apostrophe les
+    cellules commençant par =/+/-/@/TAB/CR (champs contrôlés par l'utilisateur :
+    noms, notes…). Empêche l'exécution dans Excel/Sheets."""
+    s = "" if value is None else str(value)
+    return "'" + s if s[:1] in _CSV_FORMULA_PREFIXES else s
+
+
+@router.get(
+    "/export.csv",
+    dependencies=[Depends(_require_roles("admin", "manager"))],
+)
+async def export_clients_csv(
+    request: Request,
+    type: str | None = Query(None, alias="type", pattern="^(individual|company)$"),
+    q: str | None = Query(None, description="Recherche fulltext"),
+    db: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Export CSV des clients du tenant (Loi 1 : scoping `company_id` via le service).
+
+    Synchrone (stdlib `csv`) : convient au volume courant (plafonné à `_EXPORT_MAX`).
+    Au-delà, basculer sur un export asynchrone (tâche `export_clients_xlsx`, stub).
+    """
+    company_id = _get_company_id(request)
+    clients, _ = await list_clients(db, company_id, 1, _EXPORT_MAX, type, q)
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_EXPORT_COLUMNS)
+    for c in clients:
+        writer.writerow([_csv_safe(getattr(c, col, "")) for col in _EXPORT_COLUMNS])
+
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="clients.csv"'},
     )
 
 

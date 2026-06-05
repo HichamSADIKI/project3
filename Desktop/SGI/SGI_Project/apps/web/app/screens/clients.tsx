@@ -38,6 +38,20 @@ export function ScreenClients({ onNavigate }: { onNavigate?: (k: string) => void
 
       <div style={{ flex: 1, overflowY: "auto", padding: isMob ? "16px 12px" : "28px 32px", background: "var(--bg-cream)" }}>
 
+        {/* Export CSV (tous les clients du tenant) */}
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+          <a
+            href="/api/admin/clients/export"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px",
+              borderRadius: "var(--r)", border: "1px solid var(--line)", background: "var(--bg-paper)",
+              color: "var(--ink-2)", fontSize: 13, fontWeight: 600, textDecoration: "none",
+            }}
+          >
+            ⤓ {lang === "ar" ? "تصدير CSV" : lang === "fr" ? "Exporter (CSV)" : "Export (CSV)"}
+          </a>
+        </div>
+
         {/* KPI row */}
         <div style={{ display: "grid", gridTemplateColumns: isMob ? "repeat(2,1fr)" : "repeat(4,1fr)", gap: 14, marginBottom: 28 }}>
           {KPIS.map(k => (
