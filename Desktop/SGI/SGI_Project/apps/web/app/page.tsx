@@ -60,6 +60,10 @@ import { ScreenSectorNews } from "./screens/sector-news";
 import { ScreenFournisseurValidation } from "./screens/fournisseur-validation";
 import { ScreenFournisseurs } from "./screens/fournisseurs";
 import { ScreenFournisseursFiches } from "./screens/fournisseurs-fiches";
+import { ScreenAppAdminUsers } from "./screens/admin-users";
+import { ScreenAppAdminAudit } from "./screens/admin-audit";
+import { ScreenAppAdminInfra } from "./screens/admin-infra";
+import { ScreenAppAdminBackups } from "./screens/admin-backups";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
 import { SoftphoneProvider } from "@/components/softphone/softphone-provider";
@@ -78,6 +82,7 @@ type ScreenKey =
   | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
+  | "appadmin_users" | "appadmin_audit" | "appadmin_infra" | "appadmin_backups"
   | "finance" | "accounting" | "marketing" | "report" | "parametres"
   | "clients" | "personne" | "societe"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
@@ -169,6 +174,12 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "marketing":  (_)  => <ScreenMarketing />,
   "report":     (_)  => <ScreenReports />,
   "parametres": (_)  => <ScreenParametres />,
+
+  // Administration application (console admin · supervision plateforme)
+  "appadmin_users":   (_) => <ScreenAppAdminUsers />,
+  "appadmin_audit":   (_) => <ScreenAppAdminAudit />,
+  "appadmin_infra":   (_) => <ScreenAppAdminInfra />,
+  "appadmin_backups": (_) => <ScreenAppAdminBackups />,
 
   // Fournisseurs (catégorie placée avant Clients)
   "fournisseurs":            (p) => <ScreenFournisseurs onNavigate={p.onNavigate} />,

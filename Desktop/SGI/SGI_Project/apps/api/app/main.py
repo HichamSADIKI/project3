@@ -14,6 +14,7 @@ from app.middleware.tenant import TenantMiddleware
 from app.routers import (
     accounting,
     acquisitions,
+    admin,
     ai_services,
     auth,
     buildings,
@@ -129,6 +130,11 @@ TAGS_METADATA = [
     {"name": "payments", "description": "Demandes de paiement & transactions."},
     {"name": "finance", "description": "Finance & comptabilité."},
     {"name": "accounting", "description": "Plan comptable + grand-livre (double entrée)."},
+    {"name": "admin", "description": "Console admin : users/permissions, audit, supervision."},
+    {
+        "name": "admin-platform",
+        "description": "Infra-admin PLATEFORME (cross-tenant) : serveurs, réseau, backups.",
+    },
     {"name": "maintenance", "description": "Tickets, devis, plans préventifs."},
     {"name": "inspections", "description": "États des lieux (check-in/out)."},
     {"name": "workflows", "description": "Moteur de workflows générique."},
@@ -180,6 +186,7 @@ app.include_router(golden_visa, prefix="/api/v1")
 app.include_router(rentals, prefix="/api/v1")
 app.include_router(finance, prefix="/api/v1")
 app.include_router(accounting, prefix="/api/v1")
+app.include_router(admin, prefix="/api/v1")
 app.include_router(reporting, prefix="/api/v1")
 app.include_router(scraping, prefix="/api/v1")
 

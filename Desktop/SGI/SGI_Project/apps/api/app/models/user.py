@@ -48,6 +48,12 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
         String(20), nullable=False, default=UserStatus.ACTIVE.value, index=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Super-admin PLATEFORME (cross-tenant) : accès infra-admin (serveurs, réseau,
+    # backups). Hors périmètre Loi 1. Défaut false → aucun accès infra sans grant
+    # explicite. Vérifié par `require_platform_admin` (lecture DB, pas dans le JWT).
+    is_platform_admin: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
     preferred_language: Mapped[str] = mapped_column(
         String(2), nullable=False, default="en", server_default="en"
     )

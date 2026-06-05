@@ -5,6 +5,13 @@ lors de la génération des migrations (autogenerate).
 """
 
 from app.models.accounting import ChartAccount, JournalEntry, JournalLine
+from app.models.admin import (
+    AlertEvent,
+    AlertRule,
+    BackupRun,
+    InfraAction,
+    InfraService,
+)
 from app.models.audit_log import AuditLog
 from app.models.base import Base
 from app.models.branch import Branch
@@ -79,4 +86,9 @@ __all__ = [
     "ChartAccount",
     "JournalEntry",
     "JournalLine",
+    "AlertRule",
+    "AlertEvent",
+    "InfraService",
+    "InfraAction",
+    "BackupRun",
 ]
