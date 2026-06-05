@@ -26,6 +26,7 @@ from app.routers.admin.infra import (
     _live_state_from_value,
     control_enabled,
     map_prometheus_alert,
+    project_seconds_to_threshold,
 )
 from app.routers.admin.prometheus import PrometheusUnavailableError
 
@@ -454,3 +455,72 @@ async def test_action_enqueues_when_enabled(
     data = resp.json()["data"]
     assert data["status"] == "requested"
     assert enqueued == [data["id"]]
+
+
+# ── /trend — prédiction de tendance (B3) ───────────────────────────────────────
+
+
+def test_project_increasing_reaches_threshold() -> None:
+    # 10 → 30 sur 600 s (pente 1/30 par s) ; pour atteindre 90 depuis 30 : ~1800 s.
+    points = [(0.0, 10.0), (300.0, 20.0), (600.0, 30.0)]
+    eta = project_seconds_to_threshold(points, 90.0)
+    assert eta is not None
+    assert 1700 < eta < 1900
+
+
+def test_project_flat_or_decreasing_is_none() -> None:
+    assert project_seconds_to_threshold([(0.0, 50.0), (300.0, 50.0)], 90.0) is None
+    assert project_seconds_to_threshold([(0.0, 80.0), (300.0, 60.0)], 90.0) is None
+
+
+def test_project_already_over_or_too_few_is_none() -> None:
+    assert project_seconds_to_threshold([(0.0, 95.0), (300.0, 96.0)], 90.0) is None
+    assert project_seconds_to_threshold([(0.0, 10.0)], 90.0) is None
+
+
+@pytest.mark.asyncio
+async def test_trend_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    assert (await client.get("/api/v1/admin/platform/trend")).status_code == 401
+    _a, token = seed_admin
+    resp = await client.get("/api/v1/admin/platform/trend", headers={AUTH: f"Bearer {token}"})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_trend_projects(client: AsyncClient, seed_platform_admin, monkeypatch) -> None:
+    _a, token = seed_platform_admin
+
+    async def fake_range(
+        expr: str, *, start: float, end: float, step: float = 300.0, timeout: float = 5.0
+    ) -> list[tuple[float, float]]:
+        return [(0.0, 50.0), (300.0, 60.0), (600.0, 70.0)]  # tendance haussière
+
+    monkeypatch.setattr(infra_module, "range_query", fake_range)
+    resp = await client.get("/api/v1/admin/platform/trend", headers={AUTH: f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["available"] is True
+    assert len(body["data"]) >= 1
+    item = body["data"][0]
+    assert item["current"] == 70.0
+    assert item["trending"] is True
+    assert item["eta_seconds"] > 0
+
+
+@pytest.mark.asyncio
+async def test_trend_unavailable_degrades(
+    client: AsyncClient, seed_platform_admin, monkeypatch
+) -> None:
+    _a, token = seed_platform_admin
+
+    async def boom(
+        expr: str, *, start: float, end: float, step: float = 300.0, timeout: float = 5.0
+    ) -> list[tuple[float, float]]:
+        raise PrometheusUnavailableError("unreachable")
+
+    monkeypatch.setattr(infra_module, "range_query", boom)
+    resp = await client.get("/api/v1/admin/platform/trend", headers={AUTH: f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["available"] is False
+    assert body["data"] == []

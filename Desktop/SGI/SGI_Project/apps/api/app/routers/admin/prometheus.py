@@ -79,3 +79,39 @@ async def active_alerts(*, timeout: float = 3.0) -> list[dict[str, Any]]:
         raise PrometheusUnavailableError(payload.get("error", "prometheus_alerts_failed"))
     alerts = payload.get("data", {}).get("alerts", [])
     return alerts if isinstance(alerts, list) else []
+
+
+async def range_query(
+    expr: str, *, start: float, end: float, step: float = 300.0, timeout: float = 5.0
+) -> list[tuple[float, float]]:
+    """Série temporelle d'une métrique (`/api/v1/query_range`) → liste (ts, valeur).
+
+    Pour la prédiction de tendance (B3). Renvoie [] si aucune série. Lève
+    `PrometheusUnavailableError` si Prometheus injoignable — à rattraper côté routeur.
+    """
+    base = prometheus_url()
+    if not base:
+        raise PrometheusUnavailableError("prometheus_not_configured")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as http:
+            resp = await http.get(
+                f"{base}/api/v1/query_range",
+                params={"query": expr, "start": start, "end": end, "step": step},
+            )
+            resp.raise_for_status()
+            payload = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise PrometheusUnavailableError(str(exc)) from exc
+
+    if payload.get("status") != "success":
+        raise PrometheusUnavailableError(payload.get("error", "prometheus_range_failed"))
+    result = payload.get("data", {}).get("result", [])
+    if not result:
+        return []
+    points: list[tuple[float, float]] = []
+    for pair in result[0].get("values", []):
+        try:
+            points.append((float(pair[0]), float(pair[1])))
+        except (ValueError, TypeError, IndexError):
+            continue
+    return points

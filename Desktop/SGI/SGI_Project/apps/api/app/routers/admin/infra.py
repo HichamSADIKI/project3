@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -31,6 +31,7 @@ from app.routers.admin.prometheus import (
     PrometheusUnavailableError,
     active_alerts,
     instant_query,
+    range_query,
 )
 from app.tasks.infra_control import execute_infra_action
 
@@ -350,3 +351,107 @@ async def list_actions(
         data=[InfraActionOut.model_validate(a) for a in rows],
         meta={"total": total, "page": page, "limit": limit},
     )
+
+
+# ── Prédiction de tendance (B3 — projection linéaire sur Prometheus) ────────────
+
+# Métriques projetées : (clé, label, PromQL, seuil, unité).
+_TREND_METRICS: tuple[tuple[str, str, str, float, str], ...] = (
+    (
+        "disk",
+        "Disque /",
+        '100 * (1 - sum(node_filesystem_avail_bytes{fstype!="tmpfs"}) '
+        '/ sum(node_filesystem_size_bytes{fstype!="tmpfs"}))',
+        90.0,
+        "%",
+    ),
+    (
+        "memory",
+        "Mémoire",
+        "100 * (1 - sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))",
+        90.0,
+        "%",
+    ),
+)
+_TREND_WINDOW_SECONDS = 6 * 3600
+_TREND_STEP_SECONDS = 300.0
+
+
+def project_seconds_to_threshold(
+    points: list[tuple[float, float]], threshold: float
+) -> float | None:
+    """Secondes avant d'atteindre `threshold` par régression linéaire (helper PUR).
+
+    None si < 2 points, pente <= 0 (pas de tendance haussière), déjà au-dessus du
+    seuil, ou croisement dans le passé. Moindres carrés sur (ts, valeur).
+    """
+    if len(points) < 2:
+        return None
+    n = len(points)
+    sx = sum(ts for ts, _ in points)
+    sy = sum(v for _, v in points)
+    sxx = sum(ts * ts for ts, _ in points)
+    sxy = sum(ts * v for ts, v in points)
+    denom = n * sxx - sx * sx
+    if denom == 0:
+        return None
+    slope = (n * sxy - sx * sy) * 1.0 / denom
+    intercept = (sy - slope * sx) / n
+    if slope <= 0:
+        return None
+    last_ts, last_val = points[-1]
+    if last_val >= threshold:
+        return None
+    cross_ts = (threshold - intercept) / slope
+    eta = cross_ts - last_ts
+    return eta if eta > 0 else None
+
+
+class TrendItem(BaseModel):
+    key: str
+    label: str
+    unit: str
+    current: float | None = None
+    threshold: float
+    eta_seconds: float | None = None  # None = pas de tendance vers le seuil
+    trending: bool = False
+
+
+class TrendOut(BaseModel):
+    success: bool = True
+    data: list[TrendItem]
+    meta: dict[str, Any]
+
+
+@infra_router.get("/trend", response_model=TrendOut)
+async def trend_endpoint(
+    db: AsyncSession = Depends(get_db),
+) -> TrendOut:
+    """Projection de tendance des ressources (« seuil atteint dans ~X »).
+
+    Cross-tenant (PLATEFORME). Lecture seule : range-queries Prometheus + projection
+    linéaire pure. Dégradation propre si Prometheus injoignable → data vide +
+    `meta.available=false` (jamais 500). `db` injectée pour homogénéité de la garde.
+    """
+    now = datetime.now(UTC).timestamp()
+    start = now - _TREND_WINDOW_SECONDS
+    items: list[TrendItem] = []
+    try:
+        for key, label, expr, threshold, unit in _TREND_METRICS:
+            points = await range_query(expr, start=start, end=now, step=_TREND_STEP_SECONDS)
+            current = points[-1][1] if points else None
+            eta = project_seconds_to_threshold(points, threshold)
+            items.append(
+                TrendItem(
+                    key=key,
+                    label=label,
+                    unit=unit,
+                    current=current,
+                    threshold=threshold,
+                    eta_seconds=eta,
+                    trending=eta is not None,
+                )
+            )
+    except PrometheusUnavailableError:
+        return TrendOut(data=[], meta={"available": False})
+    return TrendOut(data=items, meta={"available": True})
