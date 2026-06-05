@@ -919,18 +919,6 @@ export function Sidebar({ active, onNavigate, onLogout }: {
 
 /* ─── Notifications data ──────────────────────────────────────────── */
 type NotifType = "lead" | "contract" | "payment" | "visa" | "reminder" | "alert";
-type Notif = { id: number; type: NotifType; title_en: string; title_ar: string; title_fr: string; body_en: string; body_ar: string; body_fr: string; time: string; read: boolean };
-
-const NOTIF_INIT: Notif[] = [
-  { id: 1,  type: "lead",     title_en: "New qualified lead",          title_ar: "عميل محتمل جديد",          title_fr: "Nouveau lead qualifié",          body_en: "Khalid Al-Rashid — AED 4.2M · Palm Jumeirah villa",      body_ar: "خالد الراشد — 4.2M د.إ · فيلا نخلة جميرا",           body_fr: "Khalid Al-Rashid — AED 4,2M · Villa Palm Jumeirah",      time: "2 min",   read: false },
-  { id: 2,  type: "contract", title_en: "Contract signed",             title_ar: "عقد موقّع",                 title_fr: "Contrat signé",                  body_en: "SPA #2026-0441 — Reem Al Hashemi · AED 11.2M",           body_ar: "عقد SPA #2026-0441 — ريم الهاشمي · 11.2M د.إ",        body_fr: "SPA #2026-0441 — Reem Al Hashemi · AED 11,2M",           time: "14 min",  read: false },
-  { id: 3,  type: "payment",  title_en: "Payment received",            title_ar: "تم استلام الدفعة",          title_fr: "Paiement reçu",                  body_en: "AED 246,000 — Commission Q1 · INV-2026-041",             body_ar: "246,000 د.إ — عمولة الربع الأول",                      body_fr: "AED 246 000 — Commission T1 · FAC-2026-041",             time: "1 h",     read: false },
-  { id: 4,  type: "visa",     title_en: "Golden Visa expiring soon",   title_ar: "الإقامة الذهبية تنتهي قريبًا", title_fr: "Visa Doré bientôt expiré",    body_en: "Abdullah Al-Rashid — expires in 28 days",                body_ar: "عبدالله الراشد — تنتهي خلال 28 يومًا",                 body_fr: "Abdullah Al-Rashid — expire dans 28 jours",              time: "3 h",     read: false },
-  { id: 5,  type: "reminder", title_en: "Property visit scheduled",    title_ar: "زيارة عقارية مجدولة",       title_fr: "Visite planifiée",               body_en: "Tomorrow 10:00 — Marina Gate T3 · Sophie Martin",        body_ar: "غداً 10:00 — بوابة المارينا T3 · سوفي مارتان",        body_fr: "Demain 10h — Marina Gate T3 · Sophie Martin",            time: "5 h",     read: true  },
-  { id: 6,  type: "alert",    title_en: "Document expired",            title_ar: "وثيقة منتهية الصلاحية",     title_fr: "Document expiré",                body_en: "Trade License — Al Maktoum Holding · renewal required",  body_ar: "رخصة تجارية — المكتوم هولدينج · مطلوب التجديد",       body_fr: "Licence commerciale — Al Maktoum Holding · renouveler", time: "1 j",     read: true  },
-  { id: 7,  type: "lead",     title_en: "Lead assigned to you",        title_ar: "تم تعيين عميل لك",           title_fr: "Lead assigné",                   body_en: "Priya Sharma — AED 3.2M · Downtown Dubai",               body_ar: "بريا شارما — 3.2M د.إ · وسط مدينة دبي",               body_fr: "Priya Sharma — AED 3,2M · Downtown Dubai",               time: "2 j",     read: true  },
-  { id: 8,  type: "payment",  title_en: "Invoice overdue",             title_ar: "فاتورة متأخرة",              title_fr: "Facture en retard",              body_en: "INV-2026-028 — AED 16,400 · due 2026-04-20",            body_ar: "فاتورة — 16,400 د.إ · استحقاق 20/04/2026",            body_fr: "FAC-2026-028 — AED 16 400 · échue le 20/04/2026",       time: "3 j",     read: true  },
-];
 
 const NOTIF_CFG: Record<NotifType, { icon: string; color: string; bg: string }> = {
   lead:     { icon: "👤", color: "var(--azure)",   bg: "rgba(74,107,130,0.12)"  },
@@ -940,6 +928,43 @@ const NOTIF_CFG: Record<NotifType, { icon: string; color: string; bg: string }> 
   reminder: { icon: "📅", color: "var(--ink-3)",   bg: "rgba(107,95,77,0.10)"   },
   alert:    { icon: "⚠️", color: "var(--rose)",    bg: "rgba(142,79,79,0.12)"   },
 };
+
+// Notification réelle renvoyée par l'API (back-office).
+type ApiNotif = {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  status: string;
+  created_at: string;
+};
+
+// Mappe le `type` métier du backend vers une catégorie d'affichage (icône/couleur).
+function notifCategory(t: string): NotifType {
+  if (t.startsWith("crm")) return "lead";
+  if (t.includes("rental") || t.includes("contract") || t.includes("renewal")) return "contract";
+  if (t.includes("invoice") || t.includes("payment") || t.includes("payout") || t.includes("pdc")) return "payment";
+  if (t.includes("visa")) return "visa";
+  if (t.includes("ticket") || t.includes("sla") || t.includes("breach") || t.includes("alert")) return "alert";
+  return "reminder";
+}
+
+// Temps relatif compact (FR/EN/AR) depuis un ISO timestamp.
+function timeAgo(iso: string, lang: "ar" | "en" | "fr"): string {
+  const diff = Math.max(0, Date.now() - new Date(iso).getTime());
+  const m = Math.floor(diff / 60000);
+  const h = Math.floor(m / 60);
+  const d = Math.floor(h / 24);
+  const U = {
+    ar: { now: "الآن", m: "د", h: "س", d: "ي" },
+    en: { now: "now", m: "m", h: "h", d: "d" },
+    fr: { now: "à l'instant", m: "min", h: "h", d: "j" },
+  }[lang];
+  if (d > 0) return `${d} ${U.d}`;
+  if (h > 0) return `${h} ${U.h}`;
+  if (m > 0) return `${m} ${U.m}`;
+  return U.now;
+}
 
 /* ─── Topbar ──────────────────────────────────────────────────────── */
 export function Topbar({ title, crumb = [], children }: {
@@ -951,10 +976,10 @@ export function Topbar({ title, crumb = [], children }: {
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const [notifOpen, setNotifOpen]       = useState(false);
-  const [notifs, setNotifs]             = useState<Notif[]>(NOTIF_INIT);
+  const [notifs, setNotifs]             = useState<ApiNotif[]>([]);
+  const [unread, setUnread]             = useState(0);
   const [themeRotating, setThemeRotating] = useState(false);
   const notifRef                        = useRef<HTMLDivElement>(null);
-  const unread                          = notifs.filter(n => !n.read).length;
   const displayUnread                   = unread > 9 ? "9+" : unread;
 
   useEffect(() => {
@@ -965,17 +990,55 @@ export function Topbar({ title, crumb = [], children }: {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  function markRead(id: number) { setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n)); }
-  function markAllRead() { setNotifs(prev => prev.map(n => ({ ...n, read: true }))); }
+  // Badge : compteur non-lu au montage + sondage périodique (45 s).
+  useEffect(() => {
+    let alive = true;
+    async function loadCount() {
+      try {
+        const r = await fetch("/api/admin/notifications/unread-count", { credentials: "include" });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (alive) setUnread(j?.data?.count ?? 0);
+      } catch { /* silencieux : la cloche reste utilisable */ }
+    }
+    void loadCount();
+    const iv = window.setInterval(loadCount, 45000);
+    return () => { alive = false; window.clearInterval(iv); };
+  }, []);
+
+  // Liste : chargée à l'ouverture du panneau.
+  useEffect(() => {
+    if (!notifOpen) return;
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch("/api/admin/notifications/?limit=15", { credentials: "include" });
+        if (!r.ok) return;
+        const j = await r.json();
+        if (alive) setNotifs(Array.isArray(j?.data) ? j.data : []);
+      } catch { /* silencieux */ }
+    })();
+    return () => { alive = false; };
+  }, [notifOpen]);
+
+  async function markRead(id: string) {
+    setNotifs(prev => prev.map(n => n.id === id ? { ...n, status: "read" } : n));
+    setUnread(u => Math.max(0, u - 1));
+    try { await fetch(`/api/admin/notifications/${id}/read`, { method: "POST", credentials: "include" }); }
+    catch { /* l'optimiste reste affiché */ }
+  }
+  async function markAllRead() {
+    setNotifs(prev => prev.map(n => ({ ...n, status: "read" })));
+    setUnread(0);
+    try { await fetch("/api/admin/notifications/read-all", { method: "POST", credentials: "include" }); }
+    catch { /* l'optimiste reste affiché */ }
+  }
 
   function handleThemeToggle() {
     setThemeRotating(true);
     toggle();
     setTimeout(() => setThemeRotating(false), 400);
   }
-
-  const nl = (n: Notif) => lang === "ar" ? n.title_ar : lang === "fr" ? n.title_fr : n.title_en;
-  const nb = (n: Notif) => lang === "ar" ? n.body_ar  : lang === "fr" ? n.body_fr  : n.body_en;
 
   const bellFocus = useFocusRing();
   const themeFocus = useFocusRing();
@@ -1097,33 +1160,39 @@ export function Topbar({ title, crumb = [], children }: {
 
               {/* List */}
               <div style={{ overflowY: "auto", maxHeight: 460 }}>
+                {notifs.length === 0 && (
+                  <div style={{ padding: "28px 16px", textAlign: "center", fontSize: 12.5, color: "var(--ink-4)" }}>
+                    {lang === "ar" ? "لا إشعارات" : lang === "fr" ? "Aucune notification" : "No notifications"}
+                  </div>
+                )}
                 {notifs.map((n, i) => {
-                  const cfg = NOTIF_CFG[n.type];
+                  const cfg = NOTIF_CFG[notifCategory(n.type)];
+                  const read = n.status === "read";
                   return (
                     <div
                       key={n.id}
-                      onClick={() => markRead(n.id)}
+                      onClick={() => { if (!read) void markRead(n.id); }}
                       style={{
                         display: "flex", gap: 12, padding: "12px 16px",
                         borderBottom: i < notifs.length - 1 ? "1px solid var(--line-soft)" : "none",
                         cursor: "pointer",
-                        background: n.read ? "transparent" : "var(--gold-ghost)",
+                        background: read ? "transparent" : "var(--gold-ghost)",
                         transition: "background 0.15s ease",
                         animation: `sgi-slide-in 0.2s ease ${i * 0.03}s both`,
                       }}
                       onMouseEnter={e => (e.currentTarget as HTMLDivElement).style.background = "var(--bg-cream)"}
-                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = n.read ? "transparent" : "var(--gold-ghost)"}
+                      onMouseLeave={e => (e.currentTarget as HTMLDivElement).style.background = read ? "transparent" : "var(--gold-ghost)"}
                     >
                       <div style={{ width: 36, height: 36, borderRadius: "50%", background: cfg.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
                         {cfg.icon}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
-                          <span style={{ fontSize: 12.5, fontWeight: n.read ? 500 : 700, color: "var(--ink)", lineHeight: 1.3 }}>{nl(n)}</span>
-                          <span style={{ fontSize: 10.5, color: "var(--ink-4)", flexShrink: 0, marginTop: 1 }}>{n.time}</span>
+                          <span style={{ fontSize: 12.5, fontWeight: read ? 500 : 700, color: "var(--ink)", lineHeight: 1.3 }}>{n.title}</span>
+                          <span style={{ fontSize: 10.5, color: "var(--ink-4)", flexShrink: 0, marginTop: 1 }}>{timeAgo(n.created_at, lang)}</span>
                         </div>
-                        <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nb(n)}</div>
-                        {!n.read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color, marginTop: 5 }} />}
+                        {n.body && <div style={{ fontSize: 11.5, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.body}</div>}
+                        {!read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color, marginTop: 5 }} />}
                       </div>
                     </div>
                   );
