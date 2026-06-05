@@ -18,6 +18,34 @@ VALID_STATUSES = {
 }
 
 
+def visa_alert_level(
+    today: date,
+    visa_expiry_date: date | None,
+    alert_90_sent: bool,
+    alert_30_sent: bool,
+) -> str | None:
+    """Niveau d'alerte d'expiration Golden Visa à émettre, ou ``None``.
+
+    Règle métier (CLAUDE.md) : alertes J-90 puis J-30 avant expiration. Le seuil
+    le plus proche prime. Idempotence via les drapeaux déjà posés :
+
+    - ``"30"`` si l'expiration est dans ≤ 30 jours (et pas encore dépassée) et que
+      l'alerte J-30 n'a pas été envoyée ;
+    - ``"90"`` si elle est dans ≤ 90 jours et que l'alerte J-90 n'a pas été envoyée ;
+    - ``None`` sinon (pas de date, déjà expiré, hors fenêtre, ou déjà alerté).
+    """
+    if visa_expiry_date is None:
+        return None
+    days_left = (visa_expiry_date - today).days
+    if days_left < 0:
+        return None
+    if days_left <= 30 and not alert_30_sent:
+        return "30"
+    if days_left <= 90 and not alert_90_sent:
+        return "90"
+    return None
+
+
 async def _company_id(db: AsyncSession) -> uuid.UUID:
     result = await db.execute(text("SELECT current_setting('app.current_company_id', true)"))
     return uuid.UUID(result.scalar())
