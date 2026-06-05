@@ -17,6 +17,7 @@ import React from "react";
 import { Topbar } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
+import { postJson } from "@/lib/api-client";
 
 type Lang = "ar" | "en" | "fr";
 
@@ -44,6 +45,8 @@ type BackupRun = {
 const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Sauvegardes",
+    triggerDb: "Déclencher (DB)",
+    triggerPrompt: 'Tapez "db" pour confirmer le déclenchement :',
     summary: "État par cible",
     runs: "Historique des runs",
     target: "Cible",
@@ -74,6 +77,8 @@ const TR: Record<Lang, Record<string, string>> = {
   },
   en: {
     title: "Backups",
+    triggerDb: "Trigger (DB)",
+    triggerPrompt: 'Type "db" to confirm the trigger:',
     summary: "Status per target",
     runs: "Run history",
     target: "Target",
@@ -104,6 +109,8 @@ const TR: Record<Lang, Record<string, string>> = {
   },
   ar: {
     title: "النسخ الاحتياطية",
+    triggerDb: "تشغيل (قاعدة البيانات)",
+    triggerPrompt: 'اكتب "db" لتأكيد التشغيل:',
     summary: "الحالة حسب الهدف",
     runs: "سجل العمليات",
     target: "الهدف",
@@ -237,6 +244,16 @@ export function ScreenAppAdminBackups(): React.ReactNode {
     letterSpacing: 0.4,
   };
 
+  async function triggerDbBackup(): Promise<void> {
+    if (window.prompt(L("triggerPrompt")) !== "db") return;
+    await postJson("/api/admin/platform/backups/trigger", {
+      target: "db",
+      confirmation: "db",
+    });
+    runs.reload();
+    summary.reload();
+  }
+
   return (
     <div
       style={{
@@ -247,7 +264,24 @@ export function ScreenAppAdminBackups(): React.ReactNode {
         overflow: "hidden",
       }}
     >
-      <Topbar title={L("title")} />
+      <Topbar title={L("title")}>
+        <button
+          type="button"
+          onClick={triggerDbBackup}
+          style={{
+            fontSize: 12,
+            fontWeight: 600,
+            padding: "6px 14px",
+            borderRadius: 8,
+            border: "1px solid var(--line-soft)",
+            background: "var(--bg-paper)",
+            color: "var(--ink)",
+            cursor: "pointer",
+          }}
+        >
+          {L("triggerDb")}
+        </button>
+      </Topbar>
       <div
         style={{
           flex: 1,
