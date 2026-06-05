@@ -41,6 +41,7 @@ type ChatResponse = {
 };
 
 const PIN_KEY = "sgi_assistant_pinned";
+const MUTE_KEY = "sgi_assistant_muted";
 
 /** Couleur du halo d'état selon le mode de déplacement. */
 function haloColor(mode: RoamMode): string {
@@ -64,6 +65,9 @@ export function AssistantDock({
 
   const [open, setOpen] = useState(false);
   const [pinned, setPinned] = useState(false);
+  const [muted, setMuted] = useState(false); // robot muet (pas de voix)
+  const mutedRef = useRef(false);
+  mutedRef.current = muted;
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [loading, setLoading] = useState(false);
@@ -72,10 +76,11 @@ export function AssistantDock({
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Restaure la préférence « figé ».
+  // Restaure les préférences « figé » et « muet ».
   useEffect(() => {
     try {
       setPinned(localStorage.getItem(PIN_KEY) === "1");
+      setMuted(localStorage.getItem(MUTE_KEY) === "1");
     } catch {
       /* storage indisponible : ignore */
     }
@@ -91,6 +96,47 @@ export function AssistantDock({
       }
       return next;
     });
+  }
+
+  function toggleMute(): void {
+    setMuted((m) => {
+      const next = !m;
+      try {
+        localStorage.setItem(MUTE_KEY, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      if (next) {
+        try {
+          window.speechSynthesis?.cancel();
+        } catch {
+          /* ignore */
+        }
+      }
+      return next;
+    });
+  }
+
+  // Le robot LIT ses bulles à voix haute (Web Speech API), selon la langue —
+  // déclenché par les changements d'activité, désactivable via « muet ».
+  function speak(text: string): void {
+    if (!text || mutedRef.current) return;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      const u = new SpeechSynthesisUtterance(text);
+      const bcp = lang === "ar" ? "ar-SA" : lang === "fr" ? "fr-FR" : "en-US";
+      const pre = lang === "ar" ? "ar" : lang === "fr" ? "fr" : "en";
+      u.lang = bcp;
+      const v = synth.getVoices().find((vc) => vc.lang.toLowerCase().startsWith(pre));
+      if (v) u.voice = v;
+      u.rate = 1;
+      u.pitch = 1.12;
+      synth.cancel();
+      synth.speak(u);
+    } catch {
+      /* synthèse vocale indisponible */
+    }
   }
 
   // Ouvre le panneau, éventuellement en pré-remplissant la saisie (depuis une
@@ -182,6 +228,33 @@ export function AssistantDock({
     }
     wasLoading.current = loading;
   }, [loading, error]);
+
+  // Voix : le robot dit sa bulle quand il change d'« activité » parlante.
+  useEffect(() => {
+    const text =
+      activity === "ask"
+        ? t.assistant_what_help
+        : activity === "understood"
+          ? t.assistant_understood
+          : activity === "found"
+            ? t.assistant_found
+            : activity === "offer"
+              ? t.assistant_need_help
+              : "";
+    if (text) speak(text);
+    // speak lit la langue/mute courants ; on ne déclenche que sur l'activité.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activity]);
+  useEffect(
+    () => () => {
+      try {
+        window.speechSynthesis?.cancel();
+      } catch {
+        /* ignore */
+      }
+    },
+    [],
+  );
 
   // Repos prolongé (90 s, assis & chat fermé) → propose son aide.
   useEffect(() => {
@@ -608,6 +681,22 @@ export function AssistantDock({
             </span>
             <span style={{ display: "flex", gap: 4, marginInlineStart: "auto" }}>
               <button
+                onClick={toggleMute}
+                title={muted ? t.assistant_unmute : t.assistant_mute}
+                aria-pressed={muted}
+                style={{
+                  background: "none",
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  padding: "3px 8px",
+                  fontSize: 13,
+                  color: "var(--ink-4)",
+                  cursor: "pointer",
+                }}
+              >
+                {muted ? "🔇" : "🔊"}
+              </button>
+              <button
                 onClick={resetHome}
                 title={t.assistant_recenter}
                 aria-label={t.assistant_recenter}
@@ -1031,6 +1120,9 @@ const ASSISTANT_CSS = `
 @keyframes sgia-bubble-in { from { opacity: 0; transform: translateY(4px) scale(.96); } to { opacity: 1; transform: none; } }
 /* Responsive : robot + chaise + accessoires réduits sur petits écrans
    (scale indépendant de transform — compose avec les animations). */
+/* Réaction au survol : le robot « réagit » par un léger agrandissement. */
+.sgia-robot { transition: scale .18s ease; }
+[data-testid="assistant-avatar"]:hover .sgia-robot { scale: 1.1; }
 @media (max-width: 600px) { .sgia-robot, .sgia-amb { scale: .82; } }
 @media (max-width: 380px) { .sgia-robot, .sgia-amb { scale: .72; } }
 @media (prefers-reduced-motion: reduce) {
