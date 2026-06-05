@@ -1,0 +1,55 @@
+"""Client minimal pour l'API HTTP de Prometheus (lecture des métriques infra).
+
+On ne stocke AUCUNE métrique en base : la collecte est déjà faite par la stack
+Prometheus/Grafana/Loki (cf. `infra/`). Ce module se contente d'interroger
+l'endpoint `/api/v1/query` (valeur instantanée) en lecture seule.
+
+Dégradation : si `PROMETHEUS_URL` est absent ou l'endpoint injoignable, on lève
+`PrometheusUnavailableError` ; le routeur infra le traduit en réponse « métriques
+indisponibles » (pas un 500), pour que la console reste utilisable hors prod.
+"""
+
+from __future__ import annotations
+
+import os
+
+import httpx
+
+
+class PrometheusUnavailableError(RuntimeError):
+    """Prometheus non configuré ou injoignable (dégradation attendue)."""
+
+
+def prometheus_url() -> str | None:
+    """URL de base Prometheus (ex. http://prometheus:9090), ou None si non configuré."""
+    url = os.getenv("PROMETHEUS_URL", "").strip()
+    return url or None
+
+
+async def instant_query(expr: str, *, timeout: float = 3.0) -> float | None:
+    """Exécute une requête instantanée PromQL et renvoie la 1ʳᵉ valeur scalaire.
+
+    Renvoie None si la requête ne retourne aucune série. Lève `PrometheusUnavailableError`
+    si Prometheus n'est pas configuré ou répond mal — à rattraper côté routeur.
+    """
+    base = prometheus_url()
+    if not base:
+        raise PrometheusUnavailableError("prometheus_not_configured")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as http:
+            resp = await http.get(f"{base}/api/v1/query", params={"query": expr})
+            resp.raise_for_status()
+            payload = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:  # réseau, timeout, JSON invalide
+        raise PrometheusUnavailableError(str(exc)) from exc
+
+    if payload.get("status") != "success":
+        raise PrometheusUnavailableError(payload.get("error", "prometheus_query_failed"))
+    results = payload.get("data", {}).get("result", [])
+    if not results:
+        return None
+    # Format vecteur instantané : result[0]["value"] == [timestamp, "valeur"].
+    try:
+        return float(results[0]["value"][1])
+    except (KeyError, IndexError, ValueError):
+        return None

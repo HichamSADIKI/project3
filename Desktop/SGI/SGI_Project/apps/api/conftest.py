@@ -163,6 +163,39 @@ async def second_admin(db_session: AsyncSession) -> tuple[Company, str]:
 
 
 @pytest_asyncio.fixture
+async def seed_platform_admin(db_session: AsyncSession, seed_company: Company) -> tuple[User, str]:
+    """Super-admin PLATEFORME (is_platform_admin=True) + son JWT.
+
+    Pour tester les endpoints infra-admin `/admin/platform/*` (cross-tenant, hors
+    Loi 1, gardés par `require_platform_admin`). Le flag est vérifié EN BASE, pas
+    dans le JWT — le token ne le porte donc pas."""
+    admin = User(
+        id=uuid.uuid4(),
+        company_id=seed_company.id,
+        email=f"platform-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("AdminPass!23"),
+        full_name="Platform Admin",
+        role=UserRole.ADMIN.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+        is_platform_admin=True,
+    )
+    db_session.add(admin)
+    await db_session.commit()
+    await db_session.refresh(admin)
+    token = encode_jwt(
+        {
+            "sub": str(admin.id),
+            "company_id": str(admin.company_id),
+            "role": admin.role,
+            "status": admin.status,
+            "email": admin.email,
+        }
+    )
+    return admin, token
+
+
+@pytest_asyncio.fixture
 def unique_email() -> str:
     """Email unique par test pour éviter les collisions (les tests committent)."""
     return f"user-{uuid.uuid4().hex[:10]}@example.com"
