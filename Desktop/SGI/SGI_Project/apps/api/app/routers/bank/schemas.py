@@ -106,3 +106,35 @@ class ReconSummary(BaseModel):
 class ReconSummaryOut(BaseModel):
     success: bool = True
     data: ReconSummary
+
+
+# ── Import CSV + auto-rapprochement ──────────────────────────────────────────
+
+
+class ImportLineRow(BaseModel):
+    value_date: date
+    label: str = Field(..., min_length=1, max_length=500)
+    amount: Decimal = Field(..., decimal_places=2)
+
+
+class ImportLinesIn(BaseModel):
+    bank_account_id: uuid.UUID
+    lines: list[ImportLineRow] = Field(..., min_length=1)
+
+
+class ImportResult(BaseModel):
+    created: int
+
+
+class ImportResultOut(BaseModel):
+    success: bool = True
+    data: ImportResult
+
+
+class AutoMatchResult(BaseModel):
+    matched: int
+
+
+class AutoMatchResultOut(BaseModel):
+    success: bool = True
+    data: AutoMatchResult

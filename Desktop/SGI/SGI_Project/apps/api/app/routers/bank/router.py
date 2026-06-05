@@ -9,10 +9,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.routers.bank.schemas import (
+    AutoMatchResult,
+    AutoMatchResultOut,
     BankAccountCreate,
     BankAccountDetailOut,
     BankAccountListOut,
     BankAccountOut,
+    ImportLinesIn,
+    ImportResult,
+    ImportResultOut,
     MatchIn,
     ReconSummaryOut,
     StatementLineCreate,
@@ -23,10 +28,12 @@ from app.routers.bank.schemas import (
 )
 from app.routers.bank.service import (
     BankError,
+    auto_match,
     create_bank_account,
     create_statement_line,
     get_bank_account,
     get_statement_line,
+    import_statement_lines,
     list_bank_accounts,
     list_statement_lines,
     match_line,
@@ -116,6 +123,43 @@ async def summary_endpoint(
 
 
 # ── Lignes de relevé ─────────────────────────────────────────────────────────
+
+
+@router.post(
+    "/lines/import",
+    response_model=ImportResultOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(_WRITE_ROLES)],
+)
+async def import_lines_endpoint(
+    body: ImportLinesIn,
+    db: AsyncSession = Depends(get_db_session),
+) -> ImportResultOut:
+    """Import en masse de lignes de relevé (depuis un CSV parsé côté front)."""
+    company_id = await _get_company_id(db)
+    try:
+        created = await import_statement_lines(db, company_id, body.bank_account_id, body.lines)
+    except BankError as err:
+        raise _bad_request(err) from err
+    return ImportResultOut(data=ImportResult(created=created))
+
+
+@router.post(
+    "/accounts/{account_id}/auto-match",
+    response_model=AutoMatchResultOut,
+    dependencies=[Depends(_WRITE_ROLES)],
+)
+async def auto_match_endpoint(
+    account_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> AutoMatchResultOut:
+    """Rapproche automatiquement les lignes ayant exactement une suggestion."""
+    company_id = await _get_company_id(db)
+    try:
+        matched = await auto_match(db, company_id, account_id)
+    except BankError as err:
+        raise _bad_request(err) from err
+    return AutoMatchResultOut(data=AutoMatchResult(matched=matched))
 
 
 @router.get("/lines", response_model=StatementLineListOut)
