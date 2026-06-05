@@ -106,3 +106,18 @@ class OwnerListOut(BaseModel):
 class OwnerDetailOut(BaseModel):
     success: bool = True
     data: OwnerOut
+
+
+class MandateExpiryEntry(BaseModel):
+    party_id: uuid.UUID
+    mandate_reference: str | None
+    mandate_end_date: date | None
+    days_until_expiry: int | None
+    state: str | None
+    needs_renewal: bool
+
+
+class MandateExpiryOut(BaseModel):
+    success: bool = True
+    data: list[MandateExpiryEntry]
+    meta: dict[str, Any]

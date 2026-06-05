@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
 from app.routers.owners.schemas import (
+    MandateExpiryOut,
     OwnerCreate,
     OwnerDetailOut,
     OwnerListOut,
@@ -17,6 +18,7 @@ from app.routers.owners.schemas import (
 from app.routers.owners.service import (
     create_owner,
     delete_owner,
+    expiring_mandates,
     get_owner,
     list_owners,
     update_owner,
@@ -64,6 +66,21 @@ async def create_owner_endpoint(
             detail="party_not_found_or_owner_exists",
         )
     return OwnerDetailOut(data=OwnerOut.model_validate(owner))
+
+
+@router.get("/mandates-expiring", response_model=MandateExpiryOut)
+async def mandates_expiring_endpoint(
+    days: int = Query(90, ge=1, le=730),
+    db: AsyncSession = Depends(get_db_session),
+) -> MandateExpiryOut:
+    """Mandats de gestion arrivant à échéance (ou en retard) dans `days` jours —
+    à renouveler (obligation légale UAE). Triés par date d'échéance."""
+    from datetime import UTC, datetime
+
+    company_id = await get_company_id(db)
+    today = datetime.now(UTC).date()
+    entries = await expiring_mandates(db, company_id, today, days)
+    return MandateExpiryOut(data=entries, meta={"reference_date": str(today), "horizon_days": days})
 
 
 @router.get("/{party_id}", response_model=OwnerDetailOut)

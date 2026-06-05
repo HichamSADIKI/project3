@@ -1,7 +1,8 @@
 """Service — Owners. Toujours filtrer par company_id (Loi 1)."""
 
 import uuid
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.client import Client
 from app.models.party_owner import Owner
 from app.routers.owners.schemas import OwnerCreate, OwnerUpdate
+
+MANDATE_EXPIRY_SOON_DAYS = 60
 
 # ─── Helpers métier purs (testables sans DB) ──────────────────────────────
 
@@ -43,6 +46,53 @@ def needs_renewal_alert(today: date, end: date | None, threshold_days: int = 60)
     if remaining is None:
         return False
     return 0 <= remaining <= threshold_days
+
+
+def mandate_expiry_state(today: date, end: date | None) -> str | None:
+    """État d'échéance d'un mandat de gestion, ou ``None`` si pas d'échéance.
+
+    - ``"expired"`` : échéance dépassée ;
+    - ``"expiring_soon"`` : échéance dans ≤ 60 jours ;
+    - ``"active"`` : échéance plus lointaine.
+    """
+    if end is None:
+        return None
+    days = (end - today).days
+    if days < 0:
+        return "expired"
+    if days <= MANDATE_EXPIRY_SOON_DAYS:
+        return "expiring_soon"
+    return "active"
+
+
+async def expiring_mandates(
+    db: AsyncSession, company_id: uuid.UUID, today: date, days: int = 90
+) -> list[dict[str, Any]]:
+    """Mandats de gestion dont l'échéance est ≤ today+days (retards inclus),
+    triés par date de fin. Loi 1 : scopé ``company_id``."""
+    horizon = today + timedelta(days=days)
+    result = await db.execute(
+        select(Owner)
+        .where(
+            Owner.company_id == company_id,
+            Owner.deleted_at.is_(None),
+            Owner.mandate_end_date.isnot(None),
+            Owner.mandate_end_date <= horizon,
+        )
+        .order_by(Owner.mandate_end_date)
+    )
+    rows = list(result.scalars().all())
+    return [
+        {
+            "party_id": o.party_id,
+            "mandate_reference": o.mandate_reference,
+            "mandate_end_date": o.mandate_end_date,
+            "days_until_expiry": days_until_mandate_expiry(today, o.mandate_end_date),
+            "state": mandate_expiry_state(today, o.mandate_end_date),
+            "needs_renewal": needs_renewal_alert(today, o.mandate_end_date),
+        }
+        for o in rows
+    ]
 
 
 # ─── CRUD ─────────────────────────────────────────────────────────────────
