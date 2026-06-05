@@ -30,6 +30,7 @@ from app.routers.inspections.service import (
     create_section,
     generate_reference,
     get_inspection,
+    inspection_due_state,
     is_valid_transition,
     list_items,
     list_photos,
@@ -51,6 +52,37 @@ def test_generate_reference() -> None:
 def test_generate_reference_sortable() -> None:
     refs = [generate_reference(2026, n) for n in (3, 1, 2)]
     assert sorted(refs) == [generate_reference(2026, n) for n in (1, 2, 3)]
+
+
+# ── inspection_due_state (pur) ───────────────────────────────────────────────
+
+
+class TestInspectionDueState:
+    from datetime import date as _date
+
+    today = _date(2026, 6, 1)
+
+    def test_inactive_status_is_none(self) -> None:
+        from datetime import date
+
+        for st in ("draft", "completed", "signed", "cancelled"):
+            assert inspection_due_state(self.today, date(2026, 6, 5), st) is None
+
+    def test_no_date_is_none(self) -> None:
+        assert inspection_due_state(self.today, None, "scheduled") is None
+
+    def test_overdue(self) -> None:
+        from datetime import date
+
+        assert inspection_due_state(self.today, date(2026, 5, 28), "scheduled") == "overdue"
+
+    def test_today(self) -> None:
+        assert inspection_due_state(self.today, self.today, "in_progress") == "today"
+
+    def test_upcoming(self) -> None:
+        from datetime import date
+
+        assert inspection_due_state(self.today, date(2026, 6, 10), "scheduled") == "upcoming"
 
 
 def test_valid_transitions() -> None:
@@ -332,3 +364,73 @@ async def test_inspection_tenant_isolation_http(
     assert list_b.status_code == 200
     ids_b = [i["id"] for i in list_b.json()["data"]]
     assert insp_id not in ids_b
+
+
+# ── Endpoint /inspections/upcoming (intégration) ─────────────────────────────
+
+
+async def _seed_scheduled(db, company, *, offset_days: int) -> str:
+    """Crée une inspection puis la passe en 'scheduled' à today+offset_days."""
+    from datetime import date, timedelta
+
+    insp = await _inspection(db, company)
+    insp.status = "scheduled"
+    insp.scheduled_date = date.today() + timedelta(days=offset_days)
+    await db.commit()
+    return str(insp.id)
+
+
+async def test_upcoming_inspections_endpoint(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+) -> None:
+    _admin, token = seed_admin
+    soon_id = await _seed_scheduled(db_session, seed_company, offset_days=5)
+    overdue_id = await _seed_scheduled(db_session, seed_company, offset_days=-3)
+
+    r = await client.get("/api/v1/inspections/upcoming?days=30", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    entries = {e["id"]: e for e in r.json()["data"]}
+    assert soon_id in entries and entries[soon_id]["due_state"] == "upcoming"
+    assert overdue_id in entries and entries[overdue_id]["due_state"] == "overdue"
+    # Tri par date planifiée → l'overdue (passé) précède le futur.
+    ids_order = [e["id"] for e in r.json()["data"]]
+    assert ids_order.index(overdue_id) < ids_order.index(soon_id)
+
+
+async def test_upcoming_excludes_draft_and_far(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+) -> None:
+    _admin, token = seed_admin
+    # draft avec date proche → exclu (statut non actif)
+    from datetime import date, timedelta
+
+    draft = await _inspection(db_session, seed_company)
+    draft.scheduled_date = date.today() + timedelta(days=2)
+    await db_session.commit()
+    # scheduled mais au-delà de l'horizon (days=7) → exclu
+    await _seed_scheduled(db_session, seed_company, offset_days=20)
+
+    r = await client.get("/api/v1/inspections/upcoming?days=7", headers=_auth(token))
+    assert r.status_code == 200
+    assert r.json()["data"] == []
+
+
+async def test_upcoming_tenant_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_company: Company,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    _admin, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    await _seed_scheduled(db_session, seed_company, offset_days=3)
+    r = await client.get("/api/v1/inspections/upcoming", headers=_auth(token_b))
+    assert r.status_code == 200
+    assert r.json()["data"] == []

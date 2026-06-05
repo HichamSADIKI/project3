@@ -1,7 +1,8 @@
 """Service Inspections — CRUD + machine à états + helpers purs."""
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, timedelta
+from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, select
@@ -69,6 +70,30 @@ def compute_overall_score(scores: list[int]) -> float | None:
     return round(sum(valid) / len(valid), 2)
 
 
+# ── Planning : inspections à venir / en retard ────────────────────────────
+
+# Statuts « à planifier/réaliser » : on suit ceux qui attendent une action.
+PLANNING_STATUSES: frozenset[str] = frozenset({"scheduled", "in_progress"})
+
+
+def inspection_due_state(today: date, scheduled_date: date | None, status: str) -> str | None:
+    """État d'échéance d'une inspection active, ou ``None``.
+
+    - ``"overdue"`` : date planifiée dépassée ;
+    - ``"today"`` : planifiée aujourd'hui ;
+    - ``"upcoming"`` : planifiée plus tard ;
+    - ``None`` : statut non actif (draft/completed/signed/cancelled) ou sans date.
+    """
+    if status not in PLANNING_STATUSES or scheduled_date is None:
+        return None
+    days = (scheduled_date - today).days
+    if days < 0:
+        return "overdue"
+    if days == 0:
+        return "today"
+    return "upcoming"
+
+
 # ── CRUD Inspections ──────────────────────────────────────────────────────
 
 
@@ -104,6 +129,39 @@ async def list_inspections(
         .limit(limit)
     )
     return list(result.scalars().all()), total
+
+
+async def upcoming_inspections(
+    db: AsyncSession, company_id: uuid.UUID, today: date, days: int = 30
+) -> list[dict[str, Any]]:
+    """Planning des inspections actives (scheduled/in_progress) avec date
+    planifiée ≤ today+days (les retards passés sont inclus). Triées par date.
+    Scopé ``company_id`` (Loi 1)."""
+    horizon = today + timedelta(days=days)
+    result = await db.execute(
+        select(Inspection)
+        .where(
+            Inspection.company_id == company_id,
+            Inspection.deleted_at.is_(None),
+            Inspection.status.in_(tuple(PLANNING_STATUSES)),
+            Inspection.scheduled_date.isnot(None),
+            Inspection.scheduled_date <= horizon,
+        )
+        .order_by(Inspection.scheduled_date)
+    )
+    rows = list(result.scalars().all())
+    return [
+        {
+            "id": i.id,
+            "reference": i.reference,
+            "inspection_type": i.inspection_type,
+            "status": i.status,
+            "scheduled_date": i.scheduled_date,
+            "days_until": (i.scheduled_date - today).days if i.scheduled_date else None,
+            "due_state": inspection_due_state(today, i.scheduled_date, i.status),
+        }
+        for i in rows
+    ]
 
 
 async def get_inspection(

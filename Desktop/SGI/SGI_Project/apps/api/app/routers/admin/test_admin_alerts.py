@@ -66,8 +66,9 @@ def _rule_body() -> dict[str, object]:
 
 @pytest.mark.asyncio
 async def test_rules_require_role(client: AsyncClient) -> None:
+    # Non authentifié → 401 (garde require_admin).
     resp = await client.get("/api/v1/admin/alerts/rules")
-    assert resp.status_code == 403
+    assert resp.status_code == 401
 
 
 @pytest.mark.asyncio
