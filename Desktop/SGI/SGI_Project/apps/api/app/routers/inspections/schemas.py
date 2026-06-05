@@ -69,6 +69,22 @@ class InspectionDetailOut(BaseModel):
     data: InspectionOut
 
 
+class UpcomingInspectionEntry(BaseModel):
+    id: uuid.UUID
+    reference: str | None
+    inspection_type: str
+    status: str
+    scheduled_date: date | None
+    days_until: int | None
+    due_state: str | None
+
+
+class UpcomingInspectionsOut(BaseModel):
+    success: bool = True
+    data: list[UpcomingInspectionEntry]
+    meta: dict[str, Any]
+
+
 # ── Sections ──────────────────────────────────────────────────────────────
 
 

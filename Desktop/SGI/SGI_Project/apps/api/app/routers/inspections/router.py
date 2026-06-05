@@ -31,6 +31,7 @@ from .schemas import (
     SectionCreate,
     SectionOut,
     SignIn,
+    UpcomingInspectionsOut,
 )
 from .service import (
     add_photo,
@@ -44,6 +45,7 @@ from .service import (
     list_sections,
     soft_delete_inspection,
     transition_inspection,
+    upcoming_inspections,
     update_inspection,
     update_item,
 )
@@ -89,6 +91,24 @@ async def create_insp(
     cid = await get_company_id(db)
     insp = await create_inspection(db, cid, body)
     return InspectionDetailOut(data=InspectionOut.model_validate(insp))
+
+
+@router.get("/upcoming", response_model=UpcomingInspectionsOut)
+async def upcoming_insp(
+    days: int = Query(30, ge=1, le=365),
+    db: AsyncSession = Depends(get_db_session),
+    _: None = Depends(require_roles("admin", "manager", "agent")),
+) -> UpcomingInspectionsOut:
+    """Planning des inspections actives (scheduled/in_progress) à venir ou en
+    retard, dans une fenêtre de `days` jours. Triées par date planifiée."""
+    from datetime import UTC, datetime
+
+    cid = await get_company_id(db)
+    today = datetime.now(UTC).date()
+    entries = await upcoming_inspections(db, cid, today, days)
+    return UpcomingInspectionsOut(
+        data=entries, meta={"reference_date": str(today), "horizon_days": days}
+    )
 
 
 @router.get("/{insp_id}", response_model=InspectionDetailOut)
