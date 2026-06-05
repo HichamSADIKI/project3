@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
-import { Sidebar } from "@/components/sgi-ui";
+import React, { useState, useEffect } from "react";
+import { Sidebar, Topbar, NAV_ENTRIES } from "@/components/sgi-ui";
+import { NavHub } from "@/components/nav-hub";
+import { domainOfScreen } from "@/lib/nav-model";
+import { useT } from "@/components/language-provider";
 import { apiLogout } from "@/lib/auth";
 import { ScreenLogin } from "./screens/login";
 import { ScreenDashboard } from "./screens/dashboard";
@@ -230,11 +233,21 @@ function GatedScreen({ screen, children }: { screen: string; children: React.Rea
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 export default function App() {
+  const t = useT();
   const [screen, setScreen] = useState<string>("login");
   const [confirmedDeals, setConfirmedDeals] = useState<ConfirmedDeal[]>([]);
   const [clientSearch, setClientSearch] = useState<string>("");
   // Pré-remplissage poussé par l'assistant (action guidée profonde), ciblé par écran.
   const [prefill, setPrefill] = useState<{ screen: string; fields: Record<string, string | number> } | null>(null);
+  // Navigation : "hub" = lanceur de rubriques (défaut) ; "classic" = sidebar complète.
+  // Préférence mémorisée ; lue côté client après montage (évite tout mismatch SSR).
+  const [navMode, setNavMode] = useState<"hub" | "classic">("hub");
+  const [hubCategory, setHubCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    const v = localStorage.getItem("sgi_nav_mode");
+    if (v === "classic" || v === "hub") setNavMode(v);
+  }, []);
 
   function handleNavigateToClient(name: string) {
     setClientSearch(name);
@@ -251,8 +264,38 @@ export default function App() {
     setScreen("login");
   }
 
-  if (screen === "login") return <ScreenLogin onLogin={() => setScreen("dash")} />;
+  function goHome() {
+    setHubCategory(null);
+    setScreen("hub");
+  }
+
+  function toggleNavMode() {
+    const next = navMode === "hub" ? "classic" : "hub";
+    setNavMode(next);
+    try { localStorage.setItem("sgi_nav_mode", next); } catch { /* stockage indisponible */ }
+    if (next === "hub") goHome();
+    else if (screen === "hub") setScreen("dash");
+  }
+
+  if (screen === "login") return <ScreenLogin onLogin={() => setScreen(navMode === "hub" ? "hub" : "dash")} />;
   if (screen === "portal") return <ScreenPortal />;
+
+  const overlays = (
+    <>
+      <GlobalSearch
+        onNavigate={setScreen}
+        onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
+      />
+      {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
+      <SoftphoneDock onOpenClient={handleNavigateToClient} />
+      {/* Assistant in-app (chatbot robot) — à côté du softphone, aide + navigation guidée. */}
+      <AssistantDock
+        screen={screen}
+        onNavigate={setScreen}
+        onPrefill={(pf) => setPrefill(pf)}
+      />
+    </>
+  );
 
   return (
     <PermissionsProvider>
@@ -261,32 +304,74 @@ export default function App() {
           data-testid="app-shell"
           style={{ height: "100vh", display: "flex", overflow: "hidden", background: "var(--bg-base)" }}
         >
-          <Sidebar active={screen} onNavigate={setScreen} onLogout={handleLogout} />
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-            <GatedScreen screen={screen}>
-              {renderScreen(screen, {
-                onNavigateToClient: handleNavigateToClient,
-                onDealConfirmed:    handleDealConfirmed,
-                onNavigate:         setScreen,
-                initialSearch:      clientSearch,
-                confirmedDeals:     confirmedDeals,
-                initialLead:        prefill && prefill.screen === screen ? prefill.fields : undefined,
-                onPrefillConsumed:  () => setPrefill(null),
-              })}
-            </GatedScreen>
-          </div>
-          <GlobalSearch
-            onNavigate={setScreen}
-            onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
-          />
-          {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
-          <SoftphoneDock onOpenClient={handleNavigateToClient} />
-          {/* Assistant in-app (chatbot robot) — à côté du softphone, aide + navigation guidée. */}
-          <AssistantDock
-            screen={screen}
-            onNavigate={setScreen}
-            onPrefill={(pf) => setPrefill(pf)}
-          />
+          {screen === "hub" ? (
+            // ── Niveaux L1/L2 : lanceur de rubriques (sans sidebar) ──────────
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+              <Topbar title={t.workspace}>
+                <button
+                  type="button"
+                  data-testid="hub-toggle-classic"
+                  onClick={toggleNavMode}
+                  title={t.workspace}
+                  style={{
+                    height: 36, padding: "0 12px", borderRadius: "var(--r)",
+                    background: "var(--bg-ivory)", border: "1px solid var(--line-soft)",
+                    color: "var(--ink-2)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  ☰
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  title={t.logout}
+                  aria-label={t.logout}
+                  style={{
+                    height: 36, padding: "0 12px", borderRadius: "var(--r)",
+                    background: "var(--bg-ivory)", border: "1px solid var(--line-soft)",
+                    color: "var(--ink-2)", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  {t.logout}
+                </button>
+              </Topbar>
+              <NavHub
+                level={hubCategory ? 2 : 1}
+                categoryId={hubCategory}
+                userName="Hicham Sadiki"
+                onPickCategory={(id) => setHubCategory(id)}
+                onPickScreen={(key) => { setHubCategory(null); setScreen(key); }}
+                onBackHome={() => setHubCategory(null)}
+              />
+            </div>
+          ) : (
+            // ── Niveau L3 : page demandée + sidebar (scopée en mode hub) ─────
+            <>
+              <Sidebar
+                active={screen}
+                onNavigate={setScreen}
+                onLogout={handleLogout}
+                navMode={navMode}
+                scope={navMode === "hub" ? (domainOfScreen(NAV_ENTRIES, screen) ?? screen) : null}
+                onHome={goHome}
+                onToggleMode={toggleNavMode}
+              />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+                <GatedScreen screen={screen}>
+                  {renderScreen(screen, {
+                    onNavigateToClient: handleNavigateToClient,
+                    onDealConfirmed:    handleDealConfirmed,
+                    onNavigate:         setScreen,
+                    initialSearch:      clientSearch,
+                    confirmedDeals:     confirmedDeals,
+                    initialLead:        prefill && prefill.screen === screen ? prefill.fields : undefined,
+                    onPrefillConsumed:  () => setPrefill(null),
+                  })}
+                </GatedScreen>
+              </div>
+            </>
+          )}
+          {overlays}
         </div>
       </SoftphoneProvider>
     </PermissionsProvider>
