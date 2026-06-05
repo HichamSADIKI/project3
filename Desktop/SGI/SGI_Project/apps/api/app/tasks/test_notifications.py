@@ -162,3 +162,65 @@ def test_build_party_email_builds_pending_email_notification() -> None:
     assert notif.recipient_party_id == party_id
     assert notif.id is not None  # id généré côté Python (enfilable sans flush)
     assert db.added == [notif]
+
+
+# ─── send_whatsapp_template (canal WhatsApp) ─────────────────────────────────
+
+
+def test_whatsapp_task_console_backend(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "WHATSAPP_TOKEN", "")
+    monkeypatch.setattr(settings, "WHATSAPP_PHONE_NUMBER_ID", "")
+    out = notif_tasks.send_whatsapp_template.run(to="971500000000", template_name="t")
+    assert out == {"status": "console", "to": "971500000000"}
+
+
+def test_whatsapp_task_marks_notification_sent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "WHATSAPP_TOKEN", "")  # backend console
+    monkeypatch.setattr(settings, "WHATSAPP_PHONE_NUMBER_ID", "")
+    executed: list[object] = []
+
+    class _FakeDB:
+        def execute(self, stmt: object) -> None:
+            executed.append(stmt)
+
+        def commit(self) -> None:
+            pass
+
+    @contextmanager
+    def _fake_maker():
+        yield _FakeDB()
+
+    monkeypatch.setattr(notif_tasks, "sync_session_maker", _fake_maker)
+
+    out = notif_tasks.send_whatsapp_template.run(
+        to="971500000000",
+        template_name="t",
+        notification_id=str(uuid.uuid4()),
+        company_id=str(uuid.uuid4()),
+    )
+    assert out["status"] == "console"
+    assert len(executed) == 1  # UPDATE notifications ... status='sent'
+
+
+def test_deliver_whatsapp_notification_enqueues(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        notif_tasks.send_whatsapp_template, "delay", lambda **kw: captured.update(kw)
+    )
+    notif = Notification(
+        id=uuid.uuid4(),
+        company_id=uuid.uuid4(),
+        type="rental_renewal_due",
+        channel="whatsapp",
+        title="Renouvellement",
+        body="…",
+        status="pending",
+    )
+    notif_tasks.deliver_whatsapp_notification(
+        notif, to="971500000000", template_name="renewal", language="ar"
+    )
+    assert captured["to"] == "971500000000"
+    assert captured["template_name"] == "renewal"
+    assert captured["language"] == "ar"
+    assert captured["notification_id"] == str(notif.id)
+    assert captured["company_id"] == str(notif.company_id)

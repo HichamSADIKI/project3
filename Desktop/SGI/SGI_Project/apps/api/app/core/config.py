@@ -103,6 +103,19 @@ class Settings(BaseSettings):
     SMTP_FROM_NAME: str = "SGI"
     SMTP_TIMEOUT_S: int = 15
 
+    # ── WhatsApp (Meta Cloud API) ────────────────────────────────────────
+    # Si WHATSAPP_TOKEN ou WHATSAPP_PHONE_NUMBER_ID est vide → backend
+    # « console » : le message est journalisé au lieu d'être envoyé (dev sans
+    # compte Meta). La notification passe quand même pending → sent.
+    # En prod : token permanent + id du numéro expéditeur (Meta Business).
+    WHATSAPP_TOKEN: str = ""
+    WHATSAPP_PHONE_NUMBER_ID: str = ""
+    WHATSAPP_API_VERSION: str = "v18.0"
+    WHATSAPP_BASE_URL: str = "https://graph.facebook.com"
+    # Langue par défaut des templates approuvés (code Meta : ar / en_US / fr).
+    WHATSAPP_DEFAULT_LANG: str = "ar"
+    WHATSAPP_TIMEOUT_S: int = 15
+
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
     # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus
