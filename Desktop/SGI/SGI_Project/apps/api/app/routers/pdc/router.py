@@ -11,6 +11,7 @@ from app.core.route_deps import get_company_id, require_roles
 from app.routers.pdc.schemas import (
     DepositCalendarEntry,
     DepositCalendarOut,
+    PdcAgingSummaryOut,
     PdcBounceAction,
     PdcCreate,
     PdcDepositAction,
@@ -21,6 +22,7 @@ from app.routers.pdc.schemas import (
     PdcUpdate,
 )
 from app.routers.pdc.service import (
+    aging_summary,
     create_pdc,
     deposit_calendar,
     get_pdc,
@@ -116,6 +118,28 @@ async def deposit_calendar_endpoint(
     return DepositCalendarOut(
         data=[DepositCalendarEntry.model_validate(e) for e in entries],
         meta={"reference_date": str(ref_today), "horizon_days": horizon_days},
+    )
+
+
+@router.get("/aging-summary", response_model=PdcAgingSummaryOut)
+async def aging_summary_endpoint(
+    today: date | None = Query(None),
+    db: AsyncSession = Depends(get_db_session),
+) -> PdcAgingSummaryOut:
+    """Synthèse d'ancienneté des PDC en cours par tranche (overdue / due_7 /
+    due_30 / later) : nombre et montant AED, plus les totaux."""
+    from datetime import datetime
+
+    company_id = await get_company_id(db)
+    ref_today = today or datetime.now(UTC).date()
+    summary = await aging_summary(db, company_id, ref_today)
+    return PdcAgingSummaryOut(
+        data={
+            **summary["buckets"],
+            "total_count": summary["total_count"],
+            "total_amount_aed": summary["total_amount_aed"],
+        },
+        meta={"reference_date": str(ref_today)},
     )
 
 

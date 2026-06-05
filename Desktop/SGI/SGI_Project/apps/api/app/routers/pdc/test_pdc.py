@@ -8,11 +8,13 @@ import pytest
 
 from app.routers.pdc.service import (
     aggregate_outstanding,
+    aging_bucket,
     days_to_due,
     generate_reference,
     is_overdue,
     is_valid_pdc_transition,
     pdc_reminder_level,
+    summarize_aging,
 )
 
 # ─── Transitions de cycle de vie ──────────────────────────────────────────
@@ -148,6 +150,56 @@ class TestAggregateOutstanding:
             self._make("deposited", "7500.50"),
         ]
         assert aggregate_outstanding(cheques) == Decimal("10500.50")
+
+
+class TestAgingBucket:
+    today = date(2026, 6, 1)
+
+    def test_terminal_status_is_none(self) -> None:
+        for st in ("cleared", "bounced", "replaced", "cancelled"):
+            assert aging_bucket(self.today, date(2026, 6, 10), st) is None
+
+    def test_overdue(self) -> None:
+        assert aging_bucket(self.today, date(2026, 5, 20), "pending") == "overdue"
+
+    def test_due_7(self) -> None:
+        assert aging_bucket(self.today, date(2026, 6, 1), "pending") == "due_7"
+        assert aging_bucket(self.today, date(2026, 6, 8), "deposited") == "due_7"
+
+    def test_due_30(self) -> None:
+        assert aging_bucket(self.today, date(2026, 6, 9), "pending") == "due_30"
+        assert aging_bucket(self.today, date(2026, 7, 1), "pending") == "due_30"
+
+    def test_later(self) -> None:
+        assert aging_bucket(self.today, date(2026, 7, 2), "pending") == "later"
+
+
+class TestSummarizeAging:
+    today = date(2026, 6, 1)
+
+    def _c(self, status: str, amount: str, due: date) -> object:
+        return SimpleNamespace(status=status, amount_aed=Decimal(amount), due_date=due)
+
+    def test_buckets_and_totals(self) -> None:
+        cheques = [
+            self._c("pending", "1000", date(2026, 5, 20)),  # overdue
+            self._c("deposited", "2000", date(2026, 6, 3)),  # due_7
+            self._c("pending", "3000", date(2026, 6, 20)),  # due_30
+            self._c("pending", "4000", date(2026, 8, 1)),  # later
+            self._c("cleared", "9999", date(2026, 6, 3)),  # ignoré (terminal)
+        ]
+        s = summarize_aging(cheques, self.today)
+        assert s["buckets"]["overdue"] == {"count": 1, "amount_aed": Decimal("1000")}
+        assert s["buckets"]["due_7"] == {"count": 1, "amount_aed": Decimal("2000")}
+        assert s["buckets"]["due_30"] == {"count": 1, "amount_aed": Decimal("3000")}
+        assert s["buckets"]["later"] == {"count": 1, "amount_aed": Decimal("4000")}
+        assert s["total_count"] == 4
+        assert s["total_amount_aed"] == Decimal("10000")
+
+    def test_empty(self) -> None:
+        s = summarize_aging([], self.today)
+        assert s["total_count"] == 0
+        assert s["total_amount_aed"] == Decimal("0.00")
 
 
 class TestPdcReminderLevel:
@@ -288,3 +340,32 @@ async def test_pdc_tenant_isolation(
     assert list_b.status_code == 200
     refs_b = [c["reference"] for c in list_b.json()["data"]]
     assert reference not in refs_b
+
+
+async def test_aging_summary_endpoint(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    """Le PDC en cours (due 2026-06-30, 10 000 AED) tombe dans la tranche due_7
+    avec today=2026-06-25."""
+    _admin, token = seed_admin
+    await _create_pending_pdc(client, token)
+    r = await client.get(
+        "/api/v1/pdc/aging-summary", headers=_auth(token), params={"today": "2026-06-25"}
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["due_7"]["count"] == 1
+    assert data["total_count"] == 1
+    assert data["total_amount_aed"] in ("10000.00", "10000")
+
+
+async def test_aging_summary_tenant_isolation(
+    client: AsyncClient, seed_admin: tuple[User, str], second_admin: tuple[Company, str]
+) -> None:
+    """La synthèse de B ne voit pas le PDC de A (Loi 1)."""
+    _admin, token_a = seed_admin
+    _company_b, token_b = second_admin
+    await _create_pending_pdc(client, token_a)
+    r = await client.get(
+        "/api/v1/pdc/aging-summary", headers=_auth(token_b), params={"today": "2026-06-25"}
+    )
+    assert r.status_code == 200
+    assert r.json()["data"]["total_count"] == 0

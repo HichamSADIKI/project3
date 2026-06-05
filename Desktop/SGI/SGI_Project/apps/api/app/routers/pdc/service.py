@@ -9,6 +9,7 @@ Cycle de vie strict :
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +75,57 @@ def aggregate_outstanding(cheques: list[PdcCheque]) -> Decimal:
         (Decimal(str(c.amount_aed)) for c in cheques if c.status in ("pending", "deposited")),
         Decimal("0.00"),
     )
+
+
+# Statuts « en cours » (non terminaux) à faire vieillir.
+OUTSTANDING_STATUSES: frozenset[str] = frozenset({"pending", "deposited"})
+# Ordre des tranches d'ancienneté (du plus urgent au plus lointain).
+AGING_BUCKETS: tuple[str, ...] = ("overdue", "due_7", "due_30", "later")
+
+
+def aging_bucket(today: date, due: date, status: str) -> str | None:
+    """Tranche d'ancienneté d'un PDC en cours, ou ``None`` si statut terminal.
+
+    - ``"overdue"`` : échéance dépassée (due < today) ;
+    - ``"due_7"`` : à échéance dans 0–7 jours ;
+    - ``"due_30"`` : 8–30 jours ;
+    - ``"later"`` : > 30 jours.
+    Les statuts non « en cours » (cleared/bounced/replaced/cancelled) → ``None``.
+    """
+    if status not in OUTSTANDING_STATUSES:
+        return None
+    days = (due - today).days
+    if days < 0:
+        return "overdue"
+    if days <= 7:
+        return "due_7"
+    if days <= 30:
+        return "due_30"
+    return "later"
+
+
+def summarize_aging(cheques: list[PdcCheque], today: date) -> dict[str, Any]:
+    """Agrège les PDC en cours par tranche : ``{bucket: {count, amount_aed}}`` +
+    totaux. Montants en ``Decimal`` AED. Les statuts terminaux sont ignorés."""
+    buckets: dict[str, dict[str, Any]] = {
+        b: {"count": 0, "amount_aed": Decimal("0.00")} for b in AGING_BUCKETS
+    }
+    total_count = 0
+    total_amount = Decimal("0.00")
+    for c in cheques:
+        bucket = aging_bucket(today, c.due_date, c.status)
+        if bucket is None:
+            continue
+        amount = Decimal(str(c.amount_aed))
+        buckets[bucket]["count"] += 1
+        buckets[bucket]["amount_aed"] += amount
+        total_count += 1
+        total_amount += amount
+    return {
+        "buckets": buckets,
+        "total_count": total_count,
+        "total_amount_aed": total_amount,
+    }
 
 
 # ─── CRUD ─────────────────────────────────────────────────────────────────
@@ -386,3 +438,18 @@ async def deposit_calendar(
         }
         for p in rows
     ]
+
+
+async def aging_summary(db: AsyncSession, company_id: uuid.UUID, today: date) -> dict[str, Any]:
+    """Synthèse d'ancienneté des PDC en cours (pending/deposited) du tenant.
+
+    Tranches overdue / due_7 / due_30 / later (count + montant AED) + totaux.
+    Scopé ``company_id`` (Loi 1)."""
+    result = await db.execute(
+        select(PdcCheque).where(
+            PdcCheque.company_id == company_id,
+            PdcCheque.deleted_at.is_(None),
+            PdcCheque.status.in_(tuple(OUTSTANDING_STATUSES)),
+        )
+    )
+    return summarize_aging(list(result.scalars().all()), today)
