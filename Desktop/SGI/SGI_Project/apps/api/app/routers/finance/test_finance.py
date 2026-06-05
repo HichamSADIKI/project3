@@ -460,3 +460,43 @@ async def test_cash_flow_forecast_totals(db_session, seed_company: Company) -> N
     assert fc.total_in == Decimal("3000")
     assert fc.total_out == Decimal("1000")
     assert fc.net == Decimal("2000")
+
+
+# ── Clôture de période ──────────────────────────────────────────────────────
+
+
+async def test_close_period_and_duplicate(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.closure import ClosureError, close_period, list_closures
+
+    c = await close_period(db_session, seed_company.id, date(2026, 3, 31))
+    assert c.period_end == date(2026, 3, 31)
+    with pytest.raises(ClosureError) as exc:
+        await close_period(db_session, seed_company.id, date(2026, 3, 31))
+    assert exc.value.code == "period_already_closed"
+    assert len(await list_closures(db_session, seed_company.id)) == 1
+
+
+async def test_is_date_closed(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.closure import close_period, is_date_closed
+
+    assert await is_date_closed(db_session, seed_company.id, date(2026, 1, 1)) is False
+    await close_period(db_session, seed_company.id, date(2026, 6, 30))
+    assert await is_date_closed(db_session, seed_company.id, date(2026, 6, 1)) is True
+    assert await is_date_closed(db_session, seed_company.id, date(2026, 7, 1)) is False
+
+
+async def test_update_blocked_in_closed_period(db_session, seed_company: Company) -> None:
+    from datetime import date
+
+    from app.routers.finance.closure import PeriodClosedError, close_period
+
+    txn = await create_transaction(db_session, seed_company.id, _txn(type="invoice"))
+    await close_period(db_session, seed_company.id, date(2026, 12, 31))  # couvre created_at
+    with pytest.raises(PeriodClosedError):
+        await update_transaction(
+            db_session, seed_company.id, txn.id, TransactionUpdate(status="paid")
+        )
