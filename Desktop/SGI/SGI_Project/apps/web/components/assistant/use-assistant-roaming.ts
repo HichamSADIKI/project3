@@ -76,6 +76,8 @@ export function useAssistantRoaming(opts: {
   t: Translations;
   screen?: string;
   onSummon: (prompt?: string) => void;
+  /** Mise en scène pilotée par le composant : rejoindre le centre / déambuler. */
+  command?: "center" | "wander" | null;
 }): {
   containerRef: React.RefObject<HTMLDivElement | null>;
   pupilLRef: React.RefObject<HTMLSpanElement | null>;
@@ -88,7 +90,7 @@ export function useAssistantRoaming(opts: {
   consumeDragClick: () => boolean;
   resetHome: () => void;
 } {
-  const { open, pinned, t, screen } = opts;
+  const { open, pinned, t, screen, command } = opts;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const pupilLRef = useRef<HTMLSpanElement | null>(null);
@@ -119,6 +121,13 @@ export function useAssistantRoaming(opts: {
   const dragMoved = useRef(false);
   const dragGrab = useRef<XY>({ x: 0, y: 0 }); // décalage curseur→coin de l'avatar
   const dragStart = useRef<XY>({ x: 0, y: 0 });
+  // Commande de position (mise en scène au clic) : centre / déambulation aléatoire.
+  const commandRef = useRef<"center" | "wander" | null>(command ?? null);
+  useEffect(() => {
+    commandRef.current = command ?? null;
+  }, [command]);
+  const wanderTarget = useRef<XY>({ x: 0, y: 0 });
+  const wanderNext = useRef(0);
 
   const home = useCallback(
     (): XY =>
@@ -432,6 +441,46 @@ export function useAssistantRoaming(opts: {
         if (modeRef.current !== "idle") {
           modeRef.current = "idle";
           setMode("idle");
+        }
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+
+      // 2b) Mise en scène pilotée (clic) : rejoindre le centre, ou déambuler au
+      //     hasard. Prioritaire sur l'automate normal (et sur le « parked » du chat).
+      const cmd = commandRef.current;
+      if (cmd === "center") {
+        const cx = window.innerWidth / 2 - HALF;
+        const cy = window.innerHeight / 2 - SIZE / 2;
+        pos.current.x += (cx - pos.current.x) * 0.12;
+        pos.current.y += (cy - pos.current.y) * 0.12;
+        place();
+        updateEyes();
+        if (modeRef.current !== "follow") {
+          modeRef.current = "follow";
+          setMode("follow");
+        }
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+      if (cmd === "wander") {
+        if (now > wanderNext.current) {
+          wanderNext.current = now + 700 + Math.random() * 600;
+          wanderTarget.current = {
+            x: EDGE + Math.random() * Math.max(1, window.innerWidth - SIZE - 2 * EDGE),
+            y: window.innerHeight * 0.35 + Math.random() * (window.innerHeight * 0.45),
+          };
+        }
+        const tg = wanderTarget.current;
+        pos.current.x += (tg.x - pos.current.x) * 0.06;
+        pos.current.y += (tg.y - pos.current.y) * 0.06;
+        pos.current.x = clamp(pos.current.x, EDGE, window.innerWidth - SIZE - EDGE);
+        pos.current.y = clamp(pos.current.y, EDGE, window.innerHeight - SIZE - EDGE);
+        place();
+        updateEyes();
+        if (modeRef.current !== "follow") {
+          modeRef.current = "follow";
+          setMode("follow");
         }
         raf = requestAnimationFrame(loop);
         return;
