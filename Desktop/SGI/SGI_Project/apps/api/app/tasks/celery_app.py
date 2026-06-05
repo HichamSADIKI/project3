@@ -19,6 +19,7 @@ celery_app = Celery(
         "app.tasks.ticketing",
         "app.tasks.scenarios",
         "app.tasks.watcher",
+        "app.tasks.alerts",
     ],
 )
 
@@ -53,6 +54,8 @@ celery_app.conf.update(
         "app.tasks.scenarios.*": {"queue": "exports"},
         # ── Watcher de portails immobiliers (couche sources) ──────────────
         "app.tasks.watcher.*": {"queue": "reminders"},
+        # ── Admin Console : évaluation préventive des alertes ─────────────
+        "app.tasks.alerts.*": {"queue": "reminders"},
     },
     beat_schedule={
         # ── Watcher portails immobiliers (toutes les 6 h ; no-op si désactivé) ─
@@ -94,6 +97,11 @@ celery_app.conf.update(
         "ticketing-sla-check": {
             "task": "app.tasks.ticketing.check_ticket_sla",
             "schedule": 3600.0,
+        },
+        # ── Admin Console : évaluation préventive des alertes (5 min) ─────
+        "admin-alert-evaluation": {
+            "task": "app.tasks.alerts.evaluate_alert_rules",
+            "schedule": 300.0,
         },
         # ── Téléphonie ───────────────────────────────────────────────────
         # Upload des enregistrements toutes les 2 min ; purge PDPL quotidienne.

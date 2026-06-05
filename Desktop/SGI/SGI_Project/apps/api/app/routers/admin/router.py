@@ -1,17 +1,15 @@
 """Router FastAPI — Admin Console (agrégateur).
 
-Monte les 4 sous-routeurs du module. La frontière de sécurité est portée par
+Monte les sous-routeurs du module. La frontière de sécurité est portée par
 CHAQUE sous-routeur (au niveau routeur), pas ici :
 
-- App-admin (tenant, Loi 1)        : /admin/users, /admin/audit   → require_admin
-- Infra-admin (plateforme, hors L1): /admin/platform/*            → require_platform_admin
-
-⚠️ Fichier « registre » figé en Wave 0 — ne pas éditer pendant le fan-out Wave 1
-(chaque agent remplit SON sous-routeur, jamais cet agrégateur).
+- App-admin (tenant, Loi 1)  : /admin/{users,audit,alerts}  → require_admin
+- Infra-admin (plateforme)   : /admin/platform/*            → require_platform_admin
 """
 
 from fastapi import APIRouter
 
+from app.routers.admin.alerts import alerts_router
 from app.routers.admin.audit import audit_router
 from app.routers.admin.backups import backups_router
 from app.routers.admin.infra import infra_router
@@ -22,6 +20,7 @@ router = APIRouter(prefix="/admin")
 # Périmètre A — app-admin (tenant).
 router.include_router(users_router)
 router.include_router(audit_router)
+router.include_router(alerts_router)
 # Périmètre B — infra-admin (plateforme, cross-tenant).
 router.include_router(infra_router)
 router.include_router(backups_router)
