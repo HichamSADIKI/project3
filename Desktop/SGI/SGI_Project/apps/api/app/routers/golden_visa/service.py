@@ -17,6 +17,32 @@ VALID_STATUSES = {
     "expired",
 }
 
+# Documents obligatoires Golden Visa UAE (CLAUDE.md) → (attribut modèle, libellé).
+REQUIRED_DOCUMENTS: list[tuple[str, str]] = [
+    ("passport_doc", "passport"),
+    ("dld_doc", "dld"),
+    ("gdrfa_doc", "gdrfa"),
+    ("insurance_doc", "insurance"),
+    ("biometric_photo", "biometric_photo"),
+]
+
+
+def missing_documents(application: GoldenVisaApplication) -> list[str]:
+    """Libellés des documents obligatoires encore absents du dossier."""
+    return [label for attr, label in REQUIRED_DOCUMENTS if not getattr(application, attr, None)]
+
+
+def present_documents(application: GoldenVisaApplication) -> list[str]:
+    """Libellés des documents obligatoires déjà fournis."""
+    return [label for attr, label in REQUIRED_DOCUMENTS if getattr(application, attr, None)]
+
+
+def documents_readiness_pct(application: GoldenVisaApplication) -> int:
+    """Taux de complétude documentaire (0–100), arrondi à l'entier."""
+    total = len(REQUIRED_DOCUMENTS)
+    present = total - len(missing_documents(application))
+    return round(present / total * 100)
+
 
 def visa_alert_level(
     today: date,

@@ -53,6 +53,26 @@ async def get_application(app_id: uuid.UUID, db: AsyncSession = Depends(get_db_s
     return {"success": True, "data": app}
 
 
+@router.get("/{app_id}/documents/checklist", response_model=schemas.DocumentChecklistOut)
+async def documents_checklist(app_id: uuid.UUID, db: AsyncSession = Depends(get_db_session)):
+    """Complétude des 5 documents obligatoires (passeport · DLD · GDRFA ·
+    assurance · photo biométrique) : présents, manquants, % de préparation."""
+    app = await service.get_application(db, app_id)
+    if not app:
+        raise HTTPException(status_code=404, detail="Golden Visa application not found")
+    missing = service.missing_documents(app)
+    return {
+        "success": True,
+        "data": {
+            "required": [label for _, label in service.REQUIRED_DOCUMENTS],
+            "present": service.present_documents(app),
+            "missing": missing,
+            "readiness_pct": service.documents_readiness_pct(app),
+            "ready": not missing,
+        },
+    }
+
+
 @router.patch("/{app_id}", response_model=schemas.GoldenVisaDetailOut)
 async def update_application(
     app_id: uuid.UUID,

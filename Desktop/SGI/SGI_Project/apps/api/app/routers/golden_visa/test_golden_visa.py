@@ -254,3 +254,111 @@ async def test_get_expiring_visas(db_session, seed_company: Company) -> None:
     ids = {a.id for a in expiring}
     assert near.id in ids
     assert all(a.status == "approved" for a in expiring)
+
+
+# ── Complétude documentaire (pur) ────────────────────────────────────────────
+
+
+from app.models.golden_visa import GoldenVisaApplication as _GVApp  # noqa: E402
+from app.routers.golden_visa.service import (  # noqa: E402
+    REQUIRED_DOCUMENTS,
+    documents_readiness_pct,
+    missing_documents,
+    present_documents,
+)
+
+
+class TestDocumentChecklist:
+    def test_all_missing(self) -> None:
+        app = _GVApp(client_id=uuid.uuid4())
+        assert len(missing_documents(app)) == len(REQUIRED_DOCUMENTS)
+        assert present_documents(app) == []
+        assert documents_readiness_pct(app) == 0
+
+    def test_all_present(self) -> None:
+        app = _GVApp(
+            client_id=uuid.uuid4(),
+            passport_doc="p",
+            dld_doc="d",
+            gdrfa_doc="g",
+            insurance_doc="i",
+            biometric_photo="b",
+        )
+        assert missing_documents(app) == []
+        assert documents_readiness_pct(app) == 100
+
+    def test_partial(self) -> None:
+        app = _GVApp(client_id=uuid.uuid4(), passport_doc="p", dld_doc="d")
+        assert set(missing_documents(app)) == {"gdrfa", "insurance", "biometric_photo"}
+        assert set(present_documents(app)) == {"passport", "dld"}
+        # 2/5 → 40 %
+        assert documents_readiness_pct(app) == 40
+
+
+# ── Endpoint /documents/checklist (intégration) ──────────────────────────────
+
+from httpx import AsyncClient  # noqa: E402
+from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
+
+from app.models.user import User  # noqa: E402
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _seed_app(db, company_id: uuid.UUID, **docs) -> uuid.UUID:
+    client = Client(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="individual",
+        first_name="GV",
+        last_name="Client",
+    )
+    db.add(client)
+    app = _GVApp(
+        id=uuid.uuid4(), company_id=company_id, client_id=client.id, status="pending", **docs
+    )
+    db.add(app)
+    await db.commit()
+    return app.id
+
+
+async def test_checklist_endpoint_partial(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id, passport_doc="p", dld_doc="d")
+    r = await client.get(f"/api/v1/golden-visa/{app_id}/documents/checklist", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["readiness_pct"] == 40
+    assert data["ready"] is False
+    assert set(data["missing"]) == {"gdrfa", "insurance", "biometric_photo"}
+    assert len(data["required"]) == 5
+
+
+async def test_checklist_endpoint_404_unknown(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.get(
+        f"/api/v1/golden-visa/{uuid.uuid4()}/documents/checklist", headers=_auth(token)
+    )
+    assert r.status_code == 404
+
+
+async def test_checklist_endpoint_tenant_isolation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    """Le dossier d'un tenant A est invisible (404) avec le token B (Loi 1)."""
+    admin, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    app_id = await _seed_app(db_session, admin.company_id, passport_doc="p")
+    r = await client.get(
+        f"/api/v1/golden-visa/{app_id}/documents/checklist", headers=_auth(token_b)
+    )
+    assert r.status_code == 404
