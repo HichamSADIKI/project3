@@ -40,6 +40,7 @@ import { ScreenConsultants } from "./screens/consultants";
 import { ScreenAmazon } from "./screens/amazon";
 import { ScreenCallCenter } from "./screens/callcenter";
 import { ScreenFinance } from "./screens/finance";
+import { ScreenAccounting } from "./screens/accounting";
 import { ScreenReports } from "./screens/reports";
 import { ScreenERP } from "./screens/erp";
 import { ScreenWorkspace } from "./screens/workspace";
@@ -82,7 +83,7 @@ type ScreenKey =
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
   | "appadmin_users" | "appadmin_audit" | "appadmin_infra" | "appadmin_backups"
-  | "finance" | "marketing" | "report" | "parametres"
+  | "finance" | "accounting" | "marketing" | "report" | "parametres"
   | "clients" | "personne" | "societe"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
 
@@ -169,6 +170,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "hr":         (_)  => <ScreenHR />,
   "it":         (_)  => <ScreenIT />,
   "finance":    (_)  => <ScreenFinance />,
+  "accounting": (_)  => <ScreenAccounting />,
   "marketing":  (_)  => <ScreenMarketing />,
   "report":     (_)  => <ScreenReports />,
   "parametres": (_)  => <ScreenParametres />,

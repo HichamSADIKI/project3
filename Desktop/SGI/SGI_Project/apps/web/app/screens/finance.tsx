@@ -183,7 +183,7 @@ export function ScreenFinance(): React.ReactNode {
     "—";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
+    <div data-testid="screen-finance" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <Topbar title={L("title")}>
         <button onClick={() => { setOpen(true); setFormError(null); }} className="sgi-btn sgi-btn-primary" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
           <IcPlus />&nbsp;{L("newTxn")}
@@ -205,6 +205,7 @@ export function ScreenFinance(): React.ReactNode {
           {(["ledger", "reports"] as const).map((v) => (
             <button
               key={v}
+              data-testid={`tab-${v}`}
               onClick={() => setView(v)}
               style={{
                 padding: "6px 14px", borderRadius: 8, border: "1px solid var(--line)",

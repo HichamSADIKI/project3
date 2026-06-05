@@ -28,6 +28,7 @@ from app.routers.golden_visa.service import (
     get_expiring_visas,
     list_applications,
     update_application,
+    visa_alert_level,
 )
 
 
@@ -71,6 +72,50 @@ async def _other_company(db) -> Company:
 
 def test_valid_statuses_contain_lifecycle() -> None:
     assert {"pending", "approved", "rejected", "expired"} <= VALID_STATUSES
+
+
+# ── visa_alert_level (pur) ────────────────────────────────────────────────────
+
+
+class TestVisaAlertLevel:
+    _TODAY = date(2026, 6, 1)
+
+    def test_none_when_no_expiry(self) -> None:
+        assert visa_alert_level(self._TODAY, None, False, False) is None
+
+    def test_none_when_already_expired(self) -> None:
+        past = self._TODAY - timedelta(days=1)
+        assert visa_alert_level(self._TODAY, past, False, False) is None
+
+    def test_none_when_beyond_90_days(self) -> None:
+        far = self._TODAY + timedelta(days=120)
+        assert visa_alert_level(self._TODAY, far, False, False) is None
+
+    def test_level_90_in_window(self) -> None:
+        exp = self._TODAY + timedelta(days=60)
+        assert visa_alert_level(self._TODAY, exp, False, False) == "90"
+
+    def test_level_30_takes_precedence(self) -> None:
+        exp = self._TODAY + timedelta(days=20)
+        # Dans la fenêtre 30 ET 90, mais le seuil proche prime.
+        assert visa_alert_level(self._TODAY, exp, False, False) == "30"
+
+    def test_level_90_skipped_when_already_sent(self) -> None:
+        exp = self._TODAY + timedelta(days=60)
+        assert visa_alert_level(self._TODAY, exp, True, False) is None
+
+    def test_level_30_skipped_when_already_sent(self) -> None:
+        exp = self._TODAY + timedelta(days=20)
+        # J-30 déjà envoyé → plus rien (J-90 est dépassé conceptuellement).
+        assert visa_alert_level(self._TODAY, exp, True, True) is None
+
+    def test_boundary_exactly_30(self) -> None:
+        exp = self._TODAY + timedelta(days=30)
+        assert visa_alert_level(self._TODAY, exp, False, False) == "30"
+
+    def test_boundary_exactly_90(self) -> None:
+        exp = self._TODAY + timedelta(days=90)
+        assert visa_alert_level(self._TODAY, exp, False, False) == "90"
 
 
 # ── create / get ─────────────────────────────────────────────────────────────

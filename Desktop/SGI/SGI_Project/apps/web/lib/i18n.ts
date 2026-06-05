@@ -21,7 +21,7 @@ export type Translations = {
   nav_travail: string;
   nav_callcenter: string;
   nav_erp: string; nav_workspace: string; nav_audit: string;
-  nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_marketing: string;
+  nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_accounting: string; nav_marketing: string;
   nav_fournisseurs: string; nav_fournisseurs_fiches: string; nav_fournisseurs_validation: string;
   nav_news: string;
   nav_buildings: string;
@@ -278,6 +278,7 @@ export type Translations = {
   assistant_tip_tour: string; assistant_tip_stuck: string; assistant_tour_prompt: string;
   assistant_need_help: string; assistant_found: string;
   assistant_what_help: string; assistant_understood: string;
+  assistant_mute: string; assistant_unmute: string;
   assistant_prefill: string; assistant_recenter: string;
   // Lot 3 — documents
   dt_contract: string; dt_mandate: string; dt_ejari: string; dt_dld: string; dt_insurance: string;
@@ -318,7 +319,7 @@ const ar: Translations = {
   nav_travail: "التوظيف",
   nav_callcenter: "مركز الاتصال",
   nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة",
-  nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_marketing: "التسويق",
+  nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_accounting: "المحاسبة", nav_marketing: "التسويق",
   nav_fournisseurs: "المورّدون", nav_fournisseurs_fiches: "بطاقات المورّدين", nav_fournisseurs_validation: "اعتماد المورّدين",
   nav_news: "الأخبار",
   nav_buildings: "المباني",
@@ -564,6 +565,7 @@ const ar: Translations = {
   assistant_open: "فتح المساعد", assistant_close: "إغلاق", assistant_thinking: "يكتب…",
   assistant_need_help: "هل تحتاج إلى مساعدة؟", assistant_found: "وجدت الحل!",
   assistant_what_help: "ماذا تريد؟", assistant_understood: "فهمت!",
+  assistant_mute: "كتم صوت المساعد", assistant_unmute: "تفعيل صوت المساعد",
   assistant_goto: "افتح", assistant_clear: "محادثة جديدة",
   assistant_tip_field: "هل تحتاج مساعدة في ملء هذا الحقل؟", assistant_tip_error: "حدث خطأ — هل أساعدك؟", assistant_tip_idle: "هل تحتاج مساعدة في هذه الصفحة؟",
   assistant_pin: "تثبيت المساعد", assistant_unpin: "تحرير المساعد",
@@ -608,7 +610,7 @@ const en: Translations = {
   nav_travail: "Employment",
   nav_callcenter: "Call Center",
   nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit",
-  nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
+  nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_accounting: "Accounting", nav_marketing: "Marketing",
   nav_fournisseurs: "Suppliers", nav_fournisseurs_fiches: "Supplier records", nav_fournisseurs_validation: "Vendor approval",
   nav_news: "News",
   nav_buildings: "Buildings",
@@ -854,6 +856,7 @@ const en: Translations = {
   assistant_open: "Open assistant", assistant_close: "Close", assistant_thinking: "Typing…",
   assistant_need_help: "Need a hand?", assistant_found: "Found it!",
   assistant_what_help: "What can I do for you?", assistant_understood: "Got it!",
+  assistant_mute: "Mute assistant", assistant_unmute: "Unmute assistant",
   assistant_goto: "Open", assistant_clear: "New chat",
   assistant_tip_field: "Need help filling this field?", assistant_tip_error: "Something went wrong — can I help?", assistant_tip_idle: "Need help on this page?",
   assistant_pin: "Pin assistant", assistant_unpin: "Unpin assistant",
@@ -898,7 +901,7 @@ const fr: Translations = {
   nav_travail: "Travail",
   nav_callcenter: "Call Center",
   nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit",
-  nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_marketing: "Marketing",
+  nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_accounting: "Comptabilité", nav_marketing: "Marketing",
   nav_fournisseurs: "Fournisseurs", nav_fournisseurs_fiches: "Fiches fournisseurs", nav_fournisseurs_validation: "Validation fournisseurs",
   nav_news: "Actualités",
   nav_buildings: "Bâtiments",
@@ -1144,6 +1147,7 @@ const fr: Translations = {
   assistant_open: "Ouvrir l'assistant", assistant_close: "Fermer", assistant_thinking: "Rédige…",
   assistant_need_help: "Besoin d'aide ?", assistant_found: "Trouvé !",
   assistant_what_help: "Que voulez-vous ?", assistant_understood: "J'ai compris !",
+  assistant_mute: "Couper la voix", assistant_unmute: "Activer la voix",
   assistant_goto: "Ouvrir", assistant_clear: "Nouvelle discussion",
   assistant_tip_field: "Besoin d'aide pour remplir ce champ ?", assistant_tip_error: "Une erreur est survenue — je peux vous aider ?", assistant_tip_idle: "Besoin d'aide sur cette page ?",
   assistant_pin: "Figer l'assistant", assistant_unpin: "Libérer l'assistant",

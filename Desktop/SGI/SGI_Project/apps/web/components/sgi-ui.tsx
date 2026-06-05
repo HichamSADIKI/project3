@@ -143,7 +143,7 @@ export type NavKey =
   | "callcenter" | "callcenter_crm" | "callcenter_news"
   | "erp" | "workspace" | "audit"
   | "appadmin" | "appadmin_users" | "appadmin_audit" | "appadmin_infra" | "appadmin_backups"
-  | "backoffice" | "hr" | "it" | "finance" | "marketing"
+  | "backoffice" | "hr" | "it" | "finance" | "accounting" | "marketing"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation"
   | "report" | "parametres";
 
@@ -271,6 +271,7 @@ const NAV_ENTRIES: NavEntry[] = [
       { key: "hr",        icon: <IcHR /> },
       { key: "it",        icon: <IcIT /> },
       { key: "finance",   icon: <IcFinance /> },
+      { key: "accounting", icon: <IcReport /> },
       { key: "marketing", icon: <IcMarketing /> },
     ],
   },
@@ -394,7 +395,7 @@ export function Sidebar({ active, onNavigate, onLogout }: {
       consultants_news: t.nav_news, admin_news: t.nav_news,  travail_news: t.nav_news,
       callcenter_news: t.nav_news,
       erp: t.nav_erp, workspace: t.nav_workspace, audit: t.nav_audit,
-      backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, marketing: t.nav_marketing,
+      backoffice: t.nav_backoffice, hr: t.nav_hr, it: t.nav_it, finance: t.nav_finance, accounting: t.nav_accounting, marketing: t.nav_marketing,
       fournisseurs: t.nav_fournisseurs,
       fournisseurs_fiches: t.nav_fournisseurs_fiches,
       fournisseurs_validation: t.nav_fournisseurs_validation,

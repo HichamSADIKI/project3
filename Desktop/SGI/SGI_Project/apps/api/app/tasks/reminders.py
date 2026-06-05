@@ -17,9 +17,11 @@ from datetime import UTC, datetime, timedelta
 from sqlalchemy import select
 
 from app.core.database import sync_session_maker
+from app.models.golden_visa import GoldenVisaApplication
 from app.models.notification import Notification
 from app.models.pdc_cheque import PdcCheque
 from app.models.rental import Rental
+from app.routers.golden_visa.service import visa_alert_level
 from app.routers.pdc.service import pdc_reminder_level
 from app.tasks.celery_app import celery_app
 from app.tasks.notifications import build_party_email_notification, deliver_email_notification
@@ -43,9 +45,82 @@ def check_crm_followups() -> dict:
 
 @celery_app.task(name="app.tasks.reminders.check_visa_expiry", queue="reminders")
 def check_visa_expiry() -> dict:
-    """Alertes Golden Visa à J-90 et J-30 avant expiration."""
-    logger.info("check_visa_expiry stub — à implémenter")
-    return {"status": "noop", "alerts_sent": 0}
+    """Alertes Golden Visa à J-90 et J-30 avant expiration.
+
+    Cron quotidien (toutes sociétés, rôle privilégié — voir C1). Pour chaque
+    dossier dont le visa expire dans ≤ 90/≤ 30 jours et dont l'alerte du niveau
+    n'a pas encore été émise : notification in-app au titulaire (client) +
+    doublon e-mail s'il a une adresse. Idempotence via alert_90_sent /
+    alert_30_sent (posés au passage).
+    """
+    today = datetime.now(UTC).date()
+    horizon = today + timedelta(days=90)
+    alerted = 0
+    try:
+        with sync_session_maker() as db:
+            applications = (
+                db.execute(
+                    select(GoldenVisaApplication).where(
+                        GoldenVisaApplication.deleted_at.is_(None),
+                        GoldenVisaApplication.visa_expiry_date.isnot(None),
+                        GoldenVisaApplication.visa_expiry_date <= horizon,
+                        GoldenVisaApplication.visa_expiry_date >= today,
+                    )
+                )
+                .scalars()
+                .all()
+            )
+
+            pending_emails: list[tuple[Notification, str]] = []
+            for app in applications:
+                level = visa_alert_level(
+                    today, app.visa_expiry_date, app.alert_90_sent, app.alert_30_sent
+                )
+                if level is None:
+                    continue
+                if level == "30":
+                    app.alert_30_sent = True
+                else:
+                    app.alert_90_sent = True
+                alerted += 1
+                expiry_iso = app.visa_expiry_date.isoformat() if app.visa_expiry_date else ""
+                title = "Golden Visa : expiration proche"
+                body = f"Votre Golden Visa expire le {expiry_iso} (J-{level})."
+                payload = {"golden_visa_id": str(app.id), "level": level}
+                db.add(
+                    Notification(
+                        company_id=app.company_id,
+                        recipient_party_id=app.client_id,
+                        type="golden_visa_expiry",
+                        channel="in_app",
+                        title=title,
+                        body=body,
+                        payload=payload,
+                        status="sent",
+                        sent_at=datetime.now(UTC),
+                    )
+                )
+                email_pair = build_party_email_notification(
+                    db,
+                    app.company_id,
+                    app.client_id,
+                    notif_type="golden_visa_expiry",
+                    title=title,
+                    body=body,
+                    payload=payload,
+                )
+                if email_pair is not None:
+                    pending_emails.append(email_pair)
+
+            if alerted:
+                db.commit()
+                for notif, email in pending_emails:
+                    deliver_email_notification(notif, to=email)
+                logger.info("check_visa_expiry : %d alerte(s) Golden Visa émise(s)", alerted)
+            return {"status": "ok", "alerts_sent": alerted}
+    except Exception as exc:  # noqa: BLE001
+        logger.error("check_visa_expiry failed: %s", exc)
+        return {"status": "error", "alerts_sent": alerted}
 
 
 @celery_app.task(name="app.tasks.reminders.check_rental_renewals", queue="reminders")
