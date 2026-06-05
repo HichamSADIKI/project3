@@ -6,6 +6,8 @@ DÉNORMALISÉ recopié de l'écriture parente — jamais depuis l'entrée client
 que la RLS s'applique directement à la table de lignes.
 """
 
+import csv
+import io
 import uuid
 from collections.abc import Iterable, Sequence
 from datetime import UTC, date, datetime
@@ -401,3 +403,60 @@ async def trial_balance(db: AsyncSession, company_id: uuid.UUID) -> TrialBalance
         )
 
     return TrialBalance(rows=out_rows, total_debit=total_debit, total_credit=total_credit)
+
+
+# ── Export CSV du grand-livre (une ligne par ligne d'écriture) ───────────────
+
+ENTRIES_CSV_COLUMNS = (
+    "reference",
+    "entry_date",
+    "status",
+    "account_code",
+    "account_name",
+    "debit",
+    "credit",
+    "description",
+)
+
+
+async def entries_csv(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    status: str | None = None,
+) -> str:
+    """Export CSV du grand-livre : une ligne par ligne d'écriture (jointure
+    ligne → écriture → compte), tenant-scopé (Loi 1), ordre antéchrono.
+
+    `status` filtre optionnellement les écritures (draft/posted/void)."""
+    query = (
+        select(JournalEntry, JournalLine, ChartAccount)
+        .join(JournalLine, JournalLine.entry_id == JournalEntry.id)
+        .join(ChartAccount, ChartAccount.id == JournalLine.account_id)
+        .where(
+            JournalEntry.company_id == company_id,
+            JournalEntry.deleted_at.is_(None),
+            JournalLine.deleted_at.is_(None),
+        )
+    )
+    if status:
+        query = query.where(JournalEntry.status == status)
+    query = query.order_by(JournalEntry.entry_date.desc(), JournalEntry.reference.desc())
+    rows = (await db.execute(query)).all()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(ENTRIES_CSV_COLUMNS)
+    for entry, line, account in rows:
+        writer.writerow(
+            [
+                entry.reference,
+                entry.entry_date.isoformat() if entry.entry_date else "",
+                entry.status,
+                account.code,
+                account.name_en,
+                f"{line.debit:.2f}",
+                f"{line.credit:.2f}",
+                line.description or "",
+            ]
+        )
+    return buf.getvalue()
