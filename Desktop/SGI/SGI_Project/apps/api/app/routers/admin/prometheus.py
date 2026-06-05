@@ -12,6 +12,7 @@ indisponibles » (pas un 500), pour que la console reste utilisable hors prod.
 from __future__ import annotations
 
 import os
+from typing import Any
 
 import httpx
 
@@ -53,3 +54,28 @@ async def instant_query(expr: str, *, timeout: float = 3.0) -> float | None:
         return float(results[0]["value"][1])
     except (KeyError, IndexError, ValueError):
         return None
+
+
+async def active_alerts(*, timeout: float = 3.0) -> list[dict[str, Any]]:
+    """Liste les alertes actives de Prometheus (endpoint `/api/v1/alerts`).
+
+    Retourne la liste brute `data.alerts` (chaque élément : `labels`, `state`,
+    `activeAt`, `annotations`, …) telle que définie par `prometheus/alerts.yml`.
+    Lève `PrometheusUnavailableError` si Prometheus n'est pas configuré ou répond
+    mal — à rattraper côté routeur (dégradation propre, jamais de 500).
+    """
+    base = prometheus_url()
+    if not base:
+        raise PrometheusUnavailableError("prometheus_not_configured")
+    try:
+        async with httpx.AsyncClient(timeout=timeout) as http:
+            resp = await http.get(f"{base}/api/v1/alerts")
+            resp.raise_for_status()
+            payload = resp.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        raise PrometheusUnavailableError(str(exc)) from exc
+
+    if payload.get("status") != "success":
+        raise PrometheusUnavailableError(payload.get("error", "prometheus_alerts_failed"))
+    alerts = payload.get("data", {}).get("alerts", [])
+    return alerts if isinstance(alerts, list) else []

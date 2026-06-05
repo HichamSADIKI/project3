@@ -21,7 +21,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.admin import InfraService
 from app.routers.admin import infra as infra_module
-from app.routers.admin.infra import _availability_expr, _live_state_from_value
+from app.routers.admin.infra import (
+    _availability_expr,
+    _live_state_from_value,
+    map_prometheus_alert,
+)
 from app.routers.admin.prometheus import PrometheusUnavailableError
 
 AUTH = "Authorization"
@@ -228,3 +232,77 @@ async def test_network_prometheus_unavailable_degrades(
     assert body["meta"]["available"] is False
     assert body["data"]["rx_bytes_per_sec"] is None
     assert body["data"]["active_connections"] is None
+
+
+# ── /alerts — alertes infra Prometheus (B2) ────────────────────────────────────
+
+
+def test_map_prometheus_alert() -> None:
+    """Mapping pur d'une alerte brute Prometheus → forme compacte."""
+    out = map_prometheus_alert(
+        {
+            "labels": {"alertname": "HighCPU", "severity": "critical"},
+            "annotations": {"summary": "CPU > 90%"},
+            "state": "firing",
+            "activeAt": "2026-06-05T10:00:00Z",
+        }
+    )
+    assert out.name == "HighCPU"
+    assert out.severity == "critical"
+    assert out.state == "firing"
+    assert out.summary == "CPU > 90%"
+
+
+def test_map_prometheus_alert_defaults() -> None:
+    """Alerte sans labels/annotations → name 'unknown', champs None (pas de crash)."""
+    out = map_prometheus_alert({})
+    assert out.name == "unknown"
+    assert out.severity is None and out.state is None
+
+
+@pytest.mark.asyncio
+async def test_alerts_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    assert (await client.get("/api/v1/admin/platform/alerts")).status_code == 401
+    _admin, token = seed_admin
+    resp = await client.get("/api/v1/admin/platform/alerts", headers={AUTH: f"Bearer {token}"})
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_alerts_firing_sorted(client: AsyncClient, seed_platform_admin, monkeypatch) -> None:
+    """Alertes remontées + triées (firing avant pending, critical avant warning)."""
+    _admin, token = seed_platform_admin
+
+    async def fake_alerts(*, timeout: float = 3.0) -> list[dict]:
+        return [
+            {"labels": {"alertname": "Pend", "severity": "warning"}, "state": "pending"},
+            {"labels": {"alertname": "Crit", "severity": "critical"}, "state": "firing"},
+            {"labels": {"alertname": "Warn", "severity": "warning"}, "state": "firing"},
+        ]
+
+    monkeypatch.setattr(infra_module, "active_alerts", fake_alerts)
+    resp = await client.get("/api/v1/admin/platform/alerts", headers={AUTH: f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["available"] is True
+    assert body["meta"]["total"] == 3
+    # firing+critical d'abord, pending en dernier.
+    assert body["data"][0]["name"] == "Crit"
+    assert body["data"][-1]["name"] == "Pend"
+
+
+@pytest.mark.asyncio
+async def test_alerts_unavailable_degrades(
+    client: AsyncClient, seed_platform_admin, monkeypatch
+) -> None:
+    _admin, token = seed_platform_admin
+
+    async def boom(*, timeout: float = 3.0) -> list[dict]:
+        raise PrometheusUnavailableError("unreachable")
+
+    monkeypatch.setattr(infra_module, "active_alerts", boom)
+    resp = await client.get("/api/v1/admin/platform/alerts", headers={AUTH: f"Bearer {token}"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["meta"]["available"] is False
+    assert body["data"] == []

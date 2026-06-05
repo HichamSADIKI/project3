@@ -28,6 +28,7 @@ from app.models.admin import InfraService
 from app.routers.admin.deps import require_platform_admin
 from app.routers.admin.prometheus import (
     PrometheusUnavailableError,
+    active_alerts,
     instant_query,
 )
 
@@ -166,3 +167,56 @@ async def network_metrics_endpoint(
         ),
         meta={"available": True},
     )
+
+
+# ── Alertes infra Prometheus (définies dans prometheus/alerts.yml) ──────────────
+
+
+class PrometheusAlertOut(BaseModel):
+    """Alerte infra remontée par Prometheus (lecture seule, B2)."""
+
+    name: str
+    severity: str | None = None
+    state: str | None = None  # firing | pending
+    summary: str | None = None
+    active_at: str | None = None
+
+
+class AlertsOut(BaseModel):
+    success: bool = True
+    data: list[PrometheusAlertOut]
+    meta: dict[str, Any]
+
+
+def map_prometheus_alert(raw: dict[str, Any]) -> PrometheusAlertOut:
+    """Mappe une alerte brute Prometheus vers la forme compacte. Helper PUR (testable)."""
+    labels = raw.get("labels") or {}
+    annotations = raw.get("annotations") or {}
+    return PrometheusAlertOut(
+        name=labels.get("alertname") or "unknown",
+        severity=labels.get("severity"),
+        state=raw.get("state"),
+        summary=annotations.get("summary") or annotations.get("description"),
+        active_at=raw.get("activeAt"),
+    )
+
+
+@infra_router.get("/alerts", response_model=AlertsOut)
+async def list_infra_alerts(
+    db: AsyncSession = Depends(get_db),
+) -> AlertsOut:
+    """Alertes infra actives remontées par Prometheus (cf. prometheus/alerts.yml).
+
+    Cross-tenant (PLATEFORME). Lecture seule : on ne stocke rien, on relaie l'état
+    courant de Prometheus. Dégradation propre si Prometheus injoignable → liste vide
+    + `meta.available=false` (jamais un 500). `db` injectée pour homogénéité de la garde.
+    """
+    try:
+        raw_alerts = await active_alerts()
+    except PrometheusUnavailableError:
+        return AlertsOut(data=[], meta={"available": False, "total": 0})
+    data = [map_prometheus_alert(a) for a in raw_alerts]
+    # Tri : firing avant pending, puis par sévérité critique d'abord.
+    _sev_rank = {"critical": 0, "warning": 1, "info": 2}
+    data.sort(key=lambda a: (a.state != "firing", _sev_rank.get(a.severity or "", 9)))
+    return AlertsOut(data=data, meta={"available": True, "total": len(data)})
