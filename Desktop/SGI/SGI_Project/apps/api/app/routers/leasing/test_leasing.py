@@ -580,3 +580,86 @@ async def test_convert_cross_tenant_404(
         .all()
     )
     assert rentals_b == []
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Pipeline locatif (synthèse)
+# ═════════════════════════════════════════════════════════════════════════
+
+from types import SimpleNamespace  # noqa: E402
+
+from app.routers.leasing.service import (  # noqa: E402
+    leasing_pipeline_summary,
+    summarize_leasing_pipeline,
+)
+
+
+def test_summarize_leasing_pipeline_pure() -> None:
+    listings = [
+        SimpleNamespace(status="published", monthly_rent=Decimal("12000")),
+        SimpleNamespace(status="reserved", monthly_rent=Decimal("8000")),
+        SimpleNamespace(status="draft", monthly_rent=Decimal("99999")),
+        SimpleNamespace(status="leased", monthly_rent=Decimal("1")),
+    ]
+    applications = [
+        SimpleNamespace(status="submitted"),
+        SimpleNamespace(status="screening"),
+        SimpleNamespace(status="converted"),
+        SimpleNamespace(status="rejected"),
+    ]
+    s = summarize_leasing_pipeline(listings, applications)
+    assert s["listings"]["active_count"] == 2  # published + reserved
+    assert s["listings"]["active_monthly_rent_aed"] == Decimal("20000")
+    assert s["applications"]["in_progress_count"] == 2  # submitted + screening
+    assert s["applications"]["converted_count"] == 1
+
+
+def test_summarize_leasing_pipeline_empty() -> None:
+    s = summarize_leasing_pipeline([], [])
+    assert s["listings"]["active_count"] == 0
+    assert s["listings"]["active_monthly_rent_aed"] == Decimal("0.00")
+    assert s["applications"]["converted_count"] == 0
+
+
+async def _seed_listing(db, company_id, *, status: str, rent: str) -> None:
+    db.add(
+        RentalListing(
+            id=_uuid.uuid4(),
+            company_id=company_id,
+            reference=f"LEAS-{_uuid.uuid4().hex[:8]}",
+            monthly_rent=Decimal(rent),
+            status=status,
+        )
+    )
+    await db.commit()
+
+
+@pytest.mark.asyncio
+async def test_leasing_pipeline_summary_service(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _seed_listing(db_session, seed_company.id, status="published", rent="12000")
+    await _seed_listing(db_session, seed_company.id, status="draft", rent="5000")
+    s = await leasing_pipeline_summary(db_session, seed_company.id)
+    assert s["listings"]["active_count"] == 1
+    assert s["listings"]["active_monthly_rent_aed"] == Decimal("12000")
+    assert s["listings"]["by_status"].get("published") == 1
+
+
+@pytest.mark.asyncio
+async def test_leasing_pipeline_summary_tenant_isolation(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    await _seed_listing(db_session, seed_company.id, status="published", rent="12000")
+    other = Company(
+        id=_uuid.uuid4(),
+        name="Autre",
+        slug=f"co-{_uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await leasing_pipeline_summary(db_session, other.id)
+    assert s["listings"]["by_status"] == {}
+    assert s["listings"]["active_monthly_rent_aed"] == Decimal("0.00")

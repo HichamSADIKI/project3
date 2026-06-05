@@ -115,3 +115,26 @@ class ApplicationListOut(BaseModel):
 class ApplicationItemOut(BaseModel):
     success: bool = True
     data: ApplicationOut
+
+
+class LeasingListingsBlock(BaseModel):
+    by_status: dict[str, int]
+    active_count: int
+    active_monthly_rent_aed: Decimal
+
+
+class LeasingApplicationsBlock(BaseModel):
+    by_status: dict[str, int]
+    in_progress_count: int
+    converted_count: int
+
+
+class LeasingPipeline(BaseModel):
+    listings: LeasingListingsBlock
+    applications: LeasingApplicationsBlock
+
+
+class LeasingPipelineOut(BaseModel):
+    success: bool = True
+    data: LeasingPipeline
+    meta: dict[str, Any]
