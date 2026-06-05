@@ -8,6 +8,7 @@ les signatures de ce document sont posées, le contrat passe `signed`.
 import uuid
 from datetime import UTC, date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
+from typing import Any
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -54,6 +55,66 @@ def apply_rent_escalation(amount: Decimal, pct: Decimal) -> Decimal:
     """Applique une escalade de loyer en pourcentage, arrondie à 2 décimales."""
     escalated = amount * (Decimal("1") + pct / Decimal("100"))
     return escalated.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+EXPIRY_SOON_DAYS = 30
+
+
+def contract_expiry_state(today: date, end_date: date | None, status: str) -> str | None:
+    """État d'expiration d'un contrat actif, ou ``None``.
+
+    - ``"expired"`` : fin dépassée (mais toujours en statut ``active``) ;
+    - ``"expiring_soon"`` : fin dans ≤ 30 jours ;
+    - ``"active"`` : fin plus lointaine ;
+    - ``None`` : statut ≠ ``active`` ou pas de date de fin.
+    """
+    if status != "active" or end_date is None:
+        return None
+    days = (end_date - today).days
+    if days < 0:
+        return "expired"
+    if days <= EXPIRY_SOON_DAYS:
+        return "expiring_soon"
+    return "active"
+
+
+async def expiring_contracts(
+    db: AsyncSession, company_id: uuid.UUID, today: date, days: int = 90
+) -> list[dict[str, Any]]:
+    """Contrats actifs dont la fin est ≤ today+days (retards inclus), triés par
+    date de fin. Surface l'éligibilité au renouvellement et les dates suggérées.
+    Scopé ``company_id`` (Loi 1)."""
+    horizon = today + timedelta(days=days)
+    result = await db.execute(
+        select(Contract)
+        .where(
+            Contract.company_id == company_id,
+            Contract.deleted_at.is_(None),
+            Contract.status == "active",
+            Contract.end_date.isnot(None),
+            Contract.end_date <= horizon,
+        )
+        .order_by(Contract.end_date)
+    )
+    rows = list(result.scalars().all())
+    out: list[dict[str, Any]] = []
+    for c in rows:
+        new_start, new_end = compute_renewal_dates(c.start_date, c.end_date)
+        out.append(
+            {
+                "id": c.id,
+                "reference": c.reference,
+                "type": c.type,
+                "status": c.status,
+                "end_date": c.end_date,
+                "days_until_end": (c.end_date - today).days if c.end_date else None,
+                "expiry_state": contract_expiry_state(today, c.end_date, c.status),
+                "is_renewable": is_renewable(c.status),
+                "suggested_renewal_start": new_start,
+                "suggested_renewal_end": new_end,
+            }
+        )
+    return out
 
 
 async def _next_contract_sequence(db: AsyncSession, company_id: uuid.UUID, year: int) -> int:
