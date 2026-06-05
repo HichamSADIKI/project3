@@ -13,6 +13,7 @@ from app.models.admin import (
     InfraService,
 )
 from app.models.audit_log import AuditLog
+from app.models.bank import BankAccount, BankStatementLine
 from app.models.base import Base
 from app.models.branch import Branch
 from app.models.building import Building
@@ -84,6 +85,8 @@ __all__ = [
     "OwnerStatement",
     "Notification",
     "RefreshToken",
+    "BankAccount",
+    "BankStatementLine",
     "ChartAccount",
     "JournalEntry",
     "JournalLine",
