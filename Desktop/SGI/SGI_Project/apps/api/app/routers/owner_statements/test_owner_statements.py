@@ -61,6 +61,7 @@ class TestNetPayout:
 # ─── Tests d'intégration endpoints (auth + multi-tenant) ────────────────────
 # Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
 
+import importlib
 import uuid
 
 from httpx import AsyncClient
@@ -68,6 +69,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.company import Company
 from app.models.user import User
+
+# Le package owner_statements réexporte `router` (l'APIRouter) → l'attribut
+# `app.routers.owner_statements.router` est masqué par l'instance. On récupère
+# donc le *module* via importlib pour pouvoir monkeypatcher ses globals.
+_stmt_router_mod = importlib.import_module("app.routers.owner_statements.router")
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -139,7 +145,8 @@ async def test_statement_enqueues_email_when_opted_in_with_email(
     """Owner avec e-mail + opt-in (défaut) → la livraison e-mail est enfilée."""
     captured: dict[str, object] = {}
     monkeypatch.setattr(
-        "app.routers.owner_statements.router.deliver_email_notification",
+        _stmt_router_mod,
+        "deliver_email_notification",
         lambda notif, *, to: captured.update(
             {"to": to, "title": notif.title, "channel": notif.channel}
         ),
@@ -164,7 +171,8 @@ async def test_statement_no_email_when_owner_has_no_email(
     """Pas d'adresse → aucune livraison e-mail enfilée (in-app seul)."""
     calls: list[object] = []
     monkeypatch.setattr(
-        "app.routers.owner_statements.router.deliver_email_notification",
+        _stmt_router_mod,
+        "deliver_email_notification",
         lambda notif, *, to: calls.append(to),
     )
     _admin, token = seed_admin
@@ -190,7 +198,8 @@ async def test_statement_no_email_when_opted_out(
 
     calls: list[object] = []
     monkeypatch.setattr(
-        "app.routers.owner_statements.router.deliver_email_notification",
+        _stmt_router_mod,
+        "deliver_email_notification",
         lambda notif, *, to: calls.append(to),
     )
     _admin, token = seed_admin
