@@ -163,6 +163,8 @@ def check_pdc_due() -> dict:
                 ).all()
             }
 
+            # Doublons e-mail au tireur, enfilés APRÈS commit.
+            pending_emails: list[tuple[Notification, str]] = []
             for pdc in cheques:
                 level = pdc_reminder_level(today, pdc.due_date, pdc.status, PDC_DUE_SOON_DAYS)
                 if level is None:
@@ -176,6 +178,8 @@ def check_pdc_due() -> dict:
                     if level == "overdue"
                     else f"Chèque {pdc.reference} à échéance proche"
                 )
+                body = f"Montant {pdc.amount_aed} AED, échéance {pdc.due_date.isoformat()}"
+                payload = {"pdc_id": str(pdc.id), "level": level}
                 db.add(
                     Notification(
                         company_id=pdc.company_id,
@@ -183,16 +187,31 @@ def check_pdc_due() -> dict:
                         type=notif_type,
                         channel="in_app",
                         title=title,
-                        body=f"Montant {pdc.amount_aed} AED, échéance {pdc.due_date.isoformat()}",
-                        payload={"pdc_id": str(pdc.id), "level": level},
+                        body=body,
+                        payload=payload,
                         status="sent",
                         sent_at=datetime.now(UTC),
                     )
                 )
                 created += 1
+                # Doublon e-mail si le tireur a une adresse (canal email, pending).
+                email_pair = build_party_email_notification(
+                    db,
+                    pdc.company_id,
+                    pdc.drawer_party_id,
+                    notif_type=notif_type,
+                    title=title,
+                    body=body,
+                    payload=payload,
+                )
+                if email_pair is not None:
+                    pending_emails.append(email_pair)
 
             if created:
                 db.commit()
+                # Enfile les envois après le commit (notifs email persistées).
+                for notif, email in pending_emails:
+                    deliver_email_notification(notif, to=email)
                 logger.info("check_pdc_due : %d notification(s) PDC créée(s)", created)
             return {"status": "ok", "alerts_sent": created}
     except Exception as exc:  # noqa: BLE001
