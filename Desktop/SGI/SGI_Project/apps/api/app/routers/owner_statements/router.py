@@ -15,6 +15,7 @@ from app.routers.owner_statements.schemas import (
     OwnerStatementResponse,
 )
 from app.routers.owner_statements.service import statement_period_label
+from app.tasks.notifications import deliver_email_notification
 
 router = APIRouter(prefix="/owners", tags=["owner-statements"])
 
@@ -36,16 +37,35 @@ async def generate_statement_endpoint(
     if owner is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found")
     statement = await service.generate_statement(db, company_id, owner, year, month)
-    # Notifie le propriétaire que son relevé est prêt (in-app).
+    title = f"Relevé {statement_period_label(year, month)} disponible"
+    body = f"Payout net : {statement.net_payout_aed} AED"
+    # Notifie le propriétaire que son relevé est prêt (in-app, toujours).
     await create_notification(
         db,
         company_id,
         notif_type="statement_ready",
-        title=f"Relevé {statement_period_label(year, month)} disponible",
-        body=f"Payout net : {statement.net_payout_aed} AED",
+        title=title,
+        body=body,
         recipient_party_id=party_id,
         payload={"statement_id": str(statement.id)},
     )
+    # Doublon e-mail si le propriétaire l'a activé ET qu'on a une adresse.
+    # La notif e-mail (canal "email", statut pending) est enfilée vers le worker
+    # qui l'enverra et la passera à "sent" (cf. tasks.notifications.send_email).
+    if owner.monthly_statement_enabled:
+        email = await service.get_owner_email(db, company_id, party_id)
+        if email:
+            email_notif = await create_notification(
+                db,
+                company_id,
+                notif_type="statement_ready",
+                title=title,
+                body=body,
+                channel="email",
+                recipient_party_id=party_id,
+                payload={"statement_id": str(statement.id)},
+            )
+            deliver_email_notification(email_notif, to=email)
     return OwnerStatementResponse(data=OwnerStatementOut.model_validate(statement))
 
 

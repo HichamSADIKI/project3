@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.client import Client
 from app.models.owner_statement import OwnerStatement
 from app.models.party_owner import Owner
 from app.models.payment import PaymentRequest
@@ -108,6 +109,20 @@ async def get_owner(
             Owner.party_id == owner_party_id,
             Owner.company_id == company_id,
             Owner.deleted_at.is_(None),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_owner_email(
+    db: AsyncSession, company_id: uuid.UUID, owner_party_id: uuid.UUID
+) -> str | None:
+    """E-mail du propriétaire (porté par le Client/party). Scopé tenant (Loi 1)."""
+    result = await db.execute(
+        select(Client.email).where(
+            Client.id == owner_party_id,
+            Client.company_id == company_id,
+            Client.deleted_at.is_(None),
         )
     )
     return result.scalar_one_or_none()
