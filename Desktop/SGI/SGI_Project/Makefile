@@ -1,8 +1,11 @@
-.PHONY: up down logs migrate seed test lint backup scale ssl-init healthcheck
+.PHONY: up down logs migrate seed test lint backup scale ssl-init healthcheck monitoring monitoring-down
 
 # Variables
 COMPOSE = docker compose
 API = apps/api
+# Stack d'observabilité (opt-in) : inclut l'override dev seulement s'il existe.
+MONITORING = $(COMPOSE) -f docker-compose.yml $(if $(wildcard docker-compose.override.yml),-f docker-compose.override.yml,) -f docker-compose.monitoring.yml
+MON_SERVICES = prometheus grafana node-exporter cadvisor
 
 up:
 	$(COMPOSE) up -d
@@ -41,3 +44,12 @@ healthcheck:
 	@$(COMPOSE) ps
 	@curl -sf http://localhost:8000/health && echo "✓ API OK" || echo "✗ API FAIL"
 	@curl -sf http://localhost:3000 && echo "✓ Web OK" || echo "✗ Web FAIL"
+
+# Observabilité (opt-in) : Prometheus (9090) + Grafana (3002) + exporters.
+monitoring:
+	$(MONITORING) up -d $(MON_SERVICES)
+	@echo "✓ Prometheus → http://localhost:9090"
+	@echo "✓ Grafana    → http://localhost:3002  (admin / admin par défaut)"
+
+monitoring-down:
+	$(MONITORING) rm -sf $(MON_SERVICES)
