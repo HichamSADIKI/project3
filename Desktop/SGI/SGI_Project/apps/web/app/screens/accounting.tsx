@@ -48,7 +48,7 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "Chargement…", empty: "Aucune donnée.", save: "Enregistrer", grandTotal: "Total général",
     asset: "Actif", liability: "Passif", equity: "Capitaux", revenue: "Produits", expense: "Charges",
     draft: "Brouillon", posted: "Comptabilisée", void_s: "Annulée", needBalance: "Débits et crédits doivent s'équilibrer (et > 0).",
-    active: "Actif", inactive: "Inactif",
+    active: "Actif", inactive: "Inactif", exportCsv: "Exporter CSV",
   },
   en: {
     title: "Accounting", accounts: "Chart of accounts", entries: "Journal entries", balance: "Trial balance",
@@ -59,7 +59,7 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "Loading…", empty: "No data.", save: "Save", grandTotal: "Grand total",
     asset: "Asset", liability: "Liability", equity: "Equity", revenue: "Revenue", expense: "Expense",
     draft: "Draft", posted: "Posted", void_s: "Void", needBalance: "Debits and credits must balance (and be > 0).",
-    active: "Active", inactive: "Inactive",
+    active: "Active", inactive: "Inactive", exportCsv: "Export CSV",
   },
   ar: {
     title: "المحاسبة", accounts: "دليل الحسابات", entries: "القيود", balance: "ميزان المراجعة",
@@ -70,7 +70,7 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "جارٍ التحميل…", empty: "لا بيانات.", save: "حفظ", grandTotal: "الإجمالي العام",
     asset: "أصول", liability: "خصوم", equity: "حقوق ملكية", revenue: "إيرادات", expense: "مصروفات",
     draft: "مسودة", posted: "مُرحّل", void_s: "ملغى", needBalance: "يجب أن يتوازن المدين والدائن (وأكبر من صفر).",
-    active: "نشط", inactive: "غير نشط",
+    active: "نشط", inactive: "غير نشط", exportCsv: "تصدير CSV",
   },
 };
 
@@ -190,12 +190,15 @@ export function ScreenAccounting(): React.ReactNode {
           {tab("accounts", L("accounts"))}
           {tab("entries", L("entries"))}
           {tab("balance", L("balance"))}
-          <div style={{ marginInlineStart: "auto" }}>
+          <div style={{ marginInlineStart: "auto", display: "flex", gap: 8 }}>
             {view === "accounts" && (
               <button onClick={() => { setAccOpen(true); setAccErr(null); }} style={addBtn}><IcPlus /> {L("newAccount")}</button>
             )}
             {view === "entries" && (
-              <button onClick={() => { setEntOpen(true); setEntErr(null); }} style={addBtn}><IcPlus /> {L("newEntry")}</button>
+              <>
+                <a href="/api/admin/accounting/entries/export" style={exportBtn}>⬇ {L("exportCsv")}</a>
+                <button onClick={() => { setEntOpen(true); setEntErr(null); }} style={addBtn}><IcPlus /> {L("newEntry")}</button>
+              </>
             )}
           </div>
         </div>
@@ -345,6 +348,11 @@ export function ScreenAccounting(): React.ReactNode {
 const addBtn: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", background: "var(--gold)",
   color: "#1A1610", border: "none", borderRadius: "var(--r)", fontWeight: 600, fontSize: 13, cursor: "pointer",
+};
+const exportBtn: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", padding: "9px 14px", borderRadius: "var(--r)",
+  border: "1px solid var(--line)", background: "var(--bg-paper)", color: "var(--ink)", fontSize: 12.5,
+  fontWeight: 600, textDecoration: "none", cursor: "pointer",
 };
 const postBtn: React.CSSProperties = {
   border: "none", borderRadius: 8, padding: "5px 10px", cursor: "pointer", fontSize: 11.5, fontWeight: 600,

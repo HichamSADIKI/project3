@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -388,3 +389,54 @@ async def test_trial_balance_isolated_per_tenant(db_session, seed_company: Compa
     tb_other = await trial_balance(db_session, other.id)
     assert tb_other.total_debit == Decimal("0")
     assert tb_other.rows == []
+
+
+# ── Export CSV grand-livre ──────────────────────────────────────────────────
+
+
+async def test_entries_csv_header_and_rows(db_session, seed_company: Company) -> None:
+    from app.routers.accounting.service import entries_csv
+
+    a_id, b_id = await _two_accounts(db_session, seed_company.id)
+    await create_journal_entry(
+        db_session,
+        seed_company.id,
+        JournalEntryCreate(
+            entry_date=date(2026, 6, 5),
+            description="Vente",
+            lines=[_line(a_id, debit="300"), _line(b_id, credit="300")],
+        ),
+    )
+    csv_text = await entries_csv(db_session, seed_company.id)
+    lines = csv_text.strip().splitlines()
+    assert (
+        lines[0] == "reference,entry_date,status,account_code,account_name,debit,credit,description"
+    )
+    assert len(lines) == 3  # header + 2 lignes (une par ligne d'écriture)
+    assert any("300.00" in line for line in lines[1:])
+
+
+async def test_entries_csv_isolated_per_tenant(db_session, seed_company: Company) -> None:
+    from app.routers.accounting.service import entries_csv
+
+    other = await _other_company(db_session)
+    a_id, b_id = await _two_accounts(db_session, seed_company.id)
+    await create_journal_entry(
+        db_session,
+        seed_company.id,
+        JournalEntryCreate(
+            entry_date=date(2026, 6, 5),
+            lines=[_line(a_id, debit="100"), _line(b_id, credit="100")],
+        ),
+    )
+    oa, ob = await _two_accounts(db_session, other.id)
+    await create_journal_entry(
+        db_session,
+        other.id,
+        JournalEntryCreate(
+            entry_date=date(2026, 6, 5),
+            lines=[_line(oa, debit="50"), _line(ob, credit="50")],
+        ),
+    )
+    csv_mine = await entries_csv(db_session, seed_company.id)
+    assert len(csv_mine.strip().splitlines()) == 3  # header + 2 lignes du tenant courant

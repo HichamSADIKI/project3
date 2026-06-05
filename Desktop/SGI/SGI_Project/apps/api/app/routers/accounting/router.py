@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import Response
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,6 +26,7 @@ from app.routers.accounting.service import (
     AccountingError,
     create_account,
     create_journal_entry,
+    entries_csv,
     get_journal_entry,
     list_accounts,
     list_journal_entries,
@@ -176,6 +178,22 @@ async def create_entry_endpoint(
     except AccountingError as err:
         raise _bad_request(err) from err
     return JournalEntryDetailOut(data=JournalEntryOut.model_validate(entry))
+
+
+# Déclaré AVANT /entries/{entry_id} pour que « export » ne soit pas pris pour un id.
+@router.get("/entries/export")
+async def export_entries_csv(
+    status_filter: str | None = Query(None, alias="status", pattern="^(draft|posted|void)$"),
+    db: AsyncSession = Depends(get_db_session),
+) -> Response:
+    """Export CSV du grand-livre (une ligne par ligne d'écriture, téléchargement)."""
+    company_id = await _get_company_id(db)
+    csv_text = await entries_csv(db, company_id, status_filter)
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="grand-livre.csv"'},
+    )
 
 
 @router.get("/entries/{entry_id}", response_model=JournalEntryDetailOut)
