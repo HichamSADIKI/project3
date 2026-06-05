@@ -77,7 +77,10 @@ async def my_permissions(
     effective = await service.get_effective_cached(db, company_id, user_id)
     nodes = await service.load_nodes(db, company_id)
     vis = service.page_visibility(nodes, effective)
+    user = await service.get_user(db, company_id, user_id)
     return MePermissionsOut(
+        full_name=user.full_name if user else None,
+        email=user.email if user else None,
         allowed=sorted(service.allowed_keys(effective)),
         nav_known=vis["nav_known"],
         nav_allowed=vis["nav_allowed"],

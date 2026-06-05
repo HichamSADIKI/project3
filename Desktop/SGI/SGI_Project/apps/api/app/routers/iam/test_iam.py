@@ -252,13 +252,17 @@ async def test_health_is_public(client: AsyncClient) -> None:
 async def test_admin_me_permissions_has_settings_access(
     client: AsyncClient, seed_admin: tuple[User, str]
 ) -> None:
-    _admin, token = seed_admin
+    admin, token = seed_admin
     r = await client.get(f"{_H}/me/permissions", headers=_auth(token))
     assert r.status_code == 200
-    allowed = set(r.json()["allowed"])
+    body = r.json()
+    allowed = set(body["allowed"])
     # Le bootstrap paresseux a rattaché l'admin au groupe système → tout autorisé.
     assert "settings.access.read" in allowed
     assert "realestate.payments.delete" in allowed
+    # Identité de l'utilisateur courant (salutation du hub / footer sidebar).
+    assert body["full_name"] == admin.full_name
+    assert body["email"] == admin.email
 
 
 async def test_catalogue_returns_system_tree(

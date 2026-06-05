@@ -25,6 +25,8 @@ import React, {
 
 interface Snapshot {
   ready: boolean;
+  fullName: string | null;
+  email: string | null;
   nodeAllowed: Set<string>;
   navKnown: Set<string>;
   navAllowed: Set<string>;
@@ -41,6 +43,8 @@ interface PermissionsApi extends Snapshot {
 
 const emptySnapshot = (): Snapshot => ({
   ready: false,
+  fullName: null,
+  email: null,
   nodeAllowed: new Set(),
   navKnown: new Set(),
   navAllowed: new Set(),
@@ -69,6 +73,8 @@ export function PermissionsProvider({ children }: { children: React.ReactNode })
       const j = await res.json();
       setSnap({
         ready: true,
+        fullName: j.full_name ?? null,
+        email: j.email ?? null,
         nodeAllowed: new Set<string>(j.allowed ?? []),
         navKnown: new Set<string>(j.nav_known ?? []),
         navAllowed: new Set<string>(j.nav_allowed ?? []),
@@ -105,6 +111,12 @@ export function usePermissions(): PermissionsApi {
 /** Fonction de gating de nav, appelable dans une boucle (filtrage de NAV_ENTRIES). */
 export function useNavGate(): (navKey: string) => boolean {
   return usePermissions().canNav;
+}
+
+/** Identité de l'utilisateur courant (hydratée depuis /iam/me/permissions). */
+export function useCurrentUser(): { fullName: string | null; email: string | null } {
+  const { fullName, email } = usePermissions();
+  return { fullName, email };
 }
 
 /** Vrai si l'utilisateur peut voir le nœud (champ/section). Permissif avant hydratation. */
