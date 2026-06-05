@@ -362,3 +362,207 @@ async def test_checklist_endpoint_tenant_isolation(
         f"/api/v1/golden-visa/{app_id}/documents/checklist", headers=_auth(token_b)
     )
     assert r.status_code == 404
+
+
+# ── Helpers upload de documents (purs) ───────────────────────────────────────
+
+from app.core import storage  # noqa: E402
+from app.routers.golden_visa.service import (  # noqa: E402
+    DOC_TYPE_TO_ATTR,
+    attr_for_doc_type,
+    build_gv_doc_key,
+    doc_mime_allowed,
+)
+
+
+def test_attr_for_doc_type_maps_all_five() -> None:
+    assert attr_for_doc_type("passport") == "passport_doc"
+    assert attr_for_doc_type("biometric") == "biometric_photo"
+    assert set(DOC_TYPE_TO_ATTR) == {"passport", "dld", "gdrfa", "insurance", "biometric"}
+    assert attr_for_doc_type("unknown") is None
+
+
+class TestDocMimeAllowed:
+    def test_pdf_ok_for_passport(self) -> None:
+        assert doc_mime_allowed("passport", "application/pdf") is True
+
+    def test_image_ok_for_passport(self) -> None:
+        assert doc_mime_allowed("passport", "image/png") is True
+
+    def test_biometric_rejects_pdf(self) -> None:
+        assert doc_mime_allowed("biometric", "application/pdf") is False
+
+    def test_biometric_accepts_jpeg(self) -> None:
+        assert doc_mime_allowed("biometric", "image/jpeg") is True
+
+    def test_rejects_text(self) -> None:
+        assert doc_mime_allowed("passport", "text/plain") is False
+
+    def test_strips_charset_param(self) -> None:
+        assert doc_mime_allowed("passport", "application/pdf; charset=binary") is True
+
+
+def test_build_gv_doc_key_shape() -> None:
+    cid = uuid.uuid4()
+    aid = uuid.uuid4()
+    key = build_gv_doc_key(cid, aid, "passport", "pdf")
+    assert key == f"golden_visa/{cid}/{aid}/passport.pdf"
+
+
+# ── Endpoints upload/download de documents (intégration) ─────────────────────
+
+
+def _patch_storage(monkeypatch) -> None:
+    """Neutralise MinIO : upload renvoie un chemin, presigned une URL signée."""
+
+    async def _fake_upload(key: str, data: bytes, content_type: str) -> str:
+        return f"minio://{key}"
+
+    async def _fake_presigned(path: str, expires_seconds: int = 3600) -> str:
+        return f"https://signed.example/{path}"
+
+    monkeypatch.setattr(storage, "upload_bytes", _fake_upload)
+    monkeypatch.setattr(storage, "presigned_url", _fake_presigned)
+
+
+async def test_upload_requires_auth(client: AsyncClient) -> None:
+    r = await client.post(
+        f"/api/v1/golden-visa/{uuid.uuid4()}/documents/passport",
+        files={"file": ("p.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert r.status_code in (401, 403)
+
+
+async def test_upload_unknown_doc_type_422(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.post(
+        f"/api/v1/golden-visa/{uuid.uuid4()}/documents/wat",
+        headers=_auth(token),
+        files={"file": ("p.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "unknown_document_type"
+
+
+async def test_upload_unsupported_mime_422(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/passport",
+        headers=_auth(token),
+        files={"file": ("p.txt", b"hello", "text/plain")},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "unsupported_document_type"
+
+
+async def test_upload_biometric_rejects_pdf_422(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/biometric",
+        headers=_auth(token),
+        files={"file": ("scan.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert r.status_code == 422
+
+
+async def test_upload_empty_file_422(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str], monkeypatch
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)
+    _patch_storage(monkeypatch)
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/passport",
+        headers=_auth(token),
+        files={"file": ("p.pdf", b"", "application/pdf")},
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"] == "empty_file"
+
+
+async def test_upload_happy_path_sets_column_and_returns_url(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str], monkeypatch
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)
+    _patch_storage(monkeypatch)
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/passport",
+        headers=_auth(token),
+        files={"file": ("passport.pdf", b"%PDF-1.4 real", "application/pdf")},
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["url"].startswith("https://signed.example/")
+    assert body["data"]["passport_doc"]
+    # La checklist reflète le document désormais présent.
+    c = await client.get(f"/api/v1/golden-visa/{app_id}/documents/checklist", headers=_auth(token))
+    assert "passport" in c.json()["data"]["present"]
+
+
+async def test_upload_cross_tenant_404(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    monkeypatch,
+) -> None:
+    """Loi 1 : impossible d'uploader sur le dossier d'un autre tenant (404)."""
+    admin, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    app_id = await _seed_app(db_session, admin.company_id)
+    _patch_storage(monkeypatch)
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/passport",
+        headers=_auth(token_b),
+        files={"file": ("p.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert r.status_code == 404
+
+
+async def test_download_missing_doc_404(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)  # aucun doc
+    r = await client.get(
+        f"/api/v1/golden-visa/{app_id}/documents/passport/download", headers=_auth(token)
+    )
+    assert r.status_code == 404
+
+
+async def test_download_happy_path(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str], monkeypatch
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id, passport_doc="minio://golden_visa/x")
+    _patch_storage(monkeypatch)
+    r = await client.get(
+        f"/api/v1/golden-visa/{app_id}/documents/passport/download", headers=_auth(token)
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["url"].startswith("https://signed.example/")
+
+
+async def test_download_cross_tenant_404(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    """Loi 1 : impossible de télécharger le document d'un autre tenant (404)."""
+    admin, _token_a = seed_admin
+    _company_b, token_b = second_admin
+    app_id = await _seed_app(db_session, admin.company_id, passport_doc="minio://golden_visa/x")
+    r = await client.get(
+        f"/api/v1/golden-visa/{app_id}/documents/passport/download", headers=_auth(token_b)
+    )
+    assert r.status_code == 404

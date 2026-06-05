@@ -6,7 +6,11 @@ import {
   daysUntil,
   expiryBucket,
   isEligibleAmount,
+  docTypeFor,
+  isImageOnly,
+  acceptFor,
   GV_DOCS,
+  GV_DOC_TYPE,
   GV_THRESHOLD_AED,
 } from "./golden-visa";
 
@@ -56,4 +60,26 @@ describe("isEligibleAmount", () => {
   it("≥ seuil", () => expect(isEligibleAmount(GV_THRESHOLD_AED)).toBe(true));
   it("< seuil", () => expect(isEligibleAmount(GV_THRESHOLD_AED - 1)).toBe(false));
   it("null", () => expect(isEligibleAmount(null)).toBe(false));
+});
+
+describe("docTypeFor / GV_DOC_TYPE", () => {
+  it("mappe chaque colonne vers un doc_type backend", () => {
+    expect(docTypeFor("passport_doc")).toBe("passport");
+    expect(docTypeFor("biometric_photo")).toBe("biometric");
+    expect(docTypeFor("dld_doc")).toBe("dld");
+  });
+  it("couvre les 5 colonnes", () => {
+    expect(Object.keys(GV_DOC_TYPE).sort()).toEqual([...GV_DOCS].sort());
+  });
+});
+
+describe("isImageOnly / acceptFor", () => {
+  it("photo biométrique → image uniquement", () => {
+    expect(isImageOnly("biometric_photo")).toBe(true);
+    expect(acceptFor("biometric_photo")).toBe("image/*");
+  });
+  it("passeport → PDF ou image", () => {
+    expect(isImageOnly("passport_doc")).toBe(false);
+    expect(acceptFor("passport_doc")).toBe("application/pdf,image/*");
+  });
 });

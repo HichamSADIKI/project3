@@ -27,6 +27,41 @@ REQUIRED_DOCUMENTS: list[tuple[str, str]] = [
 ]
 
 
+# Types de documents uploadables (URL-friendly) → attribut modèle (colonne MinIO).
+DOC_TYPE_TO_ATTR: dict[str, str] = {
+    "passport": "passport_doc",
+    "dld": "dld_doc",
+    "gdrfa": "gdrfa_doc",
+    "insurance": "insurance_doc",
+    "biometric": "biometric_photo",
+}
+
+# Photo biométrique → image uniquement ; les autres acceptent aussi le PDF scanné.
+_IMAGE_MIMES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+
+
+def attr_for_doc_type(doc_type: str) -> str | None:
+    """Attribut modèle (colonne chemin MinIO) pour un type de document, ou None."""
+    return DOC_TYPE_TO_ATTR.get(doc_type)
+
+
+def doc_mime_allowed(doc_type: str, content_type: str) -> bool:
+    """Vrai si le MIME est accepté pour ce type de document Golden Visa.
+
+    Photo biométrique → image uniquement ; passeport / DLD / GDRFA / assurance →
+    PDF ou image scannée.
+    """
+    mime = (content_type or "").split(";")[0].strip().lower()
+    if doc_type == "biometric":
+        return mime in _IMAGE_MIMES
+    return mime == "application/pdf" or mime in _IMAGE_MIMES
+
+
+def build_gv_doc_key(company_id: uuid.UUID, app_id: uuid.UUID, doc_type: str, ext: str) -> str:
+    """Clé objet MinIO d'un document Golden Visa (un objet par type → écrasement)."""
+    return f"golden_visa/{company_id}/{app_id}/{doc_type}.{ext}"
+
+
 def missing_documents(application: GoldenVisaApplication) -> list[str]:
     """Libellés des documents obligatoires encore absents du dossier."""
     return [label for attr, label in REQUIRED_DOCUMENTS if not getattr(application, attr, None)]
@@ -150,6 +185,19 @@ async def update_application(
     for k, v in data.items():
         setattr(app, k, v)
 
+    await db.commit()
+    await db.refresh(app)
+    return app
+
+
+async def set_document(
+    db: AsyncSession, app_id: uuid.UUID, attr: str, file_path: str
+) -> GoldenVisaApplication | None:
+    """Renseigne le chemin MinIO d'un document sur le dossier (scopé tenant)."""
+    app = await get_application(db, app_id)
+    if not app:
+        return None
+    setattr(app, attr, file_path)
     await db.commit()
     await db.refresh(app)
     return app

@@ -48,6 +48,30 @@ export type GvDoc = (typeof GV_DOCS)[number];
 /** Seuil d'éligibilité Golden Visa : bien signé ≥ 2 000 000 AED. */
 export const GV_THRESHOLD_AED = 2_000_000;
 
+/** Colonne modèle d'un document → segment d'URL d'upload (doc_type backend). */
+export const GV_DOC_TYPE: Record<GvDoc, string> = {
+  passport_doc: "passport",
+  dld_doc: "dld",
+  gdrfa_doc: "gdrfa",
+  insurance_doc: "insurance",
+  biometric_photo: "biometric",
+};
+
+/** Le type d'URL backend (doc_type) pour une colonne document. */
+export function docTypeFor(doc: GvDoc): string {
+  return GV_DOC_TYPE[doc];
+}
+
+/** Vrai si le type de document n'accepte que des images (photo biométrique). */
+export function isImageOnly(doc: GvDoc): boolean {
+  return doc === "biometric_photo";
+}
+
+/** Filtre `accept` HTML d'un input fichier selon le type de document. */
+export function acceptFor(doc: GvDoc): string {
+  return isImageOnly(doc) ? "image/*" : "application/pdf,image/*";
+}
+
 /** Nom affichable d'un client (société ou personne), repli sur un id court. */
 export function clientLabel(c: ClientLite | undefined, id: string): string {
   if (!c) return id ? `#${id.slice(0, 8)}` : "—";

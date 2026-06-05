@@ -132,3 +132,19 @@ export async function patchJson(url: string, body: unknown): Promise<Response> {
   if (res.status >= 500) summonAssistantOnError(); // anomalie serveur → ambulance
   return res;
 }
+
+/**
+ * POST multipart (upload de fichier) ; même contrat que `postJson` (réponse
+ * brute + refresh transparent sur 401). On ne fixe PAS le Content-Type : le
+ * navigateur pose lui-même `multipart/form-data; boundary=…`.
+ */
+export async function postForm(url: string, form: FormData): Promise<Response> {
+  const doPost = () => fetch(url, { method: "POST", body: form });
+  let res = await doPost();
+  if (res.status === 401) {
+    if (await tryRefresh()) res = await doPost();
+    if (res.status === 401) handleUnauthenticated();
+  }
+  if (res.status >= 500) summonAssistantOnError(); // anomalie serveur → ambulance
+  return res;
+}

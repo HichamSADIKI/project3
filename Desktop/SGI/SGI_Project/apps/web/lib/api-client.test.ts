@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { extractError, getJson, postJson } from "./api-client";
+import { extractError, getJson, postJson, postForm } from "./api-client";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -134,5 +134,35 @@ describe("postJson", () => {
     expect(res.status).toBe(401);
     expect(location.href).toBe("/"); // bascule login
     expect(fetchMock).toHaveBeenCalledTimes(2); // pas de rejeu après échec du refresh
+  });
+});
+
+describe("postForm", () => {
+  it("POSTs FormData WITHOUT a Content-Type (le boundary est posé par fetch)", async () => {
+    const spy = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 201 }));
+    global.fetch = spy as unknown as typeof fetch;
+    const fd = new FormData();
+    fd.append("file", new Blob(["x"], { type: "application/pdf" }), "p.pdf");
+    const res = await postForm("/api/admin/golden-visa/1/documents/passport", fd);
+    expect(res.status).toBe(201);
+    const [url, init] = spy.mock.calls[0];
+    expect(url).toBe("/api/admin/golden-visa/1/documents/passport");
+    expect(init.method).toBe("POST");
+    expect(init.body).toBe(fd);
+    expect(init.headers).toBeUndefined(); // pas de Content-Type forcé
+  });
+
+  it("on 401, refreshes then replays the upload once", async () => {
+    fakeBrowser();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("x", { status: 401 })) // upload initial
+      .mockResolvedValueOnce(new Response(JSON.stringify({ success: true }), { status: 200 })) // refresh OK
+      .mockResolvedValueOnce(new Response(null, { status: 201 })); // rejeu OK
+    global.fetch = fetchMock as unknown as typeof fetch;
+    const res = await postForm("/api/admin/golden-visa/1/documents/dld", new FormData());
+    expect(res.status).toBe(201);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/auth/refresh");
   });
 });
