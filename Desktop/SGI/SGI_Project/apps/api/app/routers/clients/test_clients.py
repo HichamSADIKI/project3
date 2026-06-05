@@ -347,3 +347,66 @@ async def test_delete_via_http_returns_204(
         headers={"Authorization": f"Bearer {token}"},
     )
     assert resp.status_code == 204
+
+
+# ── Export CSV ─────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_export_csv_returns_tenant_clients(
+    client: AsyncClient,
+    seed_admin: tuple,
+    seed_company: Company,
+    db_session: AsyncSession,
+) -> None:
+    """L'export CSV renvoie un fichier attaché avec en-tête + lignes du tenant."""
+    _, token = seed_admin
+    await create_client(db_session, seed_company.id, _individual(first_name="Aymane"))
+    await db_session.commit()
+
+    r = await client.get("/api/v1/clients/export.csv", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert "text/csv" in r.headers["content-type"]
+    assert "attachment" in r.headers.get("content-disposition", "")
+    body = r.text
+    lines = body.strip().splitlines()
+    assert lines[0].startswith("id,type,first_name")  # en-tête
+    assert "Aymane" in body
+
+
+@pytest.mark.asyncio
+async def test_export_csv_tenant_isolation(
+    client: AsyncClient,
+    seed_admin: tuple,
+    second_admin: tuple,
+    seed_company: Company,
+    db_session: AsyncSession,
+) -> None:
+    """Loi 1 : l'export d'un tenant ne contient jamais les clients d'un autre."""
+    await create_client(db_session, seed_company.id, _individual(first_name="SecretName"))
+    await db_session.commit()
+
+    _, token2 = second_admin
+    r = await client.get(
+        "/api/v1/clients/export.csv", headers={"Authorization": f"Bearer {token2}"}
+    )
+    assert r.status_code == 200
+    assert "SecretName" not in r.text
+
+
+@pytest.mark.asyncio
+async def test_export_csv_sanitizes_formula_injection(
+    client: AsyncClient,
+    seed_admin: tuple,
+    seed_company: Company,
+    db_session: AsyncSession,
+) -> None:
+    """Injection de formule CSV neutralisée : cellule dangereuse préfixée d'une apostrophe."""
+    _, token = seed_admin
+    await create_client(db_session, seed_company.id, _individual(first_name="=cmd|calc"))
+    await db_session.commit()
+
+    r = await client.get("/api/v1/clients/export.csv", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert "'=cmd|calc" in r.text  # préfixée
+    assert ",=cmd|calc" not in r.text  # jamais une formule brute en début de cellule
