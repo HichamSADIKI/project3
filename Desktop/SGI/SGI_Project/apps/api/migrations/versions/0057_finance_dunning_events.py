@@ -1,7 +1,7 @@
 """Finance — journal des relances d'impayés (dunning).
 
-Revision ID: 0056_finance_dunning_events
-Revises: 0055_agenda_events
+Revision ID: 0057_finance_dunning_events
+Revises: 0056_backup_runs_kind_restore
 Create Date: 2026-06-05
 
 1 table métier (RLS Loi 1) : finance_dunning_events. Journal append-only des
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = "0056_finance_dunning_events"
-down_revision = "0055_agenda_events"
+revision = "0057_finance_dunning_events"
+down_revision = "0056_backup_runs_kind_restore"
 branch_labels = None
 depends_on = None
 
