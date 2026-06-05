@@ -72,3 +72,16 @@ class GoldenVisaListOut(BaseModel):
 class GoldenVisaDetailOut(BaseModel):
     success: bool = True
     data: GoldenVisaOut
+
+
+class DocumentChecklist(BaseModel):
+    required: list[str]
+    present: list[str]
+    missing: list[str]
+    readiness_pct: int
+    ready: bool
+
+
+class DocumentChecklistOut(BaseModel):
+    success: bool = True
+    data: DocumentChecklist
