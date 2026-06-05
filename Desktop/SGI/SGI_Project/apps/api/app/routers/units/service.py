@@ -2,6 +2,7 @@
 
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,49 @@ _VALID_TRANSITIONS: dict[str, set[str]] = {
 
 def is_valid_status_transition(current: str, target: str) -> bool:
     return target in _VALID_TRANSITIONS.get(current, set())
+
+
+# ─── Taux d'occupation ──────────────────────────────────────────────────────
+
+UNIT_STATUSES: tuple[str, ...] = (
+    "vacant",
+    "occupied",
+    "reserved",
+    "maintenance",
+    "renovation",
+    "off_market",
+)
+# Exclus du parc « louable » pour le taux d'occupation (hors marché).
+_NON_RENTABLE_STATUSES: frozenset[str] = frozenset({"off_market"})
+
+
+def summarize_occupancy(units: list[Unit]) -> dict[str, Any]:
+    """Répartition des unités par statut + taux d'occupation.
+
+    ``occupancy_rate_pct`` = occupées / parc louable × 100, où le parc louable
+    exclut les unités hors marché (``off_market``). 0 si parc louable vide.
+    """
+    by_status = dict.fromkeys(UNIT_STATUSES, 0)
+    for u in units:
+        if u.status in by_status:
+            by_status[u.status] += 1
+    total = len(units)
+    rentable = total - sum(by_status[s] for s in _NON_RENTABLE_STATUSES)
+    occupied = by_status["occupied"]
+    rate = round(occupied / rentable * 100) if rentable else 0
+    return {"by_status": by_status, "total_units": total, "occupancy_rate_pct": rate}
+
+
+async def occupancy_summary(
+    db: AsyncSession, company_id: uuid.UUID, building_id: uuid.UUID | None = None
+) -> dict[str, Any]:
+    """Synthèse d'occupation du parc du tenant (option : un seul bâtiment).
+    Scopé ``company_id`` (Loi 1)."""
+    query = select(Unit).where(Unit.company_id == company_id, Unit.deleted_at.is_(None))
+    if building_id is not None:
+        query = query.where(Unit.building_id == building_id)
+    result = await db.execute(query)
+    return summarize_occupancy(list(result.scalars().all()))
 
 
 # ─── CRUD ─────────────────────────────────────────────────────────────────
