@@ -30,17 +30,17 @@ type Lang = "ar" | "en" | "fr";
 
 const HUB_TR: Record<Lang, Record<string, string>> = {
   fr: {
-    greeting: "Bonjour 👋", pick: "Choisissez une rubrique", pickSub: "Choisissez une fonction",
+    greeting: "Bonjour", pick: "Choisissez une rubrique", pickSub: "Choisissez une fonction",
     functions: "fonctions", function1: "fonction", home: "Accueil",
     search: "Rechercher une rubrique…", empty: "Aucune rubrique accessible.",
   },
   en: {
-    greeting: "Hello 👋", pick: "Choose a section", pickSub: "Choose a function",
+    greeting: "Hello", pick: "Choose a section", pickSub: "Choose a function",
     functions: "functions", function1: "function", home: "Home",
     search: "Search a section…", empty: "No accessible section.",
   },
   ar: {
-    greeting: "مرحبًا 👋", pick: "اختر القسم", pickSub: "اختر وظيفة",
+    greeting: "مرحبًا", pick: "اختر القسم", pickSub: "اختر وظيفة",
     functions: "وظائف", function1: "وظيفة", home: "الرئيسية",
     search: "ابحث عن قسم…", empty: "لا يوجد قسم متاح.",
   },
@@ -79,12 +79,14 @@ function accentFor(id: string): string {
 export function NavHub({
   level,
   categoryId,
+  userName,
   onPickCategory,
   onPickScreen,
   onBackHome,
 }: {
   level: 1 | 2;
   categoryId: string | null;
+  userName?: string;
   onPickCategory: (id: string) => void;
   onPickScreen: (key: string) => void;
   onBackHome: () => void;
@@ -198,8 +200,9 @@ export function NavHub({
       }
     }
 
+    const hello = `${L("greeting")}${userName ? `, ${userName}` : ""} 👋`;
     return (
-      <Shell L={L} lang={lang} title={L("greeting")} subtitle={L("pick")} query={query} setQuery={setQuery} bp={bp}>
+      <Shell L={L} lang={lang} title={hello} subtitle={L("pick")} query={query} setQuery={setQuery} bp={bp}>
         {cards.length === 0 ? <Empty L={L} /> : <Grid>{cards}</Grid>}
       </Shell>
     );

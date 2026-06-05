@@ -338,6 +338,7 @@ export default function App() {
               <NavHub
                 level={hubCategory ? 2 : 1}
                 categoryId={hubCategory}
+                userName="Hicham Sadiki"
                 onPickCategory={(id) => setHubCategory(id)}
                 onPickScreen={(key) => { setHubCategory(null); setScreen(key); }}
                 onBackHome={() => setHubCategory(null)}
