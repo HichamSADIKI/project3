@@ -424,11 +424,24 @@ async def test_action_guards(
 
 
 @pytest.mark.asyncio
-async def test_action_real_execution_blocked_by_flag(
+async def test_action_enqueues_when_enabled(
     client: AsyncClient, db_session: AsyncSession, seed_platform_admin, monkeypatch
 ) -> None:
-    """Flag activé (D2 non livré) → 503, et AUCUNE action journalisée."""
+    """Flag activé (D2) → action 'requested' + délégation au worker (delay appelé).
+
+    L'API n'exécute jamais : on vérifie qu'elle enqueue. `execute_infra_action` est
+    monkeypatché pour ne pas dépendre du broker en test.
+    """
     monkeypatch.setenv("INFRA_CONTROL_ENABLED", "true")
+    enqueued: list[str] = []
+
+    class _FakeTask:
+        @staticmethod
+        def delay(action_id: str) -> None:
+            enqueued.append(action_id)
+
+    monkeypatch.setattr(infra_module, "execute_infra_action", _FakeTask)
+
     _a, token = seed_platform_admin
     h = {AUTH: f"Bearer {token}"}
     svc = await _seed_service(db_session, controllable=True)
@@ -437,4 +450,7 @@ async def test_action_real_execution_blocked_by_flag(
         json={"action": "restart", "confirmation": svc.name},
         headers=h,
     )
-    assert resp.status_code == 503
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["status"] == "requested"
+    assert enqueued == [data["id"]]

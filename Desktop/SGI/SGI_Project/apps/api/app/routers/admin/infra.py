@@ -32,6 +32,7 @@ from app.routers.admin.prometheus import (
     active_alerts,
     instant_query,
 )
+from app.tasks.infra_control import execute_infra_action
 
 infra_router = APIRouter(
     prefix="/platform",
@@ -282,9 +283,11 @@ async def request_server_action(
     """Demande une action de contrôle sur un service (start/stop/restart/suspend).
 
     Garde-fous : service existant + `is_controllable` (allowlist), double confirmation
-    (`confirmation` == nom du service). En dry-run (flag off), l'action est JOURNALISÉE
-    (`infra_actions`, status='done', detail='dry_run') sans aucune exécution réelle.
-    Si `INFRA_CONTROL_ENABLED=true` (D2, pas encore livré) → 503.
+    (`confirmation` == nom du service). L'API n'exécute JAMAIS l'action elle-même :
+    - flag OFF (dry-run) : action JOURNALISÉE `status='done'`, detail='dry_run'.
+    - flag ON (D2) : action `status='requested'` puis DÉLÉGUÉE au worker dédié
+      `app.tasks.infra_control.execute_infra_action` (queue `infra`, seul à voir le
+      docker-socket-proxy). Le worker la fait transiter en running→done/failed.
     """
     svc = (
         await db.execute(
@@ -301,11 +304,17 @@ async def request_server_action(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="confirmation_mismatch")
 
     if control_enabled():
-        # D2 : exécution réelle non encore branchée (exécuteur à privilège minimal).
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="real_execution_not_implemented"
+        action = InfraAction(
+            service_id=svc.id, action=body.action, requested_by=actor, status="requested"
         )
+        db.add(action)
+        await db.commit()
+        await db.refresh(action)
+        # Délégation au worker isolé — l'API ne touche jamais Docker.
+        execute_infra_action.delay(str(action.id))
+        return InfraActionDetailOut(data=InfraActionOut.model_validate(action))
 
+    # Dry-run (flag off) : action journalisée, aucune exécution.
     action = InfraAction(
         service_id=svc.id,
         action=body.action,

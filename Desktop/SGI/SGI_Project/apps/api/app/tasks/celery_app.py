@@ -20,6 +20,7 @@ celery_app = Celery(
         "app.tasks.scenarios",
         "app.tasks.watcher",
         "app.tasks.alerts",
+        "app.tasks.infra_control",
     ],
 )
 
@@ -56,6 +57,10 @@ celery_app.conf.update(
         "app.tasks.watcher.*": {"queue": "reminders"},
         # ── Admin Console : évaluation préventive des alertes ─────────────
         "app.tasks.alerts.*": {"queue": "reminders"},
+        # ── Admin Console : exécuteur de contrôle serveurs (worker DÉDIÉ) ──
+        # Queue isolée « infra » : seul le worker-infra (accès docker-socket-proxy)
+        # la consomme — jamais le worker généraliste ni l'API.
+        "app.tasks.infra_control.*": {"queue": "infra"},
     },
     beat_schedule={
         # ── Watcher portails immobiliers (toutes les 6 h ; no-op si désactivé) ─

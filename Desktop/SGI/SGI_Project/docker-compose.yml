@@ -119,6 +119,60 @@ services:
     depends_on:
       - valkey
 
+  # ── Docker socket proxy (D2 — contrôle serveurs, surface minimale) ─────
+  # Expose l'API Docker en TCP INTERNE, filtrée CONTAINERS + POST uniquement
+  # (tout le reste refusé). NON publié. Profil "control" → ÉTEINT par défaut :
+  # double verrou avec INFRA_CONTROL_ENABLED. Seul worker-infra peut le joindre.
+  docker-socket-proxy:
+    image: tecnativa/docker-socket-proxy:0.2.0
+    environment:
+      CONTAINERS: "1"
+      POST: "1"
+      IMAGES: "0"
+      EXEC: "0"
+      VOLUMES: "0"
+      NETWORKS: "0"
+      SERVICES: "0"
+      SWARM: "0"
+      SECRETS: "0"
+      CONFIGS: "0"
+      INFO: "0"
+      AUTH: "0"
+      BUILD: "0"
+      COMMIT: "0"
+      DISTRIBUTION: "0"
+      NODES: "0"
+      PLUGINS: "0"
+      SYSTEM: "0"
+      TASKS: "0"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - backend
+    restart: unless-stopped
+    profiles: ["control"]
+
+  # ── Worker Celery DÉDIÉ au contrôle serveurs (queue "infra") ───────────
+  # Seul service applicatif autorisé à joindre docker-socket-proxy. Démarré
+  # uniquement avec `--profile control` ; n'agit que si INFRA_CONTROL_ENABLED=true.
+  worker-infra:
+    build:
+      context: ./apps/api
+    command: uv run celery -A app.tasks.celery_app worker -l info -Q infra
+    env_file: .env
+    environment:
+      - DOCKER_PROXY_URL=http://docker-socket-proxy:2375
+    volumes:
+      - ./apps/api/app:/app/app
+      - ./apps/api/scripts:/app/scripts
+    networks:
+      - backend
+    depends_on:
+      - db
+      - valkey
+      - docker-socket-proxy
+    profiles: ["control"]
+
   # ── PostgreSQL + PostGIS ──────────────────────────────────────────────
   db:
     image: postgis/postgis:17-3.5
