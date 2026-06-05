@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.finance import FinanceTransaction
+from app.routers.finance.closure import PeriodClosedError, is_date_closed
 from app.routers.finance.schemas import (
     AgedBuckets,
     AgedReceivables,
@@ -143,6 +144,10 @@ async def update_transaction(
     txn = await get_transaction(db, company_id, txn_id)
     if not txn:
         return None
+
+    # Verrou de clôture : une transaction d'une période clôturée est immuable.
+    if await is_date_closed(db, company_id, txn.created_at.date()):
+        raise PeriodClosedError()
 
     update_data = data.model_dump(exclude_unset=True)
 

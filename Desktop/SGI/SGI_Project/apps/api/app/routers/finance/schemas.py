@@ -150,3 +150,23 @@ class CashFlowForecast(BaseModel):
     total_in: Decimal
     total_out: Decimal
     net: Decimal
+
+
+class PeriodClosureCreate(BaseModel):
+    period_end: date
+    note: str | None = Field(None, max_length=500)
+
+
+class PeriodClosureOut(BaseModel):
+    model_config = {"from_attributes": True}
+
+    id: uuid.UUID
+    period_end: date
+    note: str | None
+    closed_by: str | None
+    created_at: datetime
+
+
+class PeriodClosureListOut(BaseModel):
+    success: bool = True
+    data: list[PeriodClosureOut]
