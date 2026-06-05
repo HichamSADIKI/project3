@@ -111,6 +111,11 @@ celery_app.conf.update(
             "task": "app.tasks.alerts.evaluate_alert_rules",
             "schedule": 300.0,
         },
+        # ── Admin Console : auto-remédiation (alerte Prometheus → action) ──
+        "admin-auto-remediation": {
+            "task": "app.tasks.infra_control.auto_remediate",
+            "schedule": 120.0,
+        },
         # ── Téléphonie ───────────────────────────────────────────────────
         # Upload des enregistrements toutes les 2 min ; purge PDPL quotidienne.
         "telephony-upload-recordings": {

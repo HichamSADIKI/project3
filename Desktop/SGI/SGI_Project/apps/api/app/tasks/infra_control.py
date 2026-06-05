@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import httpx
 from celery import shared_task
@@ -26,7 +27,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import sync_session_maker
-from app.models.admin import InfraAction, InfraService
+from app.models.admin import InfraAction, InfraRemediationRule, InfraService
+from app.routers.admin.prometheus import prometheus_url
 
 logger = logging.getLogger(__name__)
 
@@ -116,3 +118,106 @@ def execute_infra_action(self, action_id: str) -> dict[str, object]:  # noqa: AN
             return _finish(db, action, "failed", f"docker_error:{exc}")
 
         return _finish(db, action, "done", f"{op} ok (compose_service={svc.compose_service})")
+
+
+# ── Auto-remédiation (beat — alerte Prometheus firing → action D2) ──────────────
+#
+# PLATEFORME uniquement. Triple garde : AUTO_REMEDIATION_ENABLED (sinon dry-run :
+# l'intention est journalisée dans infra_actions, aucune exécution), service
+# `is_controllable`, et anti-rebond (pas de 2ᵉ action sur un service déjà actionné
+# récemment). Reste dans le périmètre infra-admin — aucune donnée tenant.
+
+_REMEDIATION_COOLDOWN_S = 600
+
+
+def auto_remediation_enabled() -> bool:
+    """Exécution réelle de l'auto-remédiation activée ? Défaut false → dry-run. Helper pur."""
+    return os.getenv("AUTO_REMEDIATION_ENABLED", "false").strip().lower() == "true"
+
+
+def firing_alert_names(payload: dict) -> set[str]:
+    """Extrait les `alertname` des alertes Prometheus en état 'firing'. Helper PUR."""
+    names: set[str] = set()
+    for alert in payload.get("data", {}).get("alerts", []):
+        if isinstance(alert, dict) and alert.get("state") == "firing":
+            name = (alert.get("labels") or {}).get("alertname")
+            if name:
+                names.add(str(name))
+    return names
+
+
+def _fetch_firing_alert_names(timeout: float = 5.0) -> set[str]:
+    """Interroge Prometheus (/api/v1/alerts) en synchrone (contexte worker). [] si indispo."""
+    base = prometheus_url()
+    if not base:
+        return set()
+    try:
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.get(f"{base}/api/v1/alerts")
+            resp.raise_for_status()
+            return firing_alert_names(resp.json())
+    except (httpx.HTTPError, ValueError):
+        logger.warning("auto_remediate: Prometheus injoignable")
+        return set()
+
+
+def _recently_actioned(db: Session, service_id: uuid.UUID, since: datetime) -> bool:
+    """Anti-rebond : une action existe-t-elle déjà pour ce service depuis `since` ?"""
+    row = db.execute(
+        select(InfraAction.id).where(
+            InfraAction.service_id == service_id, InfraAction.created_at >= since
+        )
+    ).first()
+    return row is not None
+
+
+@shared_task(bind=True, max_retries=1)
+def auto_remediate(self) -> dict[str, object]:  # noqa: ANN001
+    """Déclenche les actions de remédiation pour les alertes Prometheus firing."""
+    triggered = 0
+    dry = 0
+    with sync_session_maker() as db:
+        rules = (
+            db.execute(select(InfraRemediationRule).where(InfraRemediationRule.is_active.is_(True)))
+            .scalars()
+            .all()
+        )
+        if not rules:
+            return {"status": "ok", "triggered": 0, "dry_run": 0}
+        firing = _fetch_firing_alert_names()
+        now = datetime.now(UTC)
+        cooldown_start = now - timedelta(seconds=_REMEDIATION_COOLDOWN_S)
+        enabled = auto_remediation_enabled()
+        for rule in rules:
+            if rule.alert_name not in firing:
+                continue
+            svc = db.execute(
+                select(InfraService).where(InfraService.id == rule.service_id)
+            ).scalar_one_or_none()
+            if svc is None or not svc.is_controllable or op_for_action(rule.action) is None:
+                continue
+            if _recently_actioned(db, rule.service_id, cooldown_start):
+                continue  # anti-rebond : on a déjà agi récemment sur ce service
+            if enabled:
+                action = InfraAction(
+                    service_id=rule.service_id,
+                    action=rule.action,
+                    status="requested",
+                    detail=f"auto_remediation alert={rule.alert_name}",
+                )
+                db.add(action)
+                db.flush()
+                execute_infra_action.delay(str(action.id))
+                triggered += 1
+            else:
+                db.add(
+                    InfraAction(
+                        service_id=rule.service_id,
+                        action=rule.action,
+                        status="done",
+                        detail=f"auto_remediation dry_run alert={rule.alert_name}",
+                    )
+                )
+                dry += 1
+        db.commit()
+    return {"status": "ok", "triggered": triggered, "dry_run": dry}
