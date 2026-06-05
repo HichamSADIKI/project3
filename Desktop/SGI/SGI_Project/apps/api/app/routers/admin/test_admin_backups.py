@@ -17,6 +17,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.models.admin import BackupRun
 from app.routers.admin import backups as backups_module
 from app.routers.admin.backups import (
@@ -24,6 +25,13 @@ from app.routers.admin.backups import (
     _age_hours,
     _is_healthy,
     backup_trigger_enabled,
+)
+from app.tasks.backups import (
+    _restore_guard,
+    pg_restore_command,
+    recreate_target_db_command,
+    restore_enabled,
+    restore_target_db,
 )
 
 AUTH = "Authorization"
@@ -271,3 +279,169 @@ async def test_trigger_guards(client: AsyncClient, seed_platform_admin, monkeypa
         headers=h,
     )
     assert r.status_code == 422
+
+
+# ── Restauration (Phase 3, dans une base CIBLE jetable — jamais la live) ───────
+
+
+def test_restore_enabled_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RESTORE_ENABLED", raising=False)
+    assert restore_enabled() is False
+    monkeypatch.setenv("RESTORE_ENABLED", "true")
+    assert restore_enabled() is True
+
+
+def test_restore_target_db_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("RESTORE_TARGET_DB", raising=False)
+    assert restore_target_db() == f"{settings.POSTGRES_DB}_restore_check"
+    monkeypatch.setenv("RESTORE_TARGET_DB", "sgi_audit_copy")
+    assert restore_target_db() == "sgi_audit_copy"
+
+
+def test_pg_restore_command_structure() -> None:
+    cmd = pg_restore_command("/backups/x.dump", "sgi_restore_check")
+    assert "pg_restore" in cmd[0]
+    assert "--clean" in cmd and "--if-exists" in cmd and "--no-owner" in cmd
+    assert cmd[cmd.index("--dbname") + 1] == "sgi_restore_check"
+    assert cmd[-1] == "/backups/x.dump"  # le fichier en dernier, pas via un shell
+
+
+def test_recreate_target_db_command_drops_and_creates() -> None:
+    cmd = recreate_target_db_command("sgi_restore_check")
+    assert "psql" in cmd[0]
+    # se connecte à la base de maintenance, pas à la cible
+    assert cmd[cmd.index("--dbname") + 1] == "postgres"
+    sql = cmd[-1]
+    assert 'DROP DATABASE IF EXISTS "sgi_restore_check"' in sql
+    assert 'CREATE DATABASE "sgi_restore_check"' in sql
+
+
+def test_restore_guard_refuses_live_db(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("RESTORE_ENABLED", "true")
+    # cible == base live → refus net (défense en profondeur)
+    assert _restore_guard(settings.POSTGRES_DB) == "refuse_overwrite_live_db"
+    # nom invalide → refus
+    assert _restore_guard("bad; DROP") == "invalid_target_db"
+    # cible jetable valide → autorisé
+    assert _restore_guard("sgi_restore_check") is None
+    # flag off → refus quoi qu'il arrive
+    monkeypatch.setenv("RESTORE_ENABLED", "false")
+    assert _restore_guard("sgi_restore_check") == "restore_disabled"
+
+
+async def _seed_restorable(db_session: AsyncSession) -> BackupRun:
+    """Une sauvegarde DB réussie avec un dump → candidate à la restauration."""
+    run = BackupRun(
+        target="db",
+        kind="manual",
+        status="success",
+        location="/backups/sgi-20260101-000000-abcdef12.dump",
+        size_bytes=1024,
+    )
+    db_session.add(run)
+    await db_session.commit()
+    await db_session.refresh(run)
+    return run
+
+
+@pytest.mark.asyncio
+async def test_restore_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    body = {"confirmation": "restore"}
+    rid = uuid.uuid4()
+    # anonyme → 401
+    assert (
+        await client.post(f"/api/v1/admin/platform/backups/{rid}/restore", json=body)
+    ).status_code == 401
+    # admin de société SANS is_platform_admin → 403
+    _a, token = seed_admin
+    resp = await client.post(
+        f"/api/v1/admin/platform/backups/{rid}/restore",
+        json=body,
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_restore_bad_confirmation(client: AsyncClient, seed_platform_admin) -> None:
+    _a, token = seed_platform_admin
+    resp = await client.post(
+        f"/api/v1/admin/platform/backups/{uuid.uuid4()}/restore",
+        json={"confirmation": "WRONG"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_restore_unknown_backup(client: AsyncClient, seed_platform_admin) -> None:
+    _a, token = seed_platform_admin
+    resp = await client.post(
+        f"/api/v1/admin/platform/backups/{uuid.uuid4()}/restore",
+        json={"confirmation": "restore"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_restore_not_restorable(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin
+) -> None:
+    _a, token = seed_platform_admin
+    # un run en échec n'est pas restaurable → 409
+    bad = BackupRun(target="db", kind="manual", status="failed", error="boom")
+    db_session.add(bad)
+    await db_session.commit()
+    await db_session.refresh(bad)
+    resp = await client.post(
+        f"/api/v1/admin/platform/backups/{bad.id}/restore",
+        json={"confirmation": "restore"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_restore_dry_run(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin, monkeypatch
+) -> None:
+    monkeypatch.setenv("RESTORE_ENABLED", "false")
+    _a, token = seed_platform_admin
+    src = await _seed_restorable(db_session)
+    resp = await client.post(
+        f"/api/v1/admin/platform/backups/{src.id}/restore",
+        json={"confirmation": "restore"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["kind"] == "restore"
+    assert data["status"] == "success"
+    assert "dry_run" in (data["location"] or "")
+
+
+@pytest.mark.asyncio
+async def test_restore_enqueues_when_enabled(
+    client: AsyncClient, db_session: AsyncSession, seed_platform_admin, monkeypatch
+) -> None:
+    monkeypatch.setenv("RESTORE_ENABLED", "true")
+    enqueued: list[tuple[str, str]] = []
+
+    class _FakeTask:
+        @staticmethod
+        def delay(run_id: str, dump_path: str) -> None:
+            enqueued.append((run_id, dump_path))
+
+    monkeypatch.setattr(backups_module, "execute_restore", _FakeTask)
+    _a, token = seed_platform_admin
+    src = await _seed_restorable(db_session)
+    resp = await client.post(
+        f"/api/v1/admin/platform/backups/{src.id}/restore",
+        json={"confirmation": "restore"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["status"] == "running"
+    assert enqueued == [(data["id"], src.location)]

@@ -39,6 +39,7 @@ type BackupRun = {
   started_at?: string | null;
   finished_at?: string | null;
   size_bytes?: number | string | null;
+  location?: string | null;
   message?: string | null;
 };
 
@@ -47,6 +48,11 @@ const TR: Record<Lang, Record<string, string>> = {
     title: "Sauvegardes",
     triggerDb: "Déclencher (DB)",
     triggerPrompt: 'Tapez "db" pour confirmer le déclenchement :',
+    restore: "Restaurer",
+    restorePrompt:
+      'Restauration dans une base de VÉRIFICATION jetable (jamais la prod). Tapez "restore" pour confirmer :',
+    restoreDone:
+      "Restauration enregistrée (dry-run tant que RESTORE_ENABLED=false).",
     summary: "État par cible",
     runs: "Historique des runs",
     target: "Cible",
@@ -79,6 +85,10 @@ const TR: Record<Lang, Record<string, string>> = {
     title: "Backups",
     triggerDb: "Trigger (DB)",
     triggerPrompt: 'Type "db" to confirm the trigger:',
+    restore: "Restore",
+    restorePrompt:
+      'Restores into a throwaway VERIFICATION database (never prod). Type "restore" to confirm:',
+    restoreDone: "Restore recorded (dry-run while RESTORE_ENABLED=false).",
     summary: "Status per target",
     runs: "Run history",
     target: "Target",
@@ -111,6 +121,11 @@ const TR: Record<Lang, Record<string, string>> = {
     title: "النسخ الاحتياطية",
     triggerDb: "تشغيل (قاعدة البيانات)",
     triggerPrompt: 'اكتب "db" لتأكيد التشغيل:',
+    restore: "استعادة",
+    restorePrompt:
+      'الاستعادة في قاعدة بيانات تحقّق مؤقتة (ليست الإنتاج أبدًا). اكتب "restore" للتأكيد:',
+    restoreDone:
+      "تم تسجيل الاستعادة (تشغيل تجريبي طالما RESTORE_ENABLED=false).",
     summary: "الحالة حسب الهدف",
     runs: "سجل العمليات",
     target: "الهدف",
@@ -252,6 +267,25 @@ export function ScreenAppAdminBackups(): React.ReactNode {
     });
     runs.reload();
     summary.reload();
+  }
+
+  // Une sauvegarde DB réussie avec un dump réel est restaurable (pas un dry-run).
+  function isRestorable(r: BackupRun): boolean {
+    return (
+      r.target === "db" &&
+      r.status === "success" &&
+      !!r.location &&
+      !r.location.startsWith("dry_run")
+    );
+  }
+
+  async function restoreBackup(r: BackupRun): Promise<void> {
+    if (window.prompt(L("restorePrompt")) !== "restore") return;
+    await postJson(`/api/admin/platform/backups/${r.id}/restore`, {
+      confirmation: "restore",
+    });
+    window.alert(L("restoreDone"));
+    runs.reload();
   }
 
   return (
@@ -461,13 +495,14 @@ export function ScreenAppAdminBackups(): React.ReactNode {
                   <th style={th}>{L("finished")}</th>
                   <th style={{ ...th, textAlign: "end" }}>{L("size")}</th>
                   <th style={th}>{L("message")}</th>
+                  <th style={{ ...th, textAlign: "end" }} />
                 </tr>
               </thead>
               <tbody>
                 {runs.loading && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         ...td,
                         textAlign: "center",
@@ -481,7 +516,7 @@ export function ScreenAppAdminBackups(): React.ReactNode {
                 {!runs.loading && runs.error && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         ...td,
                         textAlign: "center",
@@ -495,7 +530,7 @@ export function ScreenAppAdminBackups(): React.ReactNode {
                 {!runs.loading && !runs.error && runs.items.length === 0 && (
                   <tr>
                     <td
-                      colSpan={6}
+                      colSpan={7}
                       style={{
                         ...td,
                         textAlign: "center",
@@ -536,6 +571,28 @@ export function ScreenAppAdminBackups(): React.ReactNode {
                       </td>
                       <td style={{ ...td, color: "var(--ink-3)" }}>
                         {r.message ?? "—"}
+                      </td>
+                      <td style={{ ...td, textAlign: "end" }}>
+                        {isRestorable(r) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void restoreBackup(r);
+                            }}
+                            style={{
+                              cursor: "pointer",
+                              border: "1px solid var(--line-soft)",
+                              background: "var(--bg-cream)",
+                              color: "var(--ink-2)",
+                              borderRadius: 8,
+                              padding: "4px 10px",
+                              fontSize: 12,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {L("restore")}
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
