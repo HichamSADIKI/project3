@@ -70,6 +70,25 @@ class ContractDetailOut(BaseModel):
     data: ContractOut
 
 
+class ExpiringContractEntry(BaseModel):
+    id: uuid.UUID
+    reference: str | None
+    type: str
+    status: str
+    end_date: date | None
+    days_until_end: int | None
+    expiry_state: str | None
+    is_renewable: bool
+    suggested_renewal_start: date | None
+    suggested_renewal_end: date | None
+
+
+class ExpiringContractsOut(BaseModel):
+    success: bool = True
+    data: list[ExpiringContractEntry]
+    meta: dict[str, Any]
+
+
 # ─── Renouvellement & signature (M5) ────────────────────────────────────────
 
 

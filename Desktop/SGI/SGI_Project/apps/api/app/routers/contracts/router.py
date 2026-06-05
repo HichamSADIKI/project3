@@ -14,11 +14,13 @@ from app.routers.contracts.schemas import (
     ContractOut,
     ContractRenew,
     ContractUpdate,
+    ExpiringContractsOut,
     SignatureLink,
 )
 from app.routers.contracts.service import (
     create_contract,
     delete_contract,
+    expiring_contracts,
     get_contract,
     link_signing_document,
     list_contracts,
@@ -97,6 +99,23 @@ async def create_contract_endpoint(
     company_id = await _get_company_id(db)
     contract = await create_contract(db, company_id, body)
     return ContractDetailOut(data=ContractOut.model_validate(contract))
+
+
+@router.get("/expiring", response_model=ExpiringContractsOut)
+async def expiring_contracts_endpoint(
+    days: int = Query(90, ge=1, le=730),
+    db: AsyncSession = Depends(get_db_session),
+) -> ExpiringContractsOut:
+    """Contrats actifs arrivant à échéance (ou en retard) dans `days` jours, avec
+    l'éligibilité au renouvellement et les dates de renouvellement suggérées."""
+    from datetime import UTC, datetime
+
+    company_id = await _get_company_id(db)
+    today = datetime.now(UTC).date()
+    entries = await expiring_contracts(db, company_id, today, days)
+    return ExpiringContractsOut(
+        data=entries, meta={"reference_date": str(today), "horizon_days": days}
+    )
 
 
 @router.get("/{contract_id}", response_model=ContractDetailOut)
