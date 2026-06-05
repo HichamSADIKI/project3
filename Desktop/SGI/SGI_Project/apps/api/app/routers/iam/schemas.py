@@ -176,6 +176,8 @@ class MePermissionsOut(BaseModel):
     """Permissions de l'utilisateur courant — payload d'hydratation du frontend."""
 
     success: bool = True
+    full_name: str | None = None  # identité de l'utilisateur courant (salutation, footer)
+    email: str | None = None
     allowed: list[str]  # clés de nœuds autorisées (gating champ via <Can>)
     nav_known: list[str]  # nav_keys modélisés au catalogue (donc à gater)
     nav_allowed: list[str]  # nav_keys autorisés

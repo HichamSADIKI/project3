@@ -17,7 +17,7 @@ import React, { useState } from "react";
 
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
-import { useNavGate } from "@/lib/permissions";
+import { useNavGate, useCurrentUser } from "@/lib/permissions";
 import {
   NAV_ENTRIES,
   navLabelFor,
@@ -97,6 +97,9 @@ export function NavHub({
   const L = (k: string): string => HUB_TR[lg][k] ?? HUB_TR.fr[k] ?? k;
   const bp = useBreakpoint();
   const navGate = useNavGate();
+  const { fullName } = useCurrentUser();
+  // Nom affiché : override explicite > nom de session > rien (salutation neutre).
+  const displayName = userName ?? fullName ?? undefined;
   const [query, setQuery] = useState("");
 
   const countLabel = (n: number): string => `${n} ${n > 1 ? L("functions") : L("function1")}`;
@@ -200,7 +203,7 @@ export function NavHub({
       }
     }
 
-    const hello = `${L("greeting")}${userName ? `, ${userName}` : ""} 👋`;
+    const hello = `${L("greeting")}${displayName ? `, ${displayName}` : ""} 👋`;
     return (
       <Shell L={L} lang={lang} title={hello} subtitle={L("pick")} query={query} setQuery={setQuery} bp={bp}>
         {cards.length === 0 ? <Empty L={L} /> : <Grid>{cards}</Grid>}
