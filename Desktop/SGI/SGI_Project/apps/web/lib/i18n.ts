@@ -34,6 +34,7 @@ export type Translations = {
   nav_developers: string; dev_subtitle: string; dev_count: string; dev_empty: string; dev_new: string;
   nav_golden_visa: string;
   nav_inspections: string;
+  nav_agenda: string;
   st_scheduled: string; st_paused: string;
   re_showcase: string; st_featured: string; st_urgent: string;
   nav_re_marketing: string; nav_re_website: string;
@@ -334,6 +335,7 @@ const ar: Translations = {
   nav_developers: "المطوّرون", dev_subtitle: "المطوّرون العقاريون ومشاريعهم.", dev_count: "مطوّر", dev_empty: "لا يوجد مطوّرون.", dev_new: "مطوّر جديد",
   nav_golden_visa: "الإقامة الذهبية",
   nav_inspections: "محاضر المعاينة",
+  nav_agenda: "الأجندة",
   st_scheduled: "مجدول", st_paused: "متوقف مؤقتًا",
   re_showcase: "الواجهة", st_featured: "مميّز", st_urgent: "عاجل",
   nav_re_marketing: "التسويق العقاري", nav_re_website: "الموقع الإلكتروني",
@@ -627,6 +629,7 @@ const en: Translations = {
   nav_developers: "Developers", dev_subtitle: "Property developers and their projects.", dev_count: "developers", dev_empty: "No developers yet.", dev_new: "New developer",
   nav_golden_visa: "Golden Visa",
   nav_inspections: "Inspections",
+  nav_agenda: "Agenda",
   st_scheduled: "Scheduled", st_paused: "Paused",
   re_showcase: "Showcase", st_featured: "Featured", st_urgent: "Urgent",
   nav_re_marketing: "Real estate marketing", nav_re_website: "Website",
@@ -920,6 +923,7 @@ const fr: Translations = {
   nav_developers: "Promoteurs", dev_subtitle: "Promoteurs immobiliers et leurs projets.", dev_count: "promoteurs", dev_empty: "Aucun promoteur pour le moment.", dev_new: "Nouveau promoteur",
   nav_golden_visa: "Visa Doré",
   nav_inspections: "États des lieux",
+  nav_agenda: "Agenda",
   st_scheduled: "Planifiée", st_paused: "En pause",
   re_showcase: "Vitrine", st_featured: "À la une", st_urgent: "Urgent",
   nav_re_marketing: "Marketing immobilier", nav_re_website: "Site web",
