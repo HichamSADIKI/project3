@@ -18,7 +18,13 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.admin import BackupRun
-from app.routers.admin.backups import _STALE_AFTER_HOURS, _age_hours, _is_healthy
+from app.routers.admin import backups as backups_module
+from app.routers.admin.backups import (
+    _STALE_AFTER_HOURS,
+    _age_hours,
+    _is_healthy,
+    backup_trigger_enabled,
+)
 
 AUTH = "Authorization"
 
@@ -181,3 +187,87 @@ async def test_summary_health(
     assert data["db"]["healthy"] is True
     assert data["minio"]["last_status"] == "failed"
     assert data["minio"]["healthy"] is False
+
+
+# ── Déclenchement (Phase 3, dry-run d'abord) ───────────────────────────────────
+
+
+def test_backup_trigger_enabled_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("BACKUP_TRIGGER_ENABLED", raising=False)
+    assert backup_trigger_enabled() is False
+    monkeypatch.setenv("BACKUP_TRIGGER_ENABLED", "true")
+    assert backup_trigger_enabled() is True
+
+
+@pytest.mark.asyncio
+async def test_trigger_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    body = {"target": "db", "confirmation": "db"}
+    assert (
+        await client.post("/api/v1/admin/platform/backups/trigger", json=body)
+    ).status_code == 401
+    _a, token = seed_admin
+    resp = await client.post(
+        "/api/v1/admin/platform/backups/trigger", json=body, headers={AUTH: f"Bearer {token}"}
+    )
+    assert resp.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_trigger_dry_run(client: AsyncClient, seed_platform_admin, monkeypatch) -> None:
+    monkeypatch.setenv("BACKUP_TRIGGER_ENABLED", "false")
+    _a, token = seed_platform_admin
+    resp = await client.post(
+        "/api/v1/admin/platform/backups/trigger",
+        json={"target": "db", "confirmation": "db"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["status"] == "success"
+    assert "dry_run" in (data["location"] or "")
+
+
+@pytest.mark.asyncio
+async def test_trigger_enqueues_when_enabled(
+    client: AsyncClient, seed_platform_admin, monkeypatch
+) -> None:
+    monkeypatch.setenv("BACKUP_TRIGGER_ENABLED", "true")
+    enqueued: list[str] = []
+
+    class _FakeTask:
+        @staticmethod
+        def delay(run_id: str) -> None:
+            enqueued.append(run_id)
+
+    monkeypatch.setattr(backups_module, "run_backup", _FakeTask)
+    _a, token = seed_platform_admin
+    resp = await client.post(
+        "/api/v1/admin/platform/backups/trigger",
+        json={"target": "db", "confirmation": "db"},
+        headers={AUTH: f"Bearer {token}"},
+    )
+    assert resp.status_code == 201
+    data = resp.json()["data"]
+    assert data["status"] == "running"
+    assert enqueued == [data["id"]]
+
+
+@pytest.mark.asyncio
+async def test_trigger_guards(client: AsyncClient, seed_platform_admin, monkeypatch) -> None:
+    monkeypatch.setenv("BACKUP_TRIGGER_ENABLED", "false")
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    # mauvaise confirmation → 400
+    r = await client.post(
+        "/api/v1/admin/platform/backups/trigger",
+        json={"target": "db", "confirmation": "WRONG"},
+        headers=h,
+    )
+    assert r.status_code == 400
+    # cible non supportée (minio) → 422 (Literal)
+    r = await client.post(
+        "/api/v1/admin/platform/backups/trigger",
+        json={"target": "minio", "confirmation": "minio"},
+        headers=h,
+    )
+    assert r.status_code == 422

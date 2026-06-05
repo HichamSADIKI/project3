@@ -11,11 +11,12 @@ pas de `company_id`, pas de RLS).
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +24,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.models.admin import BackupRun
 from app.routers.admin.deps import require_platform_admin
+from app.tasks.backups import run_backup
 
 backups_router = APIRouter(
     prefix="/platform/backups",
@@ -92,12 +94,67 @@ def _is_healthy(status: str | None, age_hours: float | None) -> bool:
     return age_hours <= _STALE_AFTER_HOURS
 
 
+def backup_trigger_enabled() -> bool:
+    """Exécution réelle du déclenchement activée ? Défaut false → dry-run. Helper pur."""
+    return os.getenv("BACKUP_TRIGGER_ENABLED", "false").strip().lower() == "true"
+
+
+class BackupTriggerRequest(BaseModel):
+    # Phase 3 : seul 'db' (pg_dump) est déclenchable pour l'instant.
+    target: Literal["db"]
+    # Double confirmation : doit valoir exactement le nom de la cible.
+    confirmation: str
+
+
+class BackupTriggerOut(BaseModel):
+    success: bool = True
+    data: BackupRunOut
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 
 @backups_router.get("/health")
 async def backups_health() -> dict[str, str]:
     return {"section": "admin.platform.backups", "status": "ok"}
+
+
+@backups_router.post(
+    "/trigger",
+    response_model=BackupTriggerOut,
+    status_code=status.HTTP_201_CREATED,
+)
+async def trigger_backup(
+    body: BackupTriggerRequest,
+    db: AsyncSession = Depends(get_db),
+) -> BackupTriggerOut:
+    """Déclenche une sauvegarde (NON destructif). Double confirmation = nom de la cible.
+
+    Flag OFF (dry-run) : `backup_run` journalisé `status='success'`, detail='dry_run',
+    aucune exécution. Flag ON : `status='running'` + délégation au worker (`run_backup`)
+    qui lance pg_dump. La restauration (destructive) reste hors scope.
+    """
+    if body.confirmation != body.target:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="confirmation_mismatch")
+
+    if backup_trigger_enabled():
+        run = BackupRun(target=body.target, kind="manual", status="running")
+        db.add(run)
+        await db.commit()
+        await db.refresh(run)
+        run_backup.delay(str(run.id))  # délégation worker — l'API ne lance pas pg_dump
+        return BackupTriggerOut(data=BackupRunOut.model_validate(run))
+
+    run = BackupRun(
+        target=body.target,
+        kind="manual",
+        status="success",
+        location="dry_run (BACKUP_TRIGGER_ENABLED=false)",
+    )
+    db.add(run)
+    await db.commit()
+    await db.refresh(run)
+    return BackupTriggerOut(data=BackupRunOut.model_validate(run))
 
 
 @backups_router.get("/summary", response_model=BackupSummaryOut)
