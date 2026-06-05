@@ -1,4 +1,4 @@
-export type SearchCategory = "navigation" | "client" | "company" | "action";
+export type SearchCategory = "navigation" | "client" | "company" | "action" | "result";
 
 export interface SearchItem {
   id: string;

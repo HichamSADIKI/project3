@@ -2,16 +2,19 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useLang } from "@/components/language-provider";
 import { searchItems, type SearchItem, type SearchCategory } from "@/lib/search-index";
+import { useEntitySearch } from "@/lib/entity-search";
 
 /* ── Category labels ─────────────────────────────────────────── */
 const CAT_LABEL: Record<SearchCategory, { en: string; ar: string; fr: string }> = {
+  result:     { en: "Records",    ar: "السجلات",      fr: "Données"       },
   navigation: { en: "Navigation", ar: "التنقل",       fr: "Navigation"    },
   client:     { en: "Clients",    ar: "العملاء",      fr: "Clients"       },
   company:    { en: "Companies",  ar: "الشركات",      fr: "Sociétés"      },
   action:     { en: "Actions",    ar: "إجراءات",      fr: "Actions"       },
 };
 
-const CAT_ORDER: SearchCategory[] = ["action", "navigation", "client", "company"];
+/* Données live (biens/clients/contrats) d'abord, puis actions et navigation. */
+const CAT_ORDER: SearchCategory[] = ["result", "action", "navigation", "client", "company"];
 
 function highlight(text: string, query: string): React.ReactNode {
   if (!query.trim()) return text;
@@ -42,7 +45,9 @@ export function GlobalSearch({ onNavigate, onClientSearch }: GlobalSearchProps) 
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const results = searchItems(query);
+  /* Données live (back-office) fusionnées avec la recherche statique de nav. */
+  const liveItems = useEntitySearch(query);
+  const results = [...liveItems, ...searchItems(query)];
 
   /* Group results by category */
   const grouped = CAT_ORDER.reduce<{ cat: SearchCategory; items: SearchItem[] }[]>((acc, cat) => {
@@ -88,7 +93,9 @@ export function GlobalSearch({ onNavigate, onClientSearch }: GlobalSearchProps) 
   const close = useCallback(() => setOpen(false), []);
 
   function select(item: SearchItem) {
-    if ((item.category === "client" || item.category === "company") && item.initialSearch && onClientSearch) {
+    // Un item porteur d'initialSearch (client statique OU hit live client) ouvre
+    // l'écran filtré sur ce nom ; sinon simple navigation.
+    if (item.initialSearch && onClientSearch) {
       onClientSearch(item.initialSearch);
     }
     onNavigate(item.screen);

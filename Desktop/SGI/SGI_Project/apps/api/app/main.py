@@ -51,6 +51,7 @@ from app.routers import (
     sales,
     scenarios,
     scraping,
+    search,
     social,
     sources,
     technicians,
@@ -152,6 +153,7 @@ TAGS_METADATA = [
     {"name": "tenant_portal", "description": "Portail locataire (paiement, tickets, chat)."},
     {"name": "ai_services", "description": "Services IA (Gemini)."},
     {"name": "reporting", "description": "Rapports & exports."},
+    {"name": "search", "description": "Recherche globale (biens, clients, contrats)."},
     {"name": "scraping", "description": "Scraping (Playwright)."},
 ]
 
@@ -194,6 +196,7 @@ app.include_router(accounting, prefix="/api/v1")
 app.include_router(bank, prefix="/api/v1")
 app.include_router(admin, prefix="/api/v1")
 app.include_router(reporting, prefix="/api/v1")
+app.include_router(search.router, prefix="/api/v1")
 app.include_router(scraping, prefix="/api/v1")
 
 # RealEstate — profils de rôles (party-roles, voir migration 0002)
