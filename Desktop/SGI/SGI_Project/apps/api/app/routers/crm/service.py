@@ -342,12 +342,15 @@ async def update_lead_status(
         # Automatisme Golden Visa : vente ≥ 2 000 000 AED
         effective_amount = data.won_amount or lead.budget
         if effective_amount and effective_amount >= GOLDEN_VISA_THRESHOLD:
+            lead.golden_visa_eligible = True
             # Automatisme Golden Visa (CLAUDE.md) : créer le dossier s'il n'existe
-            # pas déjà pour ce client, puis tracer l'événement.
+            # pas déjà (non terminal) pour ce client dans le tenant, puis tracer.
             existing_gv = await db.execute(
                 select(GoldenVisaApplication.id).where(
+                    GoldenVisaApplication.company_id == uuid.UUID(company_id),
                     GoldenVisaApplication.client_id == lead.client_id,
                     GoldenVisaApplication.deleted_at.is_(None),
+                    GoldenVisaApplication.status.notin_(["rejected", "expired"]),
                 )
             )
             gv_created = existing_gv.first() is None
