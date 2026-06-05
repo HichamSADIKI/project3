@@ -99,6 +99,8 @@ async def create_transaction(
     seq = await _next_transaction_sequence(db, year)
     reference = f"TXN-{year}-{seq:05d}"
 
+    vat_amount = compute_line_vat(data.amount, data.tax_treatment, data.vat_rate)
+
     txn = FinanceTransaction(
         company_id=company_id,
         reference=reference,
@@ -106,6 +108,9 @@ async def create_transaction(
         direction=data.direction,
         amount=data.amount,
         currency=data.currency,
+        tax_treatment=data.tax_treatment,
+        vat_rate=data.vat_rate,
+        vat_amount=vat_amount,
         status="pending",
         description_en=data.description_en,
         description_ar=data.description_ar,
@@ -328,15 +333,25 @@ async def get_aged_receivables(db: AsyncSession, company_id: uuid.UUID) -> AgedR
     return AgedReceivables(buckets=AgedBuckets(**buckets), total=total, count=len(items))
 
 
-# ── Rapport TVA (UAE 5 %) — dérivé, sans changement de schéma ──────────────
+# ── TVA (UAE) — par transaction (vat_amount stocké) ────────────────────────
 
-VAT_RATE = Decimal("0.05")  # taux standard UAE
+VAT_RATE = Decimal("0.05")  # taux standard UAE par défaut
+
+
+def compute_line_vat(amount: Decimal, tax_treatment: str, rate: Decimal = VAT_RATE) -> Decimal:
+    """TVA d'une transaction (pure, testable). 0 si zero_rated/exempt ; sinon
+    amount × rate arrondi à 2 décimales. `amount` est supposé HT."""
+    if tax_treatment in ("zero_rated", "exempt"):
+        return Decimal("0.00")
+    return (amount * rate).quantize(Decimal("0.01"))
 
 
 def compute_vat(
     taxable_revenue: Decimal, taxable_expenses: Decimal, rate: Decimal = VAT_RATE
 ) -> dict[str, Decimal]:
-    """TVA collectée/déductible/nette (pure, testable). Montants supposés HT."""
+    """TVA collectée/déductible/nette dérivée (pure, testable, montants HT).
+
+    Conservé pour compat ; le rapport officiel agrège désormais vat_amount stocké."""
     q = Decimal("0.01")
     output_vat = (taxable_revenue * rate).quantize(q)
     input_vat = (taxable_expenses * rate).quantize(q)
@@ -350,32 +365,36 @@ def compute_vat(
 async def get_vat_report(
     db: AsyncSession, company_id: uuid.UUID, period: Period, rate: Decimal = VAT_RATE
 ) -> VatReport:
-    """Rapport TVA sur les revenus/dépenses encaissés (paid) de la période."""
+    """Rapport TVA de la période sur les transactions encaissées (paid), agrégeant
+    la **TVA réelle stockée** par transaction (vat_amount). Base taxable = montant
+    HT des transactions standard-rated."""
     start = period_start(period, datetime.now(UTC))
 
-    async def _sum(direction: str) -> Decimal:
-        res = await db.execute(
-            select(func.coalesce(func.sum(FinanceTransaction.amount), 0)).where(
-                FinanceTransaction.company_id == company_id,
-                FinanceTransaction.deleted_at.is_(None),
-                FinanceTransaction.direction == direction,
-                FinanceTransaction.status == "paid",
-                FinanceTransaction.paid_at >= start,
-            )
+    async def _sum(column, direction: str, standard_only: bool = False) -> Decimal:  # type: ignore[no-untyped-def]
+        stmt = select(func.coalesce(func.sum(column), 0)).where(
+            FinanceTransaction.company_id == company_id,
+            FinanceTransaction.deleted_at.is_(None),
+            FinanceTransaction.direction == direction,
+            FinanceTransaction.status == "paid",
+            FinanceTransaction.paid_at >= start,
         )
+        if standard_only:
+            stmt = stmt.where(FinanceTransaction.tax_treatment == "standard")
+        res = await db.execute(stmt)
         return Decimal(str(res.scalar_one()))
 
-    taxable_revenue = await _sum("credit")
-    taxable_expenses = await _sum("debit")
-    vat = compute_vat(taxable_revenue, taxable_expenses, rate)
+    output_vat = await _sum(FinanceTransaction.vat_amount, "credit")
+    input_vat = await _sum(FinanceTransaction.vat_amount, "debit")
+    taxable_revenue = await _sum(FinanceTransaction.amount, "credit", standard_only=True)
+    taxable_expenses = await _sum(FinanceTransaction.amount, "debit", standard_only=True)
     return VatReport(
         period=period,
         rate=rate,
         taxable_revenue=taxable_revenue,
         taxable_expenses=taxable_expenses,
-        output_vat=vat["output_vat"],
-        input_vat=vat["input_vat"],
-        net_vat=vat["net_vat"],
+        output_vat=output_vat,
+        input_vat=input_vat,
+        net_vat=output_vat - input_vat,
     )
 
 

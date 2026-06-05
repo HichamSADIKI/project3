@@ -303,3 +303,63 @@ async def test_transactions_csv_isolated_and_filtered(db_session, seed_company: 
     # Sans filtre : 2 lignes data (isolation tenant).
     full = await transactions_csv(db_session, seed_company.id)
     assert len(full.strip().splitlines()) == 3
+
+
+# ── TVA par transaction ─────────────────────────────────────────────────────
+
+
+def test_compute_line_vat_treatments() -> None:
+    from app.routers.finance.service import compute_line_vat
+
+    assert compute_line_vat(Decimal("1000"), "standard") == Decimal("50.00")
+    assert compute_line_vat(Decimal("1000"), "zero_rated") == Decimal("0.00")
+    assert compute_line_vat(Decimal("1000"), "exempt") == Decimal("0.00")
+
+
+async def test_create_transaction_stores_vat(db_session, seed_company: Company) -> None:
+    std = await create_transaction(
+        db_session,
+        seed_company.id,
+        _txn(type="commission", direction="credit", amount=Decimal("1000")),
+    )
+    assert std.tax_treatment == "standard"
+    assert std.vat_amount == Decimal("50.00")
+
+    zero = await create_transaction(
+        db_session,
+        seed_company.id,
+        TransactionCreate(
+            type="commission",
+            direction="credit",
+            amount=Decimal("1000"),
+            tax_treatment="zero_rated",
+        ),
+    )
+    assert zero.vat_amount == Decimal("0.00")
+
+
+async def test_vat_report_excludes_zero_rated_from_vat(db_session, seed_company: Company) -> None:
+    cid = seed_company.id
+    rev = await create_transaction(
+        db_session, cid, _txn(type="commission", direction="credit", amount=Decimal("20000"))
+    )
+    await update_transaction(db_session, cid, rev.id, TransactionUpdate(status="paid"))
+    exp = await create_transaction(
+        db_session, cid, _txn(type="expense", direction="debit", amount=Decimal("8000"))
+    )
+    await update_transaction(db_session, cid, exp.id, TransactionUpdate(status="paid"))
+    # Revenu zéro-rated : pas de TVA collectée, exclu de la base taxable.
+    zr = await create_transaction(
+        db_session,
+        cid,
+        TransactionCreate(
+            type="payment", direction="credit", amount=Decimal("5000"), tax_treatment="zero_rated"
+        ),
+    )
+    await update_transaction(db_session, cid, zr.id, TransactionUpdate(status="paid"))
+
+    vat = await get_vat_report(db_session, cid, "ytd")
+    assert vat.output_vat == Decimal("1000.00")  # 5% de 20000 seulement
+    assert vat.input_vat == Decimal("400.00")
+    assert vat.net_vat == Decimal("600.00")
+    assert vat.taxable_revenue == Decimal("20000")  # zéro-rated exclu de la base

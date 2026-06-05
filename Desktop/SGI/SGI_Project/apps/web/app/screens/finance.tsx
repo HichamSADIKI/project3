@@ -26,6 +26,7 @@ type Txn = {
   direction: string;
   amount: string;
   currency: string;
+  vat_amount: string;
   status: string;
   description_en: string | null;
   description_ar: string | null;
@@ -52,7 +53,8 @@ const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Finance", revenue: "Revenus encaissés", expenses: "Dépenses", net: "Résultat net",
     pending: "Factures en attente", paidMonth: "Encaissé ce mois", newTxn: "Nouvelle transaction",
-    type: "Type", direction: "Sens", amount: "Montant (AED)", description: "Description", dueDate: "Échéance",
+    type: "Type", direction: "Sens", amount: "Montant HT (AED)", description: "Description", dueDate: "Échéance",
+    vatCol: "TVA", taxTreatment: "Traitement TVA", taxStandard: "Standard (5 %)", taxZero: "Zéro-rated (0 %)", taxExempt: "Exonéré",
     allTypes: "Tous types", allStatus: "Tous statuts", empty: "Aucune transaction", ref: "Réf.",
     status: "Statut", date: "Date", invalidAmount: "Montant invalide", loading: "Chargement…",
     credit: "Crédit", debit: "Débit",
@@ -66,7 +68,8 @@ const TR: Record<Lang, Record<string, string>> = {
   en: {
     title: "Finance", revenue: "Revenue collected", expenses: "Expenses", net: "Net result",
     pending: "Pending invoices", paidMonth: "Collected this month", newTxn: "New transaction",
-    type: "Type", direction: "Direction", amount: "Amount (AED)", description: "Description", dueDate: "Due date",
+    type: "Type", direction: "Direction", amount: "Amount excl. VAT (AED)", description: "Description", dueDate: "Due date",
+    vatCol: "VAT", taxTreatment: "VAT treatment", taxStandard: "Standard (5%)", taxZero: "Zero-rated (0%)", taxExempt: "Exempt",
     allTypes: "All types", allStatus: "All statuses", empty: "No transactions", ref: "Ref.",
     status: "Status", date: "Date", invalidAmount: "Invalid amount", loading: "Loading…",
     credit: "Credit", debit: "Debit",
@@ -80,7 +83,8 @@ const TR: Record<Lang, Record<string, string>> = {
   ar: {
     title: "المالية", revenue: "الإيرادات المحصّلة", expenses: "المصروفات", net: "صافي النتيجة",
     pending: "فواتير معلّقة", paidMonth: "محصّل هذا الشهر", newTxn: "معاملة جديدة",
-    type: "النوع", direction: "الاتجاه", amount: "المبلغ (درهم)", description: "الوصف", dueDate: "تاريخ الاستحقاق",
+    type: "النوع", direction: "الاتجاه", amount: "المبلغ بدون ضريبة (درهم)", description: "الوصف", dueDate: "تاريخ الاستحقاق",
+    vatCol: "ض.ق.م", taxTreatment: "معالجة الضريبة", taxStandard: "قياسي (5%)", taxZero: "صفري (0%)", taxExempt: "مُعفى",
     allTypes: "كل الأنواع", allStatus: "كل الحالات", empty: "لا توجد معاملات", ref: "المرجع",
     status: "الحالة", date: "التاريخ", invalidAmount: "مبلغ غير صالح", loading: "جارٍ التحميل…",
     credit: "دائن", debit: "مدين",
@@ -138,7 +142,7 @@ export function ScreenFinance(): React.ReactNode {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [form, setForm] = useState({ type: "invoice", direction: "credit", amount: "", description: "", due_date: "" });
+  const [form, setForm] = useState({ type: "invoice", direction: "credit", amount: "", tax_treatment: "standard", description: "", due_date: "" });
 
   async function submit(): Promise<void> {
     if (!form.amount || Number(form.amount) <= 0) {
@@ -152,6 +156,7 @@ export function ScreenFinance(): React.ReactNode {
         type: form.type,
         direction: form.direction,
         amount: Number(form.amount),
+        tax_treatment: form.tax_treatment,
         [`description_${lg}`]: form.description || undefined,
         due_date: form.due_date || undefined,
       });
@@ -159,7 +164,7 @@ export function ScreenFinance(): React.ReactNode {
         setFormError(await extractError(res, "save_failed"));
         return;
       }
-      setForm({ type: "invoice", direction: "credit", amount: "", description: "", due_date: "" });
+      setForm({ type: "invoice", direction: "credit", amount: "", tax_treatment: "standard", description: "", due_date: "" });
       setOpen(false);
       reload();
     } catch {
@@ -264,6 +269,7 @@ export function ScreenFinance(): React.ReactNode {
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("type")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("description")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600 }}>{L("amount")}</th>
+                  <th style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600 }}>{L("vatCol")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("status")}</th>
                   <th style={{ padding: "10px 14px", textAlign: "start", fontWeight: 600 }}>{L("date")}</th>
                 </tr>
@@ -280,6 +286,7 @@ export function ScreenFinance(): React.ReactNode {
                       <td style={{ padding: "10px 14px", textAlign: "end", fontWeight: 600, color: credit ? "var(--emerald)" : "var(--rose)" }}>
                         {credit ? "+" : "−"}{aed(tx.amount)}
                       </td>
+                      <td className="tnum" style={{ padding: "10px 14px", textAlign: "end", color: "var(--ink-4)" }}>{aed(tx.vat_amount)}</td>
                       <td style={{ padding: "10px 14px" }}>
                         <span style={{ fontSize: 11, fontWeight: 600, color: sc.c, background: sc.bg, borderRadius: 999, padding: "2px 9px" }}>
                           {STATUS_LABEL[lg][tx.status] ?? tx.status}
@@ -311,6 +318,13 @@ export function ScreenFinance(): React.ReactNode {
         </Field>
         <Field label={L("amount")}>
           <input type="number" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="145000" style={fieldInput} />
+        </Field>
+        <Field label={L("taxTreatment")}>
+          <select value={form.tax_treatment} onChange={(e) => setForm({ ...form, tax_treatment: e.target.value })} style={fieldInput}>
+            <option value="standard">{L("taxStandard")}</option>
+            <option value="zero_rated">{L("taxZero")}</option>
+            <option value="exempt">{L("taxExempt")}</option>
+          </select>
         </Field>
         <Field label={L("description")}>
           <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} style={fieldInput} />
