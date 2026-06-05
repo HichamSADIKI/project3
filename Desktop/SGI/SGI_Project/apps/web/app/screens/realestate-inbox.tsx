@@ -48,8 +48,14 @@ type Message = {
 
 type Note = { id: string; agent_user_id: string | null; body: string | null; created_at: string };
 type Tag = { id: string; name: string; color: string | null };
-// Le détail (GET /conversations/{id}) embarque messages/notes/tags (ConversationDetail).
-type Detail = Conversation & { messages: Message[]; notes: Note[]; tags: Tag[] };
+// Le détail (GET /conversations/{id}) embarque messages/notes/tags + résultat IA.
+type Detail = Conversation & {
+  messages: Message[];
+  notes: Note[];
+  tags: Tag[];
+  ai_summary?: string | null;
+  ai_suggested_tags?: string[];
+};
 
 const channelIcon = (ch: Channel): React.ReactNode => {
   switch (ch) {
@@ -121,7 +127,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
   const { items: conversations, loading, error, reload } = useApiList<Conversation>(listUrl);
 
   const [selId, setSelId] = useState<string | null>(null);
-  const [selConv, setSelConv] = useState<Conversation | null>(null);
+  const [selConv, setSelConv] = useState<Detail | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [msgLoading, setMsgLoading] = useState(false);
   const [draft, setDraft] = useState("");
@@ -137,6 +143,7 @@ export function ScreenRealEstateInbox(): React.ReactNode {
   const [tagDraft, setTagDraft] = useState("");
   const [panelBusy, setPanelBusy] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
+  const [aiBusy, setAiBusy] = useState<"summarize" | "suggest-tags" | null>(null);
 
   // Le détail renvoie déjà messages/notes/tags embarqués → une seule requête
   // (les GET /conversations/{id}/{messages,notes,tags} n'existent pas : POST-only).
@@ -276,6 +283,28 @@ export function ScreenRealEstateInbox(): React.ReactNode {
       setPanelError("status_failed");
     } finally {
       setPanelBusy(false);
+    }
+  }
+
+  // Déclenche une tâche IA (résumé / tags). Traitement asynchrone côté worker
+  // (202) → on recharge le détail après un court délai pour afficher le résultat
+  // écrit dans channel_metadata (cf. ai_summary / ai_suggested_tags).
+  async function aiAction(kind: "summarize" | "suggest-tags"): Promise<void> {
+    if (!selId) return;
+    setAiBusy(kind);
+    setPanelError(null);
+    try {
+      const res = await postJson(`/api/admin/inbox/conversations/${selId}/${kind}`, {});
+      if (!res.ok) {
+        setPanelError(await extractError(res, "ai_failed"));
+        return;
+      }
+      const id = selId;
+      window.setTimeout(() => loadDetail(id), 3500);
+    } catch {
+      setPanelError("ai_failed");
+    } finally {
+      setAiBusy(null);
     }
   }
 
@@ -689,6 +718,60 @@ export function ScreenRealEstateInbox(): React.ReactNode {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Assistant IA — résumé + tags suggérés (tâches asynchrones) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--ink-4)" }}>{t.inbox_ai_label}</span>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                <button
+                  onClick={() => void aiAction("summarize")}
+                  disabled={aiBusy !== null}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    border: "1px solid var(--gold)", background: "var(--gold-soft, rgba(212,160,55,0.12))",
+                    color: "var(--gold-deep)", cursor: aiBusy ? "default" : "pointer", opacity: aiBusy ? 0.6 : 1,
+                  }}
+                >
+                  ✦ {t.inbox_ai_summarize}
+                </button>
+                <button
+                  onClick={() => void aiAction("suggest-tags")}
+                  disabled={aiBusy !== null}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "6px 12px", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    border: "1px solid var(--line)", background: "var(--bg-cream)",
+                    color: "var(--ink-2)", cursor: aiBusy ? "default" : "pointer", opacity: aiBusy ? 0.6 : 1,
+                  }}
+                >
+                  ✦ {t.inbox_ai_suggest_tags}
+                </button>
+              </div>
+              {aiBusy && (
+                <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{t.inbox_ai_running}</span>
+              )}
+              {current?.ai_summary && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-4)" }}>{t.inbox_ai_summary_label}</span>
+                  <p style={{ margin: 0, fontSize: 12.5, lineHeight: 1.5, color: "var(--ink)", background: "var(--bg-cream)", border: "1px solid var(--line-soft)", borderRadius: 8, padding: "8px 10px" }}>
+                    {current.ai_summary}
+                  </p>
+                </div>
+              )}
+              {current?.ai_suggested_tags && current.ai_suggested_tags.length > 0 && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-4)" }}>{t.inbox_ai_suggested_label}</span>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {current.ai_suggested_tags.map((tg) => (
+                      <span key={tg} style={{ padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600, background: "var(--line-soft)", color: "var(--ink-2)" }}>
+                        {tg}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Étiquettes */}

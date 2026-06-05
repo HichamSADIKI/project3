@@ -90,11 +90,14 @@ class ConversationOut(BaseModel):
 
 
 class ConversationDetail(ConversationOut):
-    """Détail enrichi : messages + notes + tags."""
+    """Détail enrichi : messages + notes + tags + résultat IA (résumé / tags suggérés)."""
 
     messages: list[MessageOut] = Field(default_factory=list)
     notes: list[NoteOut] = Field(default_factory=list)
     tags: list[TagOut] = Field(default_factory=list)
+    # Résultat des tâches IA (lu depuis channel_metadata) — None/[] tant que non généré.
+    ai_summary: str | None = None
+    ai_suggested_tags: list[str] = Field(default_factory=list)
 
 
 class AssignBody(BaseModel):

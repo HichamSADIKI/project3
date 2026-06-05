@@ -216,3 +216,30 @@ async def test_summarize_requires_auth(client: AsyncClient) -> None:
     r = await client.post(f"/api/v1/inbox/conversations/{uuid.uuid4()}/summarize")
     # Sans session : rejeté (middleware tenant 401 ou garde de rôle 403), jamais 202.
     assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_detail_surfaces_ai_result(
+    client: AsyncClient,
+    seed_admin: tuple,
+    db_session,
+) -> None:
+    """Le détail expose ai_summary / ai_suggested_tags lus depuis channel_metadata."""
+    admin, token = seed_admin
+    conv, _ = await service.get_or_create_conversation(
+        db_session, admin.company_id, channel="whatsapp", external_thread_id="t-ai-surface"
+    )
+    conv.channel_metadata = {
+        "ai_summary": {"text": "Résumé du fil", "engine": "heuristic"},
+        "ai_suggested_tags": {"tags": ["urgent", "vip"]},
+    }
+    await db_session.commit()
+
+    r = await client.get(
+        f"/api/v1/inbox/conversations/{conv.id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["ai_summary"] == "Résumé du fil"
+    assert data["ai_suggested_tags"] == ["urgent", "vip"]
