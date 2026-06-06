@@ -58,24 +58,28 @@ async def get_application(app_id: uuid.UUID, db: AsyncSession = Depends(get_db_s
     return {"success": True, "data": app}
 
 
+def _checklist_payload(app) -> dict:
+    """Charge utile de la checklist documentaire (présence + revue par pièce)."""
+    missing = service.missing_documents(app)
+    return {
+        "required": [label for _, label in service.REQUIRED_DOCUMENTS],
+        "present": service.present_documents(app),
+        "missing": missing,
+        "readiness_pct": service.documents_readiness_pct(app),
+        "ready": not missing,
+        "items": service.document_items(app),
+        "all_approved": service.all_documents_approved(app),
+    }
+
+
 @router.get("/{app_id}/documents/checklist", response_model=schemas.DocumentChecklistOut)
 async def documents_checklist(app_id: uuid.UUID, db: AsyncSession = Depends(get_db_session)):
     """Complétude des 5 documents obligatoires (passeport · DLD · GDRFA ·
-    assurance · photo biométrique) : présents, manquants, % de préparation."""
+    assurance · photo biométrique) : présents, manquants, % + revue par pièce."""
     app = await service.get_application(db, app_id)
     if not app:
         raise HTTPException(status_code=404, detail="Golden Visa application not found")
-    missing = service.missing_documents(app)
-    return {
-        "success": True,
-        "data": {
-            "required": [label for _, label in service.REQUIRED_DOCUMENTS],
-            "present": service.present_documents(app),
-            "missing": missing,
-            "readiness_pct": service.documents_readiness_pct(app),
-            "ready": not missing,
-        },
-    }
+    return {"success": True, "data": _checklist_payload(app)}
 
 
 @router.post(
@@ -171,10 +175,40 @@ async def update_application(
     payload: schemas.GoldenVisaUpdate,
     db: AsyncSession = Depends(get_db_session),
 ):
-    app = await service.update_application(db, app_id, payload)
+    try:
+        app = await service.update_application(db, app_id, payload)
+    except service.GVTransitionError as err:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=err.code) from err
     if not app:
         raise HTTPException(status_code=404, detail="Golden Visa application not found")
     return {"success": True, "data": app}
+
+
+@router.post(
+    "/{app_id}/documents/{doc_type}/review",
+    response_model=schemas.DocumentChecklistOut,
+    dependencies=[Depends(require_roles("admin", "manager", "agent"))],
+)
+async def review_document(
+    app_id: uuid.UUID,
+    doc_type: str,
+    payload: schemas.DocumentReviewIn,
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Pose le statut de revue d'une pièce (approved/rejected/pending) + note.
+    Renvoie la checklist mise à jour (détail par pièce inclus)."""
+    if service.attr_for_doc_type(doc_type) is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="unknown_document_type"
+        )
+    if payload.status not in service.DOC_REVIEW_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid_review_status"
+        )
+    app = await service.set_document_review(db, app_id, doc_type, payload.status, payload.notes)
+    if not app:
+        raise HTTPException(status_code=404, detail="Golden Visa application not found")
+    return {"success": True, "data": _checklist_payload(app)}
 
 
 @router.delete("/{app_id}", status_code=204)

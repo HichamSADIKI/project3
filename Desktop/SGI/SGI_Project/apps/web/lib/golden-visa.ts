@@ -32,7 +32,7 @@ export type ClientLite = {
   company_name?: string | null;
 };
 
-export const GV_STATUSES = ["pending", "submitted", "approved", "rejected", "expired"] as const;
+export const GV_STATUSES = ["pending", "documents_collection", "submitted", "under_review", "approved", "rejected", "expired"] as const;
 export type GvStatus = (typeof GV_STATUSES)[number];
 
 /** Les 5 documents UAE requis (passeport · DLD · GDRFA · assurance · photo biométrique). */

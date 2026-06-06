@@ -566,3 +566,103 @@ async def test_download_cross_tenant_404(
         f"/api/v1/golden-visa/{app_id}/documents/passport/download", headers=_auth(token_b)
     )
     assert r.status_code == 404
+
+
+# ── Machine à états + revue par document ────────────────────────────────────
+
+
+class TestValidTransition:
+    def test_allowed(self) -> None:
+        from app.routers.golden_visa.service import valid_transition
+
+        assert valid_transition("pending", "submitted") is True
+        assert valid_transition("submitted", "under_review") is True
+        assert valid_transition("under_review", "approved") is True
+        assert valid_transition("approved", "expired") is True
+
+    def test_same_is_noop(self) -> None:
+        from app.routers.golden_visa.service import valid_transition
+
+        assert valid_transition("pending", "pending") is True
+
+    def test_illegal(self) -> None:
+        from app.routers.golden_visa.service import valid_transition
+
+        assert valid_transition("pending", "approved") is False
+        assert valid_transition("rejected", "approved") is False  # terminal
+        assert valid_transition("expired", "pending") is False
+
+
+class TestDocumentItems:
+    def test_present_defaults_approved_absent_missing(self) -> None:
+        from app.routers.golden_visa.service import all_documents_approved, document_items
+
+        app = _GVApp(client_id=uuid.uuid4(), passport_doc="p")
+        items = {it["label"]: it for it in document_items(app)}
+        assert items["passport"]["status"] == "approved"  # présent, jamais revu
+        assert items["dld"]["status"] == "missing"  # absent
+        assert all_documents_approved(app) is False
+
+    def test_explicit_review_overrides(self) -> None:
+        from app.routers.golden_visa.service import document_items
+
+        app = _GVApp(
+            client_id=uuid.uuid4(),
+            passport_doc="p",
+            document_status={"passport": {"status": "rejected", "notes": "flou"}},
+        )
+        items = {it["label"]: it for it in document_items(app)}
+        assert items["passport"]["status"] == "rejected"
+        assert items["passport"]["notes"] == "flou"
+
+
+async def test_patch_invalid_transition_409(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)  # pending
+    r = await client.patch(
+        f"/api/v1/golden-visa/{app_id}", headers=_auth(token), json={"status": "approved"}
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"] == "invalid_transition"
+
+
+async def test_patch_valid_transition_200(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id)  # pending
+    r = await client.patch(
+        f"/api/v1/golden-visa/{app_id}", headers=_auth(token), json={"status": "submitted"}
+    )
+    assert r.status_code == 200
+    assert r.json()["data"]["status"] == "submitted"
+
+
+async def test_document_review_endpoint(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id, passport_doc="p")
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/passport/review",
+        headers=_auth(token),
+        json={"status": "approved", "notes": "OK"},
+    )
+    assert r.status_code == 200, r.text
+    items = {it["label"]: it for it in r.json()["data"]["items"]}
+    assert items["passport"]["status"] == "approved"
+
+
+async def test_document_review_invalid_status_422(
+    client: AsyncClient, db_session: AsyncSession, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    app_id = await _seed_app(db_session, admin.company_id, passport_doc="p")
+    r = await client.post(
+        f"/api/v1/golden-visa/{app_id}/documents/passport/review",
+        headers=_auth(token),
+        json={"status": "bogus"},
+    )
+    assert r.status_code == 422

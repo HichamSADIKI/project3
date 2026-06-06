@@ -74,17 +74,32 @@ class GoldenVisaDetailOut(BaseModel):
     data: GoldenVisaOut
 
 
+class DocumentItem(BaseModel):
+    doc_type: str
+    label: str
+    present: bool
+    status: str  # missing | pending | approved | rejected
+    notes: str | None = None
+
+
 class DocumentChecklist(BaseModel):
     required: list[str]
     present: list[str]
     missing: list[str]
     readiness_pct: int
     ready: bool
+    items: list[DocumentItem] = []
+    all_approved: bool = False
 
 
 class DocumentChecklistOut(BaseModel):
     success: bool = True
     data: DocumentChecklist
+
+
+class DocumentReviewIn(BaseModel):
+    status: str  # pending | approved | rejected
+    notes: str | None = None
 
 
 class GoldenVisaDocUploadOut(BaseModel):
