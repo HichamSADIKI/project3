@@ -106,3 +106,17 @@ class VendorListOut(BaseModel):
 class VendorDetailOut(BaseModel):
     success: bool = True
     data: VendorOut
+
+
+class VendorsSummary(BaseModel):
+    by_type: dict[str, int]
+    by_verification: dict[str, int]
+    active_count: int
+    verified_count: int
+    total: int
+
+
+class VendorsSummaryOut(BaseModel):
+    success: bool = True
+    data: VendorsSummary
+    meta: dict[str, Any]
