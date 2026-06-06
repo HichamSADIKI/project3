@@ -475,9 +475,9 @@ async def test_clients_segmentation_tenant_isolation(
 from app.routers.clients.service import parse_client_rows  # noqa: E402
 
 _CSV_OK = (
-    "type,first_name,last_name,email,phone\n"
-    "individual,Lina,Haddad,lina@x.io,+971500000001\n"
-    "company,,,info@acme.ae,+971500000002\n"
+    "type,first_name,last_name,company_name,email,phone\n"
+    "individual,Lina,Haddad,,lina@x.io,+971500000001\n"
+    "company,,,ACME FZ,info@acme.ae,+971500000002\n"
 )
 
 
