@@ -468,3 +468,110 @@ async def test_clients_segmentation_tenant_isolation(
     s = await clients_segmentation(db_session, other.id)
     assert s["total"] == 0
     assert s["golden_visa_budget_count"] == 0
+
+
+# ── Import CSV en masse ──────────────────────────────────────────────────────
+
+from app.routers.clients.service import parse_client_rows  # noqa: E402
+
+_CSV_OK = (
+    "type,first_name,last_name,company_name,email,phone\n"
+    "individual,Lina,Haddad,,lina@x.io,+971500000001\n"
+    "company,,,ACME FZ,info@acme.ae,+971500000002\n"
+)
+
+
+def test_parse_client_rows_valid_and_invalid() -> None:
+    csv_text = (
+        "type,first_name,email\n"
+        "individual,Ali,ali@x.io\n"  # ok
+        "banana,Bob,bob@x.io\n"  # type invalide
+        "individual,Sam,not-an-email\n"  # email invalide
+        "\n"  # ligne vide → ignorée
+    )
+    valid, errors = parse_client_rows(csv_text)
+    assert [c.first_name for c in valid] == ["Ali"]
+    lines = {e["line"] for e in errors}
+    assert lines == {3, 4}  # lignes 3 (type) et 4 (email)
+
+
+def test_parse_client_rows_ignores_unknown_columns() -> None:
+    valid, errors = parse_client_rows("type,first_name,zzz\nindividual,Zoe,ignored\n")
+    assert errors == []
+    assert valid[0].first_name == "Zoe"
+
+
+def test_parse_client_rows_row_limit() -> None:
+    from app.routers.clients.service import CSV_IMPORT_MAX_ROWS
+
+    rows = "\n".join(f"individual,Name{i},n{i}@x.io" for i in range(CSV_IMPORT_MAX_ROWS + 5))
+    valid, errors = parse_client_rows("type,first_name,email\n" + rows + "\n")
+    assert len(valid) == CSV_IMPORT_MAX_ROWS
+    assert any("row_limit_exceeded" in e["error"] for e in errors)
+
+
+async def test_import_csv_requires_auth(client: AsyncClient) -> None:
+    resp = await client.post(
+        "/api/v1/clients/import.csv",
+        files={"file": ("c.csv", _CSV_OK.encode(), "text/csv")},
+    )
+    assert resp.status_code in (401, 403)
+
+
+async def test_import_csv_creates_clients(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _, token = seed_admin
+    headers = {"Authorization": f"Bearer {token}"}
+    resp = await client.post(
+        "/api/v1/clients/import.csv",
+        headers=headers,
+        files={"file": ("c.csv", _CSV_OK.encode(), "text/csv")},
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["created"] == 2 and data["failed"] == 0
+    # Les clients importés sont visibles côté liste du tenant.
+    listed = await client.get("/api/v1/clients/?limit=100", headers=headers)
+    emails = {c["email"] for c in listed.json()["data"]}
+    assert {"lina@x.io", "info@acme.ae"} <= emails
+
+
+async def test_import_csv_reports_invalid_rows(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _, token = seed_admin
+    headers = {"Authorization": f"Bearer {token}"}
+    bad = "type,first_name,email\nindividual,Ok,ok@x.io\nbanana,Bad,bad@x.io\n"
+    resp = await client.post(
+        "/api/v1/clients/import.csv",
+        headers=headers,
+        files={"file": ("c.csv", bad.encode(), "text/csv")},
+    )
+    assert resp.status_code == 200, resp.text
+    data = resp.json()["data"]
+    assert data["created"] == 1 and data["failed"] == 1
+    assert data["errors"][0]["line"] == 3
+
+
+async def test_import_csv_tenant_isolation(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    """Loi 1 : les clients importés par A sont invisibles pour le tenant B."""
+    _, token_a = seed_admin
+    _company_b, token_b = second_admin
+    uniq = "iso-" + uuid.uuid4().hex[:8] + "@x.io"
+    csv_text = f"type,first_name,email\nindividual,Isolated,{uniq}\n"
+    r = await client.post(
+        "/api/v1/clients/import.csv",
+        headers={"Authorization": f"Bearer {token_a}"},
+        files={"file": ("c.csv", csv_text.encode(), "text/csv")},
+    )
+    assert r.json()["data"]["created"] == 1
+    listed_b = await client.get(
+        "/api/v1/clients/?limit=100", headers={"Authorization": f"Bearer {token_b}"}
+    )
+    emails_b = {c["email"] for c in listed_b.json()["data"]}
+    assert uniq not in emails_b
