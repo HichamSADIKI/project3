@@ -6,6 +6,7 @@ import { useLang, useT } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
 import { useBreakpoint } from "@/lib/hooks";
 import { useNavGate, useCurrentUser } from "@/lib/permissions";
+import { useNotifications } from "@/lib/use-notifications";
 
 /* ─── Icon wrapper ──────────────────────────────────────────────── */
 export function Ic({ s = 16, children }: { s?: number; children: React.ReactNode }) {
@@ -1002,15 +1003,6 @@ const NOTIF_CFG: Record<NotifType, { icon: string; color: string; bg: string }> 
 };
 
 // Notification réelle renvoyée par l'API (back-office).
-type ApiNotif = {
-  id: string;
-  type: string;
-  title: string;
-  body: string | null;
-  status: string;
-  created_at: string;
-};
-
 // Mappe le `type` métier du backend vers une catégorie d'affichage (icône/couleur).
 function notifCategory(t: string): NotifType {
   if (t.startsWith("crm")) return "lead";
@@ -1048,8 +1040,8 @@ export function Topbar({ title, crumb = [], children }: {
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   const [notifOpen, setNotifOpen]       = useState(false);
-  const [notifs, setNotifs]             = useState<ApiNotif[]>([]);
-  const [unread, setUnread]             = useState(0);
+  // Temps réel : liste + compteur non-lus poussés via WebSocket (repli polling 25 s).
+  const { items: notifs, unread, markRead, markAll: markAllRead } = useNotifications();
   const [themeRotating, setThemeRotating] = useState(false);
   const notifRef                        = useRef<HTMLDivElement>(null);
   const displayUnread                   = unread > 9 ? "9+" : unread;
@@ -1061,50 +1053,6 @@ export function Topbar({ title, crumb = [], children }: {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
-
-  // Badge : compteur non-lu au montage + sondage périodique (45 s).
-  useEffect(() => {
-    let alive = true;
-    async function loadCount() {
-      try {
-        const r = await fetch("/api/admin/notifications/unread-count", { credentials: "include" });
-        if (!r.ok) return;
-        const j = await r.json();
-        if (alive) setUnread(j?.data?.count ?? 0);
-      } catch { /* silencieux : la cloche reste utilisable */ }
-    }
-    void loadCount();
-    const iv = window.setInterval(loadCount, 45000);
-    return () => { alive = false; window.clearInterval(iv); };
-  }, []);
-
-  // Liste : chargée à l'ouverture du panneau.
-  useEffect(() => {
-    if (!notifOpen) return;
-    let alive = true;
-    (async () => {
-      try {
-        const r = await fetch("/api/admin/notifications/?limit=15", { credentials: "include" });
-        if (!r.ok) return;
-        const j = await r.json();
-        if (alive) setNotifs(Array.isArray(j?.data) ? j.data : []);
-      } catch { /* silencieux */ }
-    })();
-    return () => { alive = false; };
-  }, [notifOpen]);
-
-  async function markRead(id: string) {
-    setNotifs(prev => prev.map(n => n.id === id ? { ...n, status: "read" } : n));
-    setUnread(u => Math.max(0, u - 1));
-    try { await fetch(`/api/admin/notifications/${id}/read`, { method: "POST", credentials: "include" }); }
-    catch { /* l'optimiste reste affiché */ }
-  }
-  async function markAllRead() {
-    setNotifs(prev => prev.map(n => ({ ...n, status: "read" })));
-    setUnread(0);
-    try { await fetch("/api/admin/notifications/read-all", { method: "POST", credentials: "include" }); }
-    catch { /* l'optimiste reste affiché */ }
-  }
 
   function handleThemeToggle() {
     setThemeRotating(true);
