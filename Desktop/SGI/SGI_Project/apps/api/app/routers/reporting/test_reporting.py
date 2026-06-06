@@ -314,3 +314,147 @@ async def test_overview_endpoint_ok_for_admin(
     body = resp.json()
     assert "net_revenue" in body
     assert "properties_total" in body
+
+
+# ── Tableau de bord exécutif (BI) ──────────────────────────────────────────
+
+
+def test_compute_headline_pure() -> None:
+    """Helper pur : dérive les chiffres-clés sans DB."""
+    from app.routers.finance.schemas import AgedBuckets, AgedReceivables, FinanceSummary
+    from app.routers.reporting.service import compute_headline
+
+    finance = FinanceSummary(
+        total_revenue=Decimal("1000"),
+        total_expenses=Decimal("400"),
+        net=Decimal("600"),
+        pending_invoices=2,
+        pending_amount=Decimal("250"),
+        paid_this_month=Decimal("1000"),
+    )
+    receivables = AgedReceivables(
+        buckets=AgedBuckets(
+            current=Decimal("0"),
+            d1_30=Decimal("100"),
+            d31_60=Decimal("0"),
+            d61_90=Decimal("0"),
+            d90plus=Decimal("50"),
+        ),
+        total=Decimal("150"),
+        count=3,
+    )
+    crm = {"new": 4, "contacted": 2, "qualified": 1, "won": 5, "lost": 9}
+    sales = {
+        "offers": {"open_amount_aed": Decimal("2000")},
+        "transactions": {"completed_value_aed": Decimal("9000")},
+    }
+    h = compute_headline(
+        finance=finance,
+        receivables=receivables,
+        rentals={"monthly_rent_aed": Decimal("3500")},
+        units={"occupancy_rate_pct": 82},
+        crm=crm,
+        sales=sales,
+    )
+    assert h.net_paid == Decimal("600")
+    assert h.pending_amount == Decimal("250")
+    assert h.overdue_total == Decimal("150")
+    assert h.overdue_count == 3
+    assert h.monthly_rent_roll == Decimal("3500")
+    assert h.occupancy_rate_pct == 82
+    assert h.active_leads == 7  # 4+2+1, hors won/lost
+    assert h.sales_completed_value == Decimal("9000")
+    assert h.open_offers_amount == Decimal("2000")
+
+
+def test_compute_headline_tolerates_missing_keys() -> None:
+    """Robustesse : agrégats partiels (clés absentes) → zéros, pas d'exception."""
+    from app.routers.finance.schemas import AgedBuckets, AgedReceivables, FinanceSummary
+    from app.routers.reporting.service import compute_headline
+
+    finance = FinanceSummary(
+        total_revenue=Decimal("0"),
+        total_expenses=Decimal("0"),
+        net=Decimal("0"),
+        pending_invoices=0,
+        pending_amount=Decimal("0"),
+        paid_this_month=Decimal("0"),
+    )
+    receivables = AgedReceivables(
+        buckets=AgedBuckets(
+            current=Decimal("0"),
+            d1_30=Decimal("0"),
+            d31_60=Decimal("0"),
+            d61_90=Decimal("0"),
+            d90plus=Decimal("0"),
+        ),
+        total=Decimal("0"),
+        count=0,
+    )
+    h = compute_headline(
+        finance=finance,
+        receivables=receivables,
+        rentals={},
+        units={},
+        crm={},
+        sales={},
+    )
+    assert h.monthly_rent_roll == Decimal("0")
+    assert h.occupancy_rate_pct == 0
+    assert h.active_leads == 0
+    assert h.open_offers_amount == Decimal("0")
+
+
+async def test_executive_endpoint_ok_for_admin(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _, token = seed_admin
+    resp = await client.get(
+        "/api/v1/reporting/executive", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    for key in (
+        "headline",
+        "overview",
+        "finance",
+        "cashflow",
+        "receivables",
+        "sales",
+        "leasing",
+        "rentals",
+        "crm",
+        "units",
+    ):
+        assert key in body, f"clé manquante : {key}"
+    assert "net_paid" in body["headline"]
+
+
+async def test_executive_endpoint_forbidden_for_client_role(
+    client: AsyncClient, seed_company: Company, db_session: AsyncSession
+) -> None:
+    user = User(
+        id=uuid.uuid4(),
+        company_id=seed_company.id,
+        email=f"cli-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("Passw0rd!23"),
+        full_name="Cli",
+        role=UserRole.CLIENT.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    token = encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+        }
+    )
+    resp = await client.get(
+        "/api/v1/reporting/executive", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 403

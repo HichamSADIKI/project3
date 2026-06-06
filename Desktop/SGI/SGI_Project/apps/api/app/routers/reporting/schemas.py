@@ -1,8 +1,11 @@
 """Schémas Pydantic v2 — Reporting (KPIs en lecture seule, montants en AED)."""
 
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel
+
+from app.routers.finance.schemas import AgedReceivables, CashFlowForecast, FinanceSummary
 
 
 class OverviewReport(BaseModel):
@@ -35,3 +38,36 @@ class MaintenanceReport(BaseModel):
     by_status: dict[str, int]
     by_priority: dict[str, int]
     open_count: int  # tickets non clos (hors resolved/closed/cancelled)
+
+
+# ── Tableau de bord exécutif (BI transversal) ──────────────────────────────
+
+
+class ExecutiveHeadline(BaseModel):
+    """Chiffres-clés de la bannière (calculés purement à partir des agrégats)."""
+
+    net_paid: Decimal  # résultat encaissé (revenus payés − dépenses payées)
+    pending_amount: Decimal  # factures en attente
+    overdue_total: Decimal  # créances échues impayées
+    overdue_count: int
+    monthly_rent_roll: Decimal  # loyer mensuel récurrent (baux actifs)
+    occupancy_rate_pct: int
+    active_leads: int  # prospects CRM non terminaux
+    sales_completed_value: Decimal  # valeur des transactions de vente clôturées
+    open_offers_amount: Decimal  # offres soumises en cours
+
+
+class ExecutiveDashboardOut(BaseModel):
+    """Instantané consolidé multi-modules pour la direction (lecture seule)."""
+
+    success: bool = True
+    headline: ExecutiveHeadline
+    overview: OverviewReport
+    finance: FinanceSummary
+    cashflow: CashFlowForecast
+    receivables: AgedReceivables
+    sales: dict[str, Any]
+    leasing: dict[str, Any]
+    rentals: dict[str, Any]
+    crm: dict[str, int]
+    units: dict[str, Any]

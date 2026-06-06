@@ -15,17 +15,32 @@ from app.models.golden_visa import GoldenVisaApplication
 from app.models.maintenance import MaintenanceTicket
 from app.models.property import Property
 from app.models.rental import Rental
+from app.routers.crm.service import get_pipeline_kpis
+from app.routers.finance.schemas import AgedReceivables, FinanceSummary
+from app.routers.finance.service import (
+    cash_flow_forecast,
+    get_aged_receivables,
+    get_summary,
+)
+from app.routers.leasing.service import leasing_pipeline_summary
+from app.routers.rentals.service import rent_roll_summary
 from app.routers.reporting.schemas import (
+    ExecutiveDashboardOut,
+    ExecutiveHeadline,
     FinancialReport,
     MaintenanceReport,
     OverviewReport,
     RentalReport,
 )
+from app.routers.sales.service import sales_pipeline_summary
+from app.routers.units.service import occupancy_summary
 
 # Statuts maintenance considérés comme « clos » (hors du décompte « ouverts »).
 _MAINTENANCE_CLOSED = ("resolved", "closed", "cancelled")
 # Statuts Golden Visa terminaux (hors « en cours »).
 _GV_TERMINAL = ("approved", "rejected", "expired")
+# Statuts CRM terminaux — exclus du décompte « prospects actifs ».
+_CRM_TERMINAL = ("won", "lost")
 
 
 async def _scalar(db: AsyncSession, stmt) -> Decimal:
@@ -202,4 +217,77 @@ async def maintenance_report(db: AsyncSession, company_id: uuid.UUID) -> Mainten
         by_status=by_status,
         by_priority=by_priority,
         open_count=open_count,
+    )
+
+
+# ── Tableau de bord exécutif (BI transversal) ──────────────────────────────
+
+
+def _dec(value: object) -> Decimal:
+    """Convertit une valeur d'agrégat (Decimal/str/float/None) en Decimal sûr."""
+    if value is None:
+        return Decimal(0)
+    return value if isinstance(value, Decimal) else Decimal(str(value))
+
+
+def compute_headline(
+    *,
+    finance: FinanceSummary,
+    receivables: AgedReceivables,
+    rentals: dict[str, object],
+    units: dict[str, object],
+    crm: dict[str, int],
+    sales: dict[str, object],
+) -> ExecutiveHeadline:
+    """Chiffres-clés de la bannière — pur (sans DB), donc unitaire-testable.
+
+    `active_leads` = somme des prospects CRM hors statuts terminaux (won/lost).
+    """
+    active_leads = sum(n for s, n in crm.items() if s not in _CRM_TERMINAL)
+    offers = sales.get("offers", {}) if isinstance(sales.get("offers"), dict) else {}
+    txns = sales.get("transactions", {}) if isinstance(sales.get("transactions"), dict) else {}
+    return ExecutiveHeadline(
+        net_paid=finance.net,
+        pending_amount=finance.pending_amount,
+        overdue_total=receivables.total,
+        overdue_count=receivables.count,
+        monthly_rent_roll=_dec(rentals.get("monthly_rent_aed")),
+        occupancy_rate_pct=int(units.get("occupancy_rate_pct") or 0),  # type: ignore[arg-type]
+        active_leads=active_leads,
+        sales_completed_value=_dec(txns.get("completed_value_aed")),
+        open_offers_amount=_dec(offers.get("open_amount_aed")),
+    )
+
+
+async def executive_dashboard(db: AsyncSession, company_id: uuid.UUID) -> ExecutiveDashboardOut:
+    """Instantané consolidé multi-modules (lecture seule). Chaque service filtre
+    déjà par company_id (Loi 1) ; on ne fait qu'orchestrer + dériver la bannière."""
+    ov = await overview(db, company_id)
+    finance = await get_summary(db, company_id)
+    cashflow = await cash_flow_forecast(db, company_id)
+    receivables = await get_aged_receivables(db, company_id)
+    sales = await sales_pipeline_summary(db, company_id)
+    leasing = await leasing_pipeline_summary(db, company_id)
+    rentals = await rent_roll_summary(db, company_id)
+    crm = await get_pipeline_kpis(db, str(company_id))
+    units = await occupancy_summary(db, company_id)
+    headline = compute_headline(
+        finance=finance,
+        receivables=receivables,
+        rentals=rentals,
+        units=units,
+        crm=crm,
+        sales=sales,
+    )
+    return ExecutiveDashboardOut(
+        headline=headline,
+        overview=ov,
+        finance=finance,
+        cashflow=cashflow,
+        receivables=receivables,
+        sales=sales,
+        leasing=leasing,
+        rentals=rentals,
+        crm=crm,
+        units=units,
     )
