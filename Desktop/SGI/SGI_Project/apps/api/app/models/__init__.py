@@ -32,6 +32,7 @@ from app.models.favorite import Favorite
 from app.models.finance import FinanceTransaction
 from app.models.floor import Floor
 from app.models.golden_visa import GoldenVisaApplication
+from app.models.identity_assurance import IdentityAssurance
 from app.models.message import Message
 from app.models.notification import Notification
 from app.models.owner_statement import OwnerStatement
@@ -64,6 +65,7 @@ __all__ = [
     "Contract",
     "Rental",
     "GoldenVisaApplication",
+    "IdentityAssurance",
     "FinanceTransaction",
     "AuditLog",
     "Owner",
