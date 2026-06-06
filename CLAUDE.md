@@ -177,7 +177,7 @@ Coverage ≥ 80% on business logic. PRs with < 80% on new files are blocked.
 - *Pure helpers* — state machines, scoring, reference generation. No DB, fast, run anywhere.
 - *Endpoint integration* — HTTP-level via the shared harness in [apps/api/conftest.py](apps/api/conftest.py). Need a **real Postgres** so they run **inside the container** (`docker compose exec api uv run pytest …`), never on the host. Fixtures: `client` (ASGI httpx), `db_session` (NullPool, isolated per test), `seed_admin` (company + admin + JWT), `second_admin` (a 2nd tenant — assert its data is invisible to verify Law 1), `unique_email`. Each test commits, so always use the `unique_*` fixtures to avoid cross-test collisions.
 
-Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0047_accounting_ledger`. Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
+Alembic migrations live in **`apps/api/migrations/versions/`** (not the default `alembic/versions/`). Numbered `NNNN_name.py`; head is `0060_signature_proofs` (63 migrations, 0001 → 0060). Worker/migrations use the privileged `sgi_user`; the API uses restricted `sgi_app` (see Law 1).
 
 Le coût bcrypt est réglable via `BCRYPT_ROUNDS` (`app/core/config.py`, défaut 12). La suite de tests le baisse à 4 (≈ −13 % de temps) — ne jamais hasher en prod avec un coût aussi bas.
 
@@ -224,7 +224,6 @@ apps/
   mobile/   Expo / React Native (own npm lockfile — NOT in the pnpm workspace install graph)
 packages/
   shared-types/   TypeScript types shared between web/portal
-  ui/             Shared shadcn-based components
   i18n/           AR/EN/FR translation bundles
 infra/      nginx · certbot · monitoring (prometheus/grafana/loki) configs
 ```
@@ -242,11 +241,15 @@ apps/api/app/routers/{module}/
   CLAUDE.md        # Module-specific business rules (when present)
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `acquisitions`, `sales`, `leasing`, `copilot`, `tenant_portal`, `iam`, `developers`, `marketing`, `sources`, `public_site`, `social`, `scenarios`, `accounting`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `acquisitions`, `sales`, `leasing`, `copilot`, `tenant_portal`, `iam`, `developers`, `marketing`, `sources`, `public_site`, `social`, `scenarios`, `accounting`, `admin`, `bank`, `search`.
 
 > `accounting` (migration 0047) is a **double-entry** general ledger: each `JournalEntry` carries ≥ 2 balanced `JournalLine`s (Σ debits == Σ credits, each line is debit XOR credit, all `Decimal` — never float). `JournalLine.company_id` is **denormalized** — copied from the parent entry, never from client input — so Law 1 RLS applies directly to the lines table. Pure balance validation lives in `validate_balanced()` (no DB).
 
 > `tenant_kyc` and `contract_renewal_signature` (migrations 0022–0024) are **not** standalone router dirs — they are sub-routes mounted under `tenants`/`contracts`. Don't look for `tenant_kyc/` or `contract_renewal_signature/` directories.
+
+> `bank` (migration 0050) is bank-statement import + reconciliation against payments/ledger; `search` is the Meilisearch front (`GET /search` unified typeahead over biens/clients/contrats + `POST /search/reindex` per-company) — its index logic lives in `search/meili.py`, no migration. `admin` (migration 0048) is the admin console **aggregator** (sub-routers `users`/`audit`/`alerts`/`backups`/`infra`/`prometheus`) — see its co-located `CLAUDE.md`.
+
+> **Infinity ID / UAE PASS Infinity** (migrations 0048 split-finance aside; identity proper at 0059) — an **internal** IdP inspired by UAE PASS (assurance levels L0–L3, step-up on sensitive actions, in-house qualified signature), **not** federated to the government `id.uaepass.ae`. Assurance scale + step-up logic live in `app/core/assurance.py`. See [docs/architecture/infinity-id.md](docs/architecture/infinity-id.md).
 
 ### Per-module deep reference (moved out of this file)
 
@@ -259,6 +262,7 @@ code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
 - [operations-modules.md](docs/architecture/operations-modules.md) — `maintenance`·`inspections`·`payments`·`comms`·`workflows`·`ai_services`·`partner`·`client_portal`·`owner_portal` (0013–0019), auth hardening / refresh tokens / C1 RLS, and the Rubrique Immobilier nav (6 sections, migrations 0020–0026).
 - [transactions.md](docs/architecture/transactions.md) — `acquisitions`·`sales`·`leasing` (0033–0035), inline references under advisory lock.
 - [lead-acquisition.md](docs/architecture/lead-acquisition.md) — `marketing`·`sources`·`public_site` (0038–0041), public vitrine in `apps/portal`.
+- [infinity-id.md](docs/architecture/infinity-id.md) — UAE PASS Infinity: internal IdP, assurance levels L0–L3 (`core/assurance.py`), step-up, in-house qualified signature (migration 0059). Not federated to government UAE PASS.
 
 **Co-located module `CLAUDE.md` (under `apps/api/app/routers/{module}/`):**
 - `pdc/` — post-dated cheques, UAE state machine (migration 0003).
@@ -269,15 +273,16 @@ code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
 - `tenant_portal/` — tenant self-service, strict BOLA scoping (no migration).
 - `iam/` — hierarchical RBAC, resource tree + inheritance (migration 0036).
 - `developers/` — real-estate developers directory (migration 0037).
+- `admin/` — admin console; security boundary lives in the aggregator router, sub-routers `users`/`audit`/`alerts`/`backups`/`infra`/`prometheus` (migrations 0048, 0051, 0053, 0056).
 
 ## API Wiring
 
 - Entry: [apps/api/app/main.py](apps/api/app/main.py) — lifespan starts the DB pool and the Playwright browser (used by `scraping`).
 - **Middleware order matters** (last added = first executed): `CORSMiddleware` → `TenantMiddleware` → `AuditMiddleware` → `GZipMiddleware`. `TenantMiddleware` ([app/middleware/tenant.py](apps/api/app/middleware/tenant.py)) decodes the JWT and `SET LOCAL app.current_company_id` per request — this is the runtime enforcement of Law 1. Do not reorder.
 - Shared deps in [app/core/deps.py](apps/api/app/core/deps.py), config in [app/core/config.py](apps/api/app/core/config.py), DB pool in [app/core/database.py](apps/api/app/core/database.py).
-- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`, `telephony`, `inbox`, `ticketing` (escalade SLA tickets, queue `reminders`, beat horaire).
+- Celery app: [app/tasks/celery_app.py](apps/api/app/tasks/celery_app.py). Worker runs queues `notifications,exports,reminders`; `beat` is a separate container. Task modules: `notifications`, `exports`, `reminders`, `comms`, `maintenance`, `workflows`, `audit`, `telephony`, `inbox`, `ticketing` (escalade SLA tickets, queue `reminders`, beat horaire), `scenarios`, plus the admin/infra-console tasks `alerts`, `backups`, `infra_control`, and `watcher`. Modules without a dedicated queue route to `reminders` (see the `task_routes` map in `celery_app.py`).
 - All routers mounted under `/api/v1`. Health: `GET /health`. Docs only when `DEBUG=true`.
-- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0047. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
+- Alembic migrations live in [apps/api/migrations/versions/](apps/api/migrations/versions/) (NOT `alembic/versions/`) — 0001 → 0060. `make migrate` runs `alembic upgrade head` via the privileged `sgi_user` role.
 - **Production RLS activation runbook**: [DEPLOYMENT.md](DEPLOYMENT.md) — the one-step gotcha for going live (set `APP_DB_PASSWORD` so the API uses `sgi_app` and Law 1 RLS is actually enforced).
 
 ## CRM Business Rules
