@@ -342,3 +342,90 @@ async def test_expiring_contracts_tenant_isolation(
     await db_session.commit()
     rows = await expiring_contracts(db_session, other.id, date(2026, 6, 1), days=90)
     assert rows == []
+
+
+# ── Génération PDF de contrats (WeasyPrint + MinIO) ──────────────────────────
+
+from app.routers.contracts import contract_pdf as _contract_pdf_mod  # noqa: E402
+from app.routers.contracts.contract_pdf import (  # noqa: E402
+    ContractPdfError,
+    build_contract_html,
+    generate_and_store_contract,
+)
+
+
+def test_build_contract_html_contains_fields_and_escapes() -> None:
+    h = build_contract_html(
+        reference="CT-1",
+        company_name="ACME",
+        contract_type="sale",
+        status="active",
+        client_name="Ali Ben",
+        property_label="Marina Villa",
+        amount=Decimal("1500000"),
+        commission_rate=Decimal("2.00"),
+        commission_amount=Decimal("30000"),
+        start_date=date(2026, 1, 1),
+        end_date=None,
+        signed_date=None,
+        notes="<script>x</script>",
+    )
+    assert "CT-1" in h
+    assert "Ali Ben" in h
+    assert "Marina Villa" in h
+    assert "1,500,000" in h
+    assert "&lt;script&gt;" in h  # notes échappées (anti-injection HTML)
+    assert "<script>x</script>" not in h
+
+
+def _patch_pdf_storage(monkeypatch) -> None:
+    async def _up(key: str, data: bytes, content_type: str) -> str:
+        return f"minio://{key}"
+
+    async def _ps(key: str, expires_seconds: int = 3600) -> str:
+        return f"https://signed.example/{key}"
+
+    monkeypatch.setattr("app.core.storage.is_configured", lambda: True)
+    monkeypatch.setattr("app.core.storage.upload_bytes", _up)
+    monkeypatch.setattr("app.core.storage.presigned_url", _ps)
+    # Patch sur l'OBJET module (pas la chaîne) : `app.routers.contracts` est
+    # réaliasé en APIRouter dans app/routers/__init__, ce qui casse la résolution
+    # par chaîne `app.routers.contracts.contract_pdf...` de monkeypatch.
+    monkeypatch.setattr(_contract_pdf_mod, "render_pdf", lambda _html: b"%PDF-1.4 fake")
+
+
+@pytest.mark.asyncio
+async def test_generate_and_store_contract_returns_url(
+    db_session: AsyncSession, seed_company: Company, monkeypatch
+) -> None:
+    c = await _make_contract(db_session, seed_company.id)
+    _patch_pdf_storage(monkeypatch)
+    url = await generate_and_store_contract(db_session, seed_company.id, c.id)
+    assert url.startswith("https://signed.example/")
+    assert str(seed_company.id) in url and c.reference in url
+
+
+@pytest.mark.asyncio
+async def test_generate_contract_unknown_raises(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    with pytest.raises(ContractPdfError) as exc:
+        await generate_and_store_contract(db_session, seed_company.id, uuid.uuid4())
+    assert exc.value.code == "contract_not_found"
+
+
+@pytest.mark.asyncio
+async def test_generate_contract_cross_tenant_raises(
+    db_session: AsyncSession, seed_company: Company, monkeypatch
+) -> None:
+    """Loi 1 : un contrat d'un autre tenant est invisible → contract_not_found."""
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    foreign = await _make_contract(db_session, other.id)
+    _patch_pdf_storage(monkeypatch)
+    with pytest.raises(ContractPdfError) as exc:
+        await generate_and_store_contract(db_session, seed_company.id, foreign.id)
+    assert exc.value.code == "contract_not_found"

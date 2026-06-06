@@ -7,6 +7,7 @@ from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
+from app.routers.contracts.contract_pdf import ContractPdfError, generate_and_store_contract
 from app.routers.contracts.schemas import (
     ContractCreate,
     ContractDetailOut,
@@ -128,6 +129,30 @@ async def get_contract_endpoint(
     if not contract:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found")
     return ContractDetailOut(data=ContractOut.model_validate(contract))
+
+
+@router.post(
+    "/{contract_id}/pdf",
+    dependencies=[Depends(_require_roles("admin", "manager", "agent"))],
+)
+async def generate_contract_pdf_endpoint(
+    contract_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, object]:
+    """Génère le PDF du contrat (WeasyPrint), le stocke dans MinIO et renvoie une
+    URL présignée. Scopé `company_id` (Loi 1) ; 404 si contrat absent/autre tenant."""
+    company_id = await _get_company_id(db)
+    try:
+        url = await generate_and_store_contract(db, company_id, contract_id)
+    except ContractPdfError as exc:
+        if exc.code == "contract_not_found":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="contract_not_found"
+            ) from None
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=exc.code
+        ) from None
+    return {"success": True, "data": {"url": url}}
 
 
 @router.patch(
