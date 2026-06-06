@@ -15,8 +15,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.deps import get_db_session
 from app.models.user import User
 from app.routers.iam import service
+from app.routers.iam.assurance_service import (
+    get_assurance,
+    is_valid_subject_type,
+    upsert_verification,
+)
 from app.routers.iam.deps import require_permission
 from app.routers.iam.schemas import (
+    AssuranceItemOut,
+    AssuranceOut,
+    AssuranceVerifyInput,
     CatalogueOut,
     EffectiveEntry,
     EffectiveOut,
@@ -87,6 +95,56 @@ async def my_permissions(
         screen_known=vis["screen_known"],
         screen_allowed=vis["screen_allowed"],
     )
+
+
+# ── Niveau d'assurance « UAE PASS Infinity » (lecture + override admin) ──────────
+
+
+@router.get("/assurance/me", response_model=AssuranceItemOut)
+async def my_assurance(
+    request: Request, db: AsyncSession = Depends(get_db_session)
+) -> AssuranceItemOut:
+    """Niveau d'assurance de l'utilisateur courant (``L0`` si non encore évalué)."""
+    company_id, user_id = _ctx(request)
+    record = await get_assurance(db, company_id, "user", user_id)
+    if record is None:
+        data = AssuranceOut(
+            subject_type="user",
+            subject_id=user_id,
+            level="L0",
+            email_verified=False,
+            mobile_verified=False,
+            emirates_id_verified=False,
+            strong_auth_verified=False,
+        )
+    else:
+        data = AssuranceOut.model_validate(record)
+    return AssuranceItemOut(data=data)
+
+
+@router.patch(
+    "/assurance/{subject_type}/{subject_id}",
+    response_model=AssuranceItemOut,
+    dependencies=[Depends(_UPDATE)],
+)
+async def set_assurance(
+    subject_type: str,
+    subject_id: uuid.UUID,
+    body: AssuranceVerifyInput,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> AssuranceItemOut:
+    """Pose/lève des preuves de vérification d'une identité (pont KYC/admin) puis
+    recalcule son niveau. Réservé au rôle disposant de ``settings.access.update``."""
+    company_id, _ = _ctx(request)
+    if not is_valid_subject_type(subject_type):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid_subject_type"
+        )
+    record = await upsert_verification(
+        db, company_id, subject_type, subject_id, **body.model_dump(exclude_unset=True)
+    )
+    return AssuranceItemOut(data=AssuranceOut.model_validate(record))
 
 
 # ── Catalogue ────────────────────────────────────────────────────────────────────

@@ -236,3 +236,27 @@ class UserListOut(BaseModel):
 class UserItemOut(BaseModel):
     success: bool = True
     data: UserOut
+
+
+class AssuranceOut(BaseModel):
+    subject_type: str
+    subject_id: uuid.UUID
+    level: str
+    email_verified: bool
+    mobile_verified: bool
+    emirates_id_verified: bool
+    strong_auth_verified: bool
+
+    model_config = {"from_attributes": True}
+
+
+class AssuranceItemOut(BaseModel):
+    success: bool = True
+    data: AssuranceOut
+
+
+class AssuranceVerifyInput(BaseModel):
+    email_verified: bool | None = None
+    mobile_verified: bool | None = None
+    emirates_id_verified: bool | None = None
+    strong_auth_verified: bool | None = None
