@@ -29,6 +29,7 @@ from app.routers.ticketing.schemas import (
     TicketItemOut,
     TicketListOut,
     TicketOut,
+    TicketsSummaryOut,
     TransitionBody,
 )
 
@@ -85,6 +86,24 @@ async def _load_visible_ticket(
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "ticketing", "status": "ok"}
+
+
+@router.get(
+    "/summary",
+    response_model=TicketsSummaryOut,
+    dependencies=[Depends(_require_roles("admin", "manager"))],
+)
+async def tickets_summary_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> TicketsSummaryOut:
+    """Synthèse du service desk : tickets par statut, nombre d'ouverts, ouverts
+    par priorité et nombre en dépassement SLA. Réservé aux superviseurs."""
+    from datetime import UTC, datetime
+
+    company_id = _get_company_id(request)
+    summary = await service.tickets_summary(db, company_id, datetime.now(UTC))
+    return TicketsSummaryOut(data=summary, meta={})
 
 
 # ── Tickets ──────────────────────────────────────────────────────────────────

@@ -102,3 +102,66 @@ async def test_health_is_public(client: AsyncClient) -> None:
     resp = await client.get("/api/v1/tickets/health")
     assert resp.status_code == 200
     assert resp.json()["module"] == "ticketing"
+
+
+# ─── Synthèse service desk ───────────────────────────────────────────────────
+
+import uuid  # noqa: E402
+from types import SimpleNamespace  # noqa: E402
+
+from app.models.company import Company  # noqa: E402
+
+
+def _tk(status: str, priority: str, sla_due_at=None):
+    return SimpleNamespace(status=status, priority=priority, sla_due_at=sla_due_at)
+
+
+class TestSummarizeTickets:
+    now = datetime(2026, 6, 1, 12, 0, tzinfo=UTC)
+
+    def test_empty(self) -> None:
+        s = service.summarize_tickets([], self.now)
+        assert s == {
+            "by_status": {},
+            "open_count": 0,
+            "by_priority": {},
+            "sla_breached_count": 0,
+        }
+
+    def test_open_breached_and_priority(self) -> None:
+        tickets = [
+            _tk("open", "urgent", self.now - timedelta(hours=1)),  # ouvert + SLA dépassé
+            _tk("in_progress", "high", self.now + timedelta(hours=5)),  # ouvert, dans les temps
+            _tk("resolved", "low", self.now - timedelta(hours=99)),  # terminé → ignoré (SLA)
+            _tk("closed", "medium", None),  # terminé
+        ]
+        s = service.summarize_tickets(tickets, self.now)
+        assert s["by_status"] == {"open": 1, "in_progress": 1, "resolved": 1, "closed": 1}
+        assert s["open_count"] == 2
+        assert s["by_priority"] == {"urgent": 1, "high": 1}
+        assert s["sla_breached_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_tickets_summary_service(db_session, seed_company) -> None:
+    cid = seed_company.id
+    await service.create_ticket(db_session, cid, subject="A", priority="urgent")
+    await service.create_ticket(db_session, cid, subject="B", priority="medium")
+    s = await service.tickets_summary(db_session, cid, datetime.now(UTC))
+    assert s["open_count"] == 2
+    assert s["by_priority"].get("urgent") == 1
+    assert s["by_status"].get("open") == 2
+
+
+@pytest.mark.asyncio
+async def test_tickets_summary_tenant_isolation(db_session, seed_company) -> None:
+    cid = seed_company.id
+    await service.create_ticket(db_session, cid, subject="A")
+    other = Company(
+        id=uuid.uuid4(), name="Autre", slug=f"co-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.commit()
+    s = await service.tickets_summary(db_session, other.id, datetime.now(UTC))
+    assert s["open_count"] == 0
+    assert s["by_status"] == {}

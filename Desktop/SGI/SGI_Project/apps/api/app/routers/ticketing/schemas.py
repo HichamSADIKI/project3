@@ -93,3 +93,16 @@ class TicketItemOut(BaseModel):
 class EventItemOut(BaseModel):
     success: bool = True
     data: EventOut
+
+
+class TicketsSummary(BaseModel):
+    by_status: dict[str, int]
+    open_count: int
+    by_priority: dict[str, int]
+    sla_breached_count: int
+
+
+class TicketsSummaryOut(BaseModel):
+    success: bool = True
+    data: TicketsSummary
+    meta: dict[str, Any]
