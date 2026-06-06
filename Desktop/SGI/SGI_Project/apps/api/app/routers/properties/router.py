@@ -3,7 +3,7 @@
 import uuid
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -126,6 +126,51 @@ async def create_property(
     company_id = await _get_company_id(db)
     prop = await service.create_property(db, company_id, body)
     return PropertyDetailOut(data=prop)
+
+
+_IMPORT_MAX_BYTES = 5 * 1024 * 1024  # 5 Mo
+
+
+@router.post("/import.csv", summary="Import CSV en masse de biens")
+async def import_properties_csv(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db_session),
+    _: None = Depends(require_role("admin", "manager")),
+) -> dict[str, object]:
+    """Import CSV en masse de biens (Loi 1 : chaque bien créé sous le
+    `company_id` du tenant). En-têtes = champs `PropertyCreate` ; les colonnes
+    `latitude`/`longitude` géolocalisent le bien (PostGIS). Validation Pydantic
+    ligne par ligne ; les lignes invalides n'interrompent pas l'import. Renvoie
+    un rapport créés/échecs/erreurs."""
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file")
+    if len(raw) > _IMPORT_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="file_too_large"
+        )
+    try:
+        content = raw.decode("utf-8-sig")  # tolère le BOM Excel
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid_encoding"
+        ) from None
+
+    company_id = await _get_company_id(db)
+    valid, errors = service.parse_property_rows(content)
+    created = 0
+    for payload in valid:
+        await service.create_property(db, company_id, payload)
+        created += 1
+    return {
+        "success": True,
+        "data": {
+            "created": created,
+            "failed": len(errors),
+            "total": created + len(errors),
+            "errors": errors[:100],
+        },
+    }
 
 
 @router.get(
