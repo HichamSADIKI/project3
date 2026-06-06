@@ -1,5 +1,6 @@
 """Service — Notifications in-app (M6). Filtrer par company_id (Loi 1)."""
 
+import logging
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -9,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.device_token import DeviceToken
 from app.models.notification import Notification
+
+logger = logging.getLogger(__name__)
 
 VALID_CHANNELS: frozenset[str] = frozenset({"in_app", "email", "whatsapp", "push"})
 VALID_PLATFORMS: frozenset[str] = frozenset({"ios", "android", "web"})
@@ -88,6 +91,20 @@ async def create_notification(
                     },
                 },
             )
+            # Push mobile best-effort : enfile l'envoi aux appareils de l'user
+            # (jetons Expo/FCM résolus côté worker). Jamais bloquant.
+            try:
+                from app.tasks.notifications import send_push
+
+                send_push.delay(
+                    user_id=str(recipient_user_id),
+                    company_id=str(company_id),
+                    title=notif.title,
+                    body=notif.body or "",
+                    data={"notification_id": str(notif.id), "type": notif.type},
+                )
+            except Exception as exc:  # push best-effort — un broker absent ne bloque pas
+                logger.debug("enqueue send_push ignoré (non bloquant): %s", exc)
     return notif
 
 

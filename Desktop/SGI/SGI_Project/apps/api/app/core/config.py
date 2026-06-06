@@ -124,6 +124,14 @@ class Settings(BaseSettings):
     FCM_ENDPOINT: str = "https://fcm.googleapis.com/fcm/send"
     FCM_TIMEOUT_S: int = 15
 
+    # ── Push Expo (jetons ExponentPushToken[...] de l'app mobile) ─────────
+    # Les jetons Expo sont routés vers l'Expo Push API. En dev, EXPO_PUSH_ENABLED
+    # reste False → backend « console » (aucun appel réseau). EXPO_ACCESS_TOKEN
+    # est optionnel (renforce la sécurité d'envoi côté Expo).
+    EXPO_PUSH_ENABLED: bool = False
+    EXPO_PUSH_ENDPOINT: str = "https://exp.host/--/api/v2/push/send"
+    EXPO_ACCESS_TOKEN: str = ""
+
     JWT_ACCESS_EXPIRE_HOURS: int = 8
     JWT_REFRESH_EXPIRE_DAYS: int = 30
     # Coût bcrypt (2^rounds). 12 en prod ; les tests l'abaissent à 4 (≈250× plus

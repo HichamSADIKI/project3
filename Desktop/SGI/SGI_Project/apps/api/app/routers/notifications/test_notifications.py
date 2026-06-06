@@ -403,3 +403,38 @@ async def test_ws_ticket_returns_token_with_user_claims(
     payload = decode_jwt(ticket)
     assert payload["sub"] == str(admin.id)
     assert payload["company_id"] == str(admin.company_id)
+
+
+# ── Push mobile : enfilement worker depuis create_notification ───────────────
+
+
+async def test_create_in_app_enqueues_push(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch
+) -> None:
+    """Une notif in-app destinée à un user enfile aussi un envoi push (worker)."""
+    admin, _token = seed_admin
+    calls: list[dict] = []
+
+    from app.tasks import notifications as _notif_tasks
+
+    monkeypatch.setattr(_notif_tasks.send_push, "delay", lambda **kw: calls.append(kw))
+
+    async def _noop(*_a, **_k) -> None:  # neutralise le WS (Valkey)
+        return None
+
+    monkeypatch.setattr("app.routers.notifications.ws.publish_notification", _noop)
+
+    from app.routers.notifications.service import create_notification
+
+    await create_notification(
+        db_session,
+        admin.company_id,
+        notif_type="t",
+        title="Hi",
+        body="B",
+        recipient_user_id=admin.id,
+    )
+    assert len(calls) == 1
+    assert calls[0]["user_id"] == str(admin.id)
+    assert calls[0]["company_id"] == str(admin.company_id)
+    assert calls[0]["title"] == "Hi"
