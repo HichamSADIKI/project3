@@ -346,6 +346,7 @@ async def test_expiring_contracts_tenant_isolation(
 
 # ── Génération PDF de contrats (WeasyPrint + MinIO) ──────────────────────────
 
+from app.routers.contracts import contract_pdf as _contract_pdf_mod  # noqa: E402
 from app.routers.contracts.contract_pdf import (  # noqa: E402
     ContractPdfError,
     build_contract_html,
@@ -387,9 +388,10 @@ def _patch_pdf_storage(monkeypatch) -> None:
     monkeypatch.setattr("app.core.storage.is_configured", lambda: True)
     monkeypatch.setattr("app.core.storage.upload_bytes", _up)
     monkeypatch.setattr("app.core.storage.presigned_url", _ps)
-    monkeypatch.setattr(
-        "app.routers.contracts.contract_pdf.render_pdf", lambda _html: b"%PDF-1.4 fake"
-    )
+    # Patch sur l'OBJET module (pas la chaîne) : `app.routers.contracts` est
+    # réaliasé en APIRouter dans app/routers/__init__, ce qui casse la résolution
+    # par chaîne `app.routers.contracts.contract_pdf...` de monkeypatch.
+    monkeypatch.setattr(_contract_pdf_mod, "render_pdf", lambda _html: b"%PDF-1.4 fake")
 
 
 @pytest.mark.asyncio
