@@ -71,3 +71,27 @@ class ExecutiveDashboardOut(BaseModel):
     rentals: dict[str, Any]
     crm: dict[str, int]
     units: dict[str, Any]
+
+
+# ── Commissions agents (rapprochement) ─────────────────────────────────────
+
+
+class CommissionAgentRow(BaseModel):
+    """Synthèse des commissions d'un agent, ventilées par statut (AED)."""
+
+    agent_id: str
+    agent_name: str | None
+    pending: Decimal
+    payable: Decimal
+    paid: Decimal
+    cancelled: Decimal
+    total: Decimal  # pending + payable + paid (hors cancelled)
+
+
+class CommissionsSummaryOut(BaseModel):
+    """Rapprochement des commissions agents du tenant (par agent + totaux)."""
+
+    success: bool = True
+    agents: list[CommissionAgentRow]
+    totals: dict[str, Decimal]  # pending/payable/paid/cancelled/total
+    count: int  # nombre d'agents avec au moins une commission

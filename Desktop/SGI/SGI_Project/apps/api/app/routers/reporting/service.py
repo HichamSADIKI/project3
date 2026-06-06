@@ -13,8 +13,10 @@ from app.models.client import Client
 from app.models.finance import FinanceTransaction
 from app.models.golden_visa import GoldenVisaApplication
 from app.models.maintenance import MaintenanceTicket
+from app.models.partner_commission import PartnerCommissionEntry
 from app.models.property import Property
 from app.models.rental import Rental
+from app.models.user import User
 from app.routers.crm.service import get_pipeline_kpis
 from app.routers.finance.schemas import AgedReceivables, FinanceSummary
 from app.routers.finance.service import (
@@ -25,6 +27,8 @@ from app.routers.finance.service import (
 from app.routers.leasing.service import leasing_pipeline_summary
 from app.routers.rentals.service import rent_roll_summary
 from app.routers.reporting.schemas import (
+    CommissionAgentRow,
+    CommissionsSummaryOut,
     ExecutiveDashboardOut,
     ExecutiveHeadline,
     FinancialReport,
@@ -41,6 +45,8 @@ _MAINTENANCE_CLOSED = ("resolved", "closed", "cancelled")
 _GV_TERMINAL = ("approved", "rejected", "expired")
 # Statuts CRM terminaux — exclus du décompte « prospects actifs ».
 _CRM_TERMINAL = ("won", "lost")
+# Statuts de commission agrégés dans la synthèse.
+_COMMISSION_STATUSES = ("pending", "payable", "paid", "cancelled")
 
 
 async def _scalar(db: AsyncSession, stmt) -> Decimal:
@@ -291,3 +297,78 @@ async def executive_dashboard(db: AsyncSession, company_id: uuid.UUID) -> Execut
         crm=crm,
         units=units,
     )
+
+
+# ── Commissions agents (rapprochement) ─────────────────────────────────────
+
+
+def roll_up_commissions(
+    rows: list[tuple[uuid.UUID, str | None, str, Decimal]],
+) -> tuple[list[CommissionAgentRow], dict[str, Decimal]]:
+    """Pur (sans DB) : regroupe (agent_id, nom, statut, montant) par agent.
+
+    Renvoie (lignes par agent triées par total décroissant, totaux globaux).
+    `total` par agent = pending + payable + paid (hors cancelled)."""
+    by_agent: dict[uuid.UUID, dict[str, object]] = {}
+    for agent_id, name, status_, amount in rows:
+        bucket = by_agent.setdefault(
+            agent_id,
+            {"name": name, **{s: Decimal(0) for s in _COMMISSION_STATUSES}},
+        )
+        if name and not bucket["name"]:
+            bucket["name"] = name
+        if status_ in _COMMISSION_STATUSES:
+            bucket[status_] = bucket[status_] + amount  # type: ignore[operator]
+
+    agents: list[CommissionAgentRow] = []
+    totals: dict[str, Decimal] = {s: Decimal(0) for s in _COMMISSION_STATUSES}
+    totals["total"] = Decimal(0)
+    for agent_id, b in by_agent.items():
+        pending = b["pending"]  # type: ignore[assignment]
+        payable = b["payable"]  # type: ignore[assignment]
+        paid = b["paid"]  # type: ignore[assignment]
+        cancelled = b["cancelled"]  # type: ignore[assignment]
+        agent_total = pending + payable + paid  # type: ignore[operator]
+        agents.append(
+            CommissionAgentRow(
+                agent_id=str(agent_id),
+                agent_name=b["name"],  # type: ignore[arg-type]
+                pending=pending,
+                payable=payable,
+                paid=paid,
+                cancelled=cancelled,
+                total=agent_total,
+            )
+        )
+        for s in _COMMISSION_STATUSES:
+            totals[s] = totals[s] + b[s]  # type: ignore[operator]
+        totals["total"] = totals["total"] + agent_total
+
+    agents.sort(key=lambda a: a.total, reverse=True)
+    return agents, totals
+
+
+async def agent_commissions_summary(
+    db: AsyncSession, company_id: uuid.UUID
+) -> CommissionsSummaryOut:
+    """Rapprochement des commissions agents du tenant (par agent + totaux)."""
+    rows = (
+        await db.execute(
+            select(
+                PartnerCommissionEntry.partner_user_id,
+                User.full_name,
+                PartnerCommissionEntry.status,
+                func.coalesce(func.sum(PartnerCommissionEntry.commission_amount_aed), 0),
+            )
+            .join(User, User.id == PartnerCommissionEntry.partner_user_id, isouter=True)
+            .where(PartnerCommissionEntry.company_id == company_id)
+            .group_by(
+                PartnerCommissionEntry.partner_user_id,
+                User.full_name,
+                PartnerCommissionEntry.status,
+            )
+        )
+    ).all()
+    grouped = [(aid, name, st, Decimal(str(amt))) for aid, name, st, amt in rows]
+    agents, totals = roll_up_commissions(grouped)
+    return CommissionsSummaryOut(agents=agents, totals=totals, count=len(agents))

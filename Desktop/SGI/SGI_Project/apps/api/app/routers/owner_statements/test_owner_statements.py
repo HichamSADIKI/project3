@@ -217,3 +217,40 @@ async def test_statement_no_email_when_opted_out(
     )
     assert gen.status_code == 201, gen.text
     assert calls == []
+
+
+# ── Relevé PDF ─────────────────────────────────────────────────────────────
+
+
+def test_build_statement_html_contains_amounts() -> None:
+    """Gabarit HTML pur (sans WeasyPrint) : contient montants + libellés clés."""
+    from app.routers.owner_statements.statement_pdf import build_statement_html
+
+    out = build_statement_html(
+        reference="OS-2026-01-abcd1234",
+        company_name="Infinity FM",
+        period_label="2026-01",
+        owner_name="Owner X",
+        gross_revenue=Decimal("10000"),
+        expenses=Decimal("1500"),
+        commission=Decimal("500"),
+        net_payout=Decimal("8000"),
+    )
+    assert "OWNER STATEMENT" in out
+    assert "OS-2026-01-abcd1234" in out
+    assert "10,000" in out and "8,000" in out
+    assert "Infinity FM" in out
+
+
+async def test_statement_pdf_unknown_returns_404(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    import uuid as _uuid
+
+    _admin, token = seed_admin
+    party_id = await _create_owner(client, token)
+    resp = await client.post(
+        f"/api/v1/owners/{party_id}/statements/{_uuid.uuid4()}/pdf",
+        headers=_auth(token),
+    )
+    assert resp.status_code == 404

@@ -38,3 +38,10 @@ class OwnerStatementListOut(BaseModel):
     success: bool = True
     data: list[OwnerStatementOut]
     meta: dict[str, Any]
+
+
+class OwnerStatementPdfOut(BaseModel):
+    """URL de téléchargement du relevé PDF généré."""
+
+    success: bool = True
+    data: dict[str, str]  # {"url": "..."}
