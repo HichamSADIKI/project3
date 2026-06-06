@@ -481,3 +481,47 @@ async def test_manager_cannot_manage_access(
     # Le manager a le métier mais PAS settings.access (réservé admin) → 403.
     r = await client.get(f"{_H}/groups", headers=_auth(mgr_token))
     assert r.status_code == 403
+
+
+# ── Niveau d'assurance « UAE PASS Infinity » (endpoints) ─────────────────────
+
+
+async def test_assurance_me_defaults_l0(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{_H}/assurance/me", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["level"] == "L0"
+
+
+async def test_assurance_set_then_me_reflects(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    # Admin pose les preuves email+mobile+EID sur sa propre identité → L2.
+    patch = await client.patch(
+        f"{_H}/assurance/user/{admin.id}",
+        headers=_auth(token),
+        json={"email_verified": True, "mobile_verified": True, "emirates_id_verified": True},
+    )
+    assert patch.status_code == 200, patch.text
+    assert patch.json()["data"]["level"] == "L2"
+    # /me reflète le niveau.
+    me = await client.get(f"{_H}/assurance/me", headers=_auth(token))
+    assert me.json()["data"]["level"] == "L2"
+
+
+async def test_assurance_invalid_subject_type_422(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _admin, token = seed_admin
+    r = await client.patch(
+        f"{_H}/assurance/bogus/{uuid.uuid4()}",
+        headers=_auth(token),
+        json={"email_verified": True},
+    )
+    assert r.status_code == 422
+
+
+async def test_assurance_requires_auth(client: AsyncClient) -> None:
+    r = await client.get(f"{_H}/assurance/me")
+    assert r.status_code in (401, 403)
