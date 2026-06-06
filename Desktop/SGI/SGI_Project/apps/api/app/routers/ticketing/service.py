@@ -82,9 +82,42 @@ def escalation_level_for(sla_due_at: datetime | None, now: datetime) -> int:
     return 2 if overdue_hours >= 24 else 1
 
 
+def summarize_tickets(tickets: list[Any], now: datetime) -> dict[str, Any]:
+    """Synthèse du service desk (helper pur) : répartition par statut, nombre de
+    tickets ouverts (non terminés), répartition des ouverts par priorité, et
+    nombre d'ouverts en dépassement SLA."""
+    by_status: dict[str, int] = {}
+    by_priority: dict[str, int] = {}
+    open_count = 0
+    sla_breached_count = 0
+    for t in tickets:
+        by_status[t.status] = by_status.get(t.status, 0) + 1
+        if t.status not in TERMINAL_STATUSES:
+            open_count += 1
+            by_priority[t.priority] = by_priority.get(t.priority, 0) + 1
+            if is_sla_breached(t.status, t.sla_due_at, now):
+                sla_breached_count += 1
+    return {
+        "by_status": by_status,
+        "open_count": open_count,
+        "by_priority": by_priority,
+        "sla_breached_count": sla_breached_count,
+    }
+
+
 # ─────────────────────────────────────────────────────────────────────────
 # Fonctions DB — filtrées par company_id (Loi 1)
 # ─────────────────────────────────────────────────────────────────────────
+
+
+async def tickets_summary(db: AsyncSession, company_id: uuid.UUID, now: datetime) -> dict[str, Any]:
+    """Synthèse du service desk du tenant (Loi 1 : scopé company_id)."""
+    result = await db.execute(
+        select(ServiceTicket).where(
+            ServiceTicket.company_id == company_id, ServiceTicket.deleted_at.is_(None)
+        )
+    )
+    return summarize_tickets(list(result.scalars().all()), now)
 
 
 async def next_reference(db: AsyncSession, company_id: uuid.UUID) -> str:
