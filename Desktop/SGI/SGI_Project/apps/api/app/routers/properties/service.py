@@ -267,7 +267,16 @@ async def search_by_radius(
     if bedrooms is not None:
         filters.append(Property.bedrooms == bedrooms)
 
-    stmt = select(Property, dist_m).where(and_(*filters)).order_by(text("dist_m")).limit(limit)
+    # Coordonnées décodées pour l'affichage carto (Leaflet) — le WKB brut de
+    # `location` n'est pas sérialisable JSON. ST_X = longitude, ST_Y = latitude.
+    lat_col = text("ST_Y(location::geometry) AS lat")
+    lng_col = text("ST_X(location::geometry) AS lng")
+    stmt = (
+        select(Property, dist_m, lat_col, lng_col)
+        .where(and_(*filters))
+        .order_by(text("dist_m"))
+        .limit(limit)
+    )
 
     result = await db.execute(stmt)
     rows = result.all()
@@ -276,10 +285,14 @@ async def search_by_radius(
     for row in rows:
         prop: Property = row[0]
         dist: float = row[1]
+        lat: float | None = row[2]
+        lng: float | None = row[3]
         record: dict = {col.name: getattr(prop, col.name) for col in prop.__table__.columns}
-        # Exclure le WKB binaire brut (non-sérialisable JSON)
+        # Exclure le WKB binaire brut (non-sérialisable JSON), exposer lat/lng.
         record["location"] = None
         record["dist_m"] = round(dist, 1)
+        record["latitude"] = round(lat, 6) if lat is not None else None
+        record["longitude"] = round(lng, 6) if lng is not None else None
         out.append(record)
 
     return out

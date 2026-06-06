@@ -25,6 +25,7 @@ export type Translations = {
   nav_fournisseurs: string; nav_fournisseurs_fiches: string; nav_fournisseurs_validation: string;
   nav_news: string;
   nav_buildings: string;
+  nav_properties_map: string;
   nav_units: string;
   nav_tenants: string;
   nav_owners: string;
@@ -326,6 +327,7 @@ const ar: Translations = {
   nav_fournisseurs: "المورّدون", nav_fournisseurs_fiches: "بطاقات المورّدين", nav_fournisseurs_validation: "اعتماد المورّدين",
   nav_news: "الأخبار",
   nav_buildings: "المباني",
+  nav_properties_map: "خريطة العقارات",
   nav_units: "الوحدات",
   nav_tenants: "المستأجرون",
   nav_owners: "الملاك",
@@ -620,6 +622,7 @@ const en: Translations = {
   nav_fournisseurs: "Suppliers", nav_fournisseurs_fiches: "Supplier records", nav_fournisseurs_validation: "Vendor approval",
   nav_news: "News",
   nav_buildings: "Buildings",
+  nav_properties_map: "Properties map",
   nav_units: "Units",
   nav_tenants: "Tenants",
   nav_owners: "Owners",
@@ -914,6 +917,7 @@ const fr: Translations = {
   nav_fournisseurs: "Fournisseurs", nav_fournisseurs_fiches: "Fiches fournisseurs", nav_fournisseurs_validation: "Validation fournisseurs",
   nav_news: "Actualités",
   nav_buildings: "Bâtiments",
+  nav_properties_map: "Carte des biens",
   nav_units: "Unités",
   nav_tenants: "Locataires",
   nav_owners: "Propriétaires",
