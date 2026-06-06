@@ -3,6 +3,7 @@ import React from "react";
 import { Topbar, IcPersonne, IcSociete, IcArrowUp, IcArrowDown } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
+import { ClientCsvImport } from "@/components/client-csv-import";
 
 const aed = (n: number) =>
   new Intl.NumberFormat("en-AE", { style: "currency", currency: "AED", maximumFractionDigits: 0 }).format(n);
@@ -38,8 +39,9 @@ export function ScreenClients({ onNavigate }: { onNavigate?: (k: string) => void
 
       <div style={{ flex: 1, overflowY: "auto", padding: isMob ? "16px 12px" : "28px 32px", background: "var(--bg-cream)" }}>
 
-        {/* Export CSV (tous les clients du tenant) */}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+        {/* Import / Export CSV (tous les clients du tenant) */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginBottom: 16 }}>
+          <ClientCsvImport />
           <a
             href="/api/admin/clients/export"
             style={{

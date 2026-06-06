@@ -4,7 +4,17 @@ import csv
 import io
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+    status,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
@@ -22,6 +32,7 @@ from app.routers.clients.service import (
     delete_client,
     get_client,
     list_clients,
+    parse_client_rows,
     update_client,
 )
 
@@ -137,6 +148,54 @@ async def export_clients_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="clients.csv"'},
     )
+
+
+# ⚠️ Doit aussi être déclaré AVANT `/{client_id}` (sinon "import.csv" → UUID 422).
+_IMPORT_MAX_BYTES = 5 * 1024 * 1024  # 5 Mo
+
+
+@router.post(
+    "/import.csv",
+    dependencies=[Depends(_require_roles("admin", "manager"))],
+)
+async def import_clients_csv(
+    request: Request,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db_session),
+) -> dict[str, object]:
+    """Import CSV en masse de clients (Loi 1 : chaque ligne créée sous le
+    `company_id` du tenant). En-têtes = champs `ClientCreate`. Renvoie un rapport
+    par ligne : créés, échecs, erreurs. Validation Pydantic ligne par ligne ;
+    les lignes invalides n'interrompent pas l'import."""
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="empty_file")
+    if len(raw) > _IMPORT_MAX_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="file_too_large"
+        )
+    try:
+        content = raw.decode("utf-8-sig")  # tolère le BOM Excel
+    except UnicodeDecodeError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="invalid_encoding"
+        ) from None
+
+    company_id = _get_company_id(request)
+    valid, errors = parse_client_rows(content)
+    created = 0
+    for payload in valid:
+        await create_client(db, company_id, payload)
+        created += 1
+    return {
+        "success": True,
+        "data": {
+            "created": created,
+            "failed": len(errors),
+            "total": created + len(errors),
+            "errors": errors[:100],  # rapport borné
+        },
+    }
 
 
 @router.post(

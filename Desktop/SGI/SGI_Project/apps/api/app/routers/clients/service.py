@@ -1,10 +1,13 @@
 """Service — Clients. Toujours filtrer par company_id (Loi 1)."""
 
+import csv
+import io
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
+from pydantic import ValidationError
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +16,47 @@ from app.routers.clients.schemas import ClientCreate, ClientUpdate
 
 # Seuil de budget éligible Golden Visa (AED) — cf. règles CRM (CLAUDE.md).
 GOLDEN_VISA_BUDGET_THRESHOLD = Decimal("2000000")
+
+# Borne anti-abus pour l'import CSV (au-delà → import asynchrone à prévoir).
+CSV_IMPORT_MAX_ROWS = 1000
+
+
+def _first_validation_error(exc: ValidationError) -> str:
+    """Message d'erreur lisible (1ʳᵉ erreur) pour le rapport d'import."""
+    err = exc.errors()[0]
+    loc = ".".join(str(x) for x in err.get("loc", ()) if x != "__root__")
+    msg = err.get("msg", "invalid")
+    return f"{loc}: {msg}" if loc else msg
+
+
+def parse_client_rows(content: str) -> tuple[list[ClientCreate], list[dict[str, Any]]]:
+    """Parse + valide un CSV de clients (PUR, sans DB).
+
+    En-têtes attendus = noms de champs `ClientCreate` (colonnes inconnues
+    ignorées ; cellules vides → None). Retourne (valides, erreurs) où chaque
+    erreur = {"line": n, "error": msg} (ligne 1 = en-têtes, données dès la 2).
+    Au-delà de `CSV_IMPORT_MAX_ROWS` lignes de données, le surplus est signalé
+    (anti-abus)."""
+    valid: list[ClientCreate] = []
+    errors: list[dict[str, Any]] = []
+    reader = csv.DictReader(io.StringIO(content))
+    for idx, raw in enumerate(reader, start=2):
+        if idx - 1 > CSV_IMPORT_MAX_ROWS:
+            errors.append({"line": idx, "error": f"row_limit_exceeded ({CSV_IMPORT_MAX_ROWS})"})
+            break
+        cleaned = {
+            k.strip(): (v.strip() if isinstance(v, str) else v)
+            for k, v in raw.items()
+            if k is not None
+        }
+        if not any(cleaned.values()):  # ligne entièrement vide → ignorée
+            continue
+        payload = {k: (v if v not in ("", None) else None) for k, v in cleaned.items()}
+        try:
+            valid.append(ClientCreate(**payload))
+        except ValidationError as exc:
+            errors.append({"line": idx, "error": _first_validation_error(exc)})
+    return valid, errors
 
 
 def summarize_clients(clients: list[Client]) -> dict[str, Any]:
