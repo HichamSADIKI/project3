@@ -121,3 +121,53 @@ async def test_update_partial_coord_on_property_without_location(db_session, see
 
     lat, lng = await _coords(db_session, prop.id)
     assert lat is None and lng is None
+
+
+# ── Recherche par rayon (Loi 2 — carte interactive) ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_search_by_radius_returns_coordinates(db_session, seed_company: Company):
+    """Le résultat carto expose latitude/longitude (décodés du WKB) + dist_m."""
+    from .service import search_by_radius
+
+    prop = await _seed_property(db_session, seed_company.id, DUBAI_LAT, DUBAI_LNG)
+    results = await search_by_radius(
+        db_session, str(seed_company.id), lat=DUBAI_LAT, lng=DUBAI_LNG, radius_m=1000
+    )
+    hit = next(r for r in results if r["id"] == prop.id)
+    assert hit["latitude"] == round(DUBAI_LAT, 6)
+    assert hit["longitude"] == round(DUBAI_LNG, 6)
+    assert hit["dist_m"] >= 0
+    assert hit["location"] is None  # WKB brut exclu de la réponse JSON
+
+
+@pytest.mark.asyncio
+async def test_search_by_radius_excludes_far_and_other_tenant(db_session, seed_company: Company):
+    """ST_DWithin exclut les biens hors rayon ; le filtre company_id exclut un
+    autre tenant (Loi 1)."""
+    from app.models.company import Company as Co
+
+    from .service import search_by_radius
+
+    near = await _seed_property(db_session, seed_company.id, DUBAI_LAT, DUBAI_LNG)
+    far = await _seed_property(db_session, seed_company.id, 24.4539, 54.3773)  # Abu Dhabi ~120 km
+
+    other = Co(
+        id=uuid.uuid4(),
+        name="Other",
+        slug=f"co-{uuid.uuid4().hex[:8]}",
+        plan="pro",
+        is_active=True,
+    )
+    db_session.add(other)
+    await db_session.commit()
+    foreign = await _seed_property(db_session, other.id, DUBAI_LAT, DUBAI_LNG)
+
+    results = await search_by_radius(
+        db_session, str(seed_company.id), lat=DUBAI_LAT, lng=DUBAI_LNG, radius_m=5000
+    )
+    ids = {r["id"] for r in results}
+    assert near.id in ids
+    assert far.id not in ids  # hors rayon
+    assert foreign.id not in ids  # autre tenant (Loi 1)

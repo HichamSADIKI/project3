@@ -22,6 +22,7 @@ import { ScreenRealEstateBranches } from "./screens/realestate-branches";
 import { ScreenRealEstateSettings } from "./screens/realestate-settings";
 import { ScreenRealEstateDocuments } from "./screens/realestate-documents";
 import { ScreenRealEstateBuildings } from "./screens/realestate-buildings";
+import { ScreenRealEstatePropertiesMap } from "./screens/realestate-properties-map";
 import { ScreenRealEstateUnits } from "./screens/realestate-units";
 import { ScreenRealEstateTenants } from "./screens/realestate-tenants";
 import { ScreenRealEstateContracts } from "./screens/realestate-contracts";
@@ -84,7 +85,7 @@ import { PermissionsProvider, useNavGate } from "@/lib/permissions";
 
 type ScreenKey =
   | "dash" | "crm" | "orders"
-  | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_website" | "realestate_buildings" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_golden_visa" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_inspections" | "realestate_agenda" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
+  | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_website" | "realestate_buildings" | "realestate_properties_map" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_golden_visa" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_inspections" | "realestate_agenda" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents" | "admin" | "travail"
   | "tourisme_crm" | "sante_crm" | "assurance_crm"
   | "banques_crm" | "amazon_crm" | "consultants_crm" | "admin_crm" | "travail_crm" | "callcenter_crm"
   | "tourisme_news" | "sante_news" | "assurance_news"
@@ -118,6 +119,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "realestate_vente": (_) => <ScreenRealEstateVente />,
   "realestate_location": (_) => <ScreenRealEstateLocation />,
   "realestate_buildings": (_) => <ScreenRealEstateBuildings />,
+  "realestate_properties_map": (_) => <ScreenRealEstatePropertiesMap />,
   "realestate_units": (_) => <ScreenRealEstateUnits />,
   "realestate_tenants": (_) => <ScreenRealEstateTenants />,
   "realestate_contracts": (p) => <ScreenRealEstateContracts initialLead={p.initialLead} onPrefillConsumed={p.onPrefillConsumed} />,
