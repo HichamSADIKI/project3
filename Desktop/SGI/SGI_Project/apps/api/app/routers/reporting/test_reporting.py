@@ -458,3 +458,81 @@ async def test_executive_endpoint_forbidden_for_client_role(
         "/api/v1/reporting/executive", headers={"Authorization": f"Bearer {token}"}
     )
     assert resp.status_code == 403
+
+
+# ── Commissions agents (rapprochement) ─────────────────────────────────────
+
+
+def test_roll_up_commissions_pure() -> None:
+    """Helper pur : regroupe par agent, totaux globaux, tri par total."""
+    import uuid as _uuid
+
+    from app.routers.reporting.service import roll_up_commissions
+
+    a1, a2 = _uuid.uuid4(), _uuid.uuid4()
+    rows = [
+        (a1, "Karim", "pending", Decimal("100")),
+        (a1, "Karim", "paid", Decimal("300")),
+        (a1, "Karim", "cancelled", Decimal("50")),
+        (a2, "Reem", "payable", Decimal("80")),
+    ]
+    agents, totals = roll_up_commissions(rows)
+    assert [a.agent_name for a in agents] == ["Karim", "Reem"]  # tri par total desc
+    karim = agents[0]
+    assert karim.pending == Decimal("100")
+    assert karim.paid == Decimal("300")
+    assert karim.cancelled == Decimal("50")
+    assert karim.total == Decimal("400")  # hors cancelled
+    assert totals["paid"] == Decimal("300")
+    assert totals["cancelled"] == Decimal("50")
+    assert totals["total"] == Decimal("480")
+
+
+def test_roll_up_commissions_empty() -> None:
+    from app.routers.reporting.service import roll_up_commissions
+
+    agents, totals = roll_up_commissions([])
+    assert agents == []
+    assert totals["total"] == Decimal("0")
+
+
+async def test_commissions_endpoint_ok_for_admin(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    _, token = seed_admin
+    resp = await client.get(
+        "/api/v1/reporting/commissions", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "agents" in body and "totals" in body and "count" in body
+
+
+async def test_commissions_endpoint_forbidden_for_client_role(
+    client: AsyncClient, seed_company: Company, db_session: AsyncSession
+) -> None:
+    user = User(
+        id=uuid.uuid4(),
+        company_id=seed_company.id,
+        email=f"cli-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("Passw0rd!23"),
+        full_name="Cli",
+        role=UserRole.CLIENT.value,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    token = encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(user.company_id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+        }
+    )
+    resp = await client.get(
+        "/api/v1/reporting/commissions", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert resp.status_code == 403

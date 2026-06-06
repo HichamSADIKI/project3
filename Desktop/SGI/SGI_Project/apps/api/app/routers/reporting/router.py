@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.routers.reporting.schemas import (
+    CommissionsSummaryOut,
     ExecutiveDashboardOut,
     FinancialReport,
     MaintenanceReport,
@@ -14,6 +15,7 @@ from app.routers.reporting.schemas import (
     RentalReport,
 )
 from app.routers.reporting.service import (
+    agent_commissions_summary,
     executive_dashboard,
     financial_report,
     maintenance_report,
@@ -65,6 +67,18 @@ async def get_executive(
 ) -> ExecutiveDashboardOut:
     """Tableau de bord exécutif : instantané KPI consolidé multi-modules."""
     return await executive_dashboard(db, _get_company_id(request))
+
+
+@router.get(
+    "/commissions",
+    response_model=CommissionsSummaryOut,
+    dependencies=[Depends(_require_staff())],
+)
+async def get_commissions(
+    request: Request, db: AsyncSession = Depends(get_db_session)
+) -> CommissionsSummaryOut:
+    """Rapprochement des commissions agents du tenant (par agent + totaux)."""
+    return await agent_commissions_summary(db, _get_company_id(request))
 
 
 @router.get(

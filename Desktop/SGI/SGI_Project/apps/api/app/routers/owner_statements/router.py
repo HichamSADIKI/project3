@@ -12,9 +12,14 @@ from app.routers.owner_statements import service
 from app.routers.owner_statements.schemas import (
     OwnerStatementListOut,
     OwnerStatementOut,
+    OwnerStatementPdfOut,
     OwnerStatementResponse,
 )
 from app.routers.owner_statements.service import statement_period_label
+from app.routers.owner_statements.statement_pdf import (
+    StatementError,
+    generate_and_store_statement_pdf,
+)
 from app.tasks.notifications import deliver_email_notification
 
 router = APIRouter(prefix="/owners", tags=["owner-statements"])
@@ -93,6 +98,30 @@ async def get_statement_endpoint(
     if statement is None or statement.owner_party_id != party_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="statement_not_found")
     return OwnerStatementResponse(data=OwnerStatementOut.model_validate(statement))
+
+
+@router.post(
+    "/{party_id}/statements/{statement_id}/pdf",
+    response_model=OwnerStatementPdfOut,
+    dependencies=[Depends(require_roles("admin", "manager", "agent"))],
+)
+async def generate_statement_pdf_endpoint(
+    party_id: uuid.UUID,
+    statement_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+) -> OwnerStatementPdfOut:
+    """Génère le PDF du relevé propriétaire et renvoie son URL de téléchargement."""
+    company_id = await get_company_id(db)
+    try:
+        url = await generate_and_store_statement_pdf(db, company_id, party_id, statement_id)
+    except StatementError as err:
+        code = (
+            status.HTTP_404_NOT_FOUND
+            if err.code == "statement_not_found"
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=code, detail=err.code) from err
+    return OwnerStatementPdfOut(data={"url": url})
 
 
 @router.post(
