@@ -91,3 +91,14 @@ def can_perform(level: str, action: str) -> bool:
 def can_sign(level: str, *, qualified: bool = False) -> bool:
     """True si le niveau autorise la signature (avancée par défaut, ou qualifiée)."""
     return can_perform(level, "sign_qualified" if qualified else "sign_document")
+
+
+def capabilities(level: str) -> dict[str, dict[str, object]]:
+    """Pour un niveau donné, l'autorisation de chaque action connue + son seuil.
+
+    Destiné au **soft-gating côté UI** (afficher/masquer un bouton) : il n'impose
+    rien côté API. Forme : ``{action: {allowed: bool, required_level: str}}``."""
+    return {
+        action: {"allowed": level_at_least(level, required), "required_level": required}
+        for action, required in ACTION_MIN_LEVEL.items()
+    }
