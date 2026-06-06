@@ -52,6 +52,23 @@ export function ScreenRealEstateContracts({
   const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=200");
   const { busy, error: actErr, run } = useRowAction(reload);
 
+  // Génération + téléchargement du PDF du contrat (WeasyPrint côté backend).
+  const [pdfBusy, setPdfBusy] = useState<string | null>(null);
+  async function downloadPdf(id: string): Promise<void> {
+    setPdfBusy(id);
+    try {
+      const res = await postJson(`/api/admin/contracts/${id}/pdf`, {});
+      if (res.ok) {
+        const body = (await res.json()) as { data?: { url?: string } };
+        if (body.data?.url) window.open(body.data.url, "_blank", "noopener");
+      }
+    } catch {
+      /* erreur réseau ignorée — l'utilisateur peut réessayer */
+    } finally {
+      setPdfBusy(null);
+    }
+  }
+
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -173,6 +190,7 @@ export function ScreenRealEstateContracts({
                           {(c.status === "active" || c.status === "expired") && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/renew`, { rent_escalation_pct: 0 })} style={cBtn("var(--azure)", "rgba(56,132,255,0.12)")}>{t.ct_renew}</button>}
                           {!c.signed_at && c.status !== "cancelled" && <button onClick={() => openSignature(c)} style={cBtn("var(--gold-deep)", "rgba(212,160,55,0.14)")}>{t.ct_request_signature}</button>}
                           {c.status !== "draft" && c.status !== "cancelled" && <button onClick={() => run(c.id, `/api/admin/contracts/${c.id}/sync-signature`)} style={cBtn("var(--ink-2)", "var(--line-soft)")}>{t.ct_sync_signature}</button>}
+                          <button onClick={() => void downloadPdf(c.id)} style={cBtn("var(--emerald)", "var(--emerald-soft, rgba(47,158,110,0.14))")}>{pdfBusy === c.id ? "…" : "PDF"}</button>
                         </span>
                       )}
                     </td>
