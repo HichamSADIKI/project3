@@ -3,6 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,6 +12,41 @@ from app.models.party_technician import Technician
 from app.models.user import User
 from app.routers.technicians.schemas import TechnicianCreate, TechnicianUpdate
 from app.routers.vendors.service import merge_rating  # même formule cumulée
+
+
+def summarize_technicians(technicians: list[Any]) -> dict[str, Any]:
+    """Synthèse de capacité de dispatch : nombre de techniciens connectés (mobile)
+    et d'astreinte, capacité par compétence, total des interventions. Helper pur."""
+    by_skill: dict[str, int] = {}
+    mobile_active_count = 0
+    on_call_count = 0
+    jobs_completed_total = 0
+    for t in technicians:
+        for skill in t.skills or []:
+            by_skill[skill] = by_skill.get(skill, 0) + 1
+        if t.mobile_active:
+            mobile_active_count += 1
+        if t.on_call:
+            on_call_count += 1
+        jobs_completed_total += t.jobs_completed
+    return {
+        "total": len(technicians),
+        "mobile_active_count": mobile_active_count,
+        "on_call_count": on_call_count,
+        "by_skill": by_skill,
+        "jobs_completed_total": jobs_completed_total,
+    }
+
+
+async def technicians_summary(db: AsyncSession, company_id: uuid.UUID) -> dict[str, Any]:
+    """Synthèse de l'équipe technique du tenant (Loi 1 : scopé company_id)."""
+    result = await db.execute(
+        select(Technician).where(
+            Technician.company_id == company_id, Technician.deleted_at.is_(None)
+        )
+    )
+    return summarize_technicians(list(result.scalars().all()))
+
 
 # ─── CRUD ─────────────────────────────────────────────────────────────────
 

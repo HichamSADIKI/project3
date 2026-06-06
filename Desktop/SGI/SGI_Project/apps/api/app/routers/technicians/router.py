@@ -13,6 +13,7 @@ from app.routers.technicians.schemas import (
     TechnicianListOut,
     TechnicianOut,
     TechnicianRatingInput,
+    TechniciansSummaryOut,
     TechnicianUpdate,
 )
 from app.routers.technicians.service import (
@@ -21,6 +22,7 @@ from app.routers.technicians.service import (
     delete_technician,
     get_technician,
     list_technicians,
+    technicians_summary,
     update_technician,
 )
 
@@ -66,6 +68,17 @@ async def create_technician_endpoint(
             detail="user_not_found_or_technician_exists",
         )
     return TechnicianDetailOut(data=TechnicianOut.model_validate(tech))
+
+
+@router.get("/summary", response_model=TechniciansSummaryOut)
+async def technicians_summary_endpoint(
+    db: AsyncSession = Depends(get_db_session),
+) -> TechniciansSummaryOut:
+    """Synthèse de capacité de dispatch : techniciens connectés / d'astreinte,
+    capacité par compétence, interventions cumulées."""
+    company_id = await get_company_id(db)
+    summary = await technicians_summary(db, company_id)
+    return TechniciansSummaryOut(data=summary, meta={})
 
 
 @router.get("/{user_id}", response_model=TechnicianDetailOut)
