@@ -75,7 +75,6 @@ import { ScreenAppAdminInfra } from "./screens/admin-infra";
 import { ScreenAppAdminBackups } from "./screens/admin-backups";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
 import { GlobalSearch } from "@/components/global-search";
-import { NotificationCenter } from "@/components/notification-center";
 import { SoftphoneProvider } from "@/components/softphone/softphone-provider";
 import { SoftphoneDock } from "@/components/softphone/softphone-dock";
 import { AssistantDock } from "@/components/assistant/assistant-dock";
@@ -289,8 +288,6 @@ export default function App() {
         onNavigate={setScreen}
         onClientSearch={name => { setClientSearch(name); setScreen("personne"); }}
       />
-      {/* Centre de notifications temps réel (cloche flottante haut, côté fin). */}
-      <NotificationCenter />
       {/* Dock softphone persistant (téléphonie) — partage l'instance SIP/WS via le provider. */}
       <SoftphoneDock onOpenClient={handleNavigateToClient} />
       {/* Assistant in-app (chatbot robot) — à côté du softphone, aide + navigation guidée. */}
