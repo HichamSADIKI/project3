@@ -55,3 +55,17 @@ class TechnicianListOut(BaseModel):
 class TechnicianDetailOut(BaseModel):
     success: bool = True
     data: TechnicianOut
+
+
+class TechniciansSummary(BaseModel):
+    total: int
+    mobile_active_count: int
+    on_call_count: int
+    by_skill: dict[str, int]
+    jobs_completed_total: int
+
+
+class TechniciansSummaryOut(BaseModel):
+    success: bool = True
+    data: TechniciansSummary
+    meta: dict[str, Any]
