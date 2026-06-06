@@ -260,3 +260,9 @@ class AssuranceVerifyInput(BaseModel):
     mobile_verified: bool | None = None
     emirates_id_verified: bool | None = None
     strong_auth_verified: bool | None = None
+
+
+class AssuranceCapabilitiesOut(BaseModel):
+    success: bool = True
+    level: str
+    capabilities: dict[str, dict[str, Any]]

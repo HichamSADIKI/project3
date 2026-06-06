@@ -525,3 +525,30 @@ async def test_assurance_invalid_subject_type_422(
 async def test_assurance_requires_auth(client: AsyncClient) -> None:
     r = await client.get(f"{_H}/assurance/me")
     assert r.status_code in (401, 403)
+
+
+async def test_assurance_capabilities_l0(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{_H}/assurance/capabilities", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["level"] == "L0"
+    # à L0, signer n'est pas permis ; le seuil requis est exposé pour l'UI
+    assert body["capabilities"]["sign_document"]["allowed"] is False
+    assert body["capabilities"]["sign_document"]["required_level"] == "L2"
+
+
+async def test_assurance_capabilities_after_elevation(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    await client.patch(
+        f"{_H}/assurance/user/{admin.id}",
+        headers=_auth(token),
+        json={"email_verified": True, "mobile_verified": True, "emirates_id_verified": True},
+    )
+    r = await client.get(f"{_H}/assurance/capabilities", headers=_auth(token))
+    body = r.json()
+    assert body["level"] == "L2"
+    assert body["capabilities"]["sign_document"]["allowed"] is True  # L2 → signature avancée
+    assert body["capabilities"]["approve_payment"]["allowed"] is False  # exige L3

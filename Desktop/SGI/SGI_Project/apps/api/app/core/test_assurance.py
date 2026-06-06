@@ -86,3 +86,21 @@ class TestCanSign:
     def test_qualified_needs_l3(self) -> None:
         assert can_sign("L2", qualified=True) is False
         assert can_sign("L3", qualified=True) is True
+
+
+class TestCapabilities:
+    def test_l1_map(self) -> None:
+        from app.core.assurance import ACTION_MIN_LEVEL, capabilities
+
+        caps = capabilities("L1")
+        # toutes les actions connues sont présentes avec leur seuil
+        assert set(caps) == set(ACTION_MIN_LEVEL)
+        assert caps["login"] == {"allowed": True, "required_level": "L1"}
+        assert caps["sign_document"] == {"allowed": False, "required_level": "L2"}
+        assert caps["approve_payment"]["allowed"] is False
+
+    def test_l3_allows_everything(self) -> None:
+        from app.core.assurance import capabilities
+
+        caps = capabilities("L3")
+        assert all(v["allowed"] for v in caps.values())

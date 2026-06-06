@@ -12,6 +12,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.assurance import capabilities as assurance_capabilities
 from app.core.deps import get_db_session
 from app.models.user import User
 from app.routers.iam import service
@@ -22,6 +23,7 @@ from app.routers.iam.assurance_service import (
 )
 from app.routers.iam.deps import require_permission
 from app.routers.iam.schemas import (
+    AssuranceCapabilitiesOut,
     AssuranceItemOut,
     AssuranceOut,
     AssuranceVerifyInput,
@@ -120,6 +122,20 @@ async def my_assurance(
     else:
         data = AssuranceOut.model_validate(record)
     return AssuranceItemOut(data=data)
+
+
+@router.get("/assurance/capabilities", response_model=AssuranceCapabilitiesOut)
+async def my_capabilities(
+    request: Request, db: AsyncSession = Depends(get_db_session)
+) -> AssuranceCapabilitiesOut:
+    """Actions autorisées pour l'utilisateur courant à son niveau (soft-gating UI).
+
+    N'impose rien côté API : sert au frontend à afficher/masquer les actions
+    sensibles selon le niveau d'assurance."""
+    company_id, user_id = _ctx(request)
+    record = await get_assurance(db, company_id, "user", user_id)
+    level = record.level if record is not None else "L0"
+    return AssuranceCapabilitiesOut(level=level, capabilities=assurance_capabilities(level))
 
 
 @router.patch(
