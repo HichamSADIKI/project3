@@ -1,16 +1,61 @@
 """Service Properties — toutes les fonctions filtrent par company_id."""
 
+import csv
+import io
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
+from typing import Any
 
 from geoalchemy2.elements import WKTElement
+from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.property import Property
 
 from .schemas import PropertyCreate, PropertyUpdate
+
+# Borne anti-abus pour l'import CSV de biens.
+CSV_IMPORT_MAX_ROWS = 1000
+
+
+def _first_validation_error(exc: ValidationError) -> str:
+    """Message d'erreur lisible (1ʳᵉ erreur) pour le rapport d'import."""
+    err = exc.errors()[0]
+    loc = ".".join(str(x) for x in err.get("loc", ()) if x != "__root__")
+    msg = err.get("msg", "invalid")
+    return f"{loc}: {msg}" if loc else msg
+
+
+def parse_property_rows(content: str) -> tuple[list[PropertyCreate], list[dict[str, Any]]]:
+    """Parse + valide un CSV de biens (PUR, sans DB).
+
+    En-têtes attendus = champs `PropertyCreate` (dont `latitude`/`longitude`
+    optionnels → géolocalisation PostGIS à la création). Colonnes inconnues
+    ignorées, cellules vides → None. Retourne (valides, erreurs) avec erreurs =
+    [{"line": n, "error": msg}] (ligne 1 = en-têtes). Plafond CSV_IMPORT_MAX_ROWS."""
+    valid: list[PropertyCreate] = []
+    errors: list[dict[str, Any]] = []
+    reader = csv.DictReader(io.StringIO(content))
+    for idx, raw in enumerate(reader, start=2):
+        if idx - 1 > CSV_IMPORT_MAX_ROWS:
+            errors.append({"line": idx, "error": f"row_limit_exceeded ({CSV_IMPORT_MAX_ROWS})"})
+            break
+        cleaned = {
+            k.strip(): (v.strip() if isinstance(v, str) else v)
+            for k, v in raw.items()
+            if k is not None
+        }
+        if not any(cleaned.values()):  # ligne vide → ignorée
+            continue
+        payload = {k: (v if v not in ("", None) else None) for k, v in cleaned.items()}
+        try:
+            valid.append(PropertyCreate(**payload))
+        except ValidationError as exc:
+            errors.append({"line": idx, "error": _first_validation_error(exc)})
+    return valid, errors
+
 
 # ---------------------------------------------------------------------------
 # Helpers internes

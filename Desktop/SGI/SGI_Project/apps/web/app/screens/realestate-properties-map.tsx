@@ -12,6 +12,7 @@ import { Topbar, IcPin } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { postJson, extractError } from "@/lib/api-client";
 import { ReMap, type MapMarker } from "@/components/re-map";
+import { PropertyCsvImport } from "@/components/property-csv-import";
 import {
   toMarkers,
   propertyTitle,
@@ -117,14 +118,17 @@ export function ScreenRealEstatePropertiesMap(): React.ReactNode {
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={L("title")} />
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 28px", background: "var(--bg-cream)" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBlockEnd: 18 }}>
-          <span style={{ color: "var(--gold)" }}><IcPin /></span>
-          <div>
-            <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{L("title")}</div>
-            <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
-              {loading ? L("loading") : `${markers.length} ${L("results")}`}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBlockEnd: 18, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ color: "var(--gold)" }}><IcPin /></span>
+            <div>
+              <div className="font-display" style={{ fontSize: 18, fontWeight: 600, color: "var(--ink)" }}>{L("title")}</div>
+              <div style={{ fontSize: 12, color: "var(--ink-4)" }}>
+                {loading ? L("loading") : `${markers.length} ${L("results")}`}
+              </div>
             </div>
           </div>
+          <PropertyCsvImport onDone={() => void search()} />
         </div>
 
         {/* Barre de recherche par rayon */}

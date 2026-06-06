@@ -171,3 +171,109 @@ async def test_search_by_radius_excludes_far_and_other_tenant(db_session, seed_c
     assert near.id in ids
     assert far.id not in ids  # hors rayon
     assert foreign.id not in ids  # autre tenant (Loi 1)
+
+
+# ── Import CSV de biens (géolocalisation PostGIS) ────────────────────────────
+
+from httpx import AsyncClient  # noqa: E402
+
+from app.models.user import User  # noqa: E402
+
+from .service import parse_property_rows, search_by_radius  # noqa: E402
+
+_PROP_CSV = (
+    "type,price,title_en,city,latitude,longitude\n"
+    "apartment,1500000,Marina Flat,Dubai,25.2,55.27\n"
+    "villa,5000000,Palm Villa,Dubai,25.11,55.13\n"
+)
+
+
+def test_parse_property_rows_valid_and_invalid() -> None:
+    csv_text = (
+        "type,price,latitude,longitude\n"
+        "apartment,1000000,25.2,55.2\n"  # ok
+        "spaceship,1000000,25.2,55.2\n"  # type invalide
+        "apartment,-5,25.2,55.2\n"  # prix <= 0
+    )
+    valid, errors = parse_property_rows(csv_text)
+    assert len(valid) == 1
+    assert {e["line"] for e in errors} == {3, 4}
+
+
+def test_parse_property_rows_row_limit() -> None:
+    from .service import CSV_IMPORT_MAX_ROWS
+
+    rows = "\n".join("apartment,1000000" for _ in range(CSV_IMPORT_MAX_ROWS + 3))
+    valid, errors = parse_property_rows("type,price\n" + rows + "\n")
+    assert len(valid) == CSV_IMPORT_MAX_ROWS
+    assert any("row_limit_exceeded" in e["error"] for e in errors)
+
+
+@pytest.mark.asyncio
+async def test_import_properties_requires_auth(client: AsyncClient) -> None:
+    r = await client.post(
+        "/api/v1/properties/import.csv",
+        files={"file": ("p.csv", _PROP_CSV.encode(), "text/csv")},
+    )
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_import_properties_creates_and_geolocates(
+    client: AsyncClient, db_session, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    r = await client.post(
+        "/api/v1/properties/import.csv",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("p.csv", _PROP_CSV.encode(), "text/csv")},
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["created"] == 2 and r.json()["data"]["failed"] == 0
+    # Géolocalisation effective : la recherche par rayon (PostGIS) retrouve le bien.
+    hits = await search_by_radius(
+        db_session, str(admin.company_id), lat=25.2, lng=55.27, radius_m=1000
+    )
+    titles = {h["title_en"] for h in hits}
+    assert "Marina Flat" in titles
+    assert all(h["latitude"] is not None for h in hits)
+
+
+@pytest.mark.asyncio
+async def test_import_properties_reports_invalid(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    admin, token = seed_admin
+    bad = "type,price\napartment,1000000\nspaceship,1000000\n"
+    r = await client.post(
+        "/api/v1/properties/import.csv",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("p.csv", bad.encode(), "text/csv")},
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["created"] == 1 and data["failed"] == 1
+    assert data["errors"][0]["line"] == 3
+
+
+@pytest.mark.asyncio
+async def test_import_properties_tenant_isolation(
+    client: AsyncClient,
+    db_session,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    """Loi 1 : un bien importé par A n'est pas visible par le tenant B."""
+    admin, token_a = seed_admin
+    company_b, _token_b = second_admin
+    csv_text = "type,price,title_en,latitude,longitude\napartment,1234567,IsoFlat,25.2,55.27\n"
+    r = await client.post(
+        "/api/v1/properties/import.csv",
+        headers={"Authorization": f"Bearer {token_a}"},
+        files={"file": ("p.csv", csv_text.encode(), "text/csv")},
+    )
+    assert r.json()["data"]["created"] == 1
+    hits_b = await search_by_radius(
+        db_session, str(company_b.id), lat=25.2, lng=55.27, radius_m=1000
+    )
+    assert all(h["title_en"] != "IsoFlat" for h in hits_b)
