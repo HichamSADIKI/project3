@@ -177,6 +177,30 @@ export const financeApi = {
     api.get("/finance/transactions", { params }),
 };
 
+// ─── Endpoints Agenda ───────────────────────────────────────────────────────
+
+export interface AgendaEvent {
+  id: string;
+  title: string;
+  event_type: string;
+  status: string;
+  start_at: string;
+  end_at: string | null;
+  all_day: boolean;
+  location: string | null;
+  client_id: string | null;
+  property_id: string | null;
+  assigned_user_id: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export const agendaApi = {
+  list: (params?: Record<string, unknown>) =>
+    api.get<ApiList<AgendaEvent>>("/agenda", { params }),
+  get: (id: string) => api.get<ApiDetail<AgendaEvent>>(`/agenda/${id}`),
+};
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export type SocialProvider =

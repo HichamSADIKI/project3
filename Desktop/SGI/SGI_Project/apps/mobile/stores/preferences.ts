@@ -7,7 +7,7 @@ import { create } from "zustand";
 import * as SecureStore from "expo-secure-store";
 
 export type CountryCode = "AE" | "SA" | "QA" | "FR" | "MA";
-export type ModuleKey = "dashboard" | "properties" | "crm" | "clients" | "profile";
+export type ModuleKey = "dashboard" | "properties" | "crm" | "clients" | "agenda" | "profile";
 
 export const COUNTRIES: { code: CountryCode; flag: string; nameKey: string }[] = [
   { code: "AE", flag: "🇦🇪", nameKey: "country_ae" },
@@ -22,6 +22,7 @@ export const ALL_MODULES: ModuleKey[] = [
   "properties",
   "crm",
   "clients",
+  "agenda",
   "profile",
 ];
 
