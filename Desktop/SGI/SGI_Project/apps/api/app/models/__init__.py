@@ -33,7 +33,6 @@ from app.models.finance import FinanceTransaction
 from app.models.floor import Floor
 from app.models.golden_visa import GoldenVisaApplication
 from app.models.identity_assurance import IdentityAssurance
-from app.models.signature_proof import SignatureProofRecord
 from app.models.message import Message
 from app.models.notification import Notification
 from app.models.owner_statement import OwnerStatement
@@ -50,6 +49,7 @@ from app.models.property import Property
 from app.models.property_submission import PropertySubmission
 from app.models.refresh_token import RefreshToken
 from app.models.rental import Rental
+from app.models.signature_proof import SignatureProofRecord
 from app.models.unit import Unit
 from app.models.user import User
 from app.models.visit_request import VisitRequest
