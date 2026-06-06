@@ -7,12 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.routers.reporting.schemas import (
+    ExecutiveDashboardOut,
     FinancialReport,
     MaintenanceReport,
     OverviewReport,
     RentalReport,
 )
 from app.routers.reporting.service import (
+    executive_dashboard,
     financial_report,
     maintenance_report,
     overview,
@@ -51,6 +53,18 @@ def _require_staff():
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "reporting", "status": "ok"}
+
+
+@router.get(
+    "/executive",
+    response_model=ExecutiveDashboardOut,
+    dependencies=[Depends(_require_staff())],
+)
+async def get_executive(
+    request: Request, db: AsyncSession = Depends(get_db_session)
+) -> ExecutiveDashboardOut:
+    """Tableau de bord exécutif : instantané KPI consolidé multi-modules."""
+    return await executive_dashboard(db, _get_company_id(request))
 
 
 @router.get(
