@@ -24,13 +24,18 @@ def is_valid_subject_type(subject_type: str) -> bool:
 
 
 def _recompute_level(record: IdentityAssurance) -> str:
-    """Recalcule le niveau d'assurance d'un enregistrement via le socle pur."""
+    """Recalcule le niveau d'assurance d'un enregistrement via le socle pur.
+
+    Coercition ``None → False`` : sur un enregistrement neuf (pas encore flushé),
+    les drapeaux non fournis valent ``None`` (les ``default=False`` colonne ne
+    s'appliquent qu'à l'INSERT) ; un drapeau non posé = non vérifié.
+    """
     return assurance_level(
         VerificationState(
-            email_verified=record.email_verified,
-            mobile_verified=record.mobile_verified,
-            emirates_id_verified=record.emirates_id_verified,
-            strong_auth_verified=record.strong_auth_verified,
+            email_verified=bool(record.email_verified),
+            mobile_verified=bool(record.mobile_verified),
+            emirates_id_verified=bool(record.emirates_id_verified),
+            strong_auth_verified=bool(record.strong_auth_verified),
         )
     )
 
