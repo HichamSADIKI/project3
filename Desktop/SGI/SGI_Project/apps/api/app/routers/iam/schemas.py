@@ -7,6 +7,7 @@ endpoints IAM passent par ici.
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, EmailStr, Field
@@ -266,3 +267,32 @@ class AssuranceCapabilitiesOut(BaseModel):
     success: bool = True
     level: str
     capabilities: dict[str, dict[str, Any]]
+
+
+class SignDocumentInput(BaseModel):
+    content_sha256: str = Field(pattern="^[0-9a-f]{64}$")
+    qualified: bool = False
+
+
+class SignatureProofOut(BaseModel):
+    id: uuid.UUID
+    signer_subject_type: str
+    signer_subject_id: uuid.UUID
+    document_sha256: str
+    qualified: bool
+    signer_level: str
+    signed_at: datetime
+    signature: str
+
+    model_config = {"from_attributes": True}
+
+
+class SignatureItemOut(BaseModel):
+    success: bool = True
+    data: SignatureProofOut
+
+
+class SignatureVerifyOut(BaseModel):
+    success: bool = True
+    data: SignatureProofOut
+    valid: bool

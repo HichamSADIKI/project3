@@ -49,6 +49,7 @@ from app.models.property import Property
 from app.models.property_submission import PropertySubmission
 from app.models.refresh_token import RefreshToken
 from app.models.rental import Rental
+from app.models.signature_proof import SignatureProofRecord
 from app.models.unit import Unit
 from app.models.user import User
 from app.models.visit_request import VisitRequest
@@ -66,6 +67,7 @@ __all__ = [
     "Rental",
     "GoldenVisaApplication",
     "IdentityAssurance",
+    "SignatureProofRecord",
     "FinanceTransaction",
     "AuditLog",
     "Owner",

@@ -552,3 +552,85 @@ async def test_assurance_capabilities_after_elevation(
     assert body["level"] == "L2"
     assert body["capabilities"]["sign_document"]["allowed"] is True  # L2 → signature avancée
     assert body["capabilities"]["approve_payment"]["allowed"] is False  # exige L3
+
+
+# ── Signature qualifiée maison (sign / verify) ───────────────────────────────
+
+_SHA = "a" * 64  # empreinte SHA-256 factice (64 hex)
+
+
+async def _elevate_to_l2(client: AsyncClient, token: str, user_id) -> None:
+    r = await client.patch(
+        f"{_H}/assurance/user/{user_id}",
+        headers=_auth(token),
+        json={"email_verified": True, "mobile_verified": True, "emirates_id_verified": True},
+    )
+    assert r.status_code == 200, r.text
+
+
+async def test_sign_requires_assurance(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _admin, token = seed_admin  # L0 par défaut → ne peut pas signer
+    r = await client.post(
+        f"{_H}/assurance/sign", headers=_auth(token), json={"content_sha256": _SHA}
+    )
+    assert r.status_code == 403
+    assert r.json()["detail"]["required_level"] == "L2"
+
+
+async def test_sign_then_verify(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    admin, token = seed_admin
+    await _elevate_to_l2(client, token, admin.id)
+    signed = await client.post(
+        f"{_H}/assurance/sign", headers=_auth(token), json={"content_sha256": _SHA}
+    )
+    assert signed.status_code == 201, signed.text
+    data = signed.json()["data"]
+    assert data["signer_level"] == "L2" and data["document_sha256"] == _SHA
+    sig_id = data["id"]
+    # Re-vérification de la preuve persistée.
+    got = await client.get(f"{_H}/assurance/signatures/{sig_id}", headers=_auth(token))
+    assert got.status_code == 200, got.text
+    assert got.json()["valid"] is True
+
+
+async def test_qualified_sign_needs_l3(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    admin, token = seed_admin
+    await _elevate_to_l2(client, token, admin.id)  # L2 ne suffit pas pour qualifiée
+    r = await client.post(
+        f"{_H}/assurance/sign",
+        headers=_auth(token),
+        json={"content_sha256": _SHA, "qualified": True},
+    )
+    assert r.status_code == 403
+    assert r.json()["detail"]["required_level"] == "L3"
+
+
+async def test_get_signature_unknown_404(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{_H}/assurance/signatures/{uuid.uuid4()}", headers=_auth(token))
+    assert r.status_code == 404
+
+
+async def test_signature_cross_tenant_isolation(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[object, str],
+) -> None:
+    """Red-team Loi 1 : la preuve de signature d'un tenant est invisible à un autre.
+
+    Le tenant A produit une preuve scellée ; le tenant B rejoue le GET avec l'id
+    exact — doit obtenir 404 (jamais le contenu). `company_id` + RLS isolent."""
+    admin, token = seed_admin
+    _company2, token2 = second_admin
+    await _elevate_to_l2(client, token, admin.id)
+    signed = await client.post(
+        f"{_H}/assurance/sign", headers=_auth(token), json={"content_sha256": _SHA}
+    )
+    assert signed.status_code == 201, signed.text
+    sig_id = signed.json()["data"]["id"]
+    # Tenant A lit bien sa preuve…
+    own = await client.get(f"{_H}/assurance/signatures/{sig_id}", headers=_auth(token))
+    assert own.status_code == 200
+    # …mais le tenant B, avec le même id, ne voit rien (cross-tenant → 404).
+    cross = await client.get(f"{_H}/assurance/signatures/{sig_id}", headers=_auth(token2))
+    assert cross.status_code == 404

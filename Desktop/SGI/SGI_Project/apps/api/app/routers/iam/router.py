@@ -8,6 +8,7 @@ n'appartient pas au tenant.
 """
 
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.core.assurance import capabilities as assurance_capabilities
 from app.core.deps import get_db_session
 from app.models.user import User
 from app.routers.iam import service
+from app.routers.iam.assurance_deps import assert_assurance
 from app.routers.iam.assurance_service import (
     get_assurance,
     is_valid_subject_type,
@@ -41,6 +43,10 @@ from app.routers.iam.schemas import (
     MemberBody,
     MePermissionsOut,
     NodeOut,
+    SignatureItemOut,
+    SignatureProofOut,
+    SignatureVerifyOut,
+    SignDocumentInput,
     UnitCreate,
     UnitItemOut,
     UnitListOut,
@@ -52,6 +58,7 @@ from app.routers.iam.schemas import (
     UserOut,
     UserUpdate,
 )
+from app.routers.iam.signature_service import create_signature, get_signature, verify_record
 
 router = APIRouter(prefix="/iam", tags=["iam"])
 
@@ -136,6 +143,50 @@ async def my_capabilities(
     record = await get_assurance(db, company_id, "user", user_id)
     level = record.level if record is not None else "L0"
     return AssuranceCapabilitiesOut(level=level, capabilities=assurance_capabilities(level))
+
+
+@router.post(
+    "/assurance/sign", response_model=SignatureItemOut, status_code=status.HTTP_201_CREATED
+)
+async def sign_endpoint(
+    body: SignDocumentInput,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> SignatureItemOut:
+    """Signe (preuve scellée) une empreinte de document pour l'utilisateur courant.
+
+    Exige le niveau d'assurance requis (avancée ⇒ L2, qualifiée ⇒ L3) — 403 sinon
+    (avec le niveau requis). La signature ne porte que sur l'empreinte SHA‑256."""
+    company_id, user_id = _ctx(request)
+    action = "sign_qualified" if body.qualified else "sign_document"
+    level = await assert_assurance(db, company_id, user_id, action)
+    record = await create_signature(
+        db,
+        company_id,
+        signer_subject_type="user",
+        signer_subject_id=user_id,
+        content_sha256=body.content_sha256,
+        signer_level=level,
+        signed_at=datetime.now(UTC),
+        qualified=body.qualified,
+    )
+    return SignatureItemOut(data=SignatureProofOut.model_validate(record))
+
+
+@router.get("/assurance/signatures/{signature_id}", response_model=SignatureVerifyOut)
+async def get_signature_endpoint(
+    signature_id: uuid.UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> SignatureVerifyOut:
+    """Renvoie une preuve de signature + le résultat de sa re‑vérification."""
+    company_id, _ = _ctx(request)
+    record = await get_signature(db, company_id, signature_id)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="signature_not_found")
+    return SignatureVerifyOut(
+        data=SignatureProofOut.model_validate(record), valid=verify_record(record)
+    )
 
 
 @router.patch(
