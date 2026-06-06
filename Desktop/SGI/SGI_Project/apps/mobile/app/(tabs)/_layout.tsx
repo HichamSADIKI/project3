@@ -18,6 +18,7 @@ function TabIcon({ name, focused }: { name: string; focused: boolean }) {
     properties: "🏢",
     crm: "📊",
     clients: "👥",
+    agenda: "🗓",
     favorites: "★",
     visits: "📅",
     messages: "✉",
@@ -95,6 +96,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="properties" options={{ href: null }} />
         <Tabs.Screen name="crm" options={{ href: null }} />
         <Tabs.Screen name="clients" options={{ href: null }} />
+        <Tabs.Screen name="agenda" options={{ href: null }} />
         <Tabs.Screen name="submissions" options={{ href: null }} />
         <Tabs.Screen name="leads" options={{ href: null }} />
         <Tabs.Screen name="commissions" options={{ href: null }} />
@@ -143,6 +145,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="properties" options={{ href: null }} />
         <Tabs.Screen name="crm" options={{ href: null }} />
         <Tabs.Screen name="clients" options={{ href: null }} />
+        <Tabs.Screen name="agenda" options={{ href: null }} />
         <Tabs.Screen name="favorites" options={{ href: null }} />
         <Tabs.Screen name="visits" options={{ href: null }} />
         <Tabs.Screen name="messages" options={{ href: null }} />
@@ -182,6 +185,14 @@ export default function TabsLayout() {
           title: t("nav_clients"),
           tabBarIcon: ({ focused }) => <TabIcon name="clients" focused={focused} />,
           href: enabled("clients") ? "/(tabs)/clients" : null,
+        }}
+      />
+      <Tabs.Screen
+        name="agenda"
+        options={{
+          title: t("nav_agenda", "Agenda"),
+          tabBarIcon: ({ focused }) => <TabIcon name="agenda" focused={focused} />,
+          href: enabled("agenda") ? "/(tabs)/agenda" : null,
         }}
       />
       <Tabs.Screen

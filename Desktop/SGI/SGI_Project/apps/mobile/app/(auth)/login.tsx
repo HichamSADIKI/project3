@@ -36,6 +36,7 @@ const MODULE_ICONS: Record<ModuleKey, string> = {
   properties: "🏢",
   crm: "📊",
   clients: "👥",
+  agenda: "🗓",
   profile: "👤",
 };
 
