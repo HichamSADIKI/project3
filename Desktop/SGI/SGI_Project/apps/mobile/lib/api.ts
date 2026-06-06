@@ -201,6 +201,16 @@ export const agendaApi = {
   get: (id: string) => api.get<ApiDetail<AgendaEvent>>(`/agenda/${id}`),
 };
 
+// ─── Notifications (push) ───────────────────────────────────────────────────
+
+export const notificationsApi = {
+  /** Enregistre le jeton push Expo de l'appareil pour l'utilisateur courant. */
+  registerDevice: (token: string, platform: "ios" | "android" | "web") =>
+    api.post("/notifications/devices", { token, platform }),
+  unregisterDevice: (token: string) =>
+    api.delete("/notifications/devices", { params: { token } }),
+};
+
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export type SocialProvider =

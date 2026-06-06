@@ -5,12 +5,14 @@
  * - client                  : tabs client (dashboard, favorites, visits, messages, profile).
  * - partner                 : tabs partner (dashboard, submissions, leads, commissions, profile).
  */
+import { useEffect } from "react";
 import { Tabs } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuthStore } from "@/stores/auth";
 import { usePreferencesStore, type ModuleKey } from "@/stores/preferences";
+import { registerForPushNotifications } from "@/lib/push";
 
 function TabIcon({ name, focused }: { name: string; focused: boolean }) {
   const icons: Record<string, string> = {
@@ -40,6 +42,11 @@ export default function TabsLayout() {
   const role = useAuthStore((s) => s.user?.role ?? "agent");
   const modules = usePreferencesStore((s) => s.modules);
   const enabled = (m: ModuleKey) => modules.includes(m);
+
+  // Enregistre le jeton push Expo une fois l'utilisateur dans l'app (best-effort).
+  useEffect(() => {
+    void registerForPushNotifications();
+  }, []);
 
   const screenOptions = {
     headerShown: false,
