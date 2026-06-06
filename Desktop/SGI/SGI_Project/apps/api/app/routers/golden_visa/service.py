@@ -17,6 +17,40 @@ VALID_STATUSES = {
     "expired",
 }
 
+# Machine à états du dossier Golden Visa : transitions autorisées (intégrité du
+# workflow — on n'enchaîne pas un statut illégal, ex. pending → approved direct).
+# `rejected` et `expired` sont terminaux.
+GV_TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"documents_collection", "submitted", "rejected"},
+    "documents_collection": {"submitted", "pending", "rejected"},
+    "submitted": {"under_review", "rejected"},
+    "under_review": {"approved", "rejected", "submitted"},
+    "approved": {"expired"},
+    "rejected": set(),
+    "expired": set(),
+}
+
+# Statuts de revue d'un document (par pièce du dossier).
+DOC_REVIEW_STATUSES = {"pending", "approved", "rejected"}
+
+
+class GVTransitionError(ValueError):
+    """Transition de statut Golden Visa non autorisée (→ 409 côté router)."""
+
+    def __init__(self, current: str, target: str) -> None:
+        self.code = "invalid_transition"
+        self.current = current
+        self.target = target
+        super().__init__(f"{current} → {target}")
+
+
+def valid_transition(current: str, target: str) -> bool:
+    """Vrai si passer de `current` à `target` est autorisé (no-op si identiques)."""
+    if current == target:
+        return True
+    return target in GV_TRANSITIONS.get(current, set())
+
+
 # Documents obligatoires Golden Visa UAE (CLAUDE.md) → (attribut modèle, libellé).
 REQUIRED_DOCUMENTS: list[tuple[str, str]] = [
     ("passport_doc", "passport"),
@@ -77,6 +111,70 @@ def documents_readiness_pct(application: GoldenVisaApplication) -> int:
     total = len(REQUIRED_DOCUMENTS)
     present = total - len(missing_documents(application))
     return round(present / total * 100)
+
+
+def _doc_review_map(application: GoldenVisaApplication) -> dict[str, dict]:
+    """Map des revues par document (JSONB `document_status`), robuste si None."""
+    raw = getattr(application, "document_status", None)
+    return raw if isinstance(raw, dict) else {}
+
+
+def document_items(application: GoldenVisaApplication) -> list[dict]:
+    """Détail par pièce : présence + statut de revue (pending/approved/rejected).
+
+    Statut par défaut : ``approved`` si la pièce est présente mais jamais revue,
+    sinon ``missing`` si absente — la revue explicite prime quand elle existe."""
+    reviews = _doc_review_map(application)
+    attr_to_doc_type = {attr: dt for dt, attr in DOC_TYPE_TO_ATTR.items()}
+    items: list[dict] = []
+    for attr, label in REQUIRED_DOCUMENTS:
+        doc_type = attr_to_doc_type.get(attr, label)  # type URL (passport/dld/.../biometric)
+        present = bool(getattr(application, attr, None))
+        review = reviews.get(label) or reviews.get(attr) or {}
+        status = review.get("status") if isinstance(review, dict) else None
+        if status not in DOC_REVIEW_STATUSES:
+            status = "approved" if present else "missing"
+        items.append(
+            {
+                "doc_type": doc_type,
+                "label": label,
+                "present": present,
+                "status": status,
+                "notes": review.get("notes") if isinstance(review, dict) else None,
+            }
+        )
+    return items
+
+
+def all_documents_approved(application: GoldenVisaApplication) -> bool:
+    """Vrai si toutes les pièces obligatoires sont présentes ET approuvées."""
+    return all(it["present"] and it["status"] == "approved" for it in document_items(application))
+
+
+async def set_document_review(
+    db: AsyncSession,
+    app_id: uuid.UUID,
+    doc_type: str,
+    status: str,
+    notes: str | None,
+) -> GoldenVisaApplication | None:
+    """Pose le statut de revue d'une pièce (approved/rejected/pending) du dossier."""
+    app = await get_application(db, app_id)
+    if not app:
+        return None
+    attr = attr_for_doc_type(doc_type)
+    label = next((lbl for a, lbl in REQUIRED_DOCUMENTS if a == attr), doc_type)
+    from datetime import datetime
+
+    current = _doc_review_map(app)
+    # Réassignation complète du dict → SQLAlchemy détecte le changement JSONB.
+    app.document_status = {
+        **current,
+        label: {"status": status, "notes": notes, "reviewed_at": datetime.now(UTC).isoformat()},
+    }
+    await db.commit()
+    await db.refresh(app)
+    return app
 
 
 def visa_alert_level(
@@ -182,6 +280,11 @@ async def update_application(
         return None
 
     data = payload.model_dump(exclude_unset=True)
+    # Garde de machine à états : un changement de statut doit suivre une
+    # transition autorisée (sinon 409 côté router).
+    new_status = data.get("status")
+    if new_status is not None and not valid_transition(app.status, new_status):
+        raise GVTransitionError(app.status, new_status)
     for k, v in data.items():
         setattr(app, k, v)
 

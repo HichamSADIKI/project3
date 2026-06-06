@@ -12,7 +12,7 @@
  * Libellés localisés en local (via useLang) pour ne pas toucher i18n.ts partagé.
  */
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Topbar, IcPlus } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
@@ -46,6 +46,9 @@ const TR: Record<Lang, Record<string, string>> = {
     notes: "Notes", save_failed: "Échec de l'enregistrement", required: "Client requis",
     st_pending: "En attente", st_submitted: "Soumise", st_approved: "Approuvée",
     st_rejected: "Rejetée", st_expired: "Expirée", eligible: "≥ 2 M AED",
+    st_documents_collection: "Collecte docs", st_under_review: "En revue",
+    transition_err: "Transition de statut non autorisée",
+    rv_approve: "Approuver", rv_reject: "Rejeter", rv_approved: "Approuvé", rv_rejected: "Rejeté", rv_pending: "À revoir",
     docTitle: "Documents du dossier", upload: "Téléverser", replace: "Remplacer",
     download: "Télécharger", uploading: "Envoi…", upload_failed: "Échec de l'envoi",
     present: "Fourni", missing: "Manquant", close: "Fermer",
@@ -62,6 +65,9 @@ const TR: Record<Lang, Record<string, string>> = {
     notes: "Notes", save_failed: "Save failed", required: "Client required",
     st_pending: "Pending", st_submitted: "Submitted", st_approved: "Approved",
     st_rejected: "Rejected", st_expired: "Expired", eligible: "≥ 2M AED",
+    st_documents_collection: "Docs collection", st_under_review: "Under review",
+    transition_err: "Status transition not allowed",
+    rv_approve: "Approve", rv_reject: "Reject", rv_approved: "Approved", rv_rejected: "Rejected", rv_pending: "To review",
     docTitle: "Application documents", upload: "Upload", replace: "Replace",
     download: "Download", uploading: "Uploading…", upload_failed: "Upload failed",
     present: "Provided", missing: "Missing", close: "Close",
@@ -78,6 +84,9 @@ const TR: Record<Lang, Record<string, string>> = {
     notes: "ملاحظات", save_failed: "فشل الحفظ", required: "العميل مطلوب",
     st_pending: "قيد الانتظار", st_submitted: "مُقدّمة", st_approved: "مقبولة",
     st_rejected: "مرفوضة", st_expired: "منتهية", eligible: "≥ 2م درهم",
+    st_documents_collection: "جمع المستندات", st_under_review: "قيد المراجعة",
+    transition_err: "انتقال الحالة غير مسموح",
+    rv_approve: "اعتماد", rv_reject: "رفض", rv_approved: "معتمد", rv_rejected: "مرفوض", rv_pending: "للمراجعة",
     docTitle: "مستندات الطلب", upload: "رفع", replace: "استبدال",
     download: "تنزيل", uploading: "جارٍ الرفع…", upload_failed: "فشل الرفع",
     present: "مُقدّم", missing: "ناقص", close: "إغلاق",
@@ -88,6 +97,8 @@ const TR: Record<Lang, Record<string, string>> = {
 
 const STATUS_TONE: Record<string, { c: string; bg: string }> = {
   pending: { c: "var(--ink-3)", bg: "var(--line-soft)" },
+  documents_collection: { c: "var(--gold-deep)", bg: "var(--gold-ghost)" },
+  under_review: { c: "var(--azure, #2563eb)", bg: "rgba(37,99,235,0.12)" },
   submitted: { c: "var(--azure, #2563eb)", bg: "rgba(37,99,235,0.12)" },
   approved: { c: "var(--emerald)", bg: "var(--emerald-soft, rgba(47,158,110,0.14))" },
   rejected: { c: "var(--rose)", bg: "var(--rose-soft, rgba(214,69,93,0.12))" },
@@ -181,13 +192,34 @@ export function ScreenRealEstateGoldenVisa(): React.ReactNode {
 
   async function changeStatus(a: GoldenVisaApp, status: string): Promise<void> {
     const res = await patchJson(`/api/admin/golden-visa/${a.id}`, { status });
-    if (res.ok) reload();
+    if (res.ok) { reload(); return; }
+    // 409 = transition de statut non autorisée (machine à états backend).
+    if (res.status === 409) window.alert(L("transition_err"));
+    reload(); // resynchronise le <select> sur la valeur réelle
   }
 
-  // Documents (upload/téléchargement MinIO)
+  // Documents (upload/téléchargement MinIO) + revue par pièce
   const [docsApp, setDocsApp] = useState<GoldenVisaApp | null>(null);
   const [uploading, setUploading] = useState<GvDoc | null>(null);
   const [docError, setDocError] = useState<string | null>(null);
+  // Statut de revue par type de document (depuis la checklist backend).
+  const [docReview, setDocReview] = useState<Record<string, { status: string; present: boolean }>>({});
+
+  const loadChecklist = useCallback(async (appId: string) => {
+    const r = await getJson<{ data: { items: { doc_type: string; status: string; present: boolean }[] } }>(
+      `/api/admin/golden-visa/${appId}/documents/checklist`,
+    ).catch(() => null);
+    const map: Record<string, { status: string; present: boolean }> = {};
+    for (const it of r?.data?.items ?? []) map[it.doc_type] = { status: it.status, present: it.present };
+    setDocReview(map);
+  }, []);
+
+  useEffect(() => { if (docsApp) void loadChecklist(docsApp.id); }, [docsApp, loadChecklist]);
+
+  async function reviewDoc(app: GoldenVisaApp, doc: GvDoc, status: string): Promise<void> {
+    const res = await postJson(`/api/admin/golden-visa/${app.id}/documents/${docTypeFor(doc)}/review`, { status });
+    if (res.ok) void loadChecklist(app.id);
+  }
 
   async function uploadDoc(app: GoldenVisaApp, doc: GvDoc, file: File): Promise<void> {
     setUploading(doc);
@@ -408,16 +440,28 @@ export function ScreenRealEstateGoldenVisa(): React.ReactNode {
               {GV_DOCS.map((doc) => {
                 const present = Boolean((docsApp as Record<GvDoc, string | null>)[doc]);
                 const busy = uploading === doc;
+                const rv = docReview[docTypeFor(doc)]?.status ?? (present ? "approved" : "missing");
+                const rvTone = rv === "approved" ? "var(--emerald)" : rv === "rejected" ? "var(--rose)" : "var(--ink-4)";
+                const rvLabel = rv === "approved" ? L("rv_approved") : rv === "rejected" ? L("rv_rejected") : rv === "pending" ? L("rv_pending") : L("missing");
                 return (
                   <div key={doc} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: "1px solid var(--line-soft)", borderRadius: 10, padding: "10px 12px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ width: 8, height: 8, borderRadius: 999, background: present ? "var(--emerald)" : "var(--line-soft)" }} />
                       <div>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{L(`d_${doc}`)}</div>
-                        <div style={{ fontSize: 11, color: present ? "var(--emerald)" : "var(--ink-4)" }}>{present ? L("present") : L("missing")}</div>
+                        <div style={{ fontSize: 11, display: "flex", gap: 8, alignItems: "center" }}>
+                          <span style={{ color: present ? "var(--emerald)" : "var(--ink-4)" }}>{present ? L("present") : L("missing")}</span>
+                          {present && <span style={{ color: rvTone, fontWeight: 600 }}>· {rvLabel}</span>}
+                        </div>
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      {present && (
+                        <>
+                          <button type="button" onClick={() => void reviewDoc(docsApp, doc, "approved")} title={L("rv_approve")} style={{ cursor: "pointer", border: "1px solid var(--emerald)", background: "transparent", color: "var(--emerald)", borderRadius: 8, padding: "5px 8px", fontSize: 11.5, fontWeight: 600 }}>✓</button>
+                          <button type="button" onClick={() => void reviewDoc(docsApp, doc, "rejected")} title={L("rv_reject")} style={{ cursor: "pointer", border: "1px solid var(--rose)", background: "transparent", color: "var(--rose)", borderRadius: 8, padding: "5px 8px", fontSize: 11.5, fontWeight: 600 }}>✕</button>
+                        </>
+                      )}
                       {present && (
                         <button type="button" onClick={() => void downloadDoc(docsApp, doc)} style={{ cursor: "pointer", border: "1px solid var(--line-soft)", background: "var(--bg-cream)", borderRadius: 8, padding: "5px 10px", fontSize: 12 }}>{L("download")}</button>
                       )}

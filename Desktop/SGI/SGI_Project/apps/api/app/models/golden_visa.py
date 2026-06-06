@@ -1,8 +1,9 @@
 import uuid
 from datetime import date
+from typing import Any
 
 from sqlalchemy import Boolean, Date, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin
@@ -53,6 +54,12 @@ class GoldenVisaApplication(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     gdrfa_doc: Mapped[str | None] = mapped_column(String(500), nullable=True)
     insurance_doc: Mapped[str | None] = mapped_column(String(500), nullable=True)
     biometric_photo: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Revue par document : { "<label>": {status, notes, reviewed_at} }
+    # status ∈ pending | approved | rejected. Vide par défaut.
+    document_status: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, default=dict, server_default="{}"
+    )
 
     # Dates clés
     submission_date: Mapped[date | None] = mapped_column(Date, nullable=True)
