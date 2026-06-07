@@ -602,3 +602,159 @@ html, body {
   --ink-4: #547048;
   --ink-5: #2E4228;
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Brand design models — Instagram · Snapchat · Facebook
+   Pilotables dans Paramètres (app) et appliqués au site public via
+   la sous-rubrique Website. Surchargent l'accent (--gold*) + fonds.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Instagram — dégradé magenta→orange ─────────────────────────── */
+.theme-instagram {
+  --bg-base:     #FAF1F4;
+  --bg-cream:    #FCF4F7;
+  --bg-paper:    #FEF8FA;
+  --bg-ivory:    #FFFFFF;
+  --bg-inset:    #F3E4EA;
+  --line:        #F0D9E2;
+  --line-soft:   #F6E7ED;
+  --line-strong: #E2B9CB;
+  --ink:   #1A1014;
+  --ink-2: #3D2630;
+  --ink-3: #6B4E59;
+  --ink-4: #9C8089;
+  --ink-5: #C9B3BB;
+  --gold:       #E1306C;
+  --gold-deep:  #C13584;
+  --gold-soft:  #FCE3EE;
+  --gold-ghost: rgba(225,48,108,0.09);
+  --gold-line:  rgba(225,48,108,0.30);
+  --shadow-gold: 0 2px 12px rgba(225,48,108,0.20), 0 1px 3px rgba(193,53,132,0.12);
+}
+.dark.theme-instagram {
+  --bg-base:     #160910;
+  --bg-cream:    #1E0D16;
+  --bg-paper:    #28121E;
+  --bg-ivory:    #311624;
+  --bg-inset:    #110710;
+  --line:        #3A2230;
+  --line-soft:   #2A1622;
+  --line-strong: #4F3043;
+  --ink:   #F6E2EC;
+  --ink-2: #DAB8CB;
+  --ink-3: #A8839A;
+  --ink-4: #6F4E62;
+  --ink-5: #4A2E3F;
+  --gold:       #FF4D8D;
+  --gold-deep:  #FF77A8;
+  --gold-soft:  #3A1424;
+  --gold-ghost: rgba(255,77,141,0.12);
+  --gold-line:  rgba(255,77,141,0.30);
+  --shadow-gold: 0 2px 12px rgba(255,77,141,0.25), 0 1px 3px rgba(255,77,141,0.15);
+}
+.theme-instagram .sgi-btn-primary {
+  background: linear-gradient(135deg, #833AB4 0%, #E1306C 45%, #F77737 100%);
+  color: #FFFFFF;
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(225,48,108,0.30);
+}
+
+/* ── Snapchat — jaune signature / noir ──────────────────────────── */
+.theme-snapchat {
+  --bg-base:     #FBF7E3;
+  --bg-cream:    #FDFAEC;
+  --bg-paper:    #FFFDF4;
+  --bg-ivory:    #FFFFFF;
+  --bg-inset:    #F2EBCB;
+  --line:        #ECE2B0;
+  --line-soft:   #F4EECB;
+  --line-strong: #D8C77E;
+  --ink:   #1A1705;
+  --ink-2: #3D3612;
+  --ink-3: #6B6128;
+  --ink-4: #9C9152;
+  --ink-5: #C9BE84;
+  --gold:       #C9A800;
+  --gold-deep:  #8A7400;
+  --gold-soft:  #FFF8CC;
+  --gold-ghost: rgba(247,208,0,0.14);
+  --gold-line:  rgba(247,208,0,0.40);
+  --shadow-gold: 0 2px 12px rgba(247,208,0,0.22), 0 1px 3px rgba(201,168,0,0.14);
+}
+.dark.theme-snapchat {
+  --bg-base:     #141206;
+  --bg-cream:    #1B1808;
+  --bg-paper:    #24200C;
+  --bg-ivory:    #2C270F;
+  --bg-inset:    #100E05;
+  --line:        #38331A;
+  --line-soft:   #282412;
+  --line-strong: #4D4626;
+  --ink:   #F6EFC8;
+  --ink-2: #D8CE96;
+  --ink-3: #A89E68;
+  --ink-4: #6F663A;
+  --ink-5: #494326;
+  --gold:       #FFE600;
+  --gold-deep:  #FFE600;
+  --gold-soft:  #2E2A0C;
+  --gold-ghost: rgba(255,230,0,0.12);
+  --gold-line:  rgba(255,230,0,0.30);
+  --shadow-gold: 0 2px 12px rgba(255,230,0,0.22), 0 1px 3px rgba(255,230,0,0.14);
+}
+.theme-snapchat .sgi-btn-primary {
+  background: #FFFC00;
+  color: #0B0B0B;
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(247,208,0,0.35);
+}
+
+/* ── Facebook — bleu corporate ──────────────────────────────────── */
+.theme-facebook {
+  --bg-base:     #EEF1F6;
+  --bg-cream:    #F2F5FA;
+  --bg-paper:    #F7F9FC;
+  --bg-ivory:    #FFFFFF;
+  --bg-inset:    #E2E8F1;
+  --line:        #C9D5E5;
+  --line-soft:   #DEE6F0;
+  --line-strong: #97A9C2;
+  --ink:   #0A1A2F;
+  --ink-2: #1C3A5E;
+  --ink-3: #4A6488;
+  --ink-4: #7E98B8;
+  --ink-5: #B6C8DD;
+  --gold:       #1877F2;
+  --gold-deep:  #0C5FD0;
+  --gold-soft:  #DCEAFD;
+  --gold-ghost: rgba(24,119,242,0.09);
+  --gold-line:  rgba(24,119,242,0.30);
+  --shadow-gold: 0 2px 12px rgba(24,119,242,0.20), 0 1px 3px rgba(12,95,208,0.12);
+}
+.dark.theme-facebook {
+  --bg-base:     #0F1620;
+  --bg-cream:    #141D2A;
+  --bg-paper:    #1B2738;
+  --bg-ivory:    #223047;
+  --bg-inset:    #0A0F17;
+  --line:        #2A3A50;
+  --line-soft:   #1B2738;
+  --line-strong: #3C5172;
+  --ink:   #E4EEFB;
+  --ink-2: #B3CBE8;
+  --ink-3: #7E9CC0;
+  --ink-4: #4E6E92;
+  --ink-5: #2C405A;
+  --gold:       #2D88FF;
+  --gold-deep:  #5BA3FF;
+  --gold-soft:  #122742;
+  --gold-ghost: rgba(45,136,255,0.12);
+  --gold-line:  rgba(45,136,255,0.30);
+  --shadow-gold: 0 2px 12px rgba(45,136,255,0.25), 0 1px 3px rgba(45,136,255,0.15);
+}
+.theme-facebook .sgi-btn-primary {
+  background: #1877F2;
+  color: #FFFFFF;
+  border-color: transparent;
+  box-shadow: 0 2px 10px rgba(24,119,242,0.30);
+}
