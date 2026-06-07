@@ -7,6 +7,7 @@ import type { Translations } from "@/lib/i18n";
 import { useBreakpoint } from "@/lib/hooks";
 import { useNavGate, useCurrentUser } from "@/lib/permissions";
 import { useNotifications } from "@/lib/use-notifications";
+import { useFavorites } from "@/hooks/use-favorites";
 
 /* ─── Icon wrapper ──────────────────────────────────────────────── */
 export function Ic({ s = 16, children }: { s?: number; children: React.ReactNode }) {
@@ -394,6 +395,8 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
   const bp = useBreakpoint();
   const navGate = useNavGate();
   const { fullName } = useCurrentUser();
+  // Favoris (raccourcis de nav, localStorage) — affichés en tête de sidebar.
+  const { favorites, hydrated: favHydrated } = useFavorites();
   // Identité affichée au footer : nom de session, repli neutre avant hydratation.
   const displayName = fullName ?? "—";
   const initials = (fullName ?? "")
@@ -751,6 +754,29 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
               <span style={{ width: 18, height: 18, display: "grid", placeItems: "center", color: "var(--gold)", flexShrink: 0 }}><IcGrid /></span>
               {!col && <span className={lang === "ar" ? "font-ar" : "font-display"} style={{ fontSize: 14, fontWeight: 500 }}>{homeLabel}</span>}
             </div>
+          )}
+          {/* Favoris — raccourcis de navigation en tête de sidebar (localStorage). */}
+          {favHydrated && favorites.length > 0 && (
+            <>
+              {!col && (
+                <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>
+                  {lang === "ar" ? "المفضلة" : lang === "fr" ? "Favoris" : "Favorites"}
+                </div>
+              )}
+              {favorites.map(favKey => (
+                <NavItemRow
+                  key={`fav-${favKey}`}
+                  icon={
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+                    </svg>
+                  }
+                  navKey={favKey as NavKey}
+                  isActive={active === favKey}
+                />
+              ))}
+              {!col && <div style={{ height: 1, background: "var(--line-soft)", margin: "8px 10px" }} />}
+            </>
           )}
           {!col && navMode !== "hub" && <div className="eyebrow" style={{ padding: "8px 10px 6px" }}>{t.workspace}</div>}
           {entriesToRender.map(entry => {
