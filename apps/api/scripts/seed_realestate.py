@@ -33,6 +33,12 @@ from app.models.pdc_cheque import PdcCheque
 from app.models.property import Property
 from app.models.rental import Rental
 from app.models.unit import Unit
+from app.routers.sales.models import (
+    SaleListing,
+    SaleMandate,
+    SaleOffer,
+    SaleTransaction,
+)
 
 
 def _uid(tag: int, n: int) -> uuid.UUID:
@@ -46,6 +52,8 @@ T_BUILDING, T_FLOOR, T_UNIT = 0xB1, 0xB2, 0xB3
 T_PROPERTY, T_CONTRACT, T_RENTAL = 0xD1, 0xD2, 0xD3
 T_PDC, T_PAYREQ, T_PAYTX, T_MAINT = 0xE1, 0xE2, 0xE3, 0xF1
 T_BRANCH, T_SETTINGS = 0xF2, 0xF3
+# Ventes (Sales) : mandat / annonce / offre / transaction.
+T_SALE_MANDATE, T_SALE_LISTING, T_SALE_OFFER, T_SALE_TX = 0xD4, 0xD5, 0xD6, 0xD7
 
 
 def _pt(lng: float, lat: float) -> WKTElement:
@@ -834,5 +842,121 @@ async def seed_realestate(
             ),
         )
         mark(c)
+
+    # ── Ventes (Sales) — mandat → annonce → offre → transaction ───────────────
+    # Chaîne de démo pour la sous-rubrique Ventes. Vendeurs = propriétaires
+    # existants (owner_pids), biens = propriétés existantes (property_ids),
+    # acheteurs = client démo Ahmed + locataires existants (tenant_pids).
+    demo_buyer_id = uuid.UUID("11111111-1111-1111-1111-111111111111")  # Ahmed Al Demo
+
+    sale_mandates = [
+        dict(n=1, ref="SAL-MND-2026-001", seller=owner_pids[0], prop=property_ids[0],
+             mtype="exclusive", commission=Decimal("2.00"), asking=Decimal("2150000.00")),
+        dict(n=2, ref="SAL-MND-2026-002", seller=owner_pids[1], prop=property_ids[1],
+             mtype="simple", commission=Decimal("2.00"), asking=Decimal("950000.00")),
+    ]
+    for m in sale_mandates:
+        _, c = await _ensure(
+            session,
+            SaleMandate,
+            (SaleMandate.company_id == company_id) & (SaleMandate.reference == m["ref"]),
+            lambda m=m: SaleMandate(
+                id=_uid(T_SALE_MANDATE, m["n"]),
+                company_id=company_id,
+                reference=m["ref"],
+                seller_client_id=m["seller"],
+                property_id=m["prop"],
+                mandate_type=m["mtype"],
+                commission_rate=m["commission"],
+                asking_price=m["asking"],
+                status="active",
+                signed_at=datetime(2026, 1, 15, tzinfo=UTC),
+                expires_at=datetime(2026, 12, 31, tzinfo=UTC),
+            ),
+        )
+        mark(c)
+
+    sale_listings = [
+        dict(n=1, ref="SAL-LST-2026-001", mandate=1,
+             title="Marina Heights — Apt 1201 à vendre",
+             price=Decimal("2150000.00"), status="under_offer", featured=True),
+        dict(n=2, ref="SAL-LST-2026-002", mandate=2,
+             title="Corniche Residences — Studio 102 à vendre",
+             price=Decimal("950000.00"), status="sold", featured=False),
+        # Annonce EN LIGNE (published) — visible sur le site public, toggle « En ligne ».
+        dict(n=3, ref="SAL-LST-2026-003", mandate=1,
+             title="Marina Heights — Apt 1801 à vendre",
+             price=Decimal("1980000.00"), status="published", featured=False),
+        # Annonce HORS LIGNE (draft) — non publiée, toggle « Hors ligne ».
+        dict(n=4, ref="SAL-LST-2026-004", mandate=2,
+             title="Corniche Residences — Apt 305 à vendre",
+             price=Decimal("1050000.00"), status="draft", featured=False),
+    ]
+    for ls in sale_listings:
+        _, c = await _ensure(
+            session,
+            SaleListing,
+            (SaleListing.company_id == company_id) & (SaleListing.reference == ls["ref"]),
+            lambda ls=ls: SaleListing(
+                id=_uid(T_SALE_LISTING, ls["n"]),
+                company_id=company_id,
+                reference=ls["ref"],
+                mandate_id=_uid(T_SALE_MANDATE, ls["mandate"]),
+                title_en=ls["title"],
+                title_fr=ls["title"],
+                list_price=ls["price"],
+                status=ls["status"],
+                published_at=datetime(2026, 2, 1, tzinfo=UTC),
+                slug=f"vente-{ls['n']}",
+                is_featured=ls["featured"],
+                is_urgent=False,
+            ),
+        )
+        mark(c)
+
+    sale_offers = [
+        dict(n=1, ref="SAL-OFR-2026-001", listing=1, buyer=demo_buyer_id,
+             amount=Decimal("2050000.00"), status="submitted", decided=False),
+        dict(n=2, ref="SAL-OFR-2026-002", listing=1, buyer=tenant_pids[0],
+             amount=Decimal("2120000.00"), status="rejected", decided=True),
+        dict(n=3, ref="SAL-OFR-2026-003", listing=2, buyer=tenant_pids[1],
+             amount=Decimal("940000.00"), status="accepted", decided=True),
+    ]
+    for of in sale_offers:
+        _, c = await _ensure(
+            session,
+            SaleOffer,
+            (SaleOffer.company_id == company_id) & (SaleOffer.reference == of["ref"]),
+            lambda of=of: SaleOffer(
+                id=_uid(T_SALE_OFFER, of["n"]),
+                company_id=company_id,
+                reference=of["ref"],
+                listing_id=_uid(T_SALE_LISTING, of["listing"]),
+                buyer_client_id=of["buyer"],
+                amount=of["amount"],
+                status=of["status"],
+                decided_at=datetime(2026, 3, 1, tzinfo=UTC) if of["decided"] else None,
+            ),
+        )
+        mark(c)
+
+    # Transaction clôturée : annonce 2 (vendue) via l'offre acceptée n°3.
+    _, c = await _ensure(
+        session,
+        SaleTransaction,
+        (SaleTransaction.company_id == company_id) & (SaleTransaction.reference == "SAL-TXN-2026-001"),
+        lambda: SaleTransaction(
+            id=_uid(T_SALE_TX, 1),
+            company_id=company_id,
+            reference="SAL-TXN-2026-001",
+            listing_id=_uid(T_SALE_LISTING, 2),
+            offer_id=_uid(T_SALE_OFFER, 3),
+            final_price=Decimal("940000.00"),
+            commission_amount=Decimal("18800.00"),
+            status="completed",
+            closed_at=datetime(2026, 3, 15, tzinfo=UTC),
+        ),
+    )
+    mark(c)
 
     print(f"  Immobilier : {n_created} entité(s) créée(s) (re-run = idempotent).")
