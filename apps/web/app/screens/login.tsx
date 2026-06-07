@@ -243,6 +243,18 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
                 <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
               </div>
 
+              {/* UAE PASS Infinity (Infinity ID) — IdP interne SGI, niveaux d'assurance L0–L3 */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="sgi-btn sgi-btn-ghost"
+                style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 8, borderColor: "var(--gold-deep)", color: "var(--gold-deep)", fontWeight: 600 }}
+                title="UAE PASS Infinity — Infinity ID (identité interne, niveaux d'assurance L0–L3)"
+              >
+                <span style={{ display: "inline-flex" }}><IcLock /></span>
+                {t.login_uaepass}
+              </button>
+
               {/* SSO */}
               <button type="button" className="sgi-btn sgi-btn-ghost" style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%" }}>
                 <span style={{ color: "var(--gold-deep)", display: "inline-flex" }}><IcLock /></span>&nbsp;
