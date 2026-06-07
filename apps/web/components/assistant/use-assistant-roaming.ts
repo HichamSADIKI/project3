@@ -69,6 +69,9 @@ const HOME_KEY = "sgi_assistant_home"; // position « maison » fixée au drag
 const SUBMIT_WINDOW = 25000; // fenêtre des soumissions répétées
 const SUBMIT_THRESHOLD = 3; // nb de soumissions rapprochées → « bloqué »
 const DRAG_THRESHOLD = 5; // px au-delà desquels un clic devient un drag
+// Suivi de la souris désactivé : le robot reste figé dans son coin et ne suit
+// plus le curseur (déambulation + pupilles). Repasser à true pour réactiver.
+const FOLLOW_MOUSE = false;
 
 export function useAssistantRoaming(opts: {
   open: boolean;
@@ -426,6 +429,24 @@ export function useAssistantRoaming(opts: {
       if (dragging.current) {
         place();
         updateEyes();
+        raf = requestAnimationFrame(loop);
+        return;
+      }
+
+      // Suivi de la souris désactivé : le robot rejoint sa « maison » (coin ou
+      // position fixée au drag), pupilles centrées, et n'y bouge plus. Le drag
+      // (ci-dessus) et l'ouverture du chat restent fonctionnels.
+      if (!FOLLOW_MOUSE) {
+        const h = home();
+        pos.current.x += (h.x - pos.current.x) * 0.2;
+        pos.current.y += (h.y - pos.current.y) * 0.2;
+        place();
+        if (pupilLRef.current) pupilLRef.current.style.transform = "translate(0px, 0px)";
+        if (pupilRRef.current) pupilRRef.current.style.transform = "translate(0px, 0px)";
+        if (modeRef.current !== "idle") {
+          modeRef.current = "idle";
+          setMode("idle");
+        }
         raf = requestAnimationFrame(loop);
         return;
       }
