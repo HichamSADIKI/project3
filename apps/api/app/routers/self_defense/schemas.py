@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -64,7 +64,7 @@ class ConfigUpdate(BaseModel):
     disarm_code: str | None = Field(default=None, max_length=128)
     max_attempts: int | None = Field(default=None, ge=1, le=10)
     armgate_enabled: bool | None = None
-    options: dict | None = None
+    options: dict[str, Any] | None = None
 
 
 class ConfigOut(BaseModel):
@@ -74,7 +74,7 @@ class ConfigOut(BaseModel):
     disarm_code_set: bool
     max_attempts: int
     armgate_enabled: bool
-    options: dict
+    options: dict[str, Any]
 
 
 class ConfigEnvelope(BaseModel):

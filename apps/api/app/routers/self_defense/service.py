@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,7 +48,7 @@ async def update_config(
     disarm_code: str | None = None,
     max_attempts: int | None = None,
     armgate_enabled: bool | None = None,
-    options: dict | None = None,
+    options: dict[str, Any] | None = None,
 ) -> SelfDefenseConfig:
     """Met à jour la config. Un code vide/absent = inchangé (on ne le réinitialise pas)."""
     row = await _get_or_create_config(db, company_id)
@@ -92,7 +92,7 @@ async def verify_code(
     *,
     purpose: Purpose,
     code: str,
-) -> dict:
+) -> dict[str, Any]:
     """Valide le code pour `purpose`. Renvoie {ok, locked, attempts_left}.
 
     Verrouillage serveur : N échecs (`max_attempts`) → `locked` (déverrouillage admin).

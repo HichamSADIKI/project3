@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy import Boolean, DateTime, Integer, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -33,7 +34,7 @@ class SelfDefenseConfig(Base, TimestampMixin, TenantMixin):
     # Si False, le bouton/menu reste libre (pas de demande de code).
     armgate_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Réglages futurs (extensible) — { clé: valeur }.
-    options: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    options: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, default=dict)
 
 
 class SelfDefenseLockout(Base, TimestampMixin, TenantMixin):
