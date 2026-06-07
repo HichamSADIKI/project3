@@ -883,6 +883,14 @@ async def seed_realestate(
         dict(n=2, ref="SAL-LST-2026-002", mandate=2,
              title="Corniche Residences — Studio 102 à vendre",
              price=Decimal("950000.00"), status="sold", featured=False),
+        # Annonce EN LIGNE (published) — visible sur le site public, toggle « En ligne ».
+        dict(n=3, ref="SAL-LST-2026-003", mandate=1,
+             title="Marina Heights — Apt 1801 à vendre",
+             price=Decimal("1980000.00"), status="published", featured=False),
+        # Annonce HORS LIGNE (draft) — non publiée, toggle « Hors ligne ».
+        dict(n=4, ref="SAL-LST-2026-004", mandate=2,
+             title="Corniche Residences — Apt 305 à vendre",
+             price=Decimal("1050000.00"), status="draft", featured=False),
     ]
     for ls in sale_listings:
         _, c = await _ensure(
