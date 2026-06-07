@@ -40,6 +40,10 @@ DEMO_CLIENT_EMAIL = "ahmed.demo@infinity-uae.com"
 DEMO_ADMIN_EMAIL = "admin@infinity-uae.com"
 DEMO_ADMIN_PASSWORD = "Admin123!"
 DEMO_PORTAL_CLIENT_PASSWORD = "Client123!"
+# Compte fournisseur (apps/portal, profil « Fournisseur », rôle PARTNER).
+# Valeurs alignées sur le prefill du LoginForm portail (demo-partner@example.com).
+DEMO_FOURNISSEUR_EMAIL = "demo-partner@example.com"
+DEMO_FOURNISSEUR_PASSWORD = "DemoPass!23"
 
 
 async def upsert_company(session) -> Company:
@@ -240,13 +244,24 @@ async def main() -> None:
             company_id=company.id,
             language="en",
         )
+        # Compte fournisseur portail (apps/portal, profil « Fournisseur », rôle PARTNER).
+        await upsert_user(
+            session,
+            email=DEMO_FOURNISSEUR_EMAIL,
+            password=DEMO_FOURNISSEUR_PASSWORD,
+            full_name="Demo Fournisseur",
+            role=UserRole.PARTNER,
+            company_id=company.id,
+            language="en",
+        )
         # Données démo de la rubrique Immobilier (Real Estate).
         await seed_realestate(session, company.id, admin.id)
         await session.commit()
     print("✓ Seed terminé.")
     print(
         f"  → Back-office : {DEMO_ADMIN_EMAIL} / {DEMO_ADMIN_PASSWORD}\n"
-        f"  → Portail client : {DEMO_CLIENT_EMAIL} / {DEMO_PORTAL_CLIENT_PASSWORD}"
+        f"  → Portail client : {DEMO_CLIENT_EMAIL} / {DEMO_PORTAL_CLIENT_PASSWORD}\n"
+        f"  → Portail fournisseur : {DEMO_FOURNISSEUR_EMAIL} / {DEMO_FOURNISSEUR_PASSWORD} (slug infinity-uae)"
     )
 
 
