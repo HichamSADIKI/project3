@@ -135,6 +135,20 @@ ORDER BY dist_m LIMIT :n;
 - Noto Sans Arabic font loaded for `AR` locale
 - Run `npx shadcn@latest migrate rtl` once during initial setup
 
+## Sécurité transversale — doctrine `@core/security`
+
+> **Statut : doctrine cible.** Le SDK `@core/security`, les manifestes par module, Vault, OPA/Cedar et Keycloak **n'existent pas encore** — voir l'encart « Cible vs implémenté » et la doctrine complète dans [docs/architecture/security-core.md](docs/architecture/security-core.md). Ne jamais affirmer en code/commit qu'une primitive cible existe. Les **3 invariants ci-dessous SONT déjà la réalité** (ce sont les 3 Lois).
+
+**7 principes non négociables :** Zero Trust · Defense in depth · Secure-by-default · **Fail-secure** (doute/erreur → refuser) · OODA continue · **humain dans la boucle** (actions destructrices déclenchées par un humain) · Privacy by design (PDPL).
+
+**3 invariants verrouillés — jamais désactivables** (= les 3 Lois, déjà appliqués) : **Identité** (JWT + Infinity ID sur tout endpoint) · **Isolation tenant** (RLS `company_id` + `TenantMiddleware`) · **Audit** (`audit_logs` + `AuditMiddleware`). Toute proposition qui les contourne, même temporaire → refus au niveau code.
+
+**Contrôles tunables** (MFA renforcée, rate-limit strict, validation, honeytokens, UEBA, step-up) : désactivables **seulement** via workflow d'approbation à 2 + trace `audit_logs` (auteur/raison/ticket) + TTL ≤ 72h + alerte critique + événement réglementaire si PDPL.
+
+**Règles d'or sur tout module** : scoping `company_id` du contexte (jamais une valeur client) · aucun secret en dur (`os.getenv()`/Vault) · chiffrer les champs sensibles (Emirates ID, IBAN, PDC) · émettre les events d'audit aux points sensibles · **test cross-tenant obligatoire** (Red-Team Loi 1 : réponse ≠ 404 = no-go) · dans le doute, demander.
+
+**Refus systématique** : code qui court-circuite auth/isolation/audit · secrets en dur · expose un port sensible (5038 AMI, 5432 PG, 6379 Valkey) publiquement · désactive un contrôle hors gouvernance · contourne la RLS · dépendance à CVE critique non patchée. Conformité UAE par design : **PDPL** (notification UAE Data Office sans délai), KYC/AML/goAML, TDRA (SRTP, AMI cloisonné), RERA/Ejari/DLD/DEWA/ADDC.
+
 ## Conventions
 
 ### Database
@@ -263,6 +277,7 @@ code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
 - [transactions.md](docs/architecture/transactions.md) — `acquisitions`·`sales`·`leasing` (0033–0035), inline references under advisory lock.
 - [lead-acquisition.md](docs/architecture/lead-acquisition.md) — `marketing`·`sources`·`public_site` (0038–0041), public vitrine in `apps/portal`.
 - [infinity-id.md](docs/architecture/infinity-id.md) — UAE Infinity PASS: internal IdP, assurance levels L0–L3 (`core/assurance.py`), step-up, in-house qualified signature (migration 0059). Not federated to government UAE PASS.
+- [security-core.md](docs/architecture/security-core.md) — doctrine transversale `@core/security` (Zero Trust, invariants verrouillés, contrôles tunables, radar/chasseur/playbooks, conformité UAE, règles d'or Claude Code). **Doctrine cible** : encart « Cible vs implémenté » en tête pour distinguer l'aspirationnel (SDK, manifestes, Vault) du réel (`company_id`, JWT/Infinity ID, RLS, `audit_logs`).
 
 **Co-located module `CLAUDE.md` (under `apps/api/app/routers/{module}/`):**
 - `pdc/` — post-dated cheques, UAE state machine (migration 0003).
