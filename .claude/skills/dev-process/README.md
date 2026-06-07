@@ -410,7 +410,7 @@ Read(A) + Read(B) + Read(C)
 ### TypeScript check systématique
 ```bash
 # Toujours depuis apps/web
-cd /Users/sadiki/Desktop/SGI/SGI_Project/apps/web && npx tsc --noEmit 2>&1
+cd /Users/sadiki/Documents/Projects/SGI/apps/web && npx tsc --noEmit 2>&1
 ```
 Des erreurs → corriger immédiatement avant la partie suivante.
 

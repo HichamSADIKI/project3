@@ -82,7 +82,7 @@ Ne pas modifier de fichier.
 
 ### Template de prompt agent développeur
 ```
-Tu travailles sur le projet SGI — /Users/sadiki/Desktop/SGI/SGI_Project/apps/web
+Tu travailles sur le projet SGI — /Users/sadiki/Documents/Projects/SGI/apps/web
 
 MODULE : [nom du module]
 TÂCHE : [description précise de ce que tu dois faire]
@@ -130,7 +130,7 @@ Tu es un agent de validation sur le projet SGI.
 Les agents suivants ont modifié du code : [liste des agents avec leurs fichiers].
 
 VALIDE CHAQUE FICHIER MODIFIÉ :
-1. TypeScript : cd /Users/sadiki/Desktop/SGI/SGI_Project/apps/web && npx tsc --noEmit
+1. TypeScript : cd /Users/sadiki/Documents/Projects/SGI/apps/web && npx tsc --noEmit
 2. CSS logique : grep -n "ml-\|mr-\|pl-\|pr-\|left-\|right-" [fichiers] — doit être vide
 3. i18n : toutes les chaînes visibles utilisent useT() ou colLabel() ?
 4. NavKeys : toute nouvelle route a une entrée dans page.tsx ?

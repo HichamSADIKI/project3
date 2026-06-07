@@ -2,7 +2,7 @@
   "mcpServers": {
     "gemini": {
       "command": "node",
-      "args": ["/Users/sadiki/Desktop/SGI/SGI_Project/.claude/mcp-servers/gemini/index.js"],
+      "args": ["/Users/sadiki/Documents/Projects/SGI/.claude/mcp-servers/gemini/index.js"],
       "env": {
         "GEMINI_API_KEY": "AIzaSyDn-onC37PGo7xFUO7A8LbjfirHn4A1tLU"
       }
