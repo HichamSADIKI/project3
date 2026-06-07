@@ -395,8 +395,9 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
   const bp = useBreakpoint();
   const navGate = useNavGate();
   const { fullName } = useCurrentUser();
-  // Favoris (raccourcis de nav, localStorage) — affichés en tête de sidebar.
-  const { favorites, hydrated: favHydrated } = useFavorites();
+  // Favoris (raccourcis de nav, localStorage) — affichés en tête de sidebar,
+  // + étoile sur chaque item pour ajouter/retirer depuis n'importe quelle page.
+  const { favorites, hydrated: favHydrated, isFavorite, toggle: toggleFav } = useFavorites();
   // Identité affichée au footer : nom de session, repli neutre avant hydratation.
   const displayName = fullName ?? "—";
   const initials = (fullName ?? "")
@@ -471,6 +472,7 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
     const label = labelOverride ?? navLabel(navKey);
     const displayBadge = badge !== undefined ? (badge > 9 ? "9+" : badge) : undefined;
     const [hovered, setHovered] = useState(false);
+    const isFav = isFavorite(navKey);
 
     return (
       <div
@@ -532,6 +534,30 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
                 {displayBadge}
               </span>
             )}
+            {/* Étoile favori — ajoute/retire cette page des favoris (sans naviguer). */}
+            <span
+              role="button"
+              tabIndex={0}
+              data-testid={`fav-toggle-${navKey}`}
+              aria-label={isFav
+                ? (lang === "ar" ? "إزالة من المفضلة" : lang === "fr" ? "Retirer des favoris" : "Remove from favorites")
+                : (lang === "ar" ? "أضف إلى المفضلة" : lang === "fr" ? "Ajouter aux favoris" : "Add to favorites")}
+              title={isFav
+                ? (lang === "ar" ? "إزالة من المفضلة" : lang === "fr" ? "Retirer des favoris" : "Remove from favorites")
+                : (lang === "ar" ? "أضف إلى المفضلة" : lang === "fr" ? "Ajouter aux favoris" : "Add to favorites")}
+              onClick={(e) => { e.stopPropagation(); toggleFav(navKey); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggleFav(navKey); } }}
+              style={{
+                display: "grid", placeItems: "center", width: 22, height: 22, flexShrink: 0,
+                borderRadius: 999, cursor: "pointer",
+                color: isFav ? "var(--gold-deep)" : "var(--ink-4)",
+                opacity: isFav || hovered ? 1 : 0, transition: "opacity 0.15s ease",
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+              </svg>
+            </span>
           </>
         )}
       </div>

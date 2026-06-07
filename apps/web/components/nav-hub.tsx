@@ -24,6 +24,7 @@ import {
   navLabelFor,
   navSectionLabelFor,
   type NavItem,
+  type NavKey,
 } from "@/components/sgi-ui";
 import { topLevelEntries, findGroup, groupBySection } from "@/lib/nav-model";
 
@@ -99,8 +100,8 @@ export function NavHub({
   const bp = useBreakpoint();
   const navGate = useNavGate();
   const { fullName } = useCurrentUser();
-  // Favoris : étoile sur chaque sous-catégorie du hub pour l'ajouter/retirer.
-  const { isFavorite, toggle: toggleFav } = useFavorites();
+  // Favoris : étoile sur chaque sous-catégorie + liste en tête de la page d'accueil.
+  const { isFavorite, toggle: toggleFav, favorites, hydrated: favHydrated } = useFavorites();
   // Nom affiché : override explicite > nom de session > rien (salutation neutre).
   const displayName = userName ?? fullName ?? undefined;
   const [query, setQuery] = useState("");
@@ -234,8 +235,43 @@ export function NavHub({
     }
 
     const hello = `${L("greeting")}${displayName ? `, ${displayName}` : ""} 👋`;
+    // Favoris (raccourcis vers les sous-catégories étoilées) — accès direct en tête.
+    const favCards = (favHydrated ? favorites : [])
+      .filter((k) => navGate(k))
+      .map((k) => ({ key: k, label: navLabelFor(t, k as NavKey) }))
+      .filter((x) => Boolean(x.label));
+    const favTitle = lang === "ar" ? "المفضلة" : lang === "fr" ? "Favoris" : "Favorites";
     return (
       <Shell L={L} lang={lang} title={hello} subtitle={L("pick")} query={query} setQuery={setQuery} bp={bp}>
+        {!q && favCards.length > 0 && (
+          <div style={{ marginBlockEnd: 24 }}>
+            <div className="eyebrow" style={{ marginBlockEnd: 10, paddingInlineStart: 2 }}>{favTitle}</div>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+              {favCards.map((f) => (
+                <button
+                  key={`fav-${f.key}`}
+                  type="button"
+                  data-testid={`hub-fav-chip-${f.key}`}
+                  onClick={() => onPickScreen(f.key)}
+                  className="sgi-animate-in"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "9px 14px", borderRadius: 999, cursor: "pointer",
+                    background: "var(--bg-paper)", border: "1px solid var(--line-soft)",
+                    color: "var(--ink)", font: "inherit", fontSize: 13,
+                  }}
+                >
+                  <span style={{ color: "var(--gold-deep)", display: "inline-flex" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+                    </svg>
+                  </span>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {cards.length === 0 ? <Empty L={L} /> : <Grid>{cards}</Grid>}
       </Shell>
     );
