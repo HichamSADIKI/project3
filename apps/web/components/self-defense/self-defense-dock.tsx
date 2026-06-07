@@ -1,17 +1,16 @@
 "use client";
 
 /**
- * Bouton flottant « Self-Defense » + menu en demi-cercle (radar / avion / dôme).
+ * Bouton flottant « Self-Defense » DÉPLAÇABLE + menu en demi-cercle (radar/avion/dôme).
  *
- * Le bouton est PROTÉGÉ : au clic, si un code est requis (statut serveur), la modale
- * de code s'ouvre AVANT toute action.
- * - Désarmé + code armer requis : clic → modale (arm) → succès → ouvre l'arc des modes.
- * - Désarmé sans code requis : clic → ouvre l'arc directement.
- * - Armé : FAB « Désarmer » → modale (disarm) si requis, sinon désarme directement.
- * Position bas-droite, RTL-safe (insetInlineEnd / insetBlockEnd).
+ * - DRAG (souris + tactile via Pointer Events) : l'utilisateur déplace le bouton ; la
+ *   position (insetInlineEnd / insetBlockEnd — RTL-safe) est clampée à l'écran (responsive)
+ *   et mémorisée en localStorage. Le menu demi-cercle suit le bouton.
+ * - Distinction drag vs clic : un déplacement > 4px ne déclenche PAS l'action du bouton.
+ * - Protégé : au clic, si un code est requis (statut serveur), la modale s'ouvre d'abord.
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import { useLang } from "@/components/language-provider";
 import {
@@ -37,10 +36,15 @@ const MODE_COLOR: Record<SelfDefenseMode, string> = {
 };
 const MODE_EMOJI: Record<SelfDefenseMode, string> = { radar: "📡", avion: "✈️", dome: "🛡️" };
 
-const ARC: { mode: SelfDefenseMode; be: number; ie: number }[] = [
-  { mode: "radar", be: 100, ie: 20 },
-  { mode: "avion", be: 82, ie: 74 },
-  { mode: "dome", be: 30, ie: 100 },
+const FAB = 56;
+const POS_KEY = "sgi_sd_fab_pos_v1";
+const DEFAULT_ANCHOR = { ie: 20, be: 88 };
+
+// Offsets de l'arc, relatifs à l'ancre du FAB (préservent la forme en demi-cercle).
+const ARC: { mode: SelfDefenseMode; die: number; dbe: number }[] = [
+  { mode: "radar", die: 0, dbe: 12 },
+  { mode: "avion", die: 54, dbe: -6 },
+  { mode: "dome", die: 80, dbe: -58 },
 ];
 
 export function SelfDefenseDock(): React.ReactNode {
@@ -55,27 +59,90 @@ export function SelfDefenseDock(): React.ReactNode {
     purpose: "arm",
   });
   const [req, setReq] = useState({ armRequired: false, disarmRequired: false });
+  const [anchor, setAnchor] = useState(DEFAULT_ANCHOR);
+
+  const drag = useRef<{ sx: number; sy: number; ie0: number; be0: number; moved: boolean; rtl: boolean } | null>(
+    null,
+  );
+  const justDragged = useRef(false);
 
   useEffect(() => {
-    let cancelled = false;
-    void fetchStatus().then((s) => {
-      if (!cancelled) {
-        setReq({ armRequired: s.arm_required, disarmRequired: s.disarm_required });
+    void fetchStatus().then((s) => setReq({ armRequired: s.arm_required, disarmRequired: s.disarm_required }));
+    try {
+      const raw = localStorage.getItem(POS_KEY);
+      if (raw) {
+        const p = JSON.parse(raw) as { ie?: number; be?: number };
+        if (typeof p.ie === "number" && typeof p.be === "number") setAnchor({ ie: p.ie, be: p.be });
       }
-    });
-    return () => {
-      cancelled = true;
-    };
+    } catch {
+      /* ignore */
+    }
   }, []);
 
-  if (locked) return null; // l'overlay affiche l'écran de verrouillage
+  // Responsive : reclamper dans l'écran au redimensionnement.
+  useEffect(() => {
+    function onResize(): void {
+      setAnchor((a) => ({
+        ie: Math.min(Math.max(8, a.ie), window.innerWidth - FAB - 8),
+        be: Math.min(Math.max(8, a.be), window.innerHeight - FAB - 8),
+      }));
+    }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
+  const onMove = useCallback((e: PointerEvent) => {
+    const d = drag.current;
+    if (!d) return;
+    const dx = e.clientX - d.sx;
+    const dy = e.clientY - d.sy;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) d.moved = true;
+    const sign = d.rtl ? -1 : 1; // en RTL, l'axe inline-end est inversé
+    const ie = Math.min(Math.max(8, d.ie0 - sign * dx), window.innerWidth - FAB - 8);
+    const be = Math.min(Math.max(8, d.be0 - dy), window.innerHeight - FAB - 8);
+    setAnchor({ ie, be });
+  }, []);
+
+  const onUp = useCallback(() => {
+    const d = drag.current;
+    window.removeEventListener("pointermove", onMove);
+    window.removeEventListener("pointerup", onUp);
+    if (d?.moved) {
+      justDragged.current = true;
+      setAnchor((a) => {
+        try {
+          localStorage.setItem(POS_KEY, JSON.stringify(a));
+        } catch {
+          /* ignore */
+        }
+        return a;
+      });
+      window.setTimeout(() => {
+        justDragged.current = false;
+      }, 60);
+    }
+    drag.current = null;
+  }, [onMove]);
+
+  const onDown = useCallback(
+    (e: React.PointerEvent) => {
+      const rtl = typeof document !== "undefined" && document.documentElement.dir === "rtl";
+      drag.current = { sx: e.clientX, sy: e.clientY, ie0: anchor.ie, be0: anchor.be, moved: false, rtl };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [anchor.ie, anchor.be, onMove, onUp],
+  );
+
+  if (locked) return null;
 
   function pick(m: SelfDefenseMode): void {
-    setMode(m); // déjà autorisé (code armer validé à l'ouverture du menu)
+    setMode(m);
     setMenuOpen(false);
   }
 
   function onFab(): void {
+    if (justDragged.current) return; // c'était un drag, pas un clic
     if (mode) {
       if (req.disarmRequired) setDialog({ open: true, purpose: "disarm" });
       else setMode(null);
@@ -105,8 +172,8 @@ export function SelfDefenseDock(): React.ReactNode {
             onClick={() => pick(o.mode)}
             style={{
               position: "fixed",
-              insetBlockEnd: menuOpen ? o.be : 30,
-              insetInlineEnd: menuOpen ? o.ie : 20,
+              insetBlockEnd: menuOpen ? anchor.be + o.dbe : anchor.be,
+              insetInlineEnd: menuOpen ? anchor.ie + o.die : anchor.ie,
               width: 46,
               height: 46,
               borderRadius: "50%",
@@ -134,11 +201,12 @@ export function SelfDefenseDock(): React.ReactNode {
         type="button"
         aria-label={mode ? L("armed") : L("title")}
         title={mode ? L("armed") : L("title")}
+        onPointerDown={onDown}
         onClick={onFab}
         style={{
           position: "fixed",
-          insetBlockEnd: 88,
-          insetInlineEnd: 20,
+          insetBlockEnd: anchor.be,
+          insetInlineEnd: anchor.ie,
           minWidth: 56,
           height: 56,
           paddingInline: mode ? 16 : 0,
@@ -153,7 +221,8 @@ export function SelfDefenseDock(): React.ReactNode {
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
-          cursor: "pointer",
+          cursor: "grab",
+          touchAction: "none", // le drag tactile ne fait pas défiler la page
           boxShadow: mode
             ? `0 0 0 4px ${fabColor}33, 0 8px 22px rgba(0,0,0,0.3)`
             : "0 8px 22px rgba(0,0,0,0.3)",
