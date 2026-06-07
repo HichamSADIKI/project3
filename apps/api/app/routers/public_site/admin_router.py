@@ -36,7 +36,11 @@ def _get_company_id(request: Request) -> uuid.UUID:
     raw = getattr(request.state, "company_id", None)
     if not raw:
         raise HTTPException(status_code=401, detail="tenant_context_missing")
-    return uuid.UUID(raw)
+    try:
+        return uuid.UUID(raw)
+    except ValueError as exc:
+        # company_id présent mais malformé → échec d'auth (401), jamais 500.
+        raise HTTPException(status_code=401, detail="invalid_tenant_context") from exc
 
 
 def _require_roles(*allowed_roles: str) -> Callable[[Request], Awaitable[None]]:

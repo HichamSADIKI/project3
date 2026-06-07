@@ -17,6 +17,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import encode_jwt
 from app.models.admin import AlertEvent, AlertRule
 from app.models.company import Company
 from app.routers.honeytokens import service
@@ -295,3 +296,13 @@ async def test_admin_cross_tenant_isolation(client, seed_admin: tuple, second_ad
     # A le voit toujours (B n'a rien pu altérer).
     lst_a = await client.get("/api/v1/admin/honeytokens", headers=_auth(token_a))
     assert any(x["id"] == a_id for x in lst_a.json()["data"])
+
+
+@pytest.mark.asyncio
+async def test_admin_malformed_company_id_is_401(client) -> None:  # noqa: ANN001
+    # JWT bien signé mais company_id non-UUID → 401 (jamais 500).
+    tok = encode_jwt(
+        {"sub": str(uuid.uuid4()), "company_id": "not-a-uuid", "role": "admin", "status": "active"}
+    )
+    r = await client.get("/api/v1/admin/honeytokens", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 401

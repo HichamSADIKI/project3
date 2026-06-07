@@ -25,6 +25,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import encode_jwt
 from app.core.config import settings
 from app.models.company import Company
 from app.models.crm import CRMLead
@@ -636,3 +637,13 @@ async def test_design_tenant_isolation(
     theirs = await client.get("/api/v1/site-design", headers=_auth(other_token))
     assert mine.json()["data"]["style"] == "facebook"
     assert theirs.json()["data"]["style"] == "instagram"
+
+
+@pytest.mark.asyncio
+async def test_admin_design_malformed_company_id_is_401(client: AsyncClient) -> None:
+    # JWT bien signé mais company_id non-UUID → 401 (jamais 500).
+    tok = encode_jwt(
+        {"sub": str(uuid.uuid4()), "company_id": "not-a-uuid", "role": "admin", "status": "active"}
+    )
+    r = await client.get("/api/v1/site-design", headers={"Authorization": f"Bearer {tok}"})
+    assert r.status_code == 401

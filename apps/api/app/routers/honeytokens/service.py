@@ -214,6 +214,14 @@ async def trip_honeytoken(
     Résout la société depuis le token SIGNÉ (aucun lookup global hors RLS), pose le
     GUC tenant, lit le leurre **sous RLS**, incrémente, crée un AlertEvent critique
     et journalise. Token invalide/forgé/inconnu/désactivé → False (réponse neutre).
+
+    RISQUE ACCEPTÉ (oracle de timing) : un token au format invalide repart sans
+    requête DB (échec HMAC immédiat), alors qu'un token bien signé déclenche une
+    lecture DB — d'où une différence de latence observable. NON exploitable :
+    produire un token bien signé exige `SECRET_KEY` (qu'un attaquant n'a pas), donc
+    l'oracle ne révèle que « ce token est-il signé par nous », ce qui requiert déjà
+    la clé. On n'ajoute donc pas de délai artificiel (complexité/latence pour un
+    gain nul). Voir docs/architecture/security-core.md (Axe 7 — déception).
     """
     company_id = parse_token(token)
     if company_id is None:

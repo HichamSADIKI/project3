@@ -39,7 +39,11 @@ def require_admin(request: Request) -> uuid.UUID:
         raise HTTPException(status_code=401, detail="authentication_required")
     if role not in _ADMIN_ROLES:
         raise HTTPException(status_code=403, detail="insufficient_permissions")
-    return uuid.UUID(raw)
+    try:
+        return uuid.UUID(raw)
+    except ValueError as exc:
+        # company_id présent mais malformé → échec d'auth (401), jamais 500.
+        raise HTTPException(status_code=401, detail="invalid_tenant_context") from exc
 
 
 @router.get("", response_model=HoneytokenListEnvelope)
