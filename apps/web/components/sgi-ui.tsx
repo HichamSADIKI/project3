@@ -145,7 +145,7 @@ export type NavKey =
   | "travail" | "travail_crm" | "travail_news"
   | "callcenter" | "callcenter_crm" | "callcenter_news"
   | "erp" | "workspace" | "audit"
-  | "appadmin" | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups"
+  | "appadmin" | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups" | "appadmin_honeytokens"
   | "backoffice" | "hr" | "it" | "finance" | "accounting" | "bank_recon" | "marketing"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation"
   | "report" | "parametres";
@@ -290,6 +290,7 @@ export const NAV_ENTRIES: NavEntry[] = [
       { key: "appadmin_alerts",  icon: <IcClock /> },
       { key: "appadmin_infra",   icon: <IcIT /> },
       { key: "appadmin_backups", icon: <IcReport /> },
+      { key: "appadmin_honeytokens", icon: <IcLock /> },
     ],
   },
   { type: "item",  key: "report",      icon: <IcReport /> },
@@ -306,7 +307,7 @@ export function navLabelFor(t: Translations, key: NavKey): string {
     realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing, realestate_website: t.nav_re_website,
     realestate_buildings: t.nav_buildings, realestate_properties_map: t.nav_properties_map, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_golden_visa: t.nav_golden_visa, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_inspections: t.nav_inspections, realestate_agenda: t.nav_agenda, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
     realestate_branches: t.nav_branches, realestate_documents: t.nav_documents, realestate_settings: t.nav_re_settings,
-    appadmin: t.nav_appadmin, appadmin_users: t.nav_appadmin_users, appadmin_audit: t.nav_appadmin_audit, appadmin_alerts: t.nav_appadmin_alerts, appadmin_infra: t.nav_appadmin_infra, appadmin_backups: t.nav_appadmin_backups,
+    appadmin: t.nav_appadmin, appadmin_users: t.nav_appadmin_users, appadmin_audit: t.nav_appadmin_audit, appadmin_alerts: t.nav_appadmin_alerts, appadmin_infra: t.nav_appadmin_infra, appadmin_backups: t.nav_appadmin_backups, appadmin_honeytokens: t.nav_appadmin_honeytokens,
     admin: t.nav_admin, tourisme: t.nav_tourisme, sante: t.nav_sante,
     assurance: t.nav_assurance, banques: t.nav_banques, amazon: t.nav_amazon, consultants: t.nav_consultants,
     travail: t.nav_travail, callcenter: t.nav_callcenter,

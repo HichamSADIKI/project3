@@ -71,6 +71,7 @@ import { ScreenFournisseursFiches } from "./screens/fournisseurs-fiches";
 import { ScreenAppAdminUsers } from "./screens/admin-users";
 import { ScreenAppAdminAudit } from "./screens/admin-audit";
 import { ScreenAppAdminAlerts } from "./screens/admin-alerts";
+import { ScreenAppAdminHoneytokens } from "./screens/admin-honeytokens";
 import { ScreenAppAdminInfra } from "./screens/admin-infra";
 import { ScreenAppAdminBackups } from "./screens/admin-backups";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
@@ -91,7 +92,7 @@ type ScreenKey =
   | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
-  | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups"
+  | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups" | "appadmin_honeytokens"
   | "finance" | "accounting" | "bank_recon" | "marketing" | "report" | "parametres"
   | "clients" | "personne" | "societe"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
@@ -195,6 +196,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "appadmin_alerts":  (_) => <ScreenAppAdminAlerts />,
   "appadmin_infra":   (_) => <ScreenAppAdminInfra />,
   "appadmin_backups": (_) => <ScreenAppAdminBackups />,
+  "appadmin_honeytokens": (_) => <ScreenAppAdminHoneytokens />,
 
   // Fournisseurs (catégorie placée avant Clients)
   "fournisseurs":            (p) => <ScreenFournisseurs onNavigate={p.onNavigate} />,
