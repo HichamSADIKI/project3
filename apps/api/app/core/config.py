@@ -52,6 +52,17 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     OPENAI_API_KEY: str = ""
 
+    # OAuth SSO (optionnels). Si les credentials d'un provider sont absents,
+    # /auth/social et le bouton correspondant répondent « non configuré » (501).
+    # Google : OAuth 2.0 client « Web » (client id + secret).
+    GOOGLE_OAUTH_CLIENT_ID: str = ""
+    GOOGLE_OAUTH_CLIENT_SECRET: str = ""
+    # Apple « Sign in with Apple » : Services ID + clé .p8 (team + key id + PEM).
+    APPLE_OAUTH_CLIENT_ID: str = ""  # Services ID, ex. ae.infinity.signin
+    APPLE_OAUTH_TEAM_ID: str = ""
+    APPLE_OAUTH_KEY_ID: str = ""
+    APPLE_OAUTH_PRIVATE_KEY: str = ""  # contenu PEM de la clé AuthKey_xxx.p8
+
     # ── TTS (Azure Speech) — voix d'avatar des scénarios vidéo ────────────
     # Si la clé OU la région manque, la voix d'avatar est désactivée (le
     # diaporama reste silencieux) — le mode « voix enregistrée » n'en dépend pas.
