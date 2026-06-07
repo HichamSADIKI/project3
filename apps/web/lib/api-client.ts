@@ -11,6 +11,20 @@
  * Dispatch un événement `sgi:assistant` (type rescue, sans message → l'assistant
  * affiche son texte d'erreur localisé). Best-effort, jamais bloquant.
  */
+import { isDomeActive } from "./use-self-defense";
+
+/**
+ * Réponse synthétique 403 : le mode « Dôme de fer » (Self-Defense, local à l'onglet)
+ * gèle les écritures. La trace d'audit (recordEvent) utilise un `fetch` brut et n'est
+ * donc PAS bloquée — le désarmement reste traçable.
+ */
+function domeBlocked(): Response {
+  return new Response(JSON.stringify({ detail: "dome_mode_active" }), {
+    status: 403,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 function summonAssistantOnError(): void {
   if (typeof window === "undefined") return;
   try {
@@ -97,6 +111,7 @@ export async function getJson<T>(url: string, fallback = "load_failed"): Promise
  * réellement morte), bascule vers le login et renvoie quand même la réponse 401.
  */
 export async function postJson(url: string, body: unknown): Promise<Response> {
+  if (isDomeActive()) return domeBlocked();
   const doPost = () =>
     fetch(url, {
       method: "POST",
@@ -118,6 +133,7 @@ export async function postJson(url: string, body: unknown): Promise<Response> {
  * (ex. flags vitrine is_featured / is_urgent d'une annonce).
  */
 export async function patchJson(url: string, body: unknown): Promise<Response> {
+  if (isDomeActive()) return domeBlocked();
   const doPatch = () =>
     fetch(url, {
       method: "PATCH",
@@ -139,6 +155,7 @@ export async function patchJson(url: string, body: unknown): Promise<Response> {
  * navigateur pose lui-même `multipart/form-data; boundary=…`.
  */
 export async function postForm(url: string, form: FormData): Promise<Response> {
+  if (isDomeActive()) return domeBlocked();
   const doPost = () => fetch(url, { method: "POST", body: form });
   let res = await doPost();
   if (res.status === 401) {
