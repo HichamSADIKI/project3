@@ -54,9 +54,9 @@ export interface LoginFormLabels {
 }
 
 const DEMO_CLIENT_EMAIL =
-  process.env.NEXT_PUBLIC_DEMO_CLIENT_EMAIL ?? "demo-client@example.com";
+  process.env.NEXT_PUBLIC_DEMO_CLIENT_EMAIL ?? "ahmed.demo@infinity-uae.com";
 const DEMO_CLIENT_PASSWORD =
-  process.env.NEXT_PUBLIC_DEMO_CLIENT_PASSWORD ?? "DemoPass!23";
+  process.env.NEXT_PUBLIC_DEMO_CLIENT_PASSWORD ?? "Client123!";
 const DEMO_FOURNISSEUR_EMAIL =
   process.env.NEXT_PUBLIC_DEMO_FOURNISSEUR_EMAIL ?? "demo-partner@example.com";
 const DEMO_FOURNISSEUR_PASSWORD =
