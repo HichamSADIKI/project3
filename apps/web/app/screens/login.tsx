@@ -112,6 +112,11 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
     lang === "fr" ? "Se connecter avec Google"  :
     "Sign in with Google";
 
+  const icloudLabel =
+    lang === "ar" ? "تسجيل الدخول عبر iCloud" :
+    lang === "fr" ? "Se connecter avec iCloud"  :
+    "Sign in with iCloud";
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoginError("");
@@ -274,6 +279,19 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
                   <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
                 </svg>
                 {googleLabel}
+              </button>
+
+              {/* Connexion iCloud (Apple ID) */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="sgi-btn sgi-btn-ghost"
+                style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ display: "inline-flex", flexShrink: 0 }}>
+                  <path d="M16.36 1.43c.05 1.08-.37 2.13-1.08 2.9-.74.82-1.95 1.45-3.04 1.36-.13-1.04.41-2.15 1.07-2.85.74-.79 2.01-1.38 3.05-1.41zM20.5 17.13c-.55 1.27-.82 1.84-1.53 2.96-.99 1.56-2.38 3.51-4.11 3.52-1.53.01-1.93-1-4.01-.99-2.08.01-2.51 1.01-4.05.99-1.73-.02-3.05-1.78-4.04-3.34-2.77-4.36-3.06-9.48-1.35-12.2 1.21-1.93 3.12-3.06 4.92-3.06 1.83 0 2.98 1 4.49 1 1.47 0 2.36-1 4.48-1 1.6 0 3.3.87 4.51 2.38-3.96 2.17-3.32 7.82.49 8.78z" />
+                </svg>
+                {icloudLabel}
               </button>
             </div>
 
