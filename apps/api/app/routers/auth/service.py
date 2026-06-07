@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import hash_password, verify_password
@@ -63,6 +63,56 @@ async def authenticate(
         company = await get_company_by_slug(db, company_slug)
         if not company or company.id != user.company_id:
             raise AuthError("company_mismatch")
+
+    return user
+
+
+async def social_authenticate(
+    db: AsyncSession,
+    *,
+    provider: str,
+    email: str,
+    subject: str,
+    email_verified: bool,
+) -> User:
+    """Authentifie via un provider social (Google/Apple) — MATCH-ONLY.
+
+    Politique de sécurité : la connexion sociale n'autorise QUE des comptes
+    internes existants et actifs, identifiés par leur **email vérifié**. Aucune
+    auto-création (outil B2B interne) → un email inconnu est refusé.
+
+    Codes `AuthError` :
+    - `oauth_email_unverified` : le provider n'atteste pas l'email
+    - `oauth_no_account`       : aucun compte interne actif pour cet email
+    - `account_<status>`       : compte connu mais non-actif
+    - `oauth_subject_mismatch` : le sujet provider ne correspond pas à la liaison
+    """
+    if not email_verified:
+        raise AuthError("oauth_email_unverified")
+
+    user = (
+        await db.execute(
+            select(User).where(
+                func.lower(User.email) == email.lower(),
+                User.deleted_at.is_(None),
+                User.is_active.is_(True),
+            )
+        )
+    ).scalar_one_or_none()
+    if user is None:
+        raise AuthError("oauth_no_account")
+    if user.status != UserStatus.ACTIVE.value:
+        raise AuthError(f"account_{user.status}")
+
+    # Épinglage de l'identité sociale : si déjà liée au même provider, le sujet
+    # doit correspondre ; sinon (première liaison ou changement de provider) on
+    # (re)lie. L'email vérifié reste la clé primaire de la décision.
+    if user.oauth_provider == provider and user.oauth_subject:
+        if user.oauth_subject != subject:
+            raise AuthError("oauth_subject_mismatch")
+    else:
+        user.oauth_provider = provider
+        user.oauth_subject = subject
 
     return user
 

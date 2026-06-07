@@ -61,6 +61,12 @@ class User(Base, TimestampMixin, SoftDeleteMixin):
     mfa_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    # SSO OAuth (Google / Apple) — liaison au compte interne (migration 0063).
+    # NULL tant qu'aucune connexion sociale n'a été liée. La connexion sociale
+    # n'autorise QUE des comptes internes existants (match par email vérifié).
+    oauth_provider: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    oauth_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     # Profil public agent (vitrine) — tous nullables (migration 0039).
     phone: Mapped[str | None] = mapped_column(String(40), nullable=True)
     whatsapp: Mapped[str | None] = mapped_column(String(40), nullable=True)

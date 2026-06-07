@@ -24,6 +24,7 @@ from app.core.gemini import VENDOR_TYPES, extract_trade_licence
 from app.core.route_deps import require_roles
 from app.models.party_vendor import Vendor
 from app.models.user import User, UserRole, UserStatus
+from app.routers.auth import oauth
 from app.routers.auth.mfa import (
     decrypt_secret,
     encrypt_secret,
@@ -68,6 +69,7 @@ from app.routers.auth.service import (
     create_pending_user,
     email_exists,
     get_company_by_slug,
+    social_authenticate,
 )
 from app.routers.client_portal.service import ensure_linked_client_id
 
@@ -559,27 +561,57 @@ async def decide_pending_user(
     return UserMe.model_validate(user)
 
 
-@router.post(
-    "/social",
-    response_model=TokenResponse,
-    status_code=status.HTTP_501_NOT_IMPLEMENTED,
-)
-async def social_login(body: SocialLoginRequest) -> TokenResponse:
-    """Connexion via fournisseur social (Google, Apple, Facebook, Microsoft,
-    Instagram, Snapchat, WhatsApp, Telegram).
+@router.post("/social", response_model=TokenResponse)
+async def social_login(
+    body: SocialLoginRequest, db: AsyncSession = Depends(get_db)
+) -> TokenResponse:
+    """Connexion via fournisseur social — actuellement **Google** et **Apple**.
 
-    NOTE — stub : tant que les credentials OAuth ne sont pas provisionnés côté
-    `settings`, l'endpoint répond 501. L'UI mobile a déjà les boutons câblés.
+    Flux : le BFF (Next) échange la redirection OAuth puis poste ici soit un
+    `code` (échangé côté serveur) soit un `id_token`. On vérifie l'identité
+    auprès du provider (signature JWKS + aud + iss), puis on **mappe sur un
+    compte interne existant** (match par email vérifié — pas d'auto-création) et
+    on émet la session SGI standard.
 
-    Implémentation future :
-      1. Valider `id_token` auprès du provider (JWKS Google / appleid.apple.com / Graph FB…).
-      2. Lookup `User` par `email` issu du provider — créer en `pending` si inconnu.
-      3. Émettre un JWT SGI via `encode_jwt(...)`.
+    - Provider non configuré / non supporté → 501.
+    - Token invalide → 401. Compte inconnu/non-actif → 403.
     """
-    raise HTTPException(
-        status_code=status.HTTP_501_NOT_IMPLEMENTED,
-        detail=f"social_login_provider_not_configured:{body.provider}",
-    )
+    if not oauth.provider_enabled(body.provider):
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail=f"social_login_provider_not_configured:{body.provider}",
+        )
+
+    try:
+        identity = await oauth.resolve_identity(
+            body.provider,
+            code=body.code,
+            id_token=body.id_token,
+            redirect_uri=body.redirect_uri,
+        )
+    except oauth.OAuthError as exc:
+        if exc.code == "provider_not_configured":
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail=f"social_login_provider_not_configured:{body.provider}",
+            ) from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail=f"oauth_{exc.code}"
+        ) from exc
+
+    try:
+        user = await social_authenticate(
+            db,
+            provider=body.provider,
+            email=identity.email,
+            subject=identity.subject,
+            email_verified=identity.email_verified,
+        )
+    except AuthError as exc:
+        # Compte inconnu / non-actif / email non vérifié / sujet incohérent → 403.
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=exc.code) from exc
+
+    return await _issue_session(db, user)
 
 
 @router.get("/health")

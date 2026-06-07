@@ -18,8 +18,11 @@ import uuid
 import pytest
 from httpx import AsyncClient
 
+from app.core.config import settings
 from app.models.company import Company
 from app.models.user import User
+from app.routers.auth import oauth
+from app.routers.auth.oauth import Identity
 
 pytestmark = pytest.mark.asyncio
 
@@ -521,3 +524,112 @@ async def test_admin_rejection_marks_vendor_rejected(
     assert vendor is not None
     assert vendor.verification_status == "rejected"
     assert vendor.rejection_reason == "licence illisible"
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# SSO OAuth (Google / Apple) — /auth/social
+#
+# La frontière réseau (`oauth.resolve_identity`) est monkeypatchée : on teste la
+# logique sensible (match compte interne, email vérifié, épinglage du sujet,
+# provider non configuré), pas la crypto JWKS (lib éprouvée, vérifiée en live).
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def _enable_google(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "test-client-id")
+    monkeypatch.setattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "test-secret")
+
+
+def _patch_identity(monkeypatch: pytest.MonkeyPatch, identity: Identity) -> None:
+    async def _fake(provider: str, **_kw: object) -> Identity:
+        return identity
+
+    monkeypatch.setattr(oauth, "resolve_identity", _fake)
+
+
+async def _register_active_client(client: AsyncClient, seed_company: Company, email: str) -> None:
+    resp = await client.post(
+        "/api/v1/auth/register/client",
+        json={
+            "email": email,
+            "password": "VerySecret!23",
+            "full_name": "Social User",
+            "company_slug": seed_company.slug,
+        },
+    )
+    assert resp.status_code == 201, resp.text
+
+
+async def test_social_login_matches_existing_user(
+    client: AsyncClient, seed_company: Company, unique_email: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _register_active_client(client, seed_company, unique_email)
+    _enable_google(monkeypatch)
+    subject = f"g-{uuid.uuid4().hex}"  # unique : l'index (provider,subject) est UNIQUE
+    _patch_identity(monkeypatch, Identity(email=unique_email, subject=subject, email_verified=True))
+
+    resp = await client.post(
+        "/api/v1/auth/social",
+        json={"provider": "google", "code": "auth-code", "redirect_uri": "https://app/cb"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["access_token"]
+    assert body["refresh_token"]
+
+
+async def test_social_login_unknown_email_forbidden(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _enable_google(monkeypatch)
+    _patch_identity(
+        monkeypatch, Identity(email="ghost@nowhere.ae", subject="g-x", email_verified=True)
+    )
+    resp = await client.post("/api/v1/auth/social", json={"provider": "google", "id_token": "x"})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "oauth_no_account"
+
+
+async def test_social_login_unverified_email_forbidden(
+    client: AsyncClient, seed_company: Company, unique_email: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _register_active_client(client, seed_company, unique_email)
+    _enable_google(monkeypatch)
+    _patch_identity(monkeypatch, Identity(email=unique_email, subject="g-1", email_verified=False))
+    resp = await client.post("/api/v1/auth/social", json={"provider": "google", "id_token": "x"})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "oauth_email_unverified"
+
+
+async def test_social_login_subject_mismatch_after_link(
+    client: AsyncClient, seed_company: Company, unique_email: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    await _register_active_client(client, seed_company, unique_email)
+    _enable_google(monkeypatch)
+    # 1re connexion : lie un sujet unique.
+    subject = f"g-{uuid.uuid4().hex}"
+    _patch_identity(monkeypatch, Identity(email=unique_email, subject=subject, email_verified=True))
+    ok = await client.post("/api/v1/auth/social", json={"provider": "google", "id_token": "x"})
+    assert ok.status_code == 200, ok.text
+    # 2e connexion, même provider mais sujet différent → refus (anti-détournement).
+    _patch_identity(
+        monkeypatch, Identity(email=unique_email, subject=f"{subject}-OTHER", email_verified=True)
+    )
+    bad = await client.post("/api/v1/auth/social", json={"provider": "google", "id_token": "x"})
+    assert bad.status_code == 403
+    assert bad.json()["detail"] == "oauth_subject_mismatch"
+
+
+async def test_social_login_provider_not_configured(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "GOOGLE_OAUTH_CLIENT_ID", "")
+    monkeypatch.setattr(settings, "GOOGLE_OAUTH_CLIENT_SECRET", "")
+    resp = await client.post("/api/v1/auth/social", json={"provider": "google", "id_token": "x"})
+    assert resp.status_code == 501
+
+
+async def test_social_login_invalid_provider_rejected(client: AsyncClient) -> None:
+    # Le pattern du schéma rejette un provider inconnu avant toute logique.
+    resp = await client.post("/api/v1/auth/social", json={"provider": "myspace", "id_token": "x"})
+    assert resp.status_code == 422
