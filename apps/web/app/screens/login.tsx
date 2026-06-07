@@ -83,16 +83,19 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
 
   const [mode, setMode] = useState<"login" | "forgot" | "sent">("login");
 
-  // Pré-rempli avec le compte admin de démo (cf. apps/api/scripts/seed.py).
-  // Surcharger via NEXT_PUBLIC_DEMO_ADMIN_EMAIL / _PASSWORD en prod.
+  // Pré-remplissage démo : explicite via NEXT_PUBLIC_DEMO_ADMIN_EMAIL / _PASSWORD,
+  // sinon le compte de démo SEULEMENT hors production. En prod sans ces env, les
+  // champs restent vides — aucun identifiant n'est exposé dans le bundle client.
+  const demoFallback = process.env.NODE_ENV !== "production";
   const [loginVal,     setLoginVal]     = useState(
-    process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL ?? "admin@infinity-uae.com",
+    process.env.NEXT_PUBLIC_DEMO_ADMIN_EMAIL ?? (demoFallback ? "admin@infinity-uae.com" : ""),
   );
   const [password,     setPassword]     = useState(
-    process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD ?? "Admin123!",
+    process.env.NEXT_PUBLIC_DEMO_ADMIN_PASSWORD ?? (demoFallback ? "Admin123!" : ""),
   );
   const [loginError,   setLoginError]   = useState("");
   const [loginLoading, setLoginLoading] = useState(false);
+  const [ssoNotice,    setSsoNotice]    = useState("");
 
   const [resetEmail,   setResetEmail]   = useState("");
   const [resetLoading, setResetLoading] = useState(false);
@@ -130,6 +133,18 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
     } finally {
       setLoginLoading(false);
     }
+  }
+
+  // Fournisseurs d'identité externes (UAE Infinity PASS / Google / iCloud) :
+  // le flux OAuth/IdP n'est pas encore branché côté backend. On affiche un message
+  // neutre au lieu de soumettre silencieusement le formulaire mot de passe.
+  function handleSso(provider: string) {
+    setLoginError("");
+    setSsoNotice(
+      lang === "ar" ? `تسجيل الدخول عبر ${provider} غير متاح بعد.` :
+      lang === "fr" ? `Connexion via ${provider} bientôt disponible.` :
+      `${provider} sign-in is not available yet.`,
+    );
   }
 
   function handleForgot(e: React.FormEvent) {
@@ -255,7 +270,8 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
 
               {/* UAE Infinity PASS (Infinity ID) — IdP interne SGI, niveaux d'assurance L0–L3 */}
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleSso("UAE Infinity PASS")}
                 disabled={loginLoading}
                 className="sgi-btn sgi-btn-ghost"
                 style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 8, borderColor: "var(--gold-deep)", color: "var(--gold-deep)", fontWeight: 600 }}
@@ -267,7 +283,8 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
 
               {/* Connexion Google */}
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleSso("Google")}
                 disabled={loginLoading}
                 className="sgi-btn sgi-btn-ghost"
                 style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
@@ -283,7 +300,8 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
 
               {/* Connexion iCloud (Apple ID) */}
               <button
-                type="submit"
+                type="button"
+                onClick={() => handleSso("iCloud")}
                 disabled={loginLoading}
                 className="sgi-btn sgi-btn-ghost"
                 style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
@@ -293,6 +311,12 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
                 </svg>
                 {icloudLabel}
               </button>
+
+              {ssoNotice && (
+                <div style={{ padding: "10px 14px", background: "var(--gold-ghost)", border: "1px solid var(--gold)", borderRadius: "var(--r)", fontSize: 12, color: "var(--gold-deep)", lineHeight: 1.4 }}>
+                  {ssoNotice}
+                </div>
+              )}
             </div>
 
             {/* Footer */}
