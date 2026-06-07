@@ -17,6 +17,11 @@ services:
       # re-vérifie la signature du JWT émis par le backend.
       - JWT_SECRET=${SECRET_KEY}
       - NEXT_PUBLIC_PORTAL_URL=http://localhost:3001
+      # SSO OAuth — le BFF (routes /api/auth/oauth/*) construit l'URL
+      # d'autorisation à partir du client_id. Le SECRET reste exclusivement côté
+      # API (service `api`, via env_file). Vides → boutons « non configuré ».
+      - GOOGLE_OAUTH_CLIENT_ID=${GOOGLE_OAUTH_CLIENT_ID:-}
+      - APPLE_OAUTH_CLIENT_ID=${APPLE_OAUTH_CLIENT_ID:-}
     networks:
       - frontend
     depends_on:
