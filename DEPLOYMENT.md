@@ -214,3 +214,17 @@ manuel et hors scope** — ne jamais automatiser sans revue.
 1 (observabilité) → 2 (backups) → 3 (contrôle) → 4 (auto-rem) → 5 (restauration). **Rollback** :
 repasser n'importe quel flag à `false` (effet immédiat, retour au dry-run) ; pour couper le
 contrôle réel, `docker compose --profile control down` suffit même flag laissé à `true`.
+
+---
+
+# SSO OAuth (Google · Apple)
+
+Optionnel et **opt-in** : tant que les credentials ne sont pas renseignés, les boutons de login
+répondent « non configuré » (aucune régression). Connexion *match-only* (uniquement des comptes
+internes existants, match par **email vérifié** — pas d'auto-création). Runbook complet (Google
+Cloud Console / Apple Developer, URIs de callback, où placer `client_id` vs `client_secret`) :
+**[docs/setup-sso.md](docs/setup-sso.md)**.
+
+Câblage : le service `api` lit tous les credentials via `env_file: .env` ; `docker-compose.yml`
+propage les `*_OAUTH_CLIENT_ID` au service `web` (le BFF en a besoin pour l'URL d'autorisation, le
+**secret reste côté API**). Il suffit donc de renseigner les variables dans `.env` (cf. `.env.example`).
