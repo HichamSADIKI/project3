@@ -2,7 +2,7 @@ import { Page, expect } from "@playwright/test";
 
 /**
  * Connexion au back-office. Le formulaire de login est pré-rempli avec le compte
- * de démo (`admin@infinity-uae.com` / `Admin12345!`, cf. seed.py) ; on resaisit
+ * de démo (`admin@infinity-uae.com` / `Admin123!`, cf. seed.py) ; on resaisit
  * néanmoins explicitement pour rester déterministe quel que soit l'env.
  *
  * Sélecteurs indépendants de la locale (AR/EN/FR) : on cible par type d'input et
@@ -11,7 +11,7 @@ import { Page, expect } from "@playwright/test";
 export async function login(
   page: Page,
   email = "admin@infinity-uae.com",
-  password = "Admin12345!",
+  password = "Admin123!",
 ): Promise<void> {
   await page.goto("/");
 

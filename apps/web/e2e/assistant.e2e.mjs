@@ -45,7 +45,7 @@ const chatOpen = () => page.locator("[data-assistant-ui]").count().then((n) => n
 try {
   await page.goto(BASE, { waitUntil: "networkidle", timeout: 30000 });
   await page.locator("form input:not([type=password])").first().fill("admin@sgi.ae");
-  await page.locator('form input[type="password"]').first().fill("Admin12345!");
+  await page.locator('form input[type="password"]').first().fill("Admin123!");
   await page.locator('form button[type="submit"]').first().click();
 
   const avatar = page.getByTestId("assistant-avatar");
