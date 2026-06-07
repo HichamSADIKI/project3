@@ -249,7 +249,7 @@ Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_v
 
 > `bank` (migration 0050) is bank-statement import + reconciliation against payments/ledger; `search` is the Meilisearch front (`GET /search` unified typeahead over biens/clients/contrats + `POST /search/reindex` per-company) — its index logic lives in `search/meili.py`, no migration. `admin` (migration 0048) is the admin console **aggregator** (sub-routers `users`/`audit`/`alerts`/`backups`/`infra`/`prometheus`) — see its co-located `CLAUDE.md`.
 
-> **Infinity ID / UAE PASS Infinity** (migrations 0048 split-finance aside; identity proper at 0059) — an **internal** IdP inspired by UAE PASS (assurance levels L0–L3, step-up on sensitive actions, in-house qualified signature), **not** federated to the government `id.uaepass.ae`. Assurance scale + step-up logic live in `app/core/assurance.py`. See [docs/architecture/infinity-id.md](docs/architecture/infinity-id.md).
+> **Infinity ID / UAE Infinity PASS** (migrations 0048 split-finance aside; identity proper at 0059) — an **internal** IdP inspired by UAE PASS (assurance levels L0–L3, step-up on sensitive actions, in-house qualified signature), **not** federated to the government `id.uaepass.ae`. Assurance scale + step-up logic live in `app/core/assurance.py`. See [docs/architecture/infinity-id.md](docs/architecture/infinity-id.md).
 
 ### Per-module deep reference (moved out of this file)
 
@@ -262,7 +262,7 @@ code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
 - [operations-modules.md](docs/architecture/operations-modules.md) — `maintenance`·`inspections`·`payments`·`comms`·`workflows`·`ai_services`·`partner`·`client_portal`·`owner_portal` (0013–0019), auth hardening / refresh tokens / C1 RLS, and the Rubrique Immobilier nav (6 sections, migrations 0020–0026).
 - [transactions.md](docs/architecture/transactions.md) — `acquisitions`·`sales`·`leasing` (0033–0035), inline references under advisory lock.
 - [lead-acquisition.md](docs/architecture/lead-acquisition.md) — `marketing`·`sources`·`public_site` (0038–0041), public vitrine in `apps/portal`.
-- [infinity-id.md](docs/architecture/infinity-id.md) — UAE PASS Infinity: internal IdP, assurance levels L0–L3 (`core/assurance.py`), step-up, in-house qualified signature (migration 0059). Not federated to government UAE PASS.
+- [infinity-id.md](docs/architecture/infinity-id.md) — UAE Infinity PASS: internal IdP, assurance levels L0–L3 (`core/assurance.py`), step-up, in-house qualified signature (migration 0059). Not federated to government UAE PASS.
 
 **Co-located module `CLAUDE.md` (under `apps/api/app/routers/{module}/`):**
 - `pdc/` — post-dated cheques, UAE state machine (migration 0003).

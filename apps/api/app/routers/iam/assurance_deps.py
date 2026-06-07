@@ -1,4 +1,4 @@
-"""Step-up par niveau d'assurance — « UAE PASS Infinity » (Brique 3a).
+"""Step-up par niveau d'assurance — « UAE Infinity PASS » (Brique 3a).
 
 Rend le niveau d'assurance (L0–L3) **actionnable** dans les endpoints : une
 dépendance FastAPI ``require_assurance(action)`` garde une action sensible

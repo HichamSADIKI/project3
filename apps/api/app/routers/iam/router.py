@@ -106,7 +106,7 @@ async def my_permissions(
     )
 
 
-# ── Niveau d'assurance « UAE PASS Infinity » (lecture + override admin) ──────────
+# ── Niveau d'assurance « UAE Infinity PASS » (lecture + override admin) ──────────
 
 
 @router.get("/assurance/me", response_model=AssuranceItemOut)

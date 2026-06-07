@@ -105,7 +105,7 @@ export type Translations = {
   pass_label: string; forgot: string;
   sign_in: string; signing_in: string;
   keep_signed: string; continue_ws: string;
-  or: string; sso: string;
+  or: string; sso: string; login_uaepass: string;
   need_access: string; contact_manager: string;
   error_creds: string;
 
@@ -406,7 +406,7 @@ const ar: Translations = {
   sign_in: "دخول", signing_in: "جارٍ الدخول...",
   keep_signed: "ابقَ متصلاً على هذا الجهاز",
   continue_ws: "متابعة إلى مساحة العمل",
-  or: "أو", sso: "الدخول عبر Microsoft Entra",
+  or: "أو", sso: "الدخول عبر Microsoft Entra", login_uaepass: "تسجيل الدخول عبر UAE Infinity PASS",
   need_access: "تحتاج إلى وصول؟", contact_manager: "تواصل مع مديرك",
   error_creds: "بيانات غير صحيحة. جرّب login / password.",
 
@@ -701,7 +701,7 @@ const en: Translations = {
   sign_in: "Sign in", signing_in: "Signing in…",
   keep_signed: "Keep me signed in on this device",
   continue_ws: "Continue to workspace",
-  or: "OR", sso: "Continue with Single Sign-On (Microsoft Entra)",
+  or: "OR", sso: "Continue with Single Sign-On (Microsoft Entra)", login_uaepass: "Sign in with UAE Infinity PASS",
   need_access: "Need access?", contact_manager: "Contact your manager",
   error_creds: "Invalid credentials. Try login / password.",
 
@@ -996,7 +996,7 @@ const fr: Translations = {
   sign_in: "Se connecter", signing_in: "Connexion en cours…",
   keep_signed: "Rester connecté sur cet appareil",
   continue_ws: "Accéder à l'espace de travail",
-  or: "OU", sso: "Connexion SSO (Microsoft Entra)",
+  or: "OU", sso: "Connexion SSO (Microsoft Entra)", login_uaepass: "Se connecter avec UAE Infinity PASS",
   need_access: "Besoin d'un accès ?", contact_manager: "Contacter votre manager",
   error_creds: "Identifiants incorrects. Essayez login / password.",
 

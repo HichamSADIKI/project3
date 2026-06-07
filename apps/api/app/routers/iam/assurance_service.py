@@ -1,4 +1,4 @@
-"""Service — niveaux d'assurance « UAE PASS Infinity » (Brique 2).
+"""Service — niveaux d'assurance « UAE Infinity PASS » (Brique 2).
 
 Persiste/recalcule le niveau d'assurance d'une identité. Le calcul délègue au
 socle pur ``app.core.assurance`` ; ce module n'ajoute que la couche DB (Loi 1 :

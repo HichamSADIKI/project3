@@ -1,6 +1,6 @@
 """IdentityAssurance — état de vérification + niveau d'assurance d'une identité.
 
-Socle « UAE PASS Infinity » (Brique 2). Persiste, par identité (un User interne
+Socle « UAE Infinity PASS » (Brique 2). Persiste, par identité (un User interne
 ou un Client/party externe), ce qui est vérifié (e‑mail, mobile, Emirates ID,
 contrôle renforcé) et le **niveau d'assurance** calculé (L0–L3, cf.
 ``app.core.assurance``). Loi 1 : ``company_id`` + RLS. Unicité par

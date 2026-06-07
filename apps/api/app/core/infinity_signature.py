@@ -1,4 +1,4 @@
-"""Signature qualifiée « maison » — UAE PASS Infinity (Brique 4).
+"""Signature qualifiée « maison » — UAE Infinity PASS (Brique 4).
 
 Cœur cryptographique de preuve, **modélisé sur le QES** d'UAE PASS mais **opéré
 par Infinity** : il lie un **document** (intégrité par SHA‑256), une **identité

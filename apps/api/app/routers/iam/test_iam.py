@@ -483,7 +483,7 @@ async def test_manager_cannot_manage_access(
     assert r.status_code == 403
 
 
-# ── Niveau d'assurance « UAE PASS Infinity » (endpoints) ─────────────────────
+# ── Niveau d'assurance « UAE Infinity PASS » (endpoints) ─────────────────────
 
 
 async def test_assurance_me_defaults_l0(client: AsyncClient, seed_admin: tuple[User, str]) -> None:

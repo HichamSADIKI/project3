@@ -107,6 +107,16 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
     lang === "fr" ? "Bienvenue dans INFINITY Workspace" :
     "Welcome to INFINITY Workspace";
 
+  const googleLabel =
+    lang === "ar" ? "تسجيل الدخول عبر Google" :
+    lang === "fr" ? "Se connecter avec Google"  :
+    "Sign in with Google";
+
+  const icloudLabel =
+    lang === "ar" ? "تسجيل الدخول عبر iCloud" :
+    lang === "fr" ? "Se connecter avec iCloud"  :
+    "Sign in with iCloud";
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoginError("");
@@ -243,10 +253,45 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
                 <div style={{ flex: 1, height: 1, background: "var(--line)" }} />
               </div>
 
-              {/* SSO */}
-              <button type="button" className="sgi-btn sgi-btn-ghost" style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%" }}>
-                <span style={{ color: "var(--gold-deep)", display: "inline-flex" }}><IcLock /></span>&nbsp;
-                {t.sso}
+              {/* UAE Infinity PASS (Infinity ID) — IdP interne SGI, niveaux d'assurance L0–L3 */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="sgi-btn sgi-btn-ghost"
+                style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 8, borderColor: "var(--gold-deep)", color: "var(--gold-deep)", fontWeight: 600 }}
+                title="UAE Infinity PASS — Infinity ID (identité interne, niveaux d'assurance L0–L3)"
+              >
+                <span style={{ display: "inline-flex" }}><IcLock /></span>
+                {t.login_uaepass}
+              </button>
+
+              {/* Connexion Google */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="sgi-btn sgi-btn-ghost"
+                style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
+              >
+                <svg width="17" height="17" viewBox="0 0 48 48" aria-hidden="true" style={{ display: "inline-flex", flexShrink: 0 }}>
+                  <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
+                  <path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z" />
+                  <path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34A21.99 21.99 0 0 0 2 24c0 3.55.85 6.91 2.34 9.88l7.35-5.7z" />
+                  <path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z" />
+                </svg>
+                {googleLabel}
+              </button>
+
+              {/* Connexion iCloud (Apple ID) */}
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="sgi-btn sgi-btn-ghost"
+                style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" style={{ display: "inline-flex", flexShrink: 0 }}>
+                  <path d="M16.36 1.43c.05 1.08-.37 2.13-1.08 2.9-.74.82-1.95 1.45-3.04 1.36-.13-1.04.41-2.15 1.07-2.85.74-.79 2.01-1.38 3.05-1.41zM20.5 17.13c-.55 1.27-.82 1.84-1.53 2.96-.99 1.56-2.38 3.51-4.11 3.52-1.53.01-1.93-1-4.01-.99-2.08.01-2.51 1.01-4.05.99-1.73-.02-3.05-1.78-4.04-3.34-2.77-4.36-3.06-9.48-1.35-12.2 1.21-1.93 3.12-3.06 4.92-3.06 1.83 0 2.98 1 4.49 1 1.47 0 2.36-1 4.48-1 1.6 0 3.3.87 4.51 2.38-3.96 2.17-3.32 7.82.49 8.78z" />
+                </svg>
+                {icloudLabel}
               </button>
             </div>
 
