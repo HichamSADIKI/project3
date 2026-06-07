@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import { useLang, useT } from "@/components/language-provider";
 import { useBreakpoint } from "@/lib/hooks";
 import { useNavGate, useCurrentUser } from "@/lib/permissions";
+import { useFavorites } from "@/hooks/use-favorites";
 import {
   NAV_ENTRIES,
   navLabelFor,
@@ -98,6 +99,8 @@ export function NavHub({
   const bp = useBreakpoint();
   const navGate = useNavGate();
   const { fullName } = useCurrentUser();
+  // Favoris : étoile sur chaque sous-catégorie du hub pour l'ajouter/retirer.
+  const { isFavorite, toggle: toggleFav } = useFavorites();
   // Nom affiché : override explicite > nom de session > rien (salutation neutre).
   const displayName = userName ?? fullName ?? undefined;
   const [query, setQuery] = useState("");
@@ -106,9 +109,10 @@ export function NavHub({
 
   // Carte générique (icône en pastille colorée + libellé + sous-texte optionnel).
   function HubCard({
-    icon, label, sub, onClick, testid, accent,
+    icon, label, sub, onClick, testid, accent, isFav, onToggleFav,
   }: {
     icon: React.ReactElement; label: string; sub?: string; onClick: () => void; testid: string; accent: string;
+    isFav?: boolean; onToggleFav?: () => void;
   }): React.ReactNode {
     return (
       <button
@@ -143,6 +147,32 @@ export function NavHub({
           position: "absolute", insetBlockStart: 0, insetInlineStart: 0, insetInlineEnd: 0,
           height: 3, background: `linear-gradient(90deg, ${accent}, ${accent}66)`,
         }} />
+        {/* Étoile favori — ajoute/retire cette sous-catégorie des favoris (sans naviguer). */}
+        {onToggleFav && (
+          <span
+            role="button"
+            tabIndex={0}
+            data-testid={`hub-fav-${testid}`}
+            aria-label={isFav
+              ? (lang === "ar" ? "إزالة من المفضلة" : lang === "fr" ? "Retirer des favoris" : "Remove from favorites")
+              : (lang === "ar" ? "أضف إلى المفضلة" : lang === "fr" ? "Ajouter aux favoris" : "Add to favorites")}
+            title={isFav
+              ? (lang === "ar" ? "إزالة من المفضلة" : lang === "fr" ? "Retirer des favoris" : "Remove from favorites")
+              : (lang === "ar" ? "أضف إلى المفضلة" : lang === "fr" ? "Ajouter aux favoris" : "Add to favorites")}
+            onClick={(e) => { e.stopPropagation(); onToggleFav(); }}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleFav(); } }}
+            style={{
+              position: "absolute", insetBlockStart: 8, insetInlineEnd: 8, zIndex: 2,
+              width: 28, height: 28, display: "grid", placeItems: "center",
+              borderRadius: 999, cursor: "pointer",
+              color: isFav ? "var(--gold-deep)" : "var(--ink-4)",
+            }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill={isFav ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true">
+              <path d="M12 2l2.9 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l7.1-1.01L12 2z" />
+            </svg>
+          </span>
+        )}
         <span style={{
           width: 56, height: 56, borderRadius: "var(--r-md)",
           background: `linear-gradient(135deg, ${accent}26, ${accent}0d)`,
@@ -256,6 +286,8 @@ export function NavHub({
                     accent={accent}
                     label={child.labelKey ? navLabelFor(t, child.labelKey) : navLabelFor(t, child.key)}
                     onClick={() => onPickScreen(child.key)}
+                    isFav={isFavorite(child.key)}
+                    onToggleFav={() => toggleFav(child.key)}
                   />
                 ))}
               </Grid>
