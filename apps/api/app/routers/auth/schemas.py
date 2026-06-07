@@ -202,3 +202,6 @@ class SocialLoginRequest(BaseModel):
     id_token: str | None = Field(default=None, max_length=8192)
     access_token: str | None = Field(default=None, max_length=8192)
     code: str | None = Field(default=None, max_length=2048)
+    # redirect_uri utilisé lors de l'échange du `code` (doit matcher celui de
+    # l'autorisation côté provider). Requis avec `code`, ignoré avec `id_token`.
+    redirect_uri: str | None = Field(default=None, max_length=2048)

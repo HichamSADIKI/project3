@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Wordmark, IcChevR, IcLock } from "@/components/sgi-ui";
 import { useLang, useT } from "@/components/language-provider";
 import { apiLogin } from "@/lib/auth";
@@ -138,6 +138,7 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
   // Fournisseurs d'identité externes (UAE Infinity PASS / Google / iCloud) :
   // le flux OAuth/IdP n'est pas encore branché côté backend. On affiche un message
   // neutre au lieu de soumettre silencieusement le formulaire mot de passe.
+  // UAE Infinity PASS reste un IdP interne (pas OAuth) → message d'attente.
   function handleSso(provider: string) {
     setLoginError("");
     setSsoNotice(
@@ -146,6 +147,34 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
       `${provider} sign-in is not available yet.`,
     );
   }
+
+  // Démarre le flux OAuth (redirection plein écran vers le provider).
+  function startOauth(provider: "google" | "apple") {
+    window.location.href = `/api/auth/oauth/${provider}/start`;
+  }
+
+  // Affiche l'erreur SSO renvoyée par le callback (?sso_error=...).
+  useEffect(() => {
+    const err = new URLSearchParams(window.location.search).get("sso_error");
+    if (!err) return;
+    const notConfigured = err.endsWith("_not_configured");
+    const noAccount = err.includes("oauth_no_account");
+    setSsoNotice(
+      notConfigured
+        ? (lang === "ar" ? "موفّر الدخول غير مُهيّأ بعد." :
+           lang === "fr" ? "Fournisseur de connexion non configuré." :
+           "Sign-in provider not configured yet.")
+        : noAccount
+        ? (lang === "ar" ? "لا يوجد حساب داخلي مرتبط بهذا البريد." :
+           lang === "fr" ? "Aucun compte interne associé à cet e-mail." :
+           "No internal account linked to this email.")
+        : (lang === "ar" ? "تعذّر تسجيل الدخول عبر هذا الموفّر." :
+           lang === "fr" ? "Échec de la connexion via ce fournisseur." :
+           "Sign-in with this provider failed."),
+    );
+    // Nettoie l'URL (retire le paramètre d'erreur).
+    window.history.replaceState({}, "", window.location.pathname);
+  }, [lang]);
 
   function handleForgot(e: React.FormEvent) {
     e.preventDefault();
@@ -284,7 +313,7 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
               {/* Connexion Google */}
               <button
                 type="button"
-                onClick={() => handleSso("Google")}
+                onClick={() => startOauth("google")}
                 disabled={loginLoading}
                 className="sgi-btn sgi-btn-ghost"
                 style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
@@ -301,7 +330,7 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
               {/* Connexion iCloud (Apple ID) */}
               <button
                 type="button"
-                onClick={() => handleSso("iCloud")}
+                onClick={() => startOauth("apple")}
                 disabled={loginLoading}
                 className="sgi-btn sgi-btn-ghost"
                 style={{ height: 46, justifyContent: "center", fontSize: 12.5, width: "100%", gap: 10 }}
