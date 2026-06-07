@@ -1,4 +1,4 @@
-"""Niveaux d'assurance d'identité — socle « UAE PASS Infinity ».
+"""Niveaux d'assurance d'identité — socle « UAE Infinity PASS ».
 
 Solution **maison** d'Infinity, *inspirée du modèle UAE PASS* (échelle SOP1/2/3)
 mais **distincte** du UAE PASS gouvernemental : Infinity opère son propre IdP.

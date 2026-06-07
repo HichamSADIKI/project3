@@ -1,4 +1,4 @@
-# UAE PASS Infinity (« Infinity ID ») — identité & signature maison
+# UAE Infinity PASS (« Infinity ID ») — identité & signature maison
 
 > Solution **interne** d'Infinity, **inspirée du modèle/architecture UAE PASS** (le
 > *principe* : niveaux d'assurance, IdP central, signature qualifiée, identité
@@ -59,4 +59,4 @@ dit le *rôle*) et à la **RLS Loi 1** (qui dit la *société*).
 
 1. Confirmer l'échelle (4 niveaux ? quels déblocages exacts par niveau ?).
 2. Brique 2 ou Brique 3 ensuite ?
-3. Naming public : « Infinity ID » / « UAE PASS Infinity » côté UI ?
+3. Naming public : « Infinity ID » / « UAE Infinity PASS » côté UI ?

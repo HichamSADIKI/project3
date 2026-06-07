@@ -1,4 +1,4 @@
-"""Tests — niveaux d'assurance « UAE PASS Infinity » (purs, sans DB)."""
+"""Tests — niveaux d'assurance « UAE Infinity PASS » (purs, sans DB)."""
 
 from __future__ import annotations
 

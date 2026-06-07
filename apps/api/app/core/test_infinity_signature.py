@@ -1,4 +1,4 @@
-"""Tests — signature qualifiée maison (UAE PASS Infinity, Brique 4). Purs."""
+"""Tests — signature qualifiée maison (UAE Infinity PASS, Brique 4). Purs."""
 
 from __future__ import annotations
 
