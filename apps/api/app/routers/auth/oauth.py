@@ -15,9 +15,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from typing import Any
 
 import httpx
-from jose import jwt
+from jose import jwt  # type: ignore[import-untyped]
 
 from app.core.config import settings
 
@@ -68,22 +69,25 @@ def _as_bool(value: object) -> bool:
     return value is True or value in ("true", "True", "1", 1)
 
 
-async def _fetch_jwks(url: str) -> dict:
+async def _fetch_jwks(url: str) -> dict[str, Any]:
     async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as http:
         resp = await http.get(url)
     if resp.status_code != 200:
         raise OAuthError("jwks_unavailable")
-    return resp.json()
+    data: dict[str, Any] = resp.json()
+    return data
 
 
-def _verify_id_token(id_token: str, jwks: dict, *, audience: str, issuers: tuple[str, ...]) -> dict:
+def _verify_id_token(
+    id_token: str, jwks: dict[str, Any], *, audience: str, issuers: tuple[str, ...]
+) -> dict[str, Any]:
     """Vérifie signature (JWKS) + aud + exp ; valide l'iss manuellement."""
     try:
         header = jwt.get_unverified_header(id_token)
         key = next((k for k in jwks.get("keys", []) if k.get("kid") == header.get("kid")), None)
         if key is None:
             raise OAuthError("jwks_kid_unknown")
-        claims = jwt.decode(
+        claims: dict[str, Any] = jwt.decode(
             id_token,
             key,
             algorithms=[key.get("alg", "RS256")],
@@ -117,13 +121,13 @@ async def _exchange_code(
     id_token = resp.json().get("id_token")
     if not id_token:
         raise OAuthError("id_token_missing")
-    return id_token
+    return str(id_token)
 
 
 def _apple_client_secret() -> str:
     """Génère le client_secret Apple : JWT ES256 signé avec la clé .p8."""
     now = int(time.time())
-    return jwt.encode(
+    secret: str = jwt.encode(
         {
             "iss": settings.APPLE_OAUTH_TEAM_ID,
             "iat": now,
@@ -135,9 +139,10 @@ def _apple_client_secret() -> str:
         algorithm="ES256",
         headers={"kid": settings.APPLE_OAUTH_KEY_ID, "alg": "ES256"},
     )
+    return secret
 
 
-async def _identity_from_claims(claims: dict) -> Identity:
+async def _identity_from_claims(claims: dict[str, Any]) -> Identity:
     email = (claims.get("email") or "").strip().lower()
     subject = claims.get("sub") or ""
     if not email:

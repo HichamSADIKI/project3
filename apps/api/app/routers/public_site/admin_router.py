@@ -20,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.routers.public_site import service
+from app.routers.public_site.models import PublicSiteDesign
 from app.routers.public_site.schemas import (
     SiteDesignData,
     SiteDesignEnvelope,
@@ -47,30 +48,30 @@ def _require_roles(*allowed_roles: str) -> Callable[[Request], Awaitable[None]]:
     return _check
 
 
-def _to_data(row: object | None) -> SiteDesignData:
+def _to_data(row: PublicSiteDesign | None) -> SiteDesignData:
     """Construit la sortie (défauts si jamais configuré) + style actif résolu."""
     if row is None:
         return SiteDesignData(
             mode="manual",
-            style=service.DEFAULT_SITE_STYLE,  # type: ignore[arg-type]
+            style=service.DEFAULT_SITE_STYLE,
             delay_hours=service.DEFAULT_SITE_DELAY_HOURS,
             rotation_since=None,
-            active=service.DEFAULT_SITE_STYLE,  # type: ignore[arg-type]
+            active=service.DEFAULT_SITE_STYLE,
         )
     active, nxt, next_in = service.resolve_active_design(
         row.mode,
         row.style,
         row.delay_hours,
-        row.rotation_since,  # type: ignore[attr-defined]
+        row.rotation_since,
         datetime.now(UTC),
     )
     return SiteDesignData(
-        mode=row.mode,  # type: ignore[attr-defined]
-        style=row.style,  # type: ignore[attr-defined]
-        delay_hours=row.delay_hours,  # type: ignore[attr-defined]
-        rotation_since=row.rotation_since,  # type: ignore[attr-defined]
-        active=active,  # type: ignore[arg-type]
-        next=nxt,  # type: ignore[arg-type]
+        mode=row.mode,
+        style=row.style,
+        delay_hours=row.delay_hours,
+        rotation_since=row.rotation_since,
+        active=active,
+        next=nxt,
         next_in_seconds=next_in,
     )
 
