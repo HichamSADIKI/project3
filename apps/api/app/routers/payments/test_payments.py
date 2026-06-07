@@ -50,6 +50,7 @@ from httpx import AsyncClient
 
 from app.models.company import Company
 from app.models.user import User
+from app.routers.iam.assurance_service import upsert_verification
 
 
 def _auth(token: str) -> dict[str, str]:
@@ -58,6 +59,20 @@ def _auth(token: str) -> dict[str, str]:
 
 def _req_payload() -> dict:
     return {"payment_type": "rent", "amount_aed": "5000.00", "due_date": "2026-12-31"}
+
+
+async def _grant_assurance_l3(db_session, user: User) -> None:
+    """Porte l'assurance d'un utilisateur à L3 (toutes les preuves vérifiées)."""
+    await upsert_verification(
+        db_session,
+        user.company_id,
+        "user",
+        user.id,
+        email_verified=True,
+        mobile_verified=True,
+        emirates_id_verified=True,
+        strong_auth_verified=True,
+    )
 
 
 async def test_payments_requires_auth(client: AsyncClient) -> None:
@@ -81,8 +96,13 @@ async def test_create_then_list_request(client: AsyncClient, seed_admin: tuple[U
     assert ref in refs
 
 
-async def test_pay_request_lifecycle(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
-    _admin, token = seed_admin
+async def test_pay_request_lifecycle(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session
+) -> None:
+    admin, token = seed_admin
+    # `approve_payment` exige le niveau d'assurance L3 (« UAE PASS Infinity ») :
+    # on l'accorde à l'admin pour exercer le cycle de paiement nominal.
+    await _grant_assurance_l3(db_session, admin)
     create = await client.post(
         "/api/v1/payments/requests", headers=_auth(token), json=_req_payload()
     )
@@ -124,3 +144,54 @@ async def test_payments_tenant_isolation(
     assert list_b.status_code == 200
     refs_b = [r["reference"] for r in list_b.json()["data"]]
     assert ref_a not in refs_b
+
+
+# ─── Enforcement assurance « UAE PASS Infinity » (action approve_payment, L3) ──
+
+
+async def test_pay_blocked_when_assurance_insufficient(
+    client: AsyncClient, seed_admin: tuple[User, str]
+) -> None:
+    """Sans niveau d'assurance L3, régler une demande renvoie un 403 structuré
+    (step-up) — la demande NE doit pas passer à `paid`."""
+    _admin, token = seed_admin  # seed_admin n'a aucune assurance → L0
+    create = await client.post(
+        "/api/v1/payments/requests", headers=_auth(token), json=_req_payload()
+    )
+    req_id = create.json()["id"]
+
+    resp = await client.post(
+        f"/api/v1/payments/requests/{req_id}/pay",
+        headers=_auth(token),
+        json={"method": "bank_transfer"},
+    )
+    assert resp.status_code == 403, resp.text
+    detail = resp.json()["detail"]
+    assert detail["error"] == "assurance_step_up_required"
+    assert detail["action"] == "approve_payment"
+    assert detail["required_level"] == "L3"
+    assert detail["current_level"] == "L0"
+
+    # La demande reste `pending` : l'action a bien été bloquée en amont du service.
+    after = await client.get(f"/api/v1/payments/requests/{req_id}", headers=_auth(token))
+    assert after.json()["status"] == "pending"
+
+
+async def test_pay_allowed_when_assurance_l3(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session
+) -> None:
+    """Avec L3, le règlement passe (200, statut `paid`)."""
+    admin, token = seed_admin
+    await _grant_assurance_l3(db_session, admin)
+    create = await client.post(
+        "/api/v1/payments/requests", headers=_auth(token), json=_req_payload()
+    )
+    req_id = create.json()["id"]
+
+    paid = await client.post(
+        f"/api/v1/payments/requests/{req_id}/pay",
+        headers=_auth(token),
+        json={"method": "bank_transfer"},
+    )
+    assert paid.status_code == 200, paid.text
+    assert paid.json()["status"] == "paid"

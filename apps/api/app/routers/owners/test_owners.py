@@ -183,3 +183,103 @@ async def test_expiring_mandates_tenant_isolation(
     await db_session.commit()
     rows = await expiring_mandates(db_session, other.id, today, days=90)
     assert rows == []
+
+
+# ─── Enforcement assurance « UAE PASS Infinity » (change_owner_iban, L3) ──────
+# Requièrent PostgreSQL — lancer via : docker compose exec api uv run pytest
+
+from httpx import AsyncClient
+
+from app.models.user import User
+from app.routers.iam.assurance_service import upsert_verification
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _seed_owner_for_company(db: AsyncSession, company_id) -> uuid.UUID:
+    """Crée un Client + son profil Owner ; renvoie le party_id (= id du Client)."""
+    client = Client(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="individual",
+        first_name="Prop",
+        last_name="IBAN",
+    )
+    db.add(client)
+    await db.commit()
+    owner = Owner(company_id=company_id, party_id=client.id, bank_iban="AE000000000000000000000")
+    db.add(owner)
+    await db.commit()
+    return client.id
+
+
+async def _grant_assurance_l3(db: AsyncSession, user: User) -> None:
+    await upsert_verification(
+        db,
+        user.company_id,
+        "user",
+        user.id,
+        email_verified=True,
+        mobile_verified=True,
+        emirates_id_verified=True,
+        strong_auth_verified=True,
+    )
+
+
+@pytest.mark.asyncio
+async def test_iban_change_blocked_without_l3(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Modifier `bank_iban` sans niveau L3 → 403 structuré (step-up)."""
+    admin, token = seed_admin  # L0 par défaut
+    party_id = await _seed_owner_for_company(db_session, admin.company_id)
+
+    resp = await client.patch(
+        f"/api/v1/owners/{party_id}",
+        headers=_auth(token),
+        json={"bank_iban": "AE999999999999999999999"},
+    )
+    assert resp.status_code == 403, resp.text
+    detail = resp.json()["detail"]
+    assert detail["error"] == "assurance_step_up_required"
+    assert detail["action"] == "change_owner_iban"
+    assert detail["required_level"] == "L3"
+    assert detail["current_level"] == "L0"
+
+
+@pytest.mark.asyncio
+async def test_non_iban_update_not_gated(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Une mise à jour ne touchant PAS l'IBAN n'exige aucun step-up (L0 → 200)."""
+    admin, token = seed_admin  # L0
+    party_id = await _seed_owner_for_company(db_session, admin.company_id)
+
+    resp = await client.patch(
+        f"/api/v1/owners/{party_id}",
+        headers=_auth(token),
+        json={"residency_uae": True},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["residency_uae"] is True
+
+
+@pytest.mark.asyncio
+async def test_iban_change_allowed_with_l3(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Avec L3, le changement d'IBAN passe (200) et est persisté."""
+    admin, token = seed_admin
+    await _grant_assurance_l3(db_session, admin)
+    party_id = await _seed_owner_for_company(db_session, admin.company_id)
+
+    new_iban = "AE123456789012345678901"
+    resp = await client.patch(
+        f"/api/v1/owners/{party_id}",
+        headers=_auth(token),
+        json={"bank_iban": new_iban},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["bank_iban"] == new_iban
