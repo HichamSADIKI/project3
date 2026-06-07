@@ -1,7 +1,7 @@
 name: CI
 
-# Le dépôt est enraciné au-dessus du projet : tout le code vit sous
-# Desktop/SGI/SGI_Project/. Les steps s'y positionnent via working-directory.
+# Le projet vit désormais à la racine du dépôt (structure aplatie).
+# Le job backend se positionne dans apps/api ; le frontend reste à la racine.
 
 on:
   push:
@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: Desktop/SGI/SGI_Project/apps/api
+        working-directory: apps/api
     env:
       POSTGRES_HOST: localhost
       POSTGRES_PORT: "5432"
@@ -101,19 +101,17 @@ jobs:
   frontend:
     name: Frontend · vitest (web + portal)
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: Desktop/SGI/SGI_Project
     steps:
       - uses: actions/checkout@v6
+      # Pas de `version:` ici : pnpm/action-setup@v6 lit `packageManager`
+      # (pnpm@9.0.0) dans package.json — spécifier les deux déclenche
+      # ERR_PNPM_BAD_PM_VERSION depuis que package.json est à la racine.
       - uses: pnpm/action-setup@v6
-        with:
-          version: 9
       - uses: actions/setup-node@v6
         with:
           node-version: "20"
           cache: pnpm
-          cache-dependency-path: Desktop/SGI/SGI_Project/pnpm-lock.yaml
+          cache-dependency-path: pnpm-lock.yaml
       - name: Install deps (pnpm)
         run: pnpm install --frozen-lockfile
       - name: Typecheck
