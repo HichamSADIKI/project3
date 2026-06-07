@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
@@ -35,6 +36,7 @@ from app.routers.crm import service as crm_service
 from app.routers.leasing.models import RentalListing
 from app.routers.marketing.service import find_or_create_client
 from app.routers.public_site import search as meili
+from app.routers.public_site.models import PublicSiteDesign
 from app.routers.sales.models import SaleListing, SaleMandate
 
 # GUC tenant — identique au pattern inbox/webhook.py (pose manuelle hors middleware).
@@ -652,3 +654,84 @@ async def reindex_public_listings(db: AsyncSession, company_id: uuid.UUID) -> in
     """(Ré)indexe dans Meili toutes les annonces publiées de la société."""
     rows, _ = await list_public_listings(db, company_id, page=1, limit=1000)
     return await meili.reindex(company_id, rows)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Design du site public (réglage piloté depuis Website)
+# ─────────────────────────────────────────────────────────────────────────
+
+SITE_DESIGN_STYLES: tuple[str, ...] = ("instagram", "snapchat", "facebook")
+SITE_DESIGN_MODES: tuple[str, ...] = ("manual", "auto")
+DEFAULT_SITE_STYLE = "instagram"
+DEFAULT_SITE_DELAY_HOURS = 6
+
+
+def resolve_active_design(
+    mode: str,
+    style: str,
+    delay_hours: int,
+    rotation_since: datetime | None,
+    now: datetime,
+) -> tuple[str, str | None, int | None]:
+    """HELPER PUR (sans DB) — calcule le style actif.
+
+    - Mode 'manual' (ou ancre absente) → `style` figé, pas de bascule.
+    - Mode 'auto' → rotation déterministe entre `SITE_DESIGN_STYLES` toutes les
+      `delay_hours` heures, dérivée du temps écoulé depuis `rotation_since`.
+
+    Retourne `(active, next_style|None, next_in_seconds|None)`.
+    """
+    if mode != "auto" or rotation_since is None:
+        return style, None, None
+    span = max(1, delay_hours) * 3600
+    # Normalise les fuseaux (rotation_since peut être naïf en mémoire).
+    since = rotation_since if rotation_since.tzinfo else rotation_since.replace(tzinfo=UTC)
+    ref = now if now.tzinfo else now.replace(tzinfo=UTC)
+    elapsed = max(0, int((ref - since).total_seconds()))
+    n = len(SITE_DESIGN_STYLES)
+    idx = (elapsed // span) % n
+    nxt = (idx + 1) % n
+    next_in = span - (elapsed % span)
+    return SITE_DESIGN_STYLES[idx], SITE_DESIGN_STYLES[nxt], next_in
+
+
+async def get_site_design(db: AsyncSession, company_id: uuid.UUID) -> PublicSiteDesign | None:
+    """Lit le réglage de design de la société (None si jamais configuré)."""
+    return (
+        await db.execute(select(PublicSiteDesign).where(PublicSiteDesign.company_id == company_id))
+    ).scalar_one_or_none()
+
+
+async def upsert_site_design(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    *,
+    mode: str,
+    style: str,
+    delay_hours: int,
+    now: datetime | None = None,
+) -> PublicSiteDesign:
+    """Crée/met à jour le réglage (une ligne par société).
+
+    L'ancre de rotation (`rotation_since`) est (re)posée à `now` quand on entre
+    en mode auto ou qu'on change la période — afin que la rotation reparte d'un
+    style stable et prévisible.
+    """
+    now = now or datetime.now(UTC)
+    row = await get_site_design(db, company_id)
+    if row is None:
+        row = PublicSiteDesign(company_id=company_id)
+        db.add(row)
+
+    entering_auto = mode == "auto" and (
+        row.mode != "auto" or row.rotation_since is None or row.delay_hours != delay_hours
+    )
+    row.mode = mode
+    row.style = style
+    row.delay_hours = delay_hours
+    if entering_auto:
+        row.rotation_since = now
+
+    await db.commit()
+    await db.refresh(row)
+    return row

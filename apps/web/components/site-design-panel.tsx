@@ -77,13 +77,59 @@ export function SiteDesignPanel({ lang }: { lang: Lang }) {
   const [conf, setConf] = useState<Conf>(DEFAULT_CONF);
   const [hydrated, setHydrated] = useState(false);
   const [now, setNow] = useState(0);
+  const [offline, setOffline] = useState(false);
 
-  // Hydratation côté client (évite tout mismatch SSR).
+  // Hydratation : d'abord le cache local (instantané, évite l'écran vide), puis
+  // synchronisation avec le serveur (source de vérité, partagée avec le portail).
   useEffect(() => {
     setConf(loadConf());
     setNow(Date.now());
     setHydrated(true);
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/site-design");
+        if (!res.ok) { setOffline(true); return; }
+        const d = (await res.json())?.data;
+        if (!d) return;
+        const style: SiteModel = ORDER.includes(d.style) ? d.style : "instagram";
+        const merged: Conf = {
+          mode: d.mode === "auto" ? "auto" : "manual",
+          manual: style,
+          delayHours: Math.max(1, Math.min(168, Number(d.delay_hours) || 6)),
+          since: d.rotation_since ? Date.parse(d.rotation_since) || 0 : 0,
+        };
+        setConf(merged);
+        saveConf(merged);
+      } catch {
+        setOffline(true);
+      }
+    })();
   }, []);
+
+  // Pousse le réglage au backend (le portail public lira la même source).
+  const pushToApi = async (c: Conf) => {
+    try {
+      const res = await fetch("/api/admin/site-design", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: c.mode, style: c.manual, delay_hours: c.delayHours }),
+      });
+      if (!res.ok) { setOffline(true); return; }
+      setOffline(false);
+      // Re-cale l'ancre de rotation sur celle calculée par le serveur.
+      const d = (await res.json())?.data;
+      const ts = d?.rotation_since ? Date.parse(d.rotation_since) : NaN;
+      if (!Number.isNaN(ts)) {
+        setConf((prev) => {
+          const nx = { ...prev, since: ts };
+          saveConf(nx);
+          return nx;
+        });
+      }
+    } catch {
+      setOffline(true);
+    }
+  };
 
   // Tick de l'horloge seulement en mode auto (pour le compte à rebours).
   useEffect(() => {
@@ -93,11 +139,10 @@ export function SiteDesignPanel({ lang }: { lang: Lang }) {
   }, [hydrated, conf.mode]);
 
   const update = (patch: Partial<Conf>) => {
-    setConf((prev) => {
-      const next = { ...prev, ...patch };
-      saveConf(next);
-      return next;
-    });
+    const next = { ...conf, ...patch };
+    setConf(next);
+    saveConf(next);
+    void pushToApi(next);
   };
 
   const auto = useMemo(() => autoState(conf, now || Date.now()), [conf, now]);
@@ -121,6 +166,11 @@ export function SiteDesignPanel({ lang }: { lang: Lang }) {
             {L("ثلاثة نماذج — يدوي أو تدوير تلقائي",
                "Three models — manual or automatic rotation",
                "Trois modèles — manuel ou rotation automatique")}
+            {offline && (
+              <span style={{ marginInlineStart: 8, color: "var(--rose)", fontWeight: 600 }}>
+                · {L("غير متصل (محلي)", "offline (local)", "hors-ligne (local)")}
+              </span>
+            )}
           </div>
         </div>
         {/* Bascule Manuel / Auto */}
