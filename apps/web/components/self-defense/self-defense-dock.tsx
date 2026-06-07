@@ -3,18 +3,23 @@
 /**
  * Bouton flottant « Self-Defense » + menu en demi-cercle (radar / avion / dôme).
  *
- * - Désarmé : FAB bouclier → clic ouvre l'arc des 3 modes. Choisir un mode ouvre la
- *   modale de code (ValidationDialog).
- * - Armé : le FAB devient « Désarmer » (couleur du mode, pulsation) → clic ouvre la
- *   modale de code pour revenir au mode normal.
- * Position bas-droite, RTL-safe (insetInlineEnd / insetBlockEnd). z-index au-dessus
- * des docks (1200) mais sous la modale (1400) et l'écran de verrouillage (1500).
+ * Le bouton est PROTÉGÉ : au clic, si un code est requis (statut serveur), la modale
+ * de code s'ouvre AVANT toute action.
+ * - Désarmé + code armer requis : clic → modale (arm) → succès → ouvre l'arc des modes.
+ * - Désarmé sans code requis : clic → ouvre l'arc directement.
+ * - Armé : FAB « Désarmer » → modale (disarm) si requis, sinon désarme directement.
+ * Position bas-droite, RTL-safe (insetInlineEnd / insetBlockEnd).
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useLang } from "@/components/language-provider";
-import { type SelfDefenseMode, useSelfDefense } from "@/lib/use-self-defense";
+import {
+  fetchStatus,
+  type SelfDefenseMode,
+  type SelfDefensePurpose,
+  useSelfDefense,
+} from "@/lib/use-self-defense";
 import { ValidationDialog } from "./validation-dialog";
 
 type Lang = "ar" | "en" | "fr";
@@ -32,7 +37,6 @@ const MODE_COLOR: Record<SelfDefenseMode, string> = {
 };
 const MODE_EMOJI: Record<SelfDefenseMode, string> = { radar: "📡", avion: "✈️", dome: "🛡️" };
 
-// Positions des 3 orbes sur un quart de cercle ouvrant en haut-gauche du FAB.
 const ARC: { mode: SelfDefenseMode; be: number; ie: number }[] = [
   { mode: "radar", be: 100, ie: 20 },
   { mode: "avion", be: 82, ie: 74 },
@@ -44,34 +48,53 @@ export function SelfDefenseDock(): React.ReactNode {
   const lg = (lang as Lang) in TR ? (lang as Lang) : "fr";
   const L = (k: string): string => TR[lg][k] ?? TR.fr[k] ?? k;
 
-  const { mode, locked } = useSelfDefense();
+  const { mode, locked, setMode } = useSelfDefense();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [target, setTarget] = useState<SelfDefenseMode | null>(null);
+  const [dialog, setDialog] = useState<{ open: boolean; purpose: SelfDefensePurpose }>({
+    open: false,
+    purpose: "arm",
+  });
+  const [req, setReq] = useState({ armRequired: false, disarmRequired: false });
 
-  // Verrouillé : l'écran de verrouillage (overlay) prend tout — on masque le dock.
-  if (locked) return null;
+  useEffect(() => {
+    let cancelled = false;
+    void fetchStatus().then((s) => {
+      if (!cancelled) {
+        setReq({ armRequired: s.arm_required, disarmRequired: s.disarm_required });
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (locked) return null; // l'overlay affiche l'écran de verrouillage
 
   function pick(m: SelfDefenseMode): void {
-    setTarget(m);
-    setDialogOpen(true);
+    setMode(m); // déjà autorisé (code armer validé à l'ouverture du menu)
     setMenuOpen(false);
   }
+
   function onFab(): void {
     if (mode) {
-      // Armé → demande le code pour désarmer.
-      setTarget(null);
-      setDialogOpen(true);
+      if (req.disarmRequired) setDialog({ open: true, purpose: "disarm" });
+      else setMode(null);
+    } else if (req.armRequired) {
+      setDialog({ open: true, purpose: "arm" });
     } else {
       setMenuOpen((o) => !o);
     }
+  }
+
+  function onVerified(): void {
+    if (dialog.purpose === "arm") setMenuOpen(true);
+    else setMode(null);
   }
 
   const fabColor = mode ? MODE_COLOR[mode] : "var(--ink)";
 
   return (
     <>
-      {/* Orbes du demi-cercle (seulement quand désarmé + menu ouvert) */}
       {!mode &&
         ARC.map((o, i) => (
           <button
@@ -107,7 +130,6 @@ export function SelfDefenseDock(): React.ReactNode {
           </button>
         ))}
 
-      {/* FAB principal */}
       <button
         type="button"
         aria-label={mode ? L("armed") : L("title")}
@@ -142,10 +164,14 @@ export function SelfDefenseDock(): React.ReactNode {
         {mode ? `${MODE_EMOJI[mode]} ${L("armed")}` : "🛡️"}
       </button>
 
-      {/* Pulsation (keyframes injectés une fois) */}
       <style>{`@keyframes sd-pulse{0%,100%{box-shadow:0 0 0 4px ${fabColor}33,0 8px 22px rgba(0,0,0,.3)}50%{box-shadow:0 0 0 10px ${fabColor}11,0 8px 22px rgba(0,0,0,.3)}}`}</style>
 
-      <ValidationDialog open={dialogOpen} target={target} onClose={() => setDialogOpen(false)} />
+      <ValidationDialog
+        open={dialog.open}
+        purpose={dialog.purpose}
+        onClose={() => setDialog((d) => ({ ...d, open: false }))}
+        onVerified={onVerified}
+      />
     </>
   );
 }
