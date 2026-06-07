@@ -2,11 +2,12 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
+from app.routers.iam.assurance_deps import assert_assurance
 from app.routers.owners.schemas import (
     MandateExpiryOut,
     OwnerCreate,
@@ -103,9 +104,19 @@ async def get_owner_endpoint(
 async def update_owner_endpoint(
     party_id: uuid.UUID,
     body: OwnerUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> OwnerDetailOut:
     company_id = await get_company_id(db)
+    # Enforcement assurance « UAE PASS Infinity » : la modification de l'IBAN du
+    # propriétaire est une action sensible (détournement de virement) → niveau L3
+    # requis. On ne garde QUE lorsque le champ `bank_iban` est réellement fourni,
+    # pour ne pas sur-restreindre une simple mise à jour de nom/téléphone.
+    if "bank_iban" in body.model_fields_set:
+        raw_uid = getattr(request.state, "user_id", None)
+        if not raw_uid:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="unauthenticated")
+        await assert_assurance(db, company_id, uuid.UUID(raw_uid), "change_owner_iban")
     owner = await update_owner(db, company_id, party_id, body)
     if owner is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="owner_not_found")
