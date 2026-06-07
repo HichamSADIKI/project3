@@ -51,12 +51,14 @@ Routes laissées **publiques** sans vérification :
 **Fichier concerné** : `.mcp.json` (tracké par git, commit `e7129e8`)
 
 ```json
-"GEMINI_API_KEY": "AIzaSyDn-onC37PGo7xFUO7A8LbjfirHn4A1tLU"
+"GEMINI_API_KEY": "AIza…REDACTED"
 ```
 
-Cette clé est **exposée dans l'historique git**. Actions requises :
+Cette clé était **exposée dans l'historique git**. Actions réalisées :
 
-1. **Révoquer immédiatement** cette clé dans la console Google Cloud (elle est compromise).
+1. **Révoquée** dans la console Google (clé compromise — remplacée par une nouvelle).
+2. Sortie de `.mcp.json` → centralisée dans `.env` (gitignoré) ; le serveur MCP la lit via `node --env-file`.
+3. Valeur caviardée ici. (L'ancienne reste dans l'historique git ; sa révocation côté fournisseur la neutralise.)
 2. Générer une nouvelle clé.
 3. Ajouter `.mcp.json` au `.gitignore` :
    ```
