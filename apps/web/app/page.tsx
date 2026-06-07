@@ -79,6 +79,8 @@ import { GlobalSearch } from "@/components/global-search";
 import { SoftphoneProvider } from "@/components/softphone/softphone-provider";
 import { SoftphoneDock } from "@/components/softphone/softphone-dock";
 import { AssistantDock } from "@/components/assistant/assistant-dock";
+import { SelfDefenseDock } from "@/components/self-defense/self-defense-dock";
+import { SelfDefenseOverlay } from "@/components/self-defense/self-defense-overlay";
 import { PermissionsProvider, useNavGate } from "@/lib/permissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -298,6 +300,9 @@ export default function App() {
         onNavigate={setScreen}
         onPrefill={(pf) => setPrefill(pf)}
       />
+      {/* Self-Defense : bouton + menu demi-cercle (dock) et overlay teinte/gel/verrouillage. */}
+      <SelfDefenseDock />
+      <SelfDefenseOverlay />
     </>
   );
 

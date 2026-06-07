@@ -53,6 +53,7 @@ from app.routers import (
     scenarios,
     scraping,
     search,
+    self_defense,
     social,
     sources,
     technicians,
@@ -265,6 +266,8 @@ app.include_router(public_site.admin_router, prefix="/api/v1")
 # Honeytokens (déception) : trip public sans JWT + gestion admin (migration 0062)
 app.include_router(honeytokens.router, prefix="/api/v1")
 app.include_router(honeytokens.admin_router, prefix="/api/v1")
+# Self-defense : trace des événements du panneau UX (radar/avion/dôme) → audit_logs
+app.include_router(self_defense.router, prefix="/api/v1")
 app.include_router(iam.router, prefix="/api/v1")
 # Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
 app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
