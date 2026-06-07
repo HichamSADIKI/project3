@@ -37,6 +37,7 @@ from app.routers.documents.schemas import (
     SignatureResponse,
     SignatureSign,
 )
+from app.routers.iam.assurance_deps import require_assurance
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
@@ -314,6 +315,11 @@ async def request_signature_endpoint(
 @router.post(
     "/{document_id}/signatures/{signature_id}/sign",
     response_model=SignatureResponse,
+    # Enforcement assurance « UAE PASS Infinity » : apposer une signature exige une
+    # signature avancée → niveau L2 requis (action `sign_document`). 403 structuré
+    # sinon, pour permettre le step-up côté client. La signature qualifiée (L3) est
+    # servie par l'endpoint dédié `iam/assurance/sign`.
+    dependencies=[Depends(require_assurance("sign_document"))],
 )
 async def sign_signature_endpoint(
     document_id: uuid.UUID,

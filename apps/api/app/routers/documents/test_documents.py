@@ -207,3 +207,103 @@ async def test_document_tenant_isolation(
     assert list_b.status_code == 200
     titles_b = [d["title"] for d in list_b.json()["data"]]
     assert "Secret A" not in titles_b
+
+
+# ─── Enforcement assurance « UAE PASS Infinity » (sign_document, L2) ──────────
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.document import Document
+from app.models.document_signature import DocumentSignature
+from app.models.document_version import DocumentVersion
+from app.routers.iam.assurance_service import upsert_verification
+
+
+async def _seed_pending_signature(db: AsyncSession, company_id) -> tuple[uuid.UUID, uuid.UUID]:
+    """Crée un document + une version + une signature `pending` à apposer.
+
+    Renvoie (document_id, signature_id)."""
+    doc = Document(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        title="Bail à signer",
+        doc_type="contract",
+        status="active",
+    )
+    db.add(doc)
+    await db.flush()
+    version = DocumentVersion(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        document_id=doc.id,
+        version_number=1,
+        file_path="documents/test/bail.pdf",
+        size_bytes=1,
+        sha256="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    )
+    db.add(version)
+    await db.flush()
+    doc.current_version_id = version.id
+    sig = DocumentSignature(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        document_id=doc.id,
+        document_version_id=version.id,
+        signer_name="Jean Locataire",
+        signer_role="tenant",
+        status="pending",
+    )
+    db.add(sig)
+    await db.commit()
+    return doc.id, sig.id
+
+
+async def _grant_assurance(db: AsyncSession, user: User, *, emirates: bool) -> None:
+    """L1 (email+mobile) ou L2 (+ emirates_id) selon `emirates`."""
+    await upsert_verification(
+        db,
+        user.company_id,
+        "user",
+        user.id,
+        email_verified=True,
+        mobile_verified=True,
+        emirates_id_verified=emirates,
+    )
+
+
+async def test_sign_blocked_below_l2(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Apposer une signature avec seulement L1 → 403 structuré (L2 requis)."""
+    admin, token = seed_admin
+    await _grant_assurance(db_session, admin, emirates=False)  # L1
+    doc_id, sig_id = await _seed_pending_signature(db_session, admin.company_id)
+
+    resp = await client.post(
+        f"/api/v1/documents/{doc_id}/signatures/{sig_id}/sign",
+        headers=_auth(token),
+        json={"method": "click_to_sign", "otp_verified": False},
+    )
+    assert resp.status_code == 403, resp.text
+    detail = resp.json()["detail"]
+    assert detail["error"] == "assurance_step_up_required"
+    assert detail["action"] == "sign_document"
+    assert detail["required_level"] == "L2"
+    assert detail["current_level"] == "L1"
+
+
+async def test_sign_allowed_at_l2(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    """Avec L2, la signature passe (200, statut `signed`)."""
+    admin, token = seed_admin
+    await _grant_assurance(db_session, admin, emirates=True)  # L2
+    doc_id, sig_id = await _seed_pending_signature(db_session, admin.company_id)
+
+    resp = await client.post(
+        f"/api/v1/documents/{doc_id}/signatures/{sig_id}/sign",
+        headers=_auth(token),
+        json={"method": "click_to_sign", "otp_verified": False},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["status"] == "signed"
