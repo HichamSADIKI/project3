@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.deps import get_db_session
 from app.core.route_deps import get_company_id, require_roles
+from app.routers.iam.assurance_deps import require_assurance
 
 from .schemas import (
     OwnerSummaryOut,
@@ -83,7 +84,14 @@ async def get_req(
     return RequestOut.model_validate(req)
 
 
-@router.post("/requests/{request_id}/pay", response_model=RequestOut)
+@router.post(
+    "/requests/{request_id}/pay",
+    response_model=RequestOut,
+    # Enforcement assurance « UAE PASS Infinity » : régler/valider une demande de
+    # paiement est une action financière sensible → niveau d'assurance L3 requis
+    # (action `approve_payment`). 403 structuré sinon, pour permettre le step-up.
+    dependencies=[Depends(require_assurance("approve_payment"))],
+)
 async def pay_req(
     request_id: uuid.UUID,
     body: PayIn,
