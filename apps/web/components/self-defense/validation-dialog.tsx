@@ -1,18 +1,19 @@
 "use client";
 
 /**
- * Modale de validation Self-Defense : saisie du code avant d'activer un mode
- * (radar/avion/dôme) ou de désarmer. Délègue à `submitCode` (store). Affiche les
- * essais restants ; succès ou verrouillage → ferme (l'overlay réagit à l'état).
+ * Modale de validation Self-Defense : saisie du code avant d'armer (activer un mode)
+ * ou de désarmer. La validation est faite côté **backend** (`verifyBackend` : codes
+ * hashés + verrouillage serveur). Succès → `onVerified` ; verrouillage → `setLocked`
+ * (l'overlay affiche l'écran de verrouillage) ; échec → essais restants du serveur.
  */
 
 import React, { useEffect, useState } from "react";
 
 import { useLang } from "@/components/language-provider";
 import {
-  type SelfDefenseMode,
-  submitCode,
-  SELF_DEFENSE_MAX_ATTEMPTS,
+  type SelfDefensePurpose,
+  setLocked,
+  verifyBackend,
 } from "@/lib/use-self-defense";
 
 type Lang = "ar" | "en" | "fr";
@@ -20,53 +21,49 @@ type Lang = "ar" | "en" | "fr";
 const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Code de validation",
-    hint: "Saisis le code pour confirmer cette action de défense.",
+    armHint: "Saisis le code d'armement pour activer la défense.",
+    disarmHint: "Saisis le code de désarmement pour revenir au mode normal.",
     placeholder: "Code",
     confirm: "Confirmer",
     cancel: "Annuler",
+    checking: "Vérification…",
     wrong: "Code incorrect.",
     left: "essai(s) restant(s)",
-    activate: "Activer le mode",
-    disarm: "Désarmer",
   },
   en: {
     title: "Validation code",
-    hint: "Enter the code to confirm this defense action.",
+    armHint: "Enter the arming code to enable defense.",
+    disarmHint: "Enter the disarming code to return to normal.",
     placeholder: "Code",
     confirm: "Confirm",
     cancel: "Cancel",
+    checking: "Checking…",
     wrong: "Wrong code.",
     left: "attempt(s) left",
-    activate: "Activate mode",
-    disarm: "Disarm",
   },
   ar: {
     title: "رمز التحقق",
-    hint: "أدخل الرمز لتأكيد إجراء الدفاع.",
+    armHint: "أدخل رمز التفعيل لتشغيل الدفاع.",
+    disarmHint: "أدخل رمز إلغاء التفعيل للعودة إلى الوضع العادي.",
     placeholder: "الرمز",
     confirm: "تأكيد",
     cancel: "إلغاء",
+    checking: "جارٍ التحقق…",
     wrong: "رمز غير صحيح.",
     left: "محاولة متبقية",
-    activate: "تفعيل الوضع",
-    disarm: "نزع التفعيل",
   },
-};
-
-const MODE_LABEL: Record<SelfDefenseMode, string> = {
-  radar: "📡 Radar",
-  avion: "✈️ Avion",
-  dome: "🛡️ Dôme de fer",
 };
 
 export function ValidationDialog({
   open,
-  target,
+  purpose,
   onClose,
+  onVerified,
 }: {
   open: boolean;
-  target: SelfDefenseMode | null;
+  purpose: SelfDefensePurpose;
   onClose: () => void;
+  onVerified: () => void;
 }): React.ReactNode {
   const { lang } = useLang();
   const lg = (lang as Lang) in TR ? (lang as Lang) : "fr";
@@ -74,31 +71,37 @@ export function ValidationDialog({
 
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [left, setLeft] = useState(SELF_DEFENSE_MAX_ATTEMPTS);
+  const [busy, setBusy] = useState(false);
 
-  // Réinitialise à chaque ouverture.
   useEffect(() => {
     if (open) {
       setCode("");
       setError(null);
-      setLeft(SELF_DEFENSE_MAX_ATTEMPTS);
+      setBusy(false);
     }
   }, [open]);
 
   if (!open) return null;
 
-  function confirm(): void {
-    const res = submitCode(target, code);
-    if (res.ok || res.locked) {
-      onClose(); // succès → applique ; verrouillé → l'overlay prend le relais
+  async function confirm(): Promise<void> {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    const res = await verifyBackend(purpose, code);
+    setBusy(false);
+    if (res.ok) {
+      onVerified();
+      onClose();
       return;
     }
-    setLeft((n) => Math.max(0, n - 1));
+    if (res.locked) {
+      setLocked(true); // l'overlay affiche l'écran de verrouillage
+      onClose();
+      return;
+    }
     setCode("");
-    setError(L("wrong"));
+    setError(`${L("wrong")} — ${res.attempts_left} ${L("left")}`);
   }
-
-  const subtitle = target ? `${L("activate")} ${MODE_LABEL[target]}` : L("disarm");
 
   return (
     <div
@@ -126,10 +129,9 @@ export function ValidationDialog({
         }}
       >
         <div style={{ fontSize: 16, fontWeight: 700, color: "var(--ink)" }}>🔐 {L("title")}</div>
-        <div style={{ fontSize: 12.5, color: "var(--ink-4)", marginBlock: "6px 4px" }}>
-          {subtitle}
+        <div style={{ fontSize: 12.5, color: "var(--ink-4)", marginBlock: "8px 14px" }}>
+          {purpose === "arm" ? L("armHint") : L("disarmHint")}
         </div>
-        <div style={{ fontSize: 12, color: "var(--ink-4)", marginBlockEnd: 14 }}>{L("hint")}</div>
 
         <input
           autoFocus
@@ -137,9 +139,10 @@ export function ValidationDialog({
           inputMode="numeric"
           value={code}
           placeholder={L("placeholder")}
+          disabled={busy}
           onChange={(e) => setCode(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter") confirm();
+            if (e.key === "Enter") void confirm();
           }}
           style={{
             width: "100%",
@@ -156,7 +159,7 @@ export function ValidationDialog({
 
         {error && (
           <div style={{ marginBlockStart: 10, fontSize: 12, color: "var(--rose)", fontWeight: 600 }}>
-            {error} — {left} {L("left")}
+            {error}
           </div>
         )}
 
@@ -164,6 +167,7 @@ export function ValidationDialog({
           <button
             type="button"
             onClick={onClose}
+            disabled={busy}
             style={{
               padding: "8px 16px",
               borderRadius: 10,
@@ -177,7 +181,8 @@ export function ValidationDialog({
           </button>
           <button
             type="button"
-            onClick={confirm}
+            onClick={() => void confirm()}
+            disabled={busy}
             style={{
               padding: "8px 18px",
               borderRadius: 10,
@@ -185,10 +190,11 @@ export function ValidationDialog({
               background: "var(--ink)",
               color: "#fff",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: busy ? "wait" : "pointer",
+              opacity: busy ? 0.7 : 1,
             }}
           >
-            {L("confirm")}
+            {busy ? L("checking") : L("confirm")}
           </button>
         </div>
       </div>

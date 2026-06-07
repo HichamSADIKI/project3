@@ -6,6 +6,7 @@ session) ; ce module ne fait que **persister la trace** de ses événements dans
 Aucun secret (le code de validation) ne transite ni n'est stocké ici.
 """
 
+from app.routers.self_defense.admin_router import router as admin_router
 from app.routers.self_defense.router import router
 
-__all__ = ["router"]
+__all__ = ["admin_router", "router"]

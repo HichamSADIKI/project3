@@ -1,27 +1,27 @@
 "use client";
 
 /**
- * Store « Self-Defense » — état local à l'onglet (radar / avion / dôme).
+ * Store « Self-Defense » — mode local à l'onglet (radar / avion / dôme).
  *
- * - Singleton module (lisible SANS React via `isDomeActive()` — utilisé par la
- *   garde d'écritures de api-client) + hook React `useSelfDefense` (useSyncExternalStore).
- * - Persistance `localStorage` (portée : ce navigateur/onglet).
- * - Code de validation « 123 » (garde-fou UX, PAS une sécurité durcie : côté client,
- *   contournable en vidant le cache). 3 échecs → session verrouillée.
- * - Chaque transition émet un événement d'audit (best-effort) via le proxy backend
- *   `/api/admin/self-defense` — le code n'est JAMAIS transmis.
+ * - Singleton module (lisible SANS React via `isDomeActive()` — garde d'écritures
+ *   de api-client) + hook React `useSelfDefense` (useSyncExternalStore).
+ * - `mode` persisté en `localStorage` (la page reste teintée/figée après reload).
+ *   `locked` est en mémoire seulement (reflet de la dernière réponse serveur ; le
+ *   vrai verrouillage est côté backend, par utilisateur).
+ * - La VALIDATION du code est faite côté **backend** (`verifyBackend`) — codes hashés,
+ *   verrouillage serveur. Plus de code en dur côté client.
+ * - Chaque transition émet un événement d'audit (best-effort) — jamais le code.
  */
 
 import { useSyncExternalStore } from "react";
 
 export type SelfDefenseMode = "radar" | "avion" | "dome";
+export type SelfDefensePurpose = "arm" | "disarm";
 
-type State = { mode: SelfDefenseMode | null; locked: boolean; attempts: number };
+type State = { mode: SelfDefenseMode | null; locked: boolean };
 
-const KEY = "sgi_self_defense_v1";
-const DEFAULT_CODE = "123"; // garde-fou UX (cf. docstring) — non secret
-export const SELF_DEFENSE_MAX_ATTEMPTS = 3;
-const DEFAULT_STATE: State = { mode: null, locked: false, attempts: 0 };
+const KEY = "sgi_self_defense_mode_v2";
+const DEFAULT_STATE: State = { mode: null, locked: false };
 
 let state: State = DEFAULT_STATE;
 let hydrated = false;
@@ -34,29 +34,23 @@ function hydrate(): void {
   try {
     const raw = window.localStorage.getItem(KEY);
     if (raw) {
-      const p = JSON.parse(raw) as Partial<State>;
-      state = {
-        mode: p.mode ?? null,
-        locked: Boolean(p.locked),
-        attempts: typeof p.attempts === "number" ? p.attempts : 0,
-      };
+      const p = JSON.parse(raw) as { mode?: SelfDefenseMode | null };
+      state = { mode: p.mode ?? null, locked: false };
     }
   } catch {
-    /* storage indisponible : on garde l'état par défaut */
+    /* storage indisponible : état par défaut */
   }
 }
 
 function persist(): void {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(state));
+    window.localStorage.setItem(KEY, JSON.stringify({ mode: state.mode }));
   } catch {
     /* ignore */
   }
 }
 
-function setState(next: State): void {
-  state = next;
-  persist();
+function emit(): void {
   listeners.forEach((l) => l());
 }
 
@@ -76,7 +70,7 @@ function getServerSnapshot(): State {
   return DEFAULT_STATE;
 }
 
-/** Émet un événement d'audit (best-effort) — jamais le code de validation. */
+/** Émet un événement d'audit (best-effort) — jamais le code. */
 function recordEvent(action: string, mode: SelfDefenseMode | null): void {
   try {
     void fetch("/api/admin/self-defense", {
@@ -85,52 +79,72 @@ function recordEvent(action: string, mode: SelfDefenseMode | null): void {
       body: JSON.stringify(mode ? { action, mode } : { action }),
     });
   } catch {
-    /* traçabilité best-effort : ne jamais bloquer l'UI */
+    /* best-effort */
   }
 }
 
-/**
- * Soumet le code pour appliquer `target` (un mode) ou désarmer (`null`).
- * Retourne `{ ok, locked }`. 3 échecs cumulés → `locked` (session verrouillée).
- */
-export function submitCode(
-  target: SelfDefenseMode | null,
-  code: string,
-): { ok: boolean; locked: boolean } {
+/** Applique un mode (ou désarme avec `null`). Persiste + audit. */
+export function setMode(target: SelfDefenseMode | null): void {
   hydrate();
-  if (state.locked) return { ok: false, locked: true };
-
-  if (code === DEFAULT_CODE) {
-    setState({ mode: target, locked: false, attempts: 0 });
-    recordEvent(target ? `mode_${target}` : "disarm", target);
-    return { ok: true, locked: false };
-  }
-
-  const attempts = state.attempts + 1;
-  const locked = attempts >= SELF_DEFENSE_MAX_ATTEMPTS;
-  setState({ mode: state.mode, locked, attempts });
-  recordEvent(locked ? "locked" : "code_fail", target);
-  return { ok: false, locked };
+  state = { mode: target, locked: false };
+  persist();
+  emit();
+  recordEvent(target ? `mode_${target}` : "disarm", target);
 }
 
-/** Lecture impérative (hors React) — la garde d'écritures de api-client. */
+/** Reflète l'état de verrouillage serveur (déclenche l'écran de verrouillage). */
+export function setLocked(value: boolean): void {
+  hydrate();
+  state = { mode: state.mode, locked: value };
+  emit();
+}
+
+/** Lecture impérative (hors React) — garde d'écritures de api-client. */
 export function isDomeActive(): boolean {
   hydrate();
   return state.mode === "dome";
+}
+
+/** Indique au dock si un code est requis (lu côté serveur). */
+export async function fetchStatus(): Promise<{
+  armgate_enabled: boolean;
+  arm_required: boolean;
+  disarm_required: boolean;
+}> {
+  try {
+    const res = await fetch("/api/admin/self-defense/status", { cache: "no-store" });
+    if (res.ok) return (await res.json()) as never;
+  } catch {
+    /* best-effort */
+  }
+  return { armgate_enabled: true, arm_required: false, disarm_required: false };
+}
+
+/** Validation du code côté backend (codes hashés + verrouillage serveur). */
+export async function verifyBackend(
+  purpose: SelfDefensePurpose,
+  code: string,
+): Promise<{ ok: boolean; locked: boolean; attempts_left: number }> {
+  try {
+    const res = await fetch("/api/admin/self-defense/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ purpose, code }),
+    });
+    if (res.ok) return (await res.json()) as never;
+  } catch {
+    /* réseau KO */
+  }
+  return { ok: false, locked: false, attempts_left: 0 };
 }
 
 /** Hook React : état réactif + actions. */
 export function useSelfDefense(): {
   mode: SelfDefenseMode | null;
   locked: boolean;
-  attemptsLeft: number;
-  submitCode: (target: SelfDefenseMode | null, code: string) => { ok: boolean; locked: boolean };
+  setMode: (target: SelfDefenseMode | null) => void;
+  setLocked: (value: boolean) => void;
 } {
   const snap = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  return {
-    mode: snap.mode,
-    locked: snap.locked,
-    attemptsLeft: Math.max(0, SELF_DEFENSE_MAX_ATTEMPTS - snap.attempts),
-    submitCode,
-  };
+  return { mode: snap.mode, locked: snap.locked, setMode, setLocked };
 }
