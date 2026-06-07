@@ -15,6 +15,7 @@ import type { Translations, Lang } from "@/lib/i18n";
 import { useApiList } from "@/lib/use-api-list";
 import { ListingFlagToggle } from "@/components/listing-flag-toggle";
 import { ListingOnlineToggle } from "@/components/listing-online-toggle";
+import { SiteDesignPanel } from "@/components/site-design-panel";
 
 const PORTAL = process.env.NEXT_PUBLIC_PORTAL_URL ?? "http://localhost:3001";
 
@@ -102,6 +103,9 @@ export function ScreenRealEstateWebsite() {
             <IcGlobe /> {t.web_view_site}
           </a>
         </div>
+
+        {/* Pilotage du design du site public (3 modèles · manuel / rotation auto) */}
+        <SiteDesignPanel lang={lang} />
 
         {/* KPIs */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 14, marginBottom: 24 }}>

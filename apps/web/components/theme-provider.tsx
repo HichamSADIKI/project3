@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
 type Mode    = "dark" | "light";
-export type Palette = "slate" | "gold" | "midnight" | "sage";
+export type Palette =
+  | "slate" | "gold" | "midnight" | "sage"
+  | "instagram" | "snapchat" | "facebook";
 
 export interface ThemeCtx {
   theme:      Mode;
@@ -17,7 +19,10 @@ const ThemeContext = createContext<ThemeCtx>({
   toggle: () => {}, setPalette: () => {},
 });
 
-const PALETTE_CLASSES: Palette[] = ["slate", "gold", "midnight", "sage"];
+const PALETTE_CLASSES: Palette[] = [
+  "slate", "gold", "midnight", "sage",
+  "instagram", "snapchat", "facebook",
+];
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme,   setTheme]   = useState<Mode>("dark");

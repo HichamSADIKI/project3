@@ -59,6 +59,9 @@ const PALETTES: { key: Palette; label_en: string; label_ar: string; label_fr: st
   { key: "gold",     label_en: "Dubai Gold",   label_ar: "ذهب دبي",      label_fr: "Or Dubaï",     bg: "#FBF7EC", accent: "#B8924F", text: "#3D352A" },
   { key: "midnight", label_en: "Midnight",     label_ar: "منتصف الليل",  label_fr: "Minuit",       bg: "#F8FAFC", accent: "#B8924F", text: "#1E3A5F" },
   { key: "sage",     label_en: "Sage Forest",  label_ar: "أخضر الغابة",  label_fr: "Forêt Sage",   bg: "#F7F8F4", accent: "#B8924F", text: "#344A28" },
+  { key: "instagram", label_en: "Instagram",   label_ar: "إنستغرام",     label_fr: "Instagram",    bg: "#FEF8FA", accent: "#E1306C", text: "#3D2630" },
+  { key: "snapchat",  label_en: "Snapchat",    label_ar: "سناب شات",     label_fr: "Snapchat",     bg: "#FFFDF4", accent: "#F7D000", text: "#3D3612" },
+  { key: "facebook",  label_en: "Facebook",    label_ar: "فيسبوك",       label_fr: "Facebook",     bg: "#F7F9FC", accent: "#1877F2", text: "#1C3A5E" },
 ];
 
 export function ScreenParametres() {
