@@ -2,10 +2,10 @@
   "mcpServers": {
     "gemini": {
       "command": "node",
-      "args": ["/Users/sadiki/Documents/Projects/SGI/.claude/mcp-servers/gemini/index.js"],
-      "env": {
-        "GEMINI_API_KEY": "${GEMINI_API_KEY}"
-      }
+      "args": [
+        "--env-file=/Users/sadiki/Documents/Projects/SGI/.env",
+        "/Users/sadiki/Documents/Projects/SGI/.claude/mcp-servers/gemini/index.js"
+      ]
     },
     "puppeteer": {
       "command": "npx",
