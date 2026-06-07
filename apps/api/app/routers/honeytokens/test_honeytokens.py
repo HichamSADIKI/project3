@@ -270,9 +270,7 @@ async def test_trip_http_unknown_token_is_neutral_404(client) -> None:  # noqa: 
 
 
 @pytest.mark.asyncio
-async def test_admin_cross_tenant_isolation(
-    client, seed_admin: tuple, second_admin: tuple
-) -> None:  # noqa: ANN001
+async def test_admin_cross_tenant_isolation(client, seed_admin: tuple, second_admin: tuple) -> None:  # noqa: ANN001
     """La société B ne voit ni ne supprime JAMAIS le leurre de la société A."""
     _admin_a, token_a = seed_admin
     _company_b, token_b = second_admin
