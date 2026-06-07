@@ -135,6 +135,20 @@ ORDER BY dist_m LIMIT :n;
 - Noto Sans Arabic font loaded for `AR` locale
 - Run `npx shadcn@latest migrate rtl` once during initial setup
 
+## Sécurité transversale — doctrine `@core/security`
+
+> **Statut : doctrine cible.** Le SDK `@core/security`, les manifestes par module, Vault, OPA/Cedar et Keycloak **n'existent pas encore** — voir l'encart « Cible vs implémenté » et la doctrine complète dans [docs/architecture/security-core.md](docs/architecture/security-core.md). Ne jamais affirmer en code/commit qu'une primitive cible existe. Les **3 invariants ci-dessous SONT déjà la réalité** (ce sont les 3 Lois).
+
+**7 principes non négociables :** Zero Trust · Defense in depth · Secure-by-default · **Fail-secure** (doute/erreur → refuser) · OODA continue · **humain dans la boucle** (actions destructrices déclenchées par un humain) · Privacy by design (PDPL).
+
+**3 invariants verrouillés — jamais désactivables** (= les 3 Lois, déjà appliqués) : **Identité** (JWT + Infinity ID sur tout endpoint) · **Isolation tenant** (RLS `company_id` + `TenantMiddleware`) · **Audit** (`audit_logs` + `AuditMiddleware`). Toute proposition qui les contourne, même temporaire → refus au niveau code.
+
+**Contrôles tunables** (MFA renforcée, rate-limit strict, validation, honeytokens, UEBA, step-up) : désactivables **seulement** via workflow d'approbation à 2 + trace `audit_logs` (auteur/raison/ticket) + TTL ≤ 72h + alerte critique + événement réglementaire si PDPL.
+
+**Règles d'or sur tout module** : scoping `company_id` du contexte (jamais une valeur client) · aucun secret en dur (`os.getenv()`/Vault) · chiffrer les champs sensibles (Emirates ID, IBAN, PDC) · émettre les events d'audit aux points sensibles · **test cross-tenant obligatoire** (Red-Team Loi 1 : réponse ≠ 404 = no-go) · dans le doute, demander.
+
+**Refus systématique** : code qui court-circuite auth/isolation/audit · secrets en dur · expose un port sensible (5038 AMI, 5432 PG, 6379 Valkey) publiquement · désactive un contrôle hors gouvernance · contourne la RLS · dépendance à CVE critique non patchée. Conformité UAE par design : **PDPL** (notification UAE Data Office sans délai), KYC/AML/goAML, TDRA (SRTP, AMI cloisonné), RERA/Ejari/DLD/DEWA/ADDC.
+
 ## Conventions
 
 ### Database
@@ -212,7 +226,7 @@ Les 2 agents produisent une **Carte de Fusion** postée en commentaire de la PR 
 - Merger **sans `--delete-branch`** (évite la bascule de checkout sur un `main` local périmé), puis **supprimer la branche distante séparément**.
 - Re-synchroniser `main` localement avant la fonctionnalité suivante.
 
-> Réutilisable comme commande/skill `/gate-fusion <PR>` qui orchestre worktree → test → audit Red-Team → Carte de Fusion → attente de la validation. S'appuie sur les skills `parallel-agents`, `dev-process`, `progression`.
+> Réutilisable via le skill **`/centre-de-commande`** (le « Centre de Commande ») qui orchestre tout le cycle — architecte → dev → 📡 RADAR (test) → ✈️ CHASSEUR (audit Red-Team) → 🛡️ DÔME DE FER (intégration supervisée) → test+audit du module → Carte de Fusion → worktree/PR → attente du « GO #PR ». Sa phase GIT finale **est** cette gate de fusion. S'appuie sur les skills `parallel-agents`, `dev-process`, `progression`, `saas-architect`.
 
 ## Monorepo Layout
 
@@ -263,6 +277,7 @@ code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
 - [transactions.md](docs/architecture/transactions.md) — `acquisitions`·`sales`·`leasing` (0033–0035), inline references under advisory lock.
 - [lead-acquisition.md](docs/architecture/lead-acquisition.md) — `marketing`·`sources`·`public_site` (0038–0041), public vitrine in `apps/portal`.
 - [infinity-id.md](docs/architecture/infinity-id.md) — UAE Infinity PASS: internal IdP, assurance levels L0–L3 (`core/assurance.py`), step-up, in-house qualified signature (migration 0059). Not federated to government UAE PASS.
+- [security-core.md](docs/architecture/security-core.md) — doctrine transversale `@core/security` (Zero Trust, invariants verrouillés, contrôles tunables, radar/chasseur/playbooks, conformité UAE, règles d'or Claude Code). **Doctrine cible** : encart « Cible vs implémenté » en tête pour distinguer l'aspirationnel (SDK, manifestes, Vault) du réel (`company_id`, JWT/Infinity ID, RLS, `audit_logs`).
 
 **Co-located module `CLAUDE.md` (under `apps/api/app/routers/{module}/`):**
 - `pdc/` — post-dated cheques, UAE state machine (migration 0003).
@@ -374,3 +389,4 @@ Only the skills below actually exist on disk — verified against `.claude/skill
 | `dev-process` | **Toute demande complexe** : questions → sous-questions → solution → plan → confirmation → dev → déploiement → tests → audit sécurité → validation. Son à chaque étape. |
 | `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. |
 | `progression` | **Tableau de bord graphique** du taux de réalisation (tâche principale + sous-tâches) dans le terminal : barres Unicode + %. Invocable `/progression`. À afficher au début d'une demande multi-étapes (≥ 2 sous-tâches), à chaque fin de phase, et quand l'utilisateur demande « où on en est » / « taux de réalisation ». Se combine avec `dev-process`. |
+| `centre-de-commande` | **Développement orchestré « mode architecte » + visuel terminal créatif** : découpe en fonctions simples, puis par fonction 📡 RADAR (test fonctionnel) → ✈️ CHASSEUR (audit sécurité Red-Team, l'avion attaque) → 🛡️ DÔME DE FER (intégration supervisée + résumé, le dôme se ferme = fonction verrouillée), puis test+audit du module, Carte de Fusion, worktree/PR et merge après « GO #PR ». Invocable `/centre-de-commande`. Compose `saas-architect`/`parallel-agents`/`progression`/`dev-process`. Sa phase GIT finale = la gate de fusion (ex-`/gate-fusion`). |
