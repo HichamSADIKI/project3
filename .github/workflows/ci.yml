@@ -118,3 +118,23 @@ jobs:
         run: pnpm --filter sgi-web --filter @sgi/portal typecheck
       - name: Unit tests (vitest)
         run: pnpm --filter sgi-web --filter @sgi/portal test
+
+  mobile:
+    name: Mobile · typecheck (Expo)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - name: Install deps (npm)
+        # Lockfile mobile pas garanti synchro → `npm install` (convention du projet,
+        # cf. CLAUDE.md) plutôt que `npm ci` (qui exige une synchro exacte).
+        run: npm install --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
