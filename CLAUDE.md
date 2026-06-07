@@ -226,7 +226,7 @@ Les 2 agents produisent une **Carte de Fusion** postée en commentaire de la PR 
 - Merger **sans `--delete-branch`** (évite la bascule de checkout sur un `main` local périmé), puis **supprimer la branche distante séparément**.
 - Re-synchroniser `main` localement avant la fonctionnalité suivante.
 
-> Réutilisable comme commande/skill `/gate-fusion <PR>` qui orchestre worktree → test → audit Red-Team → Carte de Fusion → attente de la validation. S'appuie sur les skills `parallel-agents`, `dev-process`, `progression`.
+> Réutilisable via le skill **`/centre-de-commande`** (le « Centre de Commande ») qui orchestre tout le cycle — architecte → dev → 📡 RADAR (test) → ✈️ CHASSEUR (audit Red-Team) → 🛡️ DÔME DE FER (intégration supervisée) → test+audit du module → Carte de Fusion → worktree/PR → attente du « GO #PR ». Sa phase GIT finale **est** cette gate de fusion. S'appuie sur les skills `parallel-agents`, `dev-process`, `progression`, `saas-architect`.
 
 ## Monorepo Layout
 
@@ -389,3 +389,4 @@ Only the skills below actually exist on disk — verified against `.claude/skill
 | `dev-process` | **Toute demande complexe** : questions → sous-questions → solution → plan → confirmation → dev → déploiement → tests → audit sécurité → validation. Son à chaque étape. |
 | `parallel-agents` | **Orchestration multi-agents** : analyse + dev + tests + audit sécurité/i18n/perf + validation TS + intégration GitHub en parallèle. Charger quand la tâche couvre ≥ 2 dimensions. |
 | `progression` | **Tableau de bord graphique** du taux de réalisation (tâche principale + sous-tâches) dans le terminal : barres Unicode + %. Invocable `/progression`. À afficher au début d'une demande multi-étapes (≥ 2 sous-tâches), à chaque fin de phase, et quand l'utilisateur demande « où on en est » / « taux de réalisation ». Se combine avec `dev-process`. |
+| `centre-de-commande` | **Développement orchestré « mode architecte » + visuel terminal créatif** : découpe en fonctions simples, puis par fonction 📡 RADAR (test fonctionnel) → ✈️ CHASSEUR (audit sécurité Red-Team, l'avion attaque) → 🛡️ DÔME DE FER (intégration supervisée + résumé, le dôme se ferme = fonction verrouillée), puis test+audit du module, Carte de Fusion, worktree/PR et merge après « GO #PR ». Invocable `/centre-de-commande`. Compose `saas-architect`/`parallel-agents`/`progression`/`dev-process`. Sa phase GIT finale = la gate de fusion (ex-`/gate-fusion`). |
