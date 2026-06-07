@@ -11,6 +11,7 @@ détail 404, lead 200 silencieux. Jamais de 500 sur input client.
 import logging
 import uuid
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -30,6 +31,8 @@ from app.routers.public_site.schemas import (
     PublicListingDetailOut,
     PublicListingOut,
     PublicStatsOut,
+    SiteDesignPublicData,
+    SiteDesignPublicEnvelope,
     StatsEnvelope,
 )
 
@@ -91,6 +94,46 @@ def _rate_limited(ip: str) -> bool:
 @router.get("/health")
 async def health() -> dict[str, str]:
     return {"module": "public_site", "status": "ok"}
+
+
+@router.get("/site-design", response_model=SiteDesignPublicEnvelope)
+async def public_site_design_endpoint(
+    ctx: tuple[AsyncSession, uuid.UUID | None] = Depends(get_public_db),
+) -> SiteDesignPublicEnvelope:
+    """Design actif du portail public (style résolu + infos de rotation).
+
+    Fail-safe : slug non configuré ou société sans réglage → défaut 'instagram'
+    en mode manuel (le portail a toujours un thème valide à appliquer).
+    """
+    db, company_id = ctx
+    default = SiteDesignPublicData(
+        active=service.DEFAULT_SITE_STYLE,
+        mode="manual",
+        delay_hours=service.DEFAULT_SITE_DELAY_HOURS,
+    )
+    if company_id is None:
+        return SiteDesignPublicEnvelope(data=default)
+
+    row = await service.get_site_design(db, company_id)
+    if row is None:
+        return SiteDesignPublicEnvelope(data=default)
+
+    active, nxt, next_in = service.resolve_active_design(
+        row.mode,
+        row.style,
+        row.delay_hours,
+        row.rotation_since,
+        datetime.now(UTC),
+    )
+    return SiteDesignPublicEnvelope(
+        data=SiteDesignPublicData(
+            active=active,
+            mode=row.mode,
+            delay_hours=row.delay_hours,
+            next=nxt,
+            next_in_seconds=next_in,
+        )
+    )
 
 
 @router.get("/listings", response_model=ListingsListOut)

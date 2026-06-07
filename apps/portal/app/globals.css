@@ -2200,3 +2200,126 @@ video {
     padding: 40px 28px;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════
+   Modèles de design marque (appliqués via .theme-* sur <html>).
+   Le style actif est piloté côté backoffice (sous-rubrique Website) et
+   lu par le portail via GET /api/v1/public/site-design. Aligné avec apps/web.
+   ════════════════════════════════════════════════════════════════ */
+
+/* Instagram — dégradé magenta→orange */
+.theme-instagram {
+  --bg-base: #faf1f4;
+  --bg-cream: #fcf4f7;
+  --bg-paper: #fef8fa;
+  --bg-ivory: #ffffff;
+  --bg-inset: #f3e4ea;
+  --line: #f0d9e2;
+  --line-soft: #f6e7ed;
+  --line-strong: #e2b9cb;
+  --ink: #1a1014;
+  --ink-2: #3d2630;
+  --ink-3: #6b4e59;
+  --ink-4: #9c8089;
+  --gold: #e1306c;
+  --gold-deep: #c13584;
+  --gold-soft: #fce3ee;
+  --gold-ghost: rgba(225, 48, 108, 0.09);
+  --gold-line: rgba(225, 48, 108, 0.3);
+  --focus-ring: 0 0 0 3px rgba(225, 48, 108, 0.25);
+}
+.dark.theme-instagram {
+  --bg-base: #160910;
+  --bg-cream: #1e0d16;
+  --bg-paper: #28121e;
+  --bg-ivory: #311624;
+  --bg-inset: #110710;
+  --line: #3a2230;
+  --line-soft: #2a1622;
+  --ink: #f6e2ec;
+  --ink-2: #dab8cb;
+  --ink-3: #a8839a;
+  --gold: #ff4d8d;
+  --gold-deep: #ff77a8;
+  --gold-soft: #3a1424;
+  --gold-ghost: rgba(255, 77, 141, 0.12);
+  --gold-line: rgba(255, 77, 141, 0.3);
+}
+
+/* Snapchat — jaune signature */
+.theme-snapchat {
+  --bg-base: #fbf7e3;
+  --bg-cream: #fdfaec;
+  --bg-paper: #fffdf4;
+  --bg-ivory: #ffffff;
+  --bg-inset: #f2ebcb;
+  --line: #ece2b0;
+  --line-soft: #f4eecb;
+  --line-strong: #d8c77e;
+  --ink: #1a1705;
+  --ink-2: #3d3612;
+  --ink-3: #6b6128;
+  --ink-4: #9c9152;
+  --gold: #c9a800;
+  --gold-deep: #8a7400;
+  --gold-soft: #fff8cc;
+  --gold-ghost: rgba(247, 208, 0, 0.14);
+  --gold-line: rgba(247, 208, 0, 0.4);
+  --focus-ring: 0 0 0 3px rgba(247, 208, 0, 0.3);
+}
+.dark.theme-snapchat {
+  --bg-base: #141206;
+  --bg-cream: #1b1808;
+  --bg-paper: #24200c;
+  --bg-ivory: #2c270f;
+  --bg-inset: #100e05;
+  --line: #38331a;
+  --line-soft: #282412;
+  --ink: #f6efc8;
+  --ink-2: #d8ce96;
+  --ink-3: #a89e68;
+  --gold: #ffe600;
+  --gold-deep: #ffe600;
+  --gold-soft: #2e2a0c;
+  --gold-ghost: rgba(255, 230, 0, 0.12);
+  --gold-line: rgba(255, 230, 0, 0.3);
+}
+
+/* Facebook — bleu corporate */
+.theme-facebook {
+  --bg-base: #eef1f6;
+  --bg-cream: #f2f5fa;
+  --bg-paper: #f7f9fc;
+  --bg-ivory: #ffffff;
+  --bg-inset: #e2e8f1;
+  --line: #c9d5e5;
+  --line-soft: #dee6f0;
+  --line-strong: #97a9c2;
+  --ink: #0a1a2f;
+  --ink-2: #1c3a5e;
+  --ink-3: #4a6488;
+  --ink-4: #7e98b8;
+  --gold: #1877f2;
+  --gold-deep: #0c5fd0;
+  --gold-soft: #dceafd;
+  --gold-ghost: rgba(24, 119, 242, 0.09);
+  --gold-line: rgba(24, 119, 242, 0.3);
+  --focus-ring: 0 0 0 3px rgba(24, 119, 242, 0.25);
+}
+.dark.theme-facebook {
+  --bg-base: #0f1620;
+  --bg-cream: #141d2a;
+  --bg-paper: #1b2738;
+  --bg-ivory: #223047;
+  --bg-inset: #0a0f17;
+  --line: #2a3a50;
+  --line-soft: #1b2738;
+  --ink: #e4eefb;
+  --ink-2: #b3cbe8;
+  --ink-3: #7e9cc0;
+  --gold: #2d88ff;
+  --gold-deep: #5ba3ff;
+  --gold-soft: #122742;
+  --gold-ghost: rgba(45, 136, 255, 0.12);
+  --gold-line: rgba(45, 136, 255, 0.3);
+}

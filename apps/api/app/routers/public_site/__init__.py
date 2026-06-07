@@ -6,6 +6,7 @@ puis le GUC RLS est posé manuellement (la RLS reste donc active malgré l'absen
 de middleware tenant). Aucun champ interne/financier sensible n'est exposé.
 """
 
+from app.routers.public_site.admin_router import router as admin_router
 from app.routers.public_site.router import router
 
-__all__ = ["router"]
+__all__ = ["admin_router", "router"]

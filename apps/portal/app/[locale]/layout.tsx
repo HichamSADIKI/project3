@@ -2,8 +2,24 @@ import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
 import { dirFor, isValidLocale, LOCALES, type Locale } from "@/lib/i18n";
 import { ThemeProvider } from "@/components/theme-provider";
+import { apiServerPublic } from "@/lib/api-server";
 
 export const dynamic = "force-dynamic";
+
+// Modèles de design valides (pilotés depuis le backoffice · sous-rubrique Website).
+const DESIGN_STYLES = ["instagram", "snapchat", "facebook"] as const;
+
+/** Lit le design actif du site (résolu côté backend, rotation incluse). */
+async function fetchActiveDesign(): Promise<string | null> {
+  const res = await apiServerPublic<{ data?: { active?: string } }>(
+    "/api/v1/public/site-design",
+    { revalidate: 60 },
+  );
+  const active = res?.data?.active;
+  return active && (DESIGN_STYLES as readonly string[]).includes(active)
+    ? active
+    : null;
+}
 
 export function generateStaticParams() {
   return LOCALES.map((locale) => ({ locale }));
@@ -29,8 +45,15 @@ export default async function LocaleLayout({
   const { locale } = await params;
   if (!isValidLocale(locale)) notFound();
 
+  const activeDesign = await fetchActiveDesign();
+
   return (
-    <html lang={locale} dir={dirFor(locale as Locale)} suppressHydrationWarning>
+    <html
+      lang={locale}
+      dir={dirFor(locale as Locale)}
+      className={activeDesign ? `theme-${activeDesign}` : undefined}
+      suppressHydrationWarning
+    >
       <head>
         {/* Polices vitrine luxe : Cormorant Garamond (serif display) · Jost (UI) · Cairo (AR) */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />

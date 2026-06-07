@@ -16,6 +16,7 @@ pytest app/routers/public_site/test_public_site.py`.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
@@ -454,3 +455,184 @@ async def test_search_q_no_match_is_empty(
     res = await client.get("/api/v1/public/listings?q=zzznomatchxyz")
     assert res.status_code == 200
     assert res.json()["data"] == []
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Design du site public — helper pur `resolve_active_design`
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def test_resolve_design_manual_is_fixed() -> None:
+    active, nxt, nin = service.resolve_active_design(
+        "manual", "facebook", 6, None, datetime.now(UTC)
+    )
+    assert active == "facebook"
+    assert nxt is None and nin is None
+
+
+def test_resolve_design_auto_without_anchor_is_fixed() -> None:
+    # Mode auto mais sans ancre → comportement figé (fail-safe).
+    active, nxt, nin = service.resolve_active_design("auto", "snapchat", 6, None, datetime.now(UTC))
+    assert active == "snapchat" and nxt is None and nin is None
+
+
+def test_resolve_design_auto_rotation_cycle() -> None:
+    since = datetime(2026, 1, 1, 0, 0, 0, tzinfo=UTC)
+    # Ordre : instagram → snapchat → facebook, délai 6h.
+    a0, n0, s0 = service.resolve_active_design("auto", "instagram", 6, since, since)
+    assert a0 == "instagram" and n0 == "snapchat" and s0 == 6 * 3600
+    a1, _, _ = service.resolve_active_design(
+        "auto", "instagram", 6, since, since + timedelta(hours=7)
+    )
+    assert a1 == "snapchat"
+    a2, _, _ = service.resolve_active_design(
+        "auto", "instagram", 6, since, since + timedelta(hours=13)
+    )
+    assert a2 == "facebook"
+    # Boucle : +19h → retour à instagram.
+    a3, _, s3 = service.resolve_active_design(
+        "auto", "instagram", 6, since, since + timedelta(hours=19)
+    )
+    assert a3 == "instagram" and 0 < s3 <= 6 * 3600
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Design — endpoint PUBLIC (sans JWT)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_public_design_default_when_slug_unset(client: AsyncClient) -> None:
+    settings.PUBLIC_SITE_COMPANY_SLUG = ""
+    res = await client.get("/api/v1/public/site-design")
+    assert res.status_code == 200
+    data = res.json()["data"]
+    assert data["active"] == "instagram"
+    assert data["mode"] == "manual"
+
+
+@pytest.mark.asyncio
+async def test_public_design_reflects_company_setting(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    public_company: Company,
+) -> None:
+    await service.upsert_site_design(
+        db_session, public_company.id, mode="manual", style="facebook", delay_hours=6
+    )
+    res = await client.get("/api/v1/public/site-design")
+    assert res.status_code == 200
+    assert res.json()["data"]["active"] == "facebook"
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Design — endpoints ADMIN (authentifiés, company-scopés)
+# ─────────────────────────────────────────────────────────────────────────
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.mark.asyncio
+async def test_admin_design_get_default_then_put_roundtrip(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+) -> None:
+    _admin, token = seed_admin
+    r = await client.get("/api/v1/site-design", headers=_auth(token))
+    assert r.status_code == 200
+    assert r.json()["data"]["active"] == "instagram"  # défaut
+
+    r2 = await client.put(
+        "/api/v1/site-design",
+        headers=_auth(token),
+        json={"mode": "manual", "style": "snapchat", "delay_hours": 6},
+    )
+    assert r2.status_code == 200
+    assert r2.json()["data"]["style"] == "snapchat"
+
+    r3 = await client.get("/api/v1/site-design", headers=_auth(token))
+    assert r3.json()["data"]["style"] == "snapchat"
+
+
+@pytest.mark.asyncio
+async def test_admin_design_auto_mode_sets_rotation(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+) -> None:
+    _admin, token = seed_admin
+    r = await client.put(
+        "/api/v1/site-design",
+        headers=_auth(token),
+        json={"mode": "auto", "style": "instagram", "delay_hours": 6},
+    )
+    assert r.status_code == 200
+    data = r.json()["data"]
+    assert data["mode"] == "auto"
+    # En auto, le style actif est résolu + une bascule est planifiée.
+    assert data["active"] in service.SITE_DESIGN_STYLES
+    assert data["next"] in service.SITE_DESIGN_STYLES
+    assert data["next_in_seconds"] is not None and data["next_in_seconds"] > 0
+
+
+@pytest.mark.asyncio
+async def test_admin_design_rejects_invalid_input(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+) -> None:
+    _admin, token = seed_admin
+    bad_mode = await client.put(
+        "/api/v1/site-design",
+        headers=_auth(token),
+        json={"mode": "weird", "style": "snapchat", "delay_hours": 6},
+    )
+    assert bad_mode.status_code == 422
+    bad_delay = await client.put(
+        "/api/v1/site-design",
+        headers=_auth(token),
+        json={"mode": "auto", "style": "snapchat", "delay_hours": 999},
+    )
+    assert bad_delay.status_code == 422
+    bad_style = await client.put(
+        "/api/v1/site-design",
+        headers=_auth(token),
+        json={"mode": "manual", "style": "tiktok", "delay_hours": 6},
+    )
+    assert bad_style.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_admin_design_requires_auth(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/site-design")
+    assert r.status_code in (401, 403)
+
+
+# ── Loi 1 — isolation multi-tenant déterministe ──────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_design_tenant_isolation(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+) -> None:
+    """Chaque société ne voit/écrit QUE son propre réglage (RLS + company_id)."""
+    _admin, token = seed_admin
+    _other_company, other_token = second_admin
+
+    await client.put(
+        "/api/v1/site-design",
+        headers=_auth(token),
+        json={"mode": "manual", "style": "facebook", "delay_hours": 6},
+    )
+    await client.put(
+        "/api/v1/site-design",
+        headers=_auth(other_token),
+        json={"mode": "manual", "style": "instagram", "delay_hours": 6},
+    )
+
+    mine = await client.get("/api/v1/site-design", headers=_auth(token))
+    theirs = await client.get("/api/v1/site-design", headers=_auth(other_token))
+    assert mine.json()["data"]["style"] == "facebook"
+    assert theirs.json()["data"]["style"] == "instagram"

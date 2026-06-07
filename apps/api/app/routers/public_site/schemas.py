@@ -7,7 +7,9 @@ Seuls les champs strictement « marketing » destinés au grand public figurent 
 """
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -172,3 +174,49 @@ class LeadCreatedOut(BaseModel):
 class LeadAck(BaseModel):
     received: bool = True
     reference: uuid.UUID | None = None  # non sensible : accusé de réception
+
+
+# ── Design du site public (réglage piloté depuis Website) ────────────────────
+
+SiteDesignMode = Literal["manual", "auto"]
+SiteDesignStyle = Literal["instagram", "snapchat", "facebook"]
+
+
+class SiteDesignUpdate(BaseModel):
+    """Entrée admin : enregistre le mode + style + délai de rotation."""
+
+    mode: SiteDesignMode
+    style: SiteDesignStyle
+    delay_hours: int = Field(6, ge=1, le=168)
+
+
+class SiteDesignData(BaseModel):
+    """Sortie admin : réglage complet + style actif résolu (rotation incluse)."""
+
+    mode: SiteDesignMode
+    style: SiteDesignStyle
+    delay_hours: int
+    rotation_since: datetime | None = None
+    active: SiteDesignStyle
+    next: SiteDesignStyle | None = None
+    next_in_seconds: int | None = None
+
+
+class SiteDesignEnvelope(BaseModel):
+    success: bool = True
+    data: SiteDesignData
+
+
+class SiteDesignPublicData(BaseModel):
+    """Sortie PUBLIQUE (portail) : juste de quoi appliquer le thème + se resync."""
+
+    active: SiteDesignStyle
+    mode: SiteDesignMode
+    delay_hours: int
+    next: SiteDesignStyle | None = None
+    next_in_seconds: int | None = None
+
+
+class SiteDesignPublicEnvelope(BaseModel):
+    success: bool = True
+    data: SiteDesignPublicData
