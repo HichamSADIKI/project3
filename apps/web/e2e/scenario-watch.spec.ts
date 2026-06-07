@@ -23,7 +23,7 @@ test.describe("Scénario · lecture vidéo durable (#125/#136)", () => {
   test("l'URL présignée d'un scénario ready est joignable (200 video/mp4)", async ({ request }) => {
     // Auth via le proxy Next : pose le cookie de session httpOnly dans le contexte.
     const login = await request.post("/api/auth/login", {
-      data: { login: "admin@infinity-uae.com", password: "Admin12345!" },
+      data: { login: "admin@infinity-uae.com", password: "Admin123!" },
     });
     expect(login.ok(), "login échoué").toBeTruthy();
 

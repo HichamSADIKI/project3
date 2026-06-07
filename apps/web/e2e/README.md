@@ -41,7 +41,7 @@ de restauration de session) → chaque test passe par le formulaire. Sélecteurs
 ## Lancer
 
 Pré-requis : la stack tourne (`make up`) — API `:8000`, MinIO, DB seedées
-(`admin@infinity-uae.com` / `Admin12345!`).
+(`admin@infinity-uae.com` / `Admin123!`).
 
 ### Contre la stack Docker (web `:5001`)
 
