@@ -81,6 +81,7 @@ export const IcMarketing = () => <Ic><path d="M22 12h-4l-3 9L9 3l-3 9H2"/><circl
 export const IcGlobe     = () => <Ic><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></Ic>;
 export const IcNews      = () => <Ic><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></Ic>;
 export const IcCallCenter= () => <Ic><path d="M4 12a8 8 0 0 1 16 0"/><path d="M22 13v3a2 2 0 0 1-2 2h-1v-7h1a2 2 0 0 1 2 2zM2 13v3a2 2 0 0 0 2 2h1v-7H4a2 2 0 0 0-2 2z"/><path d="M19 18v1a3 3 0 0 1-3 3h-3"/></Ic>;
+export const IcAI        = () => <Ic><path d="M12 3l1.6 4.8L18 9.4l-4.4 1.6L12 16l-1.6-5L6 9.4l4.4-1.6z"/><path d="M19 14l.7 2.1L22 17l-2.3.9L19 20l-.7-2.1L16 17l2.3-.9z"/></Ic>;
 export const IcHamburger = () => (
   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
     <path d="M4 6h16M4 12h16M4 18h16" />
@@ -133,7 +134,7 @@ export function Wordmark({ subtitle = true }: { subtitle?: boolean }) {
 /* ─── Sidebar nav data ────────────────────────────────────────────── */
 export type NavKey =
   | "dash" | "crm" | "orders"
-  | "clients" | "personne" | "societe"
+  | "clients" | "personne" | "societe" | "clients_ai"
   | "realestate" | "realestate_process" | "realestate_achat" | "realestate_vente" | "realestate_location" | "realestate_marketing" | "realestate_website" | "realestate_buildings" | "realestate_properties_map" | "realestate_units" | "realestate_tenants" | "realestate_owners" | "realestate_owner_portal" | "realestate_developers" | "realestate_golden_visa" | "realestate_contracts" | "realestate_payments" | "realestate_cheques" | "realestate_maintenance" | "realestate_inspections" | "realestate_agenda" | "realestate_comms" | "realestate_inbox" | "realestate_tickets" | "realestate_workflows" | "realestate_branches" | "realestate_settings" | "realestate_documents"
   | "tourisme" | "tourisme_crm" | "tourisme_news"
   | "sante" | "sante_crm" | "sante_news"
@@ -147,7 +148,7 @@ export type NavKey =
   | "erp" | "workspace" | "audit"
   | "appadmin" | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups" | "appadmin_honeytokens" | "appadmin_self_defense"
   | "backoffice" | "hr" | "it" | "finance" | "accounting" | "bank_recon" | "marketing"
-  | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation"
+  | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation" | "fournisseurs_ai"
   | "report" | "parametres";
 
 export type NavItem  = { key: NavKey; icon: React.ReactElement; badge?: number; labelKey?: NavKey; section?: string };
@@ -162,12 +163,14 @@ export const NAV_ENTRIES: NavEntry[] = [
     children: [
       { key: "fournisseurs_fiches",     icon: <IcDoc /> },
       { key: "fournisseurs_validation", icon: <IcClients /> },
+      { key: "fournisseurs_ai",         icon: <IcAI /> },
     ],
   },
   { type: "group", id: "clients",      groupKey: "clients", icon: <IcClients />,
     children: [
       { key: "personne", icon: <IcPersonne /> },
       { key: "societe",  icon: <IcSociete /> },
+      { key: "clients_ai", icon: <IcAI /> },
     ],
   },
   { type: "group", id: "realestate",   groupKey: "realestate", icon: <IcProp />,
@@ -303,7 +306,7 @@ export const NAV_ENTRIES: NavEntry[] = [
 export function navLabelFor(t: Translations, key: NavKey): string {
   const map: Record<NavKey, string> = {
     dash: t.nav_dash, crm: t.nav_crm, orders: t.nav_orders,
-    clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe,
+    clients: t.nav_clients, personne: t.nav_personne, societe: t.nav_societe, clients_ai: t.nav_clients_ai,
     realestate: t.nav_realestate, realestate_process: t.nav_re_process,
     realestate_achat: t.nav_achat, realestate_vente: t.nav_vente, realestate_location: t.nav_location, realestate_marketing: t.nav_re_marketing, realestate_website: t.nav_re_website,
     realestate_buildings: t.nav_buildings, realestate_properties_map: t.nav_properties_map, realestate_units: t.nav_units, realestate_tenants: t.nav_tenants, realestate_owners: t.nav_owners, realestate_owner_portal: t.nav_owner_portal, realestate_developers: t.nav_developers, realestate_golden_visa: t.nav_golden_visa, realestate_contracts: t.nav_contracts_re, realestate_payments: t.nav_payments, realestate_cheques: t.nav_cheques, realestate_maintenance: t.nav_maintenance_re, realestate_inspections: t.nav_inspections, realestate_agenda: t.nav_agenda, realestate_comms: t.nav_comms, realestate_inbox: t.nav_inbox, realestate_tickets: t.nav_tickets, realestate_workflows: t.nav_workflows,
@@ -325,6 +328,7 @@ export function navLabelFor(t: Translations, key: NavKey): string {
     fournisseurs: t.nav_fournisseurs,
     fournisseurs_fiches: t.nav_fournisseurs_fiches,
     fournisseurs_validation: t.nav_fournisseurs_validation,
+    fournisseurs_ai: t.nav_fournisseurs_ai,
     report: t.nav_report, parametres: t.nav_parametres,
   };
   return map[key];
