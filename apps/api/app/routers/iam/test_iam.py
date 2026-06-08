@@ -13,14 +13,19 @@ from __future__ import annotations
 import uuid
 
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.auth import encode_jwt
+from app.models.company import Company
 from app.models.user import User
 from app.routers.iam import catalogue
 from app.routers.iam.service import (
     Grant,
     NodeRef,
     can,
+    compute_effective,
+    ensure_role_group_membership,
+    ensure_seeded,
     resolve_effective,
     subjects_for,
 )
@@ -634,3 +639,57 @@ async def test_signature_cross_tenant_isolation(
     # …mais le tenant B, avec le même id, ne voit rien (cross-tenant → 404).
     cross = await client.get(f"{_H}/assurance/signatures/{sig_id}", headers=_auth(token2))
     assert cross.status_code == 404
+
+
+# ── Auto-réparation de la baseline RBAC (anti « admin aveugle ») ──────────────────
+
+
+async def test_self_heal_assigns_orphan_admin_to_role_group(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    """Un admin créé APRÈS le bootstrap (donc sans groupe) récupère sa baseline via
+    `ensure_role_group_membership` — il n'est plus « aveugle ». Idempotent ensuite."""
+    cid = seed_company.id
+    await ensure_seeded(db_session, cid)  # crée les groupes système (orphan pas encore créé)
+    orphan = User(
+        id=uuid.uuid4(),
+        company_id=cid,
+        email=f"orphan-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password="x",
+        full_name="Orphan Admin",
+        role="admin",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(orphan)
+    await db_session.commit()
+
+    # 1er appel rattache (True), 2e appel idempotent (False)
+    assert await ensure_role_group_membership(db_session, cid, orphan.id) is True
+    assert await ensure_role_group_membership(db_session, cid, orphan.id) is False
+
+    # La résolution lui accorde désormais la baseline admin
+    eff = await compute_effective(db_session, cid, orphan.id)
+    assert can(eff, "settings.access")
+    assert can(eff, "realestate.payments")
+
+
+async def test_self_heal_noop_for_non_staff_role(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    """Rôle non-staff (client) → pas de groupe `sys-client` → no-op (False)."""
+    cid = seed_company.id
+    await ensure_seeded(db_session, cid)
+    client_user = User(
+        id=uuid.uuid4(),
+        company_id=cid,
+        email=f"client-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password="x",
+        full_name="Client",
+        role="client",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(client_user)
+    await db_session.commit()
+    assert await ensure_role_group_membership(db_session, cid, client_user.id) is False
