@@ -9,7 +9,11 @@ import { AgentAiPanel } from "@/components/agent-ai-panel";
 /** Écran « Agent AI — Fournisseurs » : synthèse du parc, score de fiabilité/
  *  risque d'un fournisseur, aide à la validation d'une inscription et copilote.
  *  Câblé sur /vendors/ai/* (scoping company_id côté backend — Loi 1). */
-export function ScreenFournisseursAI(): React.ReactNode {
+export function ScreenFournisseursAI({
+  onNavigate,
+}: {
+  onNavigate?: (screen: string) => void;
+}): React.ReactNode {
   const t = useT();
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
@@ -28,7 +32,7 @@ export function ScreenFournisseursAI(): React.ReactNode {
           {t.aiagent_vendors_sub}
         </p>
         <div style={{ maxWidth: 820 }}>
-          <AgentAiPanel domain="vendors" />
+          <AgentAiPanel domain="vendors" onNavigate={onNavigate} />
         </div>
       </div>
     </div>
