@@ -265,9 +265,11 @@ export function SelfDefenseDock(): React.ReactNode {
           height: FAB,
           minWidth: FAB,
           width: mode ? "auto" : FAB,
-          paddingInline: mode ? 18 : 0,
-          borderRadius: FAB / 2,
-          border: "none",
+          paddingInline: mode ? 20 : 0,
+          // Forme distincte une fois ARMÉ : squircle (vs cercle au repos) → état visible.
+          borderRadius: mode ? 18 : FAB / 2,
+          border: mode ? "2px solid #ffffffcc" : "none",
+          transition: "border-radius 0.3s ease, background 0.3s ease, width 0.3s ease",
           background: mode
             ? `radial-gradient(circle at 32% 28%, ${fabColor}, ${fabColor}cc)`
             : "radial-gradient(circle at 32% 28%, #374151, #111827)",
@@ -287,7 +289,35 @@ export function SelfDefenseDock(): React.ReactNode {
           zIndex: 1301,
         }}
       >
-        {mode ? `${MODE_EMOJI[mode]} ${L("armed")}` : "🛡️"}
+        {mode ? (
+          <>
+            {/* Pastille « armé » (✓) en coin → montre que le mode est actif/armé */}
+            <span
+              aria-hidden
+              style={{
+                position: "absolute",
+                insetBlockStart: -6,
+                insetInlineEnd: -6,
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                background: "#fff",
+                color: MODE_COLOR[mode],
+                fontSize: 12,
+                fontWeight: 900,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxShadow: "0 1px 5px rgba(0,0,0,0.35)",
+              }}
+            >
+              ✓
+            </span>
+            {`⚔️ ${L("armed")}`}
+          </>
+        ) : (
+          "🛡️"
+        )}
       </button>
 
       <style>{`
