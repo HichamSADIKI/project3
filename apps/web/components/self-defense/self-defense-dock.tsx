@@ -36,6 +36,15 @@ const MODE_COLOR: Record<SelfDefenseMode, string> = {
 };
 const MODE_EMOJI: Record<SelfDefenseMode, string> = { radar: "📡", avion: "✈️", dome: "🛡️" };
 
+/** Icône avion de CHASSE (delta, vue de dessus) — pour le mode « attaque ». */
+function JetIcon({ size = 24 }: { size?: number }): React.ReactNode {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+      <path d="M12 2 L13 8 L22 13 L22 15 L13 11.5 L13 16 L15.5 18.5 L15.5 20 L12 18.7 L8.5 20 L8.5 18.5 L11 16 L11 11.5 L2 15 L2 13 L11 8 Z" />
+    </svg>
+  );
+}
+
 const FAB = 56;
 const ORB = 48;
 const POS_KEY = "sgi_sd_fab_pos_v3";
@@ -56,6 +65,7 @@ export function SelfDefenseDock(): React.ReactNode {
 
   const { mode, locked, setMode } = useSelfDefense();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [pendingMode, setPendingMode] = useState<SelfDefenseMode | null>(null);
   const [dialog, setDialog] = useState<{ open: boolean; purpose: SelfDefensePurpose }>({
     open: false,
     purpose: "arm",
@@ -137,26 +147,37 @@ export function SelfDefenseDock(): React.ReactNode {
 
   if (locked) return null;
 
+  // Choix d'un mode = ARMEMENT réel → c'est ICI qu'on demande le code (pas au clic du bouton).
   function pick(m: SelfDefenseMode): void {
-    setMode(m);
-    setMenuOpen(false);
+    if (req.armRequired) {
+      setPendingMode(m);
+      setDialog({ open: true, purpose: "arm" });
+    } else {
+      setMode(m);
+      setMenuOpen(false);
+    }
   }
 
   function onFab(): void {
     if (justDragged.current) return;
     if (mode) {
+      // Désarmer → code si requis.
       if (req.disarmRequired) setDialog({ open: true, purpose: "disarm" });
       else setMode(null);
-    } else if (req.armRequired) {
-      setDialog({ open: true, purpose: "arm" });
     } else {
+      // Ouvrir/fermer le menu : JAMAIS de demande de code.
       setMenuOpen((o) => !o);
     }
   }
 
   function onVerified(): void {
-    if (dialog.purpose === "arm") setMenuOpen(true);
-    else setMode(null);
+    if (dialog.purpose === "arm") {
+      if (pendingMode) setMode(pendingMode);
+      setPendingMode(null);
+      setMenuOpen(false);
+    } else {
+      setMode(null);
+    }
   }
 
   const fabColor = mode ? MODE_COLOR[mode] : "#1f2937";
@@ -232,7 +253,7 @@ export function SelfDefenseDock(): React.ReactNode {
                         : undefined,
                 }}
               >
-                {MODE_EMOJI[o.mode]}
+                {o.mode === "avion" ? <JetIcon size={24} /> : MODE_EMOJI[o.mode]}
               </button>
             </span>
             <span
