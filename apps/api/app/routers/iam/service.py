@@ -457,6 +457,52 @@ async def ensure_role_group_membership(
     return True
 
 
+async def sync_role_group_membership(
+    db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID, role: str
+) -> None:
+    """Resynchronise la baseline RBAC après un **changement de rôle**.
+
+    Retire l'appartenance aux groupes système des **autres** rôles (sinon un admin
+    rétrogradé en agent garderait `sys-admin` → sur-privilégié) et garantit celle
+    du rôle courant (si staff). Idempotent ; ne touche **que** les groupes système
+    (les groupes/unités personnalisés explicitement attribués sont préservés).
+    """
+    sys_groups = (
+        await db.execute(
+            select(Group.id, Group.slug).where(
+                Group.company_id == company_id, Group.is_system.is_(True)
+            )
+        )
+    ).all()
+    keep_id: uuid.UUID | None = None
+    other_ids: list[uuid.UUID] = []
+    for gid, slug in sys_groups:
+        if slug == f"sys-{role}":
+            keep_id = gid
+        else:
+            other_ids.append(gid)
+
+    if other_ids:
+        await db.execute(
+            delete(GroupMember).where(
+                GroupMember.user_id == user_id,
+                GroupMember.group_id.in_(other_ids),
+            )
+        )
+    if keep_id is not None:
+        already = (
+            await db.execute(
+                select(GroupMember.user_id).where(
+                    GroupMember.group_id == keep_id, GroupMember.user_id == user_id
+                )
+            )
+        ).scalar_one_or_none()
+        if already is None:
+            db.add(GroupMember(group_id=keep_id, user_id=user_id, company_id=company_id))
+    await db.commit()
+    await bump_company_version(company_id)
+
+
 # ── CRUD groupes ─────────────────────────────────────────────────────────────────
 
 
@@ -798,5 +844,8 @@ async def update_user(
         await set_user_memberships(
             db, company_id, user.id, data.get("group_ids"), data.get("unit_ids")
         )
+    # Changement de rôle → resynchroniser la baseline (retire l'ancien sys-{role}).
+    if data.get("role") is not None:
+        await sync_role_group_membership(db, company_id, user.id, user.role)
     await db.refresh(user)
     return user

@@ -24,6 +24,7 @@ from app.core.deps import get_db_session
 from app.models.user import User
 from app.routers.admin.deps import require_admin, require_admin_write
 from app.routers.iam.models import Group
+from app.routers.iam.service import sync_role_group_membership
 
 users_router = APIRouter(prefix="/users", tags=["admin"], dependencies=[Depends(require_admin)])
 
@@ -232,5 +233,9 @@ async def update_user_endpoint(
         user.hashed_password = hash_password(fields["password"])
 
     await db.commit()
+    # Changement de rôle → resynchroniser la baseline RBAC (retire l'ancien
+    # groupe sys-{role}, sinon un admin rétrogradé resterait sur-privilégié).
+    if fields.get("role") is not None:
+        await sync_role_group_membership(db, company_id, user.id, user.role)
     await db.refresh(user)
     return UserDetailOut(data=UserOut.model_validate(user))
