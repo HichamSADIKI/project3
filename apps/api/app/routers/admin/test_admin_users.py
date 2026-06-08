@@ -15,7 +15,7 @@ import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import encode_jwt, hash_password
+from app.core.auth import encode_jwt, hash_password, verify_password
 from app.models.user import User, UserRole, UserStatus
 
 BASE = "/api/v1/admin/users"
@@ -166,6 +166,26 @@ async def test_patch_user_updates_fields(
     assert data["role"] == "manager"
     assert data["status"] == "suspended"
     assert data["is_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_patch_user_changes_password(
+    client: AsyncClient, db_session: AsyncSession, seed_admin
+) -> None:
+    admin, token = seed_admin
+    member = await _make_user(db_session, admin.company_id)
+
+    resp = await client.patch(
+        f"{BASE}/{member.id}",
+        json={"password": "NewPass!9"},
+        headers=_auth(token),
+    )
+    assert resp.status_code == 200
+    assert "NewPass!9" not in str(resp.json())  # le mot de passe n'est jamais renvoyé
+
+    await db_session.refresh(member)
+    assert verify_password("NewPass!9", member.hashed_password)
+    assert not verify_password("MemberPass!23", member.hashed_password)
 
 
 @pytest.mark.asyncio
