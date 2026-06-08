@@ -22,6 +22,7 @@ celery_app = Celery(
         "app.tasks.alerts",
         "app.tasks.infra_control",
         "app.tasks.backups",
+        "app.tasks.studio_orchestrator",
     ],
 )
 
@@ -64,6 +65,10 @@ celery_app.conf.update(
         "app.tasks.infra_control.*": {"queue": "infra"},
         # ── Admin Console : exécution des sauvegardes (tâche longue) ──────
         "app.tasks.backups.*": {"queue": "exports"},
+        # ── Studio de Modules : orchestrateur codegen (worker DÉDIÉ isolé) ──
+        # Queue isolée « studio » : seul le worker-studio (git/gh, profil éteint par
+        # défaut) la consomme — jamais le worker généraliste ni l'API.
+        "app.tasks.studio_orchestrator.*": {"queue": "studio"},
     },
     beat_schedule={
         # ── Watcher portails immobiliers (toutes les 6 h ; no-op si désactivé) ─
@@ -129,6 +134,11 @@ celery_app.conf.update(
         "telephony-purge-recordings": {
             "task": "app.tasks.telephony.purge_expired_recordings",
             "schedule": 86400.0,
+        },
+        # ── Studio : nettoyage des worktrees orphelins (horaire ; no-op si profil éteint) ─
+        "studio-reap-worktrees": {
+            "task": "app.tasks.studio_orchestrator.reap_worktrees",
+            "schedule": 3600.0,
         },
     },
 )

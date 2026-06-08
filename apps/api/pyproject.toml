@@ -132,7 +132,8 @@ module = [
     "app.tasks.comms",
     "app.tasks.exports", "app.tasks.infra_control", "app.tasks.maintenance",
     "app.tasks.notifications", "app.tasks.reminders", "app.tasks.scenarios",
-    "app.tasks.ticketing", "app.tasks.watcher", "app.tasks.workflows",
+    "app.tasks.studio_orchestrator", "app.tasks.ticketing", "app.tasks.watcher",
+    "app.tasks.workflows",
 ]
 
 [tool.pytest.ini_options]
