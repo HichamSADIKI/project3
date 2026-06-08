@@ -270,6 +270,7 @@ export function AgentAiPanel({
         {TABS_FOR[domain].map((tb) => (
           <button
             key={tb}
+            data-testid={`aitab-${tb}`}
             onClick={() => setTab(tb)}
             style={{
               padding: "6px 13px",

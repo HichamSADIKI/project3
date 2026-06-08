@@ -18,7 +18,7 @@ export function ScreenClientsAI({
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
   return (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
+    <div data-testid="screen-clients_ai" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
       <Topbar title={t.aiagent_clients_title} />
       <div
         style={{

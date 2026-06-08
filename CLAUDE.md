@@ -278,6 +278,7 @@ code (co-located `CLAUDE.md`, auto-loaded when working in that dir) or under
 - [lead-acquisition.md](docs/architecture/lead-acquisition.md) — `marketing`·`sources`·`public_site` (0038–0041), public vitrine in `apps/portal`.
 - [infinity-id.md](docs/architecture/infinity-id.md) — UAE Infinity PASS: internal IdP, assurance levels L0–L3 (`core/assurance.py`), step-up, in-house qualified signature (migration 0059). Not federated to government UAE PASS.
 - [security-core.md](docs/architecture/security-core.md) — doctrine transversale `@core/security` (Zero Trust, invariants verrouillés, contrôles tunables, radar/chasseur/playbooks, conformité UAE, règles d'or Claude Code). **Doctrine cible** : encart « Cible vs implémenté » en tête pour distinguer l'aspirationnel (SDK, manifestes, Vault) du réel (`company_id`, JWT/Infinity ID, RLS, `audit_logs`).
+- [agent-ai.md](docs/architecture/agent-ai.md) — sous-catégorie **Agent AI** Clients & Fournisseurs (`{clients,vendors}/ai/*`) : scoring/risque, validation, insights, **envoi email réel** (Celery ; WhatsApp = template requis), **garde PDPL** (`core/pdpl.py`), actions cliquables, sélecteur d'entité. Gemini + repli heuristique.
 
 **Co-located module `CLAUDE.md` (under `apps/api/app/routers/{module}/`):**
 - `pdc/` — post-dated cheques, UAE state machine (migration 0003).

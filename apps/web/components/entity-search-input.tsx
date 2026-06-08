@@ -69,6 +69,7 @@ export function EntitySearchInput({
   return (
     <div style={{ position: "relative", flex: 1, minWidth: 240 }}>
       <input
+        data-testid="ai-entity-search"
         value={text}
         onChange={(e) => {
           setText(e.target.value);
