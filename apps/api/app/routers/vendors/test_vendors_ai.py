@@ -389,3 +389,149 @@ async def test_health_public(client: AsyncClient) -> None:
     r = await client.get("/api/v1/vendors/ai/health")
     assert r.status_code == 200
     assert r.json()["module"] == "vendors-ai"
+
+
+# ── Parité Fournisseurs : message d'outreach (pur) ─────────────────────────
+
+
+@pytest.mark.parametrize("locale", ["ar", "en", "fr"])
+@pytest.mark.parametrize(
+    "purpose", ["request_documents", "performance_review", "welcome", "follow_up"]
+)
+def test_draft_vendor_message_all(locale: str, purpose: str) -> None:
+    msg = ai_service.draft_vendor_message("email", locale, purpose)  # type: ignore[arg-type]
+    assert isinstance(msg, str) and msg
+
+
+# ── Parité Fournisseurs : envoi réel (intégration) ─────────────────────────
+
+
+class _FakeSendEmail:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def delay(self, **kwargs: object) -> None:
+        self.calls.append(kwargs)
+
+
+async def _create_vendor_with_email(
+    db: AsyncSession, company_id: uuid.UUID, email: str | None
+) -> uuid.UUID:
+    party = Client(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        type="company",
+        company_name="Vendor Co",
+        email=email,
+    )
+    db.add(party)
+    await db.flush()
+    db.add(
+        Vendor(
+            company_id=company_id,
+            party_id=party.id,
+            vendor_type="maintenance",
+            categories=["maintenance"],
+            verification_status="pending",
+        )
+    )
+    await db.commit()
+    return party.id
+
+
+@pytest.mark.asyncio
+async def test_vendor_message_draft_http(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    admin, token = seed_admin
+    pid = await _create_vendor(db_session, admin.company_id)
+    r = await client.post(
+        f"/api/v1/vendors/ai/{pid}/message",
+        json={"channel": "email", "locale": "fr", "purpose": "request_documents"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_vendor_send_email_queued(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeSendEmail()
+    monkeypatch.setattr(ai_service, "send_email", fake)
+    admin, token = seed_admin
+    pid = await _create_vendor_with_email(db_session, admin.company_id, "vendor@x.io")
+    r = await client.post(
+        f"/api/v1/vendors/ai/{pid}/message/send",
+        json={"channel": "email", "locale": "fr", "purpose": "request_documents"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["status"] == "queued"
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["to"] == "vendor@x.io"
+
+
+@pytest.mark.asyncio
+async def test_vendor_send_whatsapp_template(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeSendEmail()
+    monkeypatch.setattr(ai_service, "send_email", fake)
+    admin, token = seed_admin
+    pid = await _create_vendor_with_email(db_session, admin.company_id, "vendor@x.io")
+    r = await client.post(
+        f"/api/v1/vendors/ai/{pid}/message/send",
+        json={"channel": "whatsapp", "locale": "fr", "purpose": "follow_up"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["status"] == "template_required"
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_vendor_send_no_recipient(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ai_service, "send_email", _FakeSendEmail())
+    admin, token = seed_admin
+    pid = await _create_vendor_with_email(db_session, admin.company_id, None)
+    r = await client.post(
+        f"/api/v1/vendors/ai/{pid}/message/send",
+        json={"channel": "email", "locale": "en", "purpose": "welcome"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["status"] == "no_recipient"
+
+
+@pytest.mark.asyncio
+async def test_vendor_send_cross_tenant_404(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ai_service, "send_email", _FakeSendEmail())
+    admin, _ = seed_admin
+    pid = await _create_vendor_with_email(db_session, admin.company_id, "v@x.io")
+    _, token_b = second_admin
+    r = await client.post(
+        f"/api/v1/vendors/ai/{pid}/message/send",
+        json={"channel": "email", "locale": "fr", "purpose": "follow_up"},
+        headers=_auth(token_b),
+    )
+    assert r.status_code == 404

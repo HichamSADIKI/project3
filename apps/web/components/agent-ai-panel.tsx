@@ -14,7 +14,7 @@ import { postJson } from "@/lib/api-client";
 
 export type AgentDomain = "clients" | "vendors";
 
-type Tab = "insights" | "entity" | "secondary" | "chat";
+type Tab = "insights" | "entity" | "secondary" | "message" | "chat";
 
 type InsightsResult = {
   headline: string;
@@ -44,16 +44,19 @@ type EntityResult = {
 type ChatTurn = { role: "user" | "assistant"; content: string };
 
 const TABS_FOR: Record<AgentDomain, Tab[]> = {
-  clients: ["insights", "entity", "secondary", "chat"],
-  vendors: ["insights", "entity", "secondary", "chat"],
+  // Clients : message remplace l'ancien onglet "secondary".
+  clients: ["insights", "entity", "message", "chat"],
+  // Fournisseurs : validation (secondary) ET message d'outreach (parité Clients).
+  vendors: ["insights", "entity", "secondary", "message", "chat"],
 };
 
 function tabLabel(t: Translations, domain: AgentDomain, tab: Tab): string {
   if (tab === "insights") return t.aiagent_tab_insights;
   if (tab === "chat") return t.aiagent_tab_chat;
+  if (tab === "message") return t.aiagent_tab_message;
   if (tab === "entity") return domain === "clients" ? t.aiagent_tab_score : t.aiagent_risk_band;
-  // secondary
-  return domain === "clients" ? t.aiagent_tab_message : t.aiagent_tab_validation;
+  // secondary = validation (fournisseurs)
+  return t.aiagent_tab_validation;
 }
 
 const card: React.CSSProperties = {
@@ -233,6 +236,9 @@ export function AgentAiPanel({
       {tab === "secondary" && (
         <EntityTab base={base} domain={domain} lang={lang} mode="secondary" onNavigate={onNavigate} />
       )}
+      {tab === "message" && (
+        <EntityTab base={base} domain={domain} lang={lang} mode="message" onNavigate={onNavigate} />
+      )}
       {tab === "chat" && <ChatTab base={base} lang={lang} />}
     </div>
   );
@@ -302,7 +308,7 @@ function EntityTab({
   base: string;
   domain: AgentDomain;
   lang: string;
-  mode: "entity" | "secondary";
+  mode: "entity" | "secondary" | "message";
   onNavigate?: (screen: string) => void;
 }): React.ReactNode {
   const t = useT();
@@ -310,9 +316,14 @@ function EntityTab({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [res, setRes] = useState<EntityResult | null>(null);
-  // Champs message (clients secondary).
-  const [channel, setChannel] = useState("whatsapp");
-  const [purpose, setPurpose] = useState("follow_up");
+  // Objets d'outreach par domaine (onglet Message).
+  const PURPOSES =
+    domain === "clients"
+      ? ["follow_up", "proposal", "welcome", "visit"]
+      : ["request_documents", "performance_review", "welcome", "follow_up"];
+  // Champs message — email est le canal d'envoi réel (WhatsApp = template requis).
+  const [channel, setChannel] = useState("email");
+  const [purpose, setPurpose] = useState(PURPOSES[0]);
   // Envoi réel du message (C1) — brouillon éditable avant envoi (humain dans la boucle).
   const [draftMsg, setDraftMsg] = useState("");
   const [sending, setSending] = useState(false);
@@ -350,12 +361,13 @@ function EntityTab({
       const action = domain === "clients" ? "score" : "risk";
       return { url: `${base}/${eid}/${action}?locale=${lang}`, body: {} };
     }
-    if (domain === "clients") {
+    if (mode === "message") {
       return {
         url: `${base}/${eid}/message`,
         body: { channel, locale: lang, purpose },
       };
     }
+    // secondary = validation (fournisseurs)
     return { url: `${base}/${eid}/validation?locale=${lang}`, body: {} };
   }
 
@@ -380,7 +392,7 @@ function EntityTab({
     }
   }
 
-  const showMessageFields = mode === "secondary" && domain === "clients";
+  const showMessageFields = mode === "message";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -398,10 +410,11 @@ function EntityTab({
               <option value="email">Email</option>
             </select>
             <select value={purpose} onChange={(e) => setPurpose(e.target.value)} style={inputStyle}>
-              <option value="follow_up">follow_up</option>
-              <option value="proposal">proposal</option>
-              <option value="welcome">welcome</option>
-              <option value="visit">visit</option>
+              {PURPOSES.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
             </select>
           </>
         )}

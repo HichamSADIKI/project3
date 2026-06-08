@@ -20,6 +20,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import gemini
+from app.core.pdpl import pdpl_safe  # garde PDPL mutualisée (source unique)
 from app.models.client import Client
 from app.models.notification import Notification
 from app.routers.clients.ai_schemas import Locale
@@ -29,33 +30,6 @@ from app.routers.clients.service import (
     get_client,
 )
 from app.tasks.notifications import send_email
-
-# ── Garde PDPL : ne jamais transmettre de champ sensible à un LLM tiers ────
-# Emirates ID, IBAN, chèques post-datés (PDC), passeport, etc. ne doivent
-# JAMAIS quitter la plateforme vers Gemini (conformité PDPL UAE). Tout dict
-# sérialisé dans un prompt passe par `pdpl_safe`.
-PDPL_SENSITIVE_KEYS = frozenset(
-    {
-        "emirates_id",
-        "emiratesid",
-        "eid",
-        "iban",
-        "pdc",
-        "passport",
-        "passport_number",
-        "national_id",
-        "account_number",
-        "card_number",
-        "cvv",
-        "tax_id",
-    }
-)
-
-
-def pdpl_safe(data: dict[str, Any]) -> dict[str, Any]:
-    """Retire les clés sensibles (PDPL) d'un dict avant envoi à Gemini."""
-    return {k: v for k, v in data.items() if str(k).lower() not in PDPL_SENSITIVE_KEYS}
-
 
 # Seuil secondaire (clients « haut budget » sous le seuil Golden Visa).
 HIGH_BUDGET_THRESHOLD = Decimal("500000")
