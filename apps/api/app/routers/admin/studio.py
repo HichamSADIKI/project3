@@ -32,6 +32,7 @@ from app.core.database import get_db
 from app.models.audit_log import AuditLog
 from app.models.studio import StudioIntegrationRequest, StudioModule
 from app.routers.admin.deps import require_platform_admin
+from app.routers.admin.studio_ai import generate_sheet_schema
 from app.routers.admin.studio_schema import SheetSchema
 
 logger = logging.getLogger(__name__)
@@ -302,6 +303,17 @@ class SchemaOut(BaseModel):
     data: SheetSchema | None
 
 
+class GenerateSchemaRequest(BaseModel):
+    prompt: str = Field(min_length=3, max_length=2000)
+    locale: Literal["ar", "en", "fr"] = "fr"
+
+
+class GenerateOut(BaseModel):
+    success: bool = True
+    data: SheetSchema
+    engine: str  # "fallback_heuristic" si l'IA était indisponible/invalide
+
+
 @studio_router.post("/modules/{module_id}/schema", response_model=ModuleDetailOut)
 async def set_schema(
     module_id: uuid.UUID,
@@ -345,6 +357,31 @@ async def get_schema(
         return SchemaOut(data=None)
     # Re-validation défensive : un schéma stocké reste conforme avant d'être renvoyé.
     return SchemaOut(data=SheetSchema.model_validate(module.schema_json))
+
+
+@studio_router.post("/modules/{module_id}/generate-schema", response_model=GenerateOut)
+async def generate_schema(
+    module_id: uuid.UUID,
+    body: GenerateSchemaRequest,
+    request: Request,
+    actor: uuid.UUID = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+) -> GenerateOut:
+    """Génère le schéma de feuille via IA (Gemini) depuis une description (mode auto).
+
+    Best-effort : sans clé Gemini / sur erreur / si la sortie n'est pas un `SheetSchema`
+    valide → **repli heuristique déterministe** (`engine=fallback_heuristic`). La sortie
+    IA est TOUJOURS revalidée avant stockage. Éditable uniquement en `draft`. Le schéma
+    est stocké (comme une saisie manuelle) ET renvoyé pour pré-remplir l'éditeur. Audit.
+    """
+    module = await _get_module(db, module_id)
+    if module.state != "draft":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="module_not_editable")
+    schema, engine = await generate_sheet_schema(body.prompt, body.locale)
+    module.schema_json = schema.model_dump()
+    db.add(_audit(request, actor, "studio:schema_generated", module.id, {"engine": engine}))
+    await db.commit()
+    return GenerateOut(data=schema, engine=engine)
 
 
 @studio_router.post("/modules/{module_id}/build", response_model=ModuleDetailOut)
