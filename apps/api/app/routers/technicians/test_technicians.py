@@ -45,7 +45,12 @@ from sqlalchemy.ext.asyncio import AsyncSession  # noqa: E402
 from app.models.company import Company  # noqa: E402
 from app.models.party_technician import Technician  # noqa: E402
 from app.models.user import User  # noqa: E402
-from app.routers.technicians.service import summarize_technicians, technicians_summary  # noqa: E402
+from app.routers.technicians.service import (  # noqa: E402
+    get_technician,
+    list_technicians,
+    summarize_technicians,
+    technicians_summary,
+)
 
 
 def _t(skills, *, mobile=True, on_call=False, jobs=0):
@@ -141,3 +146,104 @@ async def test_technicians_summary_tenant_isolation(
     s = await technicians_summary(db_session, other.id)
     assert s["total"] == 0
     assert s["by_skill"] == {}
+
+
+@pytest.mark.asyncio
+async def test_list_technicians_enriches_user_identity(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    """list_technicians joint User et expose full_name/email (évite l'oracle UUID
+    brut côté UI) — sans N+1. Vérifie aussi que get_technician est enrichi."""
+    email = f"sami-{uuid.uuid4().hex[:8]}@sgi.test"
+    user = User(
+        id=uuid.uuid4(),
+        company_id=seed_company.id,
+        email=email,
+        hashed_password="x",
+        full_name="Sami Al Mansoori",
+        role="agent",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.flush()
+    db_session.add(
+        Technician(
+            company_id=seed_company.id,
+            user_id=user.id,
+            skills=["hvac"],
+            mobile_active=True,
+            on_call=False,
+            jobs_completed=4,
+        )
+    )
+    await db_session.commit()
+
+    techs, total = await list_technicians(db_session, seed_company.id)
+    assert total == 1
+    assert techs[0].full_name == "Sami Al Mansoori"  # type: ignore[attr-defined]
+    assert techs[0].email == email  # type: ignore[attr-defined]
+
+    one = await get_technician(db_session, seed_company.id, user.id)
+    assert one is not None
+    assert one.full_name == "Sami Al Mansoori"  # type: ignore[attr-defined]
+    assert one.email == email  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_list_technicians_no_cross_tenant_identity_leak(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    """Red-Team Loi 1 : le JOIN User de list/get ne doit jamais exposer l'identité
+    d'un technicien d'une autre société. La société B (sa cible) doit être invisible
+    depuis le contexte de la société A et réciproquement."""
+    # Société A : un technicien "Alice"
+    alice = User(
+        id=uuid.uuid4(),
+        company_id=seed_company.id,
+        email=f"alice-{uuid.uuid4().hex[:6]}@a.test",
+        hashed_password="x",
+        full_name="Alice A",
+        role="agent",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(alice)
+    await db_session.flush()
+    db_session.add(Technician(company_id=seed_company.id, user_id=alice.id, skills=["hvac"]))
+
+    # Société B (autre tenant) : un technicien "Bob"
+    other = Company(
+        id=uuid.uuid4(), name="B", slug=f"b-{uuid.uuid4().hex[:8]}", plan="pro", is_active=True
+    )
+    db_session.add(other)
+    await db_session.flush()
+    bob = User(
+        id=uuid.uuid4(),
+        company_id=other.id,
+        email=f"bob-{uuid.uuid4().hex[:6]}@b.test",
+        hashed_password="x",
+        full_name="Bob B",
+        role="agent",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(bob)
+    await db_session.flush()
+    db_session.add(Technician(company_id=other.id, user_id=bob.id, skills=["plumbing"]))
+    await db_session.commit()
+
+    # Contexte A : ne voit qu'Alice, jamais Bob
+    techs_a, total_a = await list_technicians(db_session, seed_company.id)
+    assert total_a == 1
+    names_a = {t.full_name for t in techs_a}  # type: ignore[attr-defined]
+    assert names_a == {"Alice A"}
+    assert "Bob B" not in names_a
+
+    # Contexte A ne peut pas non plus récupérer le technicien de B par son user_id (BOLA)
+    assert await get_technician(db_session, seed_company.id, bob.id) is None
+
+    # Contexte B : ne voit que Bob
+    techs_b, total_b = await list_technicians(db_session, other.id)
+    assert total_b == 1
+    assert {t.full_name for t in techs_b} == {"Bob B"}  # type: ignore[attr-defined]
