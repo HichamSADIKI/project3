@@ -66,6 +66,9 @@ const TR: Record<Lang, Record<string, string>> = {
     invalidJson: "JSON invalide",
     closeEditor: "Fermer",
     schemaHint: "Schéma déclaratif (feuilles → éléments). Donnée, jamais du code.",
+    aiGenerate: "✨ Générer (IA)",
+    aiPrompt: "Décris l'écran à générer :",
+    aiFallback: "IA indisponible — schéma de base généré.",
     reasonPrompt: "Raison de l'intégration (≥ 3 caractères) :",
     ticketPrompt: "Référence ticket (optionnel) :",
     loading: "Chargement…",
@@ -100,6 +103,9 @@ const TR: Record<Lang, Record<string, string>> = {
     invalidJson: "Invalid JSON",
     closeEditor: "Close",
     schemaHint: "Declarative schema (sheets → elements). Data, never code.",
+    aiGenerate: "✨ Generate (AI)",
+    aiPrompt: "Describe the screen to generate:",
+    aiFallback: "AI unavailable — base schema generated.",
     reasonPrompt: "Integration reason (≥ 3 characters):",
     ticketPrompt: "Ticket reference (optional):",
     loading: "Loading…",
@@ -134,6 +140,9 @@ const TR: Record<Lang, Record<string, string>> = {
     invalidJson: "JSON غير صالح",
     closeEditor: "إغلاق",
     schemaHint: "مخطط تعريفي (صفحات → عناصر). بيانات، ليست كودًا.",
+    aiGenerate: "✨ توليد (ذكاء اصطناعي)",
+    aiPrompt: "صف الشاشة المراد توليدها:",
+    aiFallback: "الذكاء الاصطناعي غير متاح — تم توليد مخطط أساسي.",
     reasonPrompt: "سبب الدمج (٣ أحرف على الأقل):",
     ticketPrompt: "مرجع التذكرة (اختياري):",
     loading: "جارٍ التحميل…",
@@ -310,6 +319,24 @@ export function ScreenAppAdminStudio(): React.ReactNode {
     await act(`/api/admin/platform/studio/modules/${editor.id}/schema`, parsed, () => {
       modules.reload();
     });
+  }
+
+  async function generateSchema(): Promise<void> {
+    if (!editor) return;
+    const prompt = window.prompt(L("aiPrompt"));
+    if (!prompt || prompt.trim().length < 3) return;
+    const res = await postJson(
+      `/api/admin/platform/studio/modules/${editor.id}/generate-schema`,
+      { prompt: prompt.trim(), locale: lg },
+    );
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { detail?: string };
+      window.alert(j.detail ?? `HTTP ${res.status}`);
+      return;
+    }
+    const body = (await res.json()) as { data: SheetSchema; engine: string };
+    setEditor({ id: editor.id, json: JSON.stringify(body.data, null, 2) });
+    if (body.engine === "fallback_heuristic") window.alert(L("aiFallback"));
   }
 
   // Aperçu live : parse du JSON courant de l'éditeur (null si invalide).
@@ -586,6 +613,15 @@ export function ScreenAppAdminStudio(): React.ReactNode {
               </div>
             </div>
             <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  void generateSchema();
+                }}
+                style={btn}
+              >
+                {L("aiGenerate")}
+              </button>
               <button
                 type="button"
                 onClick={() => {

@@ -13,6 +13,7 @@ Périmètre cross-tenant (hors Loi 1) : `studio_modules` n'a pas de company_id ;
 d'isolation Loi 1 ne s'applique pas — la garde est `require_platform_admin` (403 testé).
 """
 
+import json
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -27,12 +28,14 @@ from app.models.audit_log import AuditLog
 from app.models.company import Company
 from app.models.studio import StudioIntegrationRequest
 from app.models.user import User, UserRole, UserStatus
+from app.routers.admin import studio_ai
 from app.routers.admin.studio import (
     can_transition,
     codegen_enabled,
     integration_ttl_minutes,
     is_expired,
 )
+from app.routers.admin.studio_ai import fallback_schema, parse_schema_or_none
 from app.routers.admin.studio_schema import MAX_SHEETS, SheetSchema
 
 AUTH = "Authorization"
@@ -546,5 +549,107 @@ async def test_schema_not_editable_after_build(client: AsyncClient, seed_platfor
     h = {AUTH: f"Bearer {token}"}
     mid = await _create_audited_module(client, h)  # passe en `audited`
     r = await client.post(f"{BASE}/modules/{mid}/schema", json=_valid_schema(), headers=h)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "module_not_editable"
+
+
+# ── Phase 1B — génération IA (Gemini + repli heuristique) ──────────────────────
+
+
+def test_fallback_schema_is_valid() -> None:
+    """Le repli déterministe produit toujours un SheetSchema conforme."""
+    schema = fallback_schema("un écran de gestion des plaintes locataires")
+    assert isinstance(schema, SheetSchema)
+    assert schema.sheets[0].elements[-1].type == "button"
+
+
+def test_parse_schema_or_none_valid_and_fenced() -> None:
+    raw = json.dumps(_valid_schema())
+    assert parse_schema_or_none(raw) is not None
+    # Barrières markdown ```json ... ``` tolérées.
+    assert parse_schema_or_none(f"```json\n{raw}\n```") is not None
+
+
+def test_parse_schema_or_none_rejects_garbage_and_bad_schema() -> None:
+    assert parse_schema_or_none("not json at all") is None
+    assert parse_schema_or_none("") is None
+    bad = _valid_schema()
+    bad["sheets"][0]["elements"][0]["type"] = "iframe"  # type: ignore[index]
+    assert parse_schema_or_none(json.dumps(bad)) is None
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    _admin, token = seed_admin
+    h = {AUTH: f"Bearer {token}"}
+    r = await client.post(
+        f"{BASE}/modules/{uuid.uuid4()}/generate-schema",
+        json={"prompt": "un écran de tickets"},
+        headers=h,
+    )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_fallback_when_ai_unavailable(
+    client: AsyncClient, seed_platform_admin, monkeypatch
+) -> None:
+    """Gemini indisponible → repli heuristique (engine=fallback_heuristic), schéma stocké."""
+
+    async def fake_unavailable(prompt, **kwargs):  # noqa: ANN001, ANN003
+        return {"text": "", "engine": "unavailable"}
+
+    monkeypatch.setattr(studio_ai.gemini, "generate_text", fake_unavailable)
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    mid = (await client.post(f"{BASE}/modules", json=_module_payload(), headers=h)).json()["data"][
+        "id"
+    ]
+    r = await client.post(
+        f"{BASE}/modules/{mid}/generate-schema",
+        json={"prompt": "un écran de gestion des plaintes"},
+        headers=h,
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["engine"] == "fallback_heuristic"
+    assert body["data"]["sheets"][0]["id"] == "main"
+    # Le schéma a bien été persisté.
+    got = await client.get(f"{BASE}/modules/{mid}/schema", headers=h)
+    assert got.json()["data"] is not None
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_uses_valid_ai_output(
+    client: AsyncClient, seed_platform_admin, monkeypatch
+) -> None:
+    """Sortie Gemini valide → utilisée telle quelle (engine != fallback)."""
+
+    async def fake_ai(prompt, **kwargs):  # noqa: ANN001, ANN003
+        return {"text": json.dumps(_valid_schema()), "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(studio_ai.gemini, "generate_text", fake_ai)
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    mid = (await client.post(f"{BASE}/modules", json=_module_payload(), headers=h)).json()["data"][
+        "id"
+    ]
+    r = await client.post(
+        f"{BASE}/modules/{mid}/generate-schema", json={"prompt": "tickets"}, headers=h
+    )
+    assert r.status_code == 200
+    assert r.json()["engine"] == "gemini-2.5-flash"
+
+
+@pytest.mark.asyncio
+async def test_generate_schema_not_editable_after_build(
+    client: AsyncClient, seed_platform_admin
+) -> None:
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    mid = await _create_audited_module(client, h)
+    r = await client.post(
+        f"{BASE}/modules/{mid}/generate-schema", json={"prompt": "tickets"}, headers=h
+    )
     assert r.status_code == 409
     assert r.json()["detail"] == "module_not_editable"
