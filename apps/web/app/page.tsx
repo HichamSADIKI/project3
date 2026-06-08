@@ -77,6 +77,7 @@ import { ScreenAppAdminHoneytokens } from "./screens/admin-honeytokens";
 import { ScreenAppAdminSelfDefense } from "./screens/admin-self-defense";
 import { ScreenAppAdminStudio } from "./screens/studio";
 import { ScreenAppAdminCrudGen } from "./screens/crud-gen";
+import { ScreenAppAdminSecurity } from "./screens/admin-security";
 import { ScreenAppAdminInfra } from "./screens/admin-infra";
 import { ScreenAppAdminBackups } from "./screens/admin-backups";
 import type { ConfirmedDeal } from "@/components/deal-wizard";
@@ -101,7 +102,7 @@ type ScreenKey =
   | "banques_news" | "amazon_news" | "consultants_news" | "admin_news" | "travail_news" | "callcenter_news"
   | "tourisme" | "sante" | "assurance" | "banques" | "amazon" | "consultants" | "callcenter"
   | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
-  | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups" | "appadmin_honeytokens" | "appadmin_self_defense" | "appadmin_studio" | "appadmin_crudgen"
+  | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups" | "appadmin_honeytokens" | "appadmin_self_defense" | "appadmin_studio" | "appadmin_crudgen" | "appadmin_security"
   | "finance" | "accounting" | "bank_recon" | "marketing" | "report" | "parametres"
   | "clients" | "personne" | "societe" | "clients_ai"
   | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation" | "fournisseurs_ai";
@@ -209,6 +210,7 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   "appadmin_self_defense": (_) => <ScreenAppAdminSelfDefense />,
   "appadmin_studio": (_) => <ScreenAppAdminStudio />,
   "appadmin_crudgen": (_) => <ScreenAppAdminCrudGen />,
+  "appadmin_security": (_) => <ScreenAppAdminSecurity />,
 
   // Fournisseurs (catégorie placée avant Clients)
   "fournisseurs":            (p) => <ScreenFournisseurs onNavigate={p.onNavigate} />,
