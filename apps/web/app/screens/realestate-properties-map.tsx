@@ -13,6 +13,7 @@ import { useLang } from "@/components/language-provider";
 import { postJson, extractError } from "@/lib/api-client";
 import { ReMap, type MapMarker } from "@/components/re-map";
 import { PropertyCsvImport } from "@/components/property-csv-import";
+import { PropertyUrlImport } from "@/components/property-url-import";
 import {
   toMarkers,
   propertyTitle,
@@ -128,6 +129,7 @@ export function ScreenRealEstatePropertiesMap(): React.ReactNode {
               </div>
             </div>
           </div>
+          <PropertyUrlImport />
           <PropertyCsvImport onDone={() => void search()} />
         </div>
 
