@@ -20,8 +20,14 @@ from app.routers.vendors.ai_schemas import (
     VendorChatRequest,
     VendorInsightsData,
     VendorInsightsOut,
+    VendorMessageData,
+    VendorMessageOut,
+    VendorMessageRequest,
     VendorRiskData,
     VendorRiskOut,
+    VendorSendData,
+    VendorSendMessageRequest,
+    VendorSendOut,
     VendorValidationData,
     VendorValidationOut,
 )
@@ -102,3 +108,44 @@ async def validation_endpoint(
     if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")
     return VendorValidationOut(data=VendorValidationData(**data))
+
+
+@router.post(
+    "/{party_id}/message",
+    response_model=VendorMessageOut,
+    dependencies=[Depends(require_roles(*_AI_ROLES))],
+)
+async def message_endpoint(
+    party_id: uuid.UUID,
+    body: VendorMessageRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> VendorMessageOut:
+    """Brouillon d'outreach (email/WhatsApp) AR/EN/FR pour un fournisseur du tenant."""
+    company_id = await get_company_id(db)
+    data = await ai_service.vendor_message(
+        db, company_id, party_id, body.channel, body.locale, body.purpose
+    )
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")
+    return VendorMessageOut(data=VendorMessageData(**data))
+
+
+@router.post(
+    "/{party_id}/message/send",
+    response_model=VendorSendOut,
+    dependencies=[Depends(require_roles(*_AI_ROLES))],
+)
+async def send_message_endpoint(
+    party_id: uuid.UUID,
+    body: VendorSendMessageRequest,
+    db: AsyncSession = Depends(get_db_session),
+) -> VendorSendOut:
+    """Envoie réellement le message au fournisseur (email via Celery ; WhatsApp →
+    template requis). 404 si hors tenant (Loi 1 / anti-BOLA)."""
+    company_id = await get_company_id(db)
+    data = await ai_service.send_vendor_message(
+        db, company_id, party_id, body.channel, body.locale, body.purpose, body.message
+    )
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="vendor_not_found")
+    return VendorSendOut(data=VendorSendData(**data))

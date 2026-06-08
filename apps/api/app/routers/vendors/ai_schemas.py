@@ -91,3 +91,47 @@ class VendorChatData(BaseModel):
 class VendorChatOut(BaseModel):
     success: bool = True
     data: VendorChatData
+
+
+# ── Message d'outreach fournisseur (brouillon + envoi) — parité Clients ────
+
+VendorPurpose = Literal["request_documents", "performance_review", "welcome", "follow_up"]
+
+
+class VendorMessageRequest(BaseModel):
+    channel: Literal["email", "whatsapp"] = "email"
+    locale: Locale = "fr"
+    purpose: VendorPurpose = "request_documents"
+
+
+class VendorMessageData(BaseModel):
+    party_id: uuid.UUID
+    channel: str
+    locale: str
+    purpose: str
+    message: str
+    engine: str
+
+
+class VendorMessageOut(BaseModel):
+    success: bool = True
+    data: VendorMessageData
+
+
+class VendorSendMessageRequest(BaseModel):
+    channel: Literal["email", "whatsapp"] = "email"
+    locale: Locale = "fr"
+    purpose: VendorPurpose = "request_documents"
+    message: str | None = Field(default=None, max_length=4000)
+
+
+class VendorSendData(BaseModel):
+    status: Literal["queued", "template_required", "no_recipient"]
+    channel: str
+    notification_id: uuid.UUID | None = None
+    detail: str | None = None
+
+
+class VendorSendOut(BaseModel):
+    success: bool = True
+    data: VendorSendData
