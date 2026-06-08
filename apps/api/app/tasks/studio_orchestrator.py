@@ -38,10 +38,13 @@ from app.core.database import sync_session_maker
 from app.models.studio import StudioModule, StudioOrchestratorJob
 from app.routers.admin.studio import can_transition
 from app.routers.admin.studio_templates import (
+    column_specs,
+    compute_revision,
     generated_files,
     main_import_line,
     main_include_line,
     module_slug,
+    render_migration,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,17 +193,33 @@ def _mount_main(main_path: Path, slug: str) -> None:
     main_path.write_text("".join(out), encoding="utf-8")
 
 
-def _write_generated(wt: Path, slug: str) -> list[str]:
+def _existing_revisions(wt: Path) -> list[str]:
+    """Stems des migrations existantes du worktree (pour calculer le prochain numéro)."""
+    versions = wt / "apps/api/migrations/versions"
+    if not versions.exists():
+        return []
+    return [p.stem for p in versions.glob("[0-9][0-9][0-9][0-9]_*.py")]
+
+
+def _write_generated(wt: Path, slug: str, schema: dict | None) -> list[str]:
     """Écrit les fichiers du module généré dans le worktree + monte dans main.py.
 
-    Renvoie les chemins (relatifs au worktree) à `git add` — explicites, jamais `-A`.
+    Avec `schema` → module CRUD complet + **migration** (numéro calculé depuis le worktree).
+    Sans → squelette (Phase 3A). Renvoie les chemins (relatifs au worktree) à `git add`
+    — explicites, jamais `-A`.
     """
     written: list[str] = []
-    for rel, content in generated_files(slug).items():
+    for rel, content in generated_files(slug, schema).items():
         dest = wt / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_text(content, encoding="utf-8")
         written.append(rel)
+    if schema is not None:
+        cols = column_specs(schema)
+        new_rev, down_rev = compute_revision(_existing_revisions(wt), slug)
+        mig_rel = f"apps/api/migrations/versions/{new_rev}.py"
+        (wt / mig_rel).write_text(render_migration(slug, cols, new_rev, down_rev), encoding="utf-8")
+        written.append(mig_rel)
     main_rel = "apps/api/app/main.py"
     _mount_main(wt / main_rel, slug)
     written.append(main_rel)
@@ -302,7 +321,7 @@ def run_codegen_job(self, job_id: str) -> dict[str, object]:  # noqa: ANN001
             rc, out = _run(["git", "checkout", "-B", branch], cwd=wt, timeout=60)
             if rc != 0:
                 return _finish(db, job, module, "failed", "scaffold", f"checkout:{out}")
-            paths = _write_generated(wt, slug)
+            paths = _write_generated(wt, slug, module.schema_json)
             _advance(module, "built")
             db.commit()
 
@@ -314,6 +333,9 @@ def run_codegen_job(self, job_id: str) -> dict[str, object]:  # noqa: ANN001
             gen_paths = [p for p in paths if p != "apps/api/app/main.py"]
             gen_abs = [str(wt / p) for p in gen_paths]
             app_dir = worker_app_dir()
+            # `--fix` : trie les imports + retire les inutiles du code généré (I/F401),
+            # puis `format` (mise en forme). Les vérifications ci-dessous restent strictes.
+            _run(["uv", "run", "ruff", "check", "--fix", *gen_abs], cwd=app_dir, timeout=180)
             _run(["uv", "run", "ruff", "format", *gen_abs], cwd=app_dir, timeout=180)
             rc_fmt, out_fmt = _run(
                 ["uv", "run", "ruff", "format", "--check", *gen_abs], cwd=app_dir, timeout=180
@@ -332,22 +354,29 @@ def run_codegen_job(self, job_id: str) -> dict[str, object]:  # noqa: ANN001
             _advance(module, "tested")
             db.commit()
 
-            # 3) CHASSEUR — l'invariant de sécurité (401 sans JWT / 200 authentifié) est porté
-            #    par le test co-localisé généré, exécuté par la CI de la PR (suite backend
-            #    complète). Le worker enregistre la présence du test (pas de DB côté worker).
+            # 3) CHASSEUR — l'invariant de sécurité est porté par le test co-localisé généré,
+            #    exécuté par la CI de la PR (suite backend + migration appliquée) : squelette →
+            #    401 sans JWT ; CRUD → **Red-Team cross-tenant Loi 1** (404 anti-BOLA). Le worker
+            #    vérifie la présence du test (pas de DB côté worker).
             job.phase = "chasseur"
-            test_present = (
-                f"test_{slug}_status_requires_auth"
-                in generated_files(slug)[f"apps/api/app/routers/{slug}/test_{slug}.py"]
+            test_content = generated_files(slug, module.schema_json)[
+                f"apps/api/app/routers/{slug}/test_{slug}.py"
+            ]
+            marker = (
+                f"test_{slug}_tenant_isolation"
+                if module.schema_json is not None
+                else f"test_{slug}_status_requires_auth"
             )
+            test_present = marker in test_content
             job.chasseur_report = {
-                "auth_boundary_test_present": test_present,
+                "security_test_present": test_present,
+                "kind": "tenant_isolation" if module.schema_json is not None else "auth_boundary",
                 "executed_by": "pr_ci",
-                "note": "401 sans JWT / 200 authentifié — vérifié par la CI de la PR avant merge.",
+                "note": "Vérifié par la CI de la PR (DB + migration) avant tout merge.",
             }
             if not test_present:  # garde-fou (ne devrait jamais arriver)
                 _cleanup_worktree(wt)
-                return _finish(db, job, module, "failed", "chasseur", "auth_test_missing")
+                return _finish(db, job, module, "failed", "chasseur", "security_test_missing")
             _advance(module, "audited")
             db.commit()
 
