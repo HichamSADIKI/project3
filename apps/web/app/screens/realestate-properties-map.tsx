@@ -129,7 +129,7 @@ export function ScreenRealEstatePropertiesMap(): React.ReactNode {
               </div>
             </div>
           </div>
-          <PropertyUrlImport />
+          <PropertyUrlImport onCreated={() => void search()} />
           <PropertyCsvImport onDone={() => void search()} />
         </div>
 

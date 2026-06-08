@@ -3,15 +3,17 @@
 /**
  * Import d'un bien depuis une URL d'annonce (Bayut / PropertyFinder / Dubizzle).
  * Auto-suffisant : valide la source côté client (UX), POST JSON vers
- * /api/admin/scraping/property, puis affiche une carte d'aperçu des champs
- * extraits. MVP « aperçu » — la création de fiche est un follow-up. CSS logique
- * (Loi 3). i18n local.
+ * /api/admin/scraping/property, affiche un aperçu des champs extraits, puis
+ * permet de CRÉER la fiche (POST /api/admin/properties, mapping pur). Le scrape
+ * ne fournit pas de coordonnées → fiche créée en brouillon, à géolocaliser
+ * ensuite sur la carte. CSS logique (Loi 3). i18n local.
  */
 import React, { useState } from "react";
 
 import { useLang } from "@/components/language-provider";
 import { postJson } from "@/lib/api-client";
 import { detectScrapeSource } from "@/lib/scrape-source";
+import { scrapedToPropertyDraft, type ScrapedProperty } from "@/lib/scraped-to-property";
 
 type Lang = "ar" | "en" | "fr";
 
@@ -22,6 +24,9 @@ const TR: Record<Lang, Record<string, string>> = {
     badUrl: "Site non supporté (Bayut, PropertyFinder, Dubizzle uniquement).", failed: "Extraction impossible depuis cette URL.",
     type: "Type", price: "Prix", beds: "Chambres", baths: "SDB", area: "Surface (sqft)", emirate: "Émirat",
     community: "Communauté", images: "Images", fields: "Champs trouvés", source: "Source",
+    create: "Créer la fiche", creating: "Création…", createErr: "Création impossible.",
+    noPrice: "Prix introuvable dans l'annonce — création impossible.",
+    created: "Fiche créée", locNote: "Localisation à définir sur la carte.",
   },
   en: {
     btn: "Import from URL", title: "Import a listing", placeholder: "Bayut, PropertyFinder or Dubizzle link…",
@@ -29,6 +34,9 @@ const TR: Record<Lang, Record<string, string>> = {
     badUrl: "Unsupported site (Bayut, PropertyFinder, Dubizzle only).", failed: "Could not extract data from this URL.",
     type: "Type", price: "Price", beds: "Beds", baths: "Baths", area: "Area (sqft)", emirate: "Emirate",
     community: "Community", images: "Images", fields: "Fields found", source: "Source",
+    create: "Create listing", creating: "Creating…", createErr: "Could not create the listing.",
+    noPrice: "No price found in the listing — cannot create.",
+    created: "Listing created", locNote: "Location to be set on the map.",
   },
   ar: {
     btn: "استيراد من رابط", title: "استيراد إعلان", placeholder: "رابط Bayut أو PropertyFinder أو Dubizzle…",
@@ -36,22 +44,10 @@ const TR: Record<Lang, Record<string, string>> = {
     badUrl: "موقع غير مدعوم (Bayut، PropertyFinder، Dubizzle فقط).", failed: "تعذّر استخراج البيانات من هذا الرابط.",
     type: "النوع", price: "السعر", beds: "غرف", baths: "حمّامات", area: "المساحة (قدم²)", emirate: "الإمارة",
     community: "المجتمع", images: "صور", fields: "حقول موجودة", source: "المصدر",
+    create: "إنشاء العقار", creating: "جارٍ الإنشاء…", createErr: "تعذّر إنشاء العقار.",
+    noPrice: "لا يوجد سعر في الإعلان — تعذّر الإنشاء.",
+    created: "تم إنشاء العقار", locNote: "حدِّد الموقع على الخريطة.",
   },
-};
-
-type ScrapedProperty = {
-  title_en: string;
-  price: string;
-  prop_type: string;
-  bedrooms: string;
-  bathrooms: string;
-  sqft: string;
-  emirate: string;
-  community: string;
-  description: string;
-  images: string[];
-  source: string;
-  fields_found: number;
 };
 
 const cell: React.CSSProperties = {
@@ -59,7 +55,7 @@ const cell: React.CSSProperties = {
   paddingBlock: 6, borderBlockEnd: "1px solid var(--line-soft)", fontSize: 13,
 };
 
-export function PropertyUrlImport(): React.ReactNode {
+export function PropertyUrlImport({ onCreated }: { onCreated?: () => void } = {}): React.ReactNode {
   const { lang } = useLang();
   const lg = (lang as Lang) in TR ? (lang as Lang) : "fr";
   const L = (k: string): string => TR[lg][k] ?? TR.fr[k] ?? k;
@@ -69,6 +65,8 @@ export function PropertyUrlImport(): React.ReactNode {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ScrapedProperty | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [createdRef, setCreatedRef] = useState<string | null>(null);
 
   function reset(): void {
     setOpen(false);
@@ -76,11 +74,14 @@ export function PropertyUrlImport(): React.ReactNode {
     setError(null);
     setResult(null);
     setBusy(false);
+    setCreating(false);
+    setCreatedRef(null);
   }
 
   async function analyze(): Promise<void> {
     setError(null);
     setResult(null);
+    setCreatedRef(null);
     if (detectScrapeSource(url) === null) {
       setError(L("badUrl"));
       return;
@@ -97,6 +98,31 @@ export function PropertyUrlImport(): React.ReactNode {
       setError(L("failed"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function create(): Promise<void> {
+    if (!result) return;
+    setError(null);
+    const mapped = scrapedToPropertyDraft(result);
+    if ("error" in mapped) {
+      setError(L("noPrice"));
+      return;
+    }
+    setCreating(true);
+    try {
+      const res = await postJson("/api/admin/properties", mapped.draft);
+      if (!res.ok) {
+        setError(L("createErr"));
+        return;
+      }
+      const body = (await res.json()) as { data?: { reference?: string } };
+      setCreatedRef(body.data?.reference ?? "—");
+      onCreated?.();
+    } catch {
+      setError(L("createErr"));
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -172,6 +198,22 @@ export function PropertyUrlImport(): React.ReactNode {
                     </div>
                   ))}
                 </div>
+
+                {createdRef ? (
+                  <div style={{ marginBlockStart: 14, padding: 12, borderRadius: 8, background: "var(--emerald-ghost, rgba(16,185,129,0.12))", color: "var(--emerald)", fontSize: 13 }}>
+                    <div style={{ fontWeight: 700 }}>✓ {L("created")} · <span className="tnum">{createdRef}</span></div>
+                    <div style={{ color: "var(--ink-3)", marginBlockStart: 4 }}>{L("locNote")}</div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => void create()}
+                    disabled={creating}
+                    style={{ marginBlockStart: 14, width: "100%", paddingBlock: 10, borderRadius: 8, border: "none", background: "var(--gold)", color: "#1A1610", fontWeight: 600, fontSize: 13, cursor: creating ? "default" : "pointer", opacity: creating ? 0.6 : 1 }}
+                  >
+                    {creating ? L("creating") : L("create")}
+                  </button>
+                )}
               </div>
             )}
           </div>
