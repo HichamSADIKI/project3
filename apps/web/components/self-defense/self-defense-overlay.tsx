@@ -119,22 +119,32 @@ export function SelfDefenseOverlay(): React.ReactNode {
         />
       )}
 
-      {/* Bandeau supérieur informatif */}
+      {/* Bandeau informatif — pastille CENTRÉE, click-through, sous le FAB :
+          ne recouvre pas les contrôles de la topbar (recherche/cloche/thème/langue). */}
       <div
+        aria-hidden
         style={{
           position: "fixed",
-          insetBlockStart: 0,
+          insetBlockStart: 8,
           insetInlineStart: 0,
           insetInlineEnd: 0,
-          zIndex: 1310,
+          marginInline: "auto",
+          width: "fit-content",
+          maxWidth: "92vw",
+          zIndex: 1200, // sous le FAB Désarmer (1301) → toujours cliquable
           background: BANNER_BG[mode],
           color: "#fff",
-          fontSize: 13,
+          fontSize: 12.5,
           fontWeight: 700,
           textAlign: "center",
-          paddingBlock: 7,
+          padding: "6px 16px",
+          borderRadius: 999,
           letterSpacing: 0.2,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.25)",
+          boxShadow: "0 4px 14px rgba(0,0,0,0.3)",
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          pointerEvents: "none", // purement visuel → n'intercepte aucun clic
         }}
       >
         {L(mode)}
