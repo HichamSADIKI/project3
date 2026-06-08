@@ -427,6 +427,18 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
   const [openSections, setOpenSections] = useState<Set<string>>(() => new Set());
   const toggleSection = (sec: string) =>
     setOpenSections(prev => (prev.has(sec) ? new Set() : new Set([sec])));
+  // Bascule un groupe ; à l'ouverture d'un groupe à pôles, déplie d'emblée son
+  // 1er pôle (Commercial pour l'Immobilier = usage quotidien) au lieu de tout
+  // laisser replié — sinon CRM/Vente/Location restent invisibles tant qu'on ne
+  // clique pas l'en-tête du pôle.
+  const openGroupWithFirstSection = (entry: NavEntry & { type: "group" }) => {
+    const willOpen = openGroup !== entry.id;
+    setOpenGroup(willOpen ? entry.id : null);
+    if (willOpen) {
+      const firstSection = entry.children.find(c => c.section)?.section;
+      setOpenSections(firstSection ? new Set([firstSection]) : new Set());
+    }
+  };
   const [mobileOpen, setMobileOpen] = useState(false);
   const [status, setStatus] = useState<UserStatus>("online");
   const [showStatus, setShowStatus] = useState(false);
@@ -590,13 +602,13 @@ export function Sidebar({ active, onNavigate, onLogout, navMode = "classic", sco
           data-testid={`navgroup-${entry.groupKey}`}
           onClick={() => {
             onNavigate(entry.groupKey);
-            setOpenGroup(p => p === entry.id ? null : entry.id);
+            openGroupWithFirstSection(entry);
             if (isMob) setMobileOpen(false);
           }}
           onKeyDown={e => {
             if (e.key === "Enter" || e.key === " ") {
               onNavigate(entry.groupKey);
-              setOpenGroup(p => p === entry.id ? null : entry.id);
+              openGroupWithFirstSection(entry);
               if (isMob) setMobileOpen(false);
             }
           }}
