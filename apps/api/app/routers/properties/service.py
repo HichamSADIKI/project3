@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.geocoding import build_query, geocode
 from app.models.property import Property
 
 from .schemas import PropertyCreate, PropertyUpdate
@@ -163,6 +164,16 @@ async def create_property(
     )
     seq = (seq_result.scalar_one() or 0) + 1
 
+    # Loi 2 — géocoder à la création si aucune coordonnée n'est fournie (ex. fiche
+    # importée depuis une annonce : adresse texte mais pas de lat/lng). Si des
+    # coords sont fournies (sélecteur carte), on les respecte. Fail-secure : pas
+    # de clé / échec → location reste NULL, la création n'est pas bloquée.
+    lat, lng = data.latitude, data.longitude
+    if lat is None or lng is None:
+        coords = await geocode(build_query(data.address_en, data.district, data.city))
+        if coords is not None:
+            lat, lng = coords
+
     prop = Property(
         company_id=uuid.UUID(company_id),
         reference=_gen_reference(seq),
@@ -178,7 +189,7 @@ async def create_property(
         bedrooms=data.bedrooms,
         bathrooms=data.bathrooms,
         status=data.status,
-        location=_make_point(data.latitude, data.longitude),
+        location=_make_point(lat, lng),
         address_en=data.address_en,
         address_ar=data.address_ar,
         district=data.district,
