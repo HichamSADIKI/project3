@@ -15,12 +15,12 @@ Lecture seule : aucune écriture, aucune action, aucune donnée tenant RLS conto
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-from sqlalchemy import func, or_, select
+from sqlalchemy import Date, cast, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -75,6 +75,27 @@ def aggregate_by_prefix(
     ]
 
 
+def day_keys(today: date, days: int) -> list[str]:
+    """Liste ordonnée des `days` derniers jours (ISO), du plus ancien à `today`. PUR."""
+    return [(today - timedelta(days=i)).isoformat() for i in range(days - 1, -1, -1)]
+
+
+def daily_series(
+    rows: list[tuple[str, str, int]],
+    prefixes: tuple[tuple[str, str], ...],
+    keys: list[str],
+) -> list[dict[str, Any]]:
+    """Série journalière par préfixe : (action, jour, count) → counts alignés sur `keys`. PUR."""
+    labels = dict(prefixes)
+    idx = {d: i for i, d in enumerate(keys)}
+    series: dict[str, list[int]] = {p: [0] * len(keys) for p, _ in prefixes}
+    for action, day, count in rows:
+        p = prefix_of(action, prefixes)
+        if p is not None and day in idx:
+            series[p][idx[day]] += count
+    return [{"prefix": p, "label": labels[p], "counts": series[p]} for p, _ in prefixes]
+
+
 # ── Schémas Pydantic v2 ─────────────────────────────────────────────────────────
 
 
@@ -105,8 +126,20 @@ class StudioGovernance(BaseModel):
     modules_by_state: dict[str, int]
 
 
+class SeriesItem(BaseModel):
+    prefix: str
+    label: str
+    counts: list[int]
+
+
+class TimeSeries(BaseModel):
+    days: list[str]
+    series: list[SeriesItem]
+
+
 class SecurityOverview(BaseModel):
     events: list[EventBucket]
+    timeseries: TimeSeries
     recent: list[RecentEvent]
     studio: StudioGovernance
     window: dict[str, str]
@@ -142,6 +175,20 @@ async def security_overview(db: AsyncSession = Depends(get_db)) -> OverviewOut:
     ).all()
     buckets = aggregate_by_prefix(
         [(r.action, int(r.c24), int(r.c7)) for r in count_rows], _SECURITY_PREFIXES
+    )
+
+    # Série journalière (7 jours) par action → agrégée par préfixe.
+    keys = day_keys(now.date(), 7)
+    day_col = cast(func.date_trunc("day", AuditLog.created_at), Date).label("day")
+    day_rows = (
+        await db.execute(
+            select(AuditLog.action, day_col, func.count().label("c"))
+            .where(AuditLog.created_at >= d7, sec_filter)
+            .group_by(AuditLog.action, day_col)
+        )
+    ).all()
+    series = daily_series(
+        [(r.action, r.day.isoformat(), int(r.c)) for r in day_rows], _SECURITY_PREFIXES, keys
     )
 
     recent_rows = (
@@ -208,6 +255,7 @@ async def security_overview(db: AsyncSession = Depends(get_db)) -> OverviewOut:
     return OverviewOut(
         data=SecurityOverview(
             events=[EventBucket(**b) for b in buckets],
+            timeseries=TimeSeries(days=keys, series=[SeriesItem(**s) for s in series]),
             recent=[RecentEvent.model_validate(r) for r in recent_rows],
             studio=StudioGovernance(
                 integration_pending=int(integration_pending),

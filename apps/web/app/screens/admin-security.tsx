@@ -33,12 +33,20 @@ type StudioGovernance = {
   modules_total: number;
   modules_by_state: Record<string, number>;
 };
-type Overview = { events: EventBucket[]; recent: RecentEvent[]; studio: StudioGovernance };
+type SeriesItem = { prefix: string; label: string; counts: number[] };
+type TimeSeries = { days: string[]; series: SeriesItem[] };
+type Overview = {
+  events: EventBucket[];
+  timeseries: TimeSeries;
+  recent: RecentEvent[];
+  studio: StudioGovernance;
+};
 
 const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Sécurité",
     events: "Événements de sécurité",
+    trend: "Tendance (7 jours)",
     last24h: "24 h",
     last7d: "/ 7 j",
     governance: "Gouvernance Studio",
@@ -60,6 +68,7 @@ const TR: Record<Lang, Record<string, string>> = {
   en: {
     title: "Security",
     events: "Security events",
+    trend: "Trend (7 days)",
     last24h: "24h",
     last7d: "/ 7d",
     governance: "Studio governance",
@@ -81,6 +90,7 @@ const TR: Record<Lang, Record<string, string>> = {
   ar: {
     title: "الأمن",
     events: "أحداث الأمان",
+    trend: "الاتجاه (٧ أيام)",
     last24h: "٢٤ س",
     last7d: "/ ٧ أيام",
     governance: "حوكمة الاستوديو",
@@ -124,6 +134,35 @@ function Kpi({ label, value, sub }: { label: string; value: number; sub?: string
         {value}
         {sub ? <span style={{ fontSize: 12, color: "var(--ink-4)", fontWeight: 500 }}> {sub}</span> : null}
       </span>
+    </div>
+  );
+}
+
+function Sparkline({ item, days }: { item: SeriesItem; days: string[] }): React.ReactNode {
+  const max = Math.max(1, ...item.counts);
+  return (
+    <div style={{ ...card, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>{item.label}</span>
+        <span className="tnum" style={{ fontSize: 11.5, color: "var(--ink-4)" }}>
+          Σ {item.counts.reduce((a, b) => a + b, 0)}
+        </span>
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 44 }}>
+        {item.counts.map((c, i) => (
+          <div
+            key={days[i] ?? i}
+            title={`${days[i] ?? ""} : ${c}`}
+            style={{
+              flex: 1,
+              height: `${Math.round((c / max) * 100)}%`,
+              minHeight: 2,
+              borderRadius: 3,
+              background: c > 0 ? "var(--gold-deep)" : "var(--line-soft)",
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -183,6 +222,16 @@ export function ScreenAppAdminSecurity(): React.ReactNode {
               <div style={grid}>
                 {data.events.map((b) => (
                   <Kpi key={b.prefix} label={b.label} value={b.count_24h} sub={`${L("last24h")} · ${b.count_7d} ${L("last7d")}`} />
+                ))}
+              </div>
+            </div>
+
+            {/* Tendance (7 jours) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <span style={sectionTitle}>{L("trend")}</span>
+              <div style={grid}>
+                {data.timeseries.series.map((s) => (
+                  <Sparkline key={s.prefix} item={s} days={data.timeseries.days} />
                 ))}
               </div>
             </div>
