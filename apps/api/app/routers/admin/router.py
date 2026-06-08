@@ -13,6 +13,7 @@ from app.routers.admin.alerts import alerts_router
 from app.routers.admin.audit import audit_router
 from app.routers.admin.backups import backups_router
 from app.routers.admin.infra import infra_router
+from app.routers.admin.studio import studio_router
 from app.routers.admin.users import users_router
 
 router = APIRouter(prefix="/admin")
@@ -24,6 +25,7 @@ router.include_router(alerts_router)
 # Périmètre B — infra-admin (plateforme, cross-tenant).
 router.include_router(infra_router)
 router.include_router(backups_router)
+router.include_router(studio_router)
 
 
 @router.get("/health", tags=["admin"])
