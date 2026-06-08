@@ -253,15 +253,23 @@ apps/api/app/routers/{module}/
   models.py        # SQLAlchemy models (if module-specific)
   test_{module}.py # pytest-asyncio · isolated multi-tenant fixtures
   CLAUDE.md        # Module-specific business rules (when present)
+  ai_router.py     # Optional "Agent AI" sub-module (see note below)
+  ai_service.py
+  ai_schemas.py
+  test_{module}_ai.py
 ```
 
-Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `acquisitions`, `sales`, `leasing`, `copilot`, `tenant_portal`, `iam`, `developers`, `marketing`, `sources`, `public_site`, `social`, `scenarios`, `accounting`, `admin`, `bank`, `search`.
+Existing modules: `auth`, `clients`, `properties`, `crm`, `contracts`, `golden_visa`, `rentals`, `finance`, `reporting`, `scraping`, `owners`, `tenants`, `vendors`, `technicians`, `buildings`, `units`, `pdc`, `maintenance`, `inspections`, `payments`, `comms`, `workflows`, `ai_services`, `partner`, `client_portal`, `owner_portal`, `agenda`, `realestate_core`, `documents`, `owner_statements`, `notifications`, `telephony`, `inbox`, `ticketing`, `acquisitions`, `sales`, `leasing`, `copilot`, `tenant_portal`, `iam`, `developers`, `marketing`, `sources`, `public_site`, `social`, `scenarios`, `accounting`, `admin`, `bank`, `search`, `honeytokens`, `self_defense`, `presence`.
 
 > `accounting` (migration 0047) is a **double-entry** general ledger: each `JournalEntry` carries ≥ 2 balanced `JournalLine`s (Σ debits == Σ credits, each line is debit XOR credit, all `Decimal` — never float). `JournalLine.company_id` is **denormalized** — copied from the parent entry, never from client input — so Law 1 RLS applies directly to the lines table. Pure balance validation lives in `validate_balanced()` (no DB).
 
 > `tenant_kyc` and `contract_renewal_signature` (migrations 0022–0024) are **not** standalone router dirs — they are sub-routes mounted under `tenants`/`contracts`. Don't look for `tenant_kyc/` or `contract_renewal_signature/` directories.
 
+> **Agent AI sub-module** (`clients`, `vendors` — PR #282, no migration). A module can carry an optional AI agent as a **separate router** (`ai_router.py` + `ai_service.py` + `ai_schemas.py` + `test_{module}_ai.py`), mounted independently in [main.py](apps/api/app/main.py) under `/{module}/ai/...`. Tenant-scoped (Loi 1: `company_id` from context), RBAC via `require_roles`, and **404 (never 403) on cross-tenant/unknown id** to avoid the BOLA existence oracle. Gemini calls are non-blocking (short timeout + **deterministic heuristic fallback**), so the pure-logic layer is testable without the LLM. Real outbound = email (`Notification` + Celery) ; WhatsApp requires an approved Meta template. PDPL guard `app/core/pdpl.py`. Détails : [docs/architecture/agent-ai.md](docs/architecture/agent-ai.md).
+
 > `bank` (migration 0050) is bank-statement import + reconciliation against payments/ledger; `search` is the Meilisearch front (`GET /search` unified typeahead over biens/clients/contrats + `POST /search/reindex` per-company) — its index logic lives in `search/meili.py`, no migration. `admin` (migration 0048) is the admin console **aggregator** (sub-routers `users`/`audit`/`alerts`/`backups`/`infra`/`prometheus`) — see its co-located `CLAUDE.md`.
+
+> **Sécurité active — `honeytokens` · `self_defense` · `presence`** (migrations 0062, 0064, 0065 ; `0063_user_oauth_link` lie un compte à un provider OAuth). `honeytokens` (leurres) : l'endpoint `GET /honeytokens/trip/{token}` est **public (sans JWT)** et renvoie toujours une **réponse neutre 404** — aucun oracle ne révèle qu'un piège existe ni à quelle société il appartient ; l'alerte part en fond. `self_defense` : `POST /self-defense/event` écrit dans `audit_logs` (table RLS-exempte, isolée par `company_id` au niveau ligne) ; **aucun code/secret n'est transmis ni stocké**. `presence` : `POST /presence/heartbeat` (tout user) + `GET /presence/active?advanced=1` **réservé admin/manager** (les IP/positions ne fuitent pas aux non-admins) ; IP lue côté serveur (`X-Forwarded-For`). Les trois respectent la Loi 1 via `get_db_session`. Chaque module a un `admin_router.py` (sauf `presence`).
 
 > **Infinity ID / UAE Infinity PASS** (migrations 0048 split-finance aside; identity proper at 0059) — an **internal** IdP inspired by UAE PASS (assurance levels L0–L3, step-up on sensitive actions, in-house qualified signature), **not** federated to the government `id.uaepass.ae`. Assurance scale + step-up logic live in `app/core/assurance.py`. See [docs/architecture/infinity-id.md](docs/architecture/infinity-id.md).
 
