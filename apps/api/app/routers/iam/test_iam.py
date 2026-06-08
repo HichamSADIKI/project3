@@ -28,6 +28,7 @@ from app.routers.iam.service import (
     ensure_seeded,
     resolve_effective,
     subjects_for,
+    sync_role_group_membership,
 )
 
 # ── Mini-catalogue de test (arbre ressources) ───────────────────────────────────
@@ -693,3 +694,37 @@ async def test_self_heal_noop_for_non_staff_role(
     db_session.add(client_user)
     await db_session.commit()
     assert await ensure_role_group_membership(db_session, cid, client_user.id) is False
+
+
+async def test_role_change_resyncs_baseline_and_drops_old_privileges(
+    db_session: AsyncSession, seed_company: Company
+) -> None:
+    """Un admin rétrogradé en agent perd `sys-admin` (et `settings.access`) et
+    récupère la baseline agent — il n'est plus sur-privilégié."""
+    cid = seed_company.id
+    await ensure_seeded(db_session, cid)
+    user = User(
+        id=uuid.uuid4(),
+        company_id=cid,
+        email=f"demote-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password="x",
+        full_name="To Demote",
+        role="admin",
+        status="active",
+        is_active=True,
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await ensure_role_group_membership(db_session, cid, user.id)
+
+    eff_admin = await compute_effective(db_session, cid, user.id)
+    assert can(eff_admin, "settings.access")  # admin : gestion des accès
+
+    # Rétrogradation admin → agent
+    user.role = "agent"
+    await db_session.commit()
+    await sync_role_group_membership(db_session, cid, user.id, "agent")
+
+    eff_agent = await compute_effective(db_session, cid, user.id)
+    assert not can(eff_agent, "settings.access")  # privilège admin retiré
+    assert can(eff_agent, "realestate.contracts.create")  # baseline agent conservée
