@@ -3,7 +3,7 @@
 import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
+from typing import Any, cast
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -59,9 +59,15 @@ async def list_technicians(
     mobile_active: bool | None = None,
     on_call: bool | None = None,
 ) -> tuple[list[Technician], int]:
-    base_query = select(Technician).where(
-        Technician.company_id == company_id,
-        Technician.deleted_at.is_(None),
+    # JOIN User pour exposer le nom/email du salarié rattaché (évite un N+1 :
+    # une seule requête ramène technicien + identité).
+    base_query = (
+        select(Technician, User.full_name, User.email)
+        .join(User, User.id == Technician.user_id)
+        .where(
+            Technician.company_id == company_id,
+            Technician.deleted_at.is_(None),
+        )
     )
     if mobile_active is not None:
         base_query = base_query.where(Technician.mobile_active == mobile_active)
@@ -74,21 +80,34 @@ async def list_technicians(
 
     offset = (page - 1) * limit
     paginated = base_query.order_by(Technician.rating_avg.desc()).offset(offset).limit(limit)
-    result = await db.execute(paginated)
-    return list(result.scalars().all()), total
+    rows = (await db.execute(paginated)).all()
+    techs: list[Technician] = []
+    for tech, full_name, email in rows:
+        tech.full_name = full_name
+        tech.email = email
+        techs.append(tech)
+    return techs, total
 
 
 async def get_technician(
     db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
 ) -> Technician | None:
     result = await db.execute(
-        select(Technician).where(
+        select(Technician, User.full_name, User.email)
+        .join(User, User.id == Technician.user_id)
+        .where(
             Technician.user_id == user_id,
             Technician.company_id == company_id,
             Technician.deleted_at.is_(None),
         )
     )
-    return result.scalar_one_or_none()
+    row = result.one_or_none()
+    if row is None:
+        return None
+    tech, full_name, email = row
+    tech.full_name = full_name
+    tech.email = email
+    return cast(Technician, tech)
 
 
 async def create_technician(

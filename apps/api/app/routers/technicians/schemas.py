@@ -31,6 +31,10 @@ class TechnicianRatingInput(BaseModel):
 
 class TechnicianOut(BaseModel):
     user_id: uuid.UUID
+    # Identité du salarié rattaché — enrichie par jointure User dans list/get
+    # (absente sur la réponse de création immédiate : optionnelle, défaut None).
+    full_name: str | None = None
+    email: str | None = None
     skills: list[str]
     assigned_zones: list[str]
     rating_avg: Decimal

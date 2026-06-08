@@ -44,6 +44,10 @@ export type Translations = {
   nav_contracts_re: string;
   nav_achat: string; nav_vente: string; nav_location: string;
   nav_developers: string; dev_subtitle: string; dev_count: string; dev_empty: string; dev_new: string;
+  nav_technicians: string; tech_subtitle: string; tech_count: string; tech_empty: string;
+  tech_kpi_total: string; tech_kpi_mobile: string; tech_kpi_oncall: string; tech_kpi_jobs: string;
+  tech_col_ref: string; tech_col_skills: string; tech_col_zones: string; tech_col_rating: string; tech_col_jobs: string; tech_col_status: string;
+  tech_status_mobile: string; tech_status_offsite: string; tech_status_oncall: string;
   nav_golden_visa: string;
   nav_inspections: string;
   nav_agenda: string;
@@ -358,6 +362,10 @@ const ar: Translations = {
   nav_contracts_re: "العقود",
   nav_achat: "الشراء", nav_vente: "البيع", nav_location: "الإيجار",
   nav_developers: "المطوّرون", dev_subtitle: "المطوّرون العقاريون ومشاريعهم.", dev_count: "مطوّر", dev_empty: "لا يوجد مطوّرون.", dev_new: "مطوّر جديد",
+  nav_technicians: "الفنّيون", tech_subtitle: "فنّيو الصيانة ومهاراتهم ومناطقهم.", tech_count: "فنّي", tech_empty: "لا يوجد فنّيون.",
+  tech_kpi_total: "الإجمالي", tech_kpi_mobile: "نشط ميدانيًا", tech_kpi_oncall: "تحت الطلب", tech_kpi_jobs: "مهام منجزة",
+  tech_col_ref: "الفنّي", tech_col_skills: "المهارات", tech_col_zones: "المناطق", tech_col_rating: "التقييم", tech_col_jobs: "المهام", tech_col_status: "الحالة",
+  tech_status_mobile: "ميداني", tech_status_offsite: "خارج الميدان", tech_status_oncall: "تحت الطلب",
   nav_golden_visa: "الإقامة الذهبية",
   nav_inspections: "محاضر المعاينة",
   nav_agenda: "الأجندة",
@@ -665,6 +673,10 @@ const en: Translations = {
   nav_contracts_re: "Contracts",
   nav_achat: "Buy", nav_vente: "Sell", nav_location: "Rent",
   nav_developers: "Developers", dev_subtitle: "Property developers and their projects.", dev_count: "developers", dev_empty: "No developers yet.", dev_new: "New developer",
+  nav_technicians: "Technicians", tech_subtitle: "Maintenance technicians, skills and zones.", tech_count: "technicians", tech_empty: "No technicians yet.",
+  tech_kpi_total: "Total", tech_kpi_mobile: "Field-active", tech_kpi_oncall: "On call", tech_kpi_jobs: "Jobs done",
+  tech_col_ref: "Technician", tech_col_skills: "Skills", tech_col_zones: "Zones", tech_col_rating: "Rating", tech_col_jobs: "Jobs", tech_col_status: "Status",
+  tech_status_mobile: "Field", tech_status_offsite: "Off-site", tech_status_oncall: "On call",
   nav_golden_visa: "Golden Visa",
   nav_inspections: "Inspections",
   nav_agenda: "Agenda",
@@ -972,6 +984,10 @@ const fr: Translations = {
   nav_contracts_re: "Contrats",
   nav_achat: "Achat", nav_vente: "Vente", nav_location: "Location",
   nav_developers: "Promoteurs", dev_subtitle: "Promoteurs immobiliers et leurs projets.", dev_count: "promoteurs", dev_empty: "Aucun promoteur pour le moment.", dev_new: "Nouveau promoteur",
+  nav_technicians: "Techniciens", tech_subtitle: "Techniciens de maintenance, compétences et zones.", tech_count: "techniciens", tech_empty: "Aucun technicien pour le moment.",
+  tech_kpi_total: "Total", tech_kpi_mobile: "Actifs terrain", tech_kpi_oncall: "D'astreinte", tech_kpi_jobs: "Interventions",
+  tech_col_ref: "Technicien", tech_col_skills: "Compétences", tech_col_zones: "Zones", tech_col_rating: "Note", tech_col_jobs: "Jobs", tech_col_status: "Statut",
+  tech_status_mobile: "Terrain", tech_status_offsite: "Hors terrain", tech_status_oncall: "Astreinte",
   nav_golden_visa: "Visa Doré",
   nav_inspections: "États des lieux",
   nav_agenda: "Agenda",
