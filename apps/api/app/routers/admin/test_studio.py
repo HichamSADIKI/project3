@@ -18,6 +18,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,6 +33,7 @@ from app.routers.admin.studio import (
     integration_ttl_minutes,
     is_expired,
 )
+from app.routers.admin.studio_schema import MAX_SHEETS, SheetSchema
 
 AUTH = "Authorization"
 BASE = "/api/v1/admin/platform/studio"
@@ -408,3 +410,141 @@ async def test_integration_requests_history(client: AsyncClient, seed_platform_a
     hist = await client.get(f"{BASE}/modules/{mid}/integration-requests", headers=h)
     assert hist.status_code == 200
     assert hist.json()["meta"]["total"] >= 1
+
+
+# ── Phase 1 — SheetSchema (validation pure) ────────────────────────────────────
+
+
+def _valid_schema() -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "sheets": [
+            {
+                "id": "main",
+                "title_ar": "الرئيسية",
+                "title_en": "Main",
+                "title_fr": "Principale",
+                "elements": [
+                    {
+                        "id": "name",
+                        "type": "text",
+                        "label_ar": "الاسم",
+                        "label_en": "Name",
+                        "label_fr": "Nom",
+                    },
+                    {
+                        "id": "go",
+                        "type": "button",
+                        "label_ar": "إرسال",
+                        "label_en": "Submit",
+                        "label_fr": "Envoyer",
+                        "action": "submit",
+                    },
+                ],
+            }
+        ],
+    }
+
+
+def test_sheet_schema_valid() -> None:
+    schema = SheetSchema.model_validate(_valid_schema())
+    assert schema.schema_version == 1
+    assert len(schema.sheets) == 1
+    assert schema.sheets[0].elements[1].action == "submit"
+
+
+def test_sheet_schema_rejects_unknown_element_type() -> None:
+    bad = _valid_schema()
+    bad["sheets"][0]["elements"][0]["type"] = "iframe"  # type: ignore[index]
+    with pytest.raises(ValidationError):
+        SheetSchema.model_validate(bad)
+
+
+def test_sheet_schema_rejects_action_outside_whitelist() -> None:
+    bad = _valid_schema()
+    bad["sheets"][0]["elements"][1]["action"] = "exec"  # type: ignore[index]
+    with pytest.raises(ValidationError):
+        SheetSchema.model_validate(bad)
+
+
+def test_sheet_schema_rejects_bad_slug() -> None:
+    bad = _valid_schema()
+    bad["sheets"][0]["elements"][0]["id"] = "Name With Space"  # type: ignore[index]
+    with pytest.raises(ValidationError):
+        SheetSchema.model_validate(bad)
+
+
+def test_sheet_schema_rejects_extra_field() -> None:
+    """extra='forbid' : un champ inattendu (injection de sortie IA) est refusé."""
+    bad = _valid_schema()
+    bad["sheets"][0]["elements"][0]["onclick"] = "alert(1)"  # type: ignore[index]
+    with pytest.raises(ValidationError):
+        SheetSchema.model_validate(bad)
+
+
+def test_sheet_schema_rejects_empty_sheets() -> None:
+    with pytest.raises(ValidationError):
+        SheetSchema.model_validate({"schema_version": 1, "sheets": []})
+
+
+def test_sheet_schema_rejects_too_many_sheets() -> None:
+    one = _valid_schema()["sheets"][0]
+    with pytest.raises(ValidationError):
+        SheetSchema.model_validate({"schema_version": 1, "sheets": [one] * (MAX_SHEETS + 1)})
+
+
+# ── Phase 1 — endpoints schema (POST/GET) ──────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_schema_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    _admin, token = seed_admin
+    h = {AUTH: f"Bearer {token}"}
+    mid = uuid.uuid4()
+    assert (await client.get(f"{BASE}/modules/{mid}/schema", headers=h)).status_code == 403
+    assert (
+        await client.post(f"{BASE}/modules/{mid}/schema", json=_valid_schema(), headers=h)
+    ).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_schema_set_and_get(client: AsyncClient, seed_platform_admin) -> None:
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    resp = await client.post(f"{BASE}/modules", json=_module_payload(), headers=h)
+    mid = resp.json()["data"]["id"]
+
+    # Pas de schéma au départ.
+    empty = await client.get(f"{BASE}/modules/{mid}/schema", headers=h)
+    assert empty.status_code == 200
+    assert empty.json()["data"] is None
+
+    # POST schéma valide → 200 ; GET le renvoie.
+    saved = await client.post(f"{BASE}/modules/{mid}/schema", json=_valid_schema(), headers=h)
+    assert saved.status_code == 200
+    got = await client.get(f"{BASE}/modules/{mid}/schema", headers=h)
+    assert got.status_code == 200
+    assert got.json()["data"]["sheets"][0]["id"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_schema_rejects_invalid_payload(client: AsyncClient, seed_platform_admin) -> None:
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    resp = await client.post(f"{BASE}/modules", json=_module_payload(), headers=h)
+    mid = resp.json()["data"]["id"]
+    bad = _valid_schema()
+    bad["sheets"][0]["elements"][0]["type"] = "iframe"  # type: ignore[index]
+    r = await client.post(f"{BASE}/modules/{mid}/schema", json=bad, headers=h)
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_schema_not_editable_after_build(client: AsyncClient, seed_platform_admin) -> None:
+    """Le schéma est gelé hors `draft` → 409 module_not_editable après build."""
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    mid = await _create_audited_module(client, h)  # passe en `audited`
+    r = await client.post(f"{BASE}/modules/{mid}/schema", json=_valid_schema(), headers=h)
+    assert r.status_code == 409
+    assert r.json()["detail"] == "module_not_editable"

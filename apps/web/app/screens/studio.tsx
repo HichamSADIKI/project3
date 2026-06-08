@@ -20,7 +20,8 @@ import React from "react";
 import { Topbar } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
-import { postJson } from "@/lib/api-client";
+import { getJson, postJson } from "@/lib/api-client";
+import { StudioRenderer, type SheetSchema } from "@/components/studio-renderer";
 
 type Lang = "ar" | "en" | "fr";
 
@@ -59,6 +60,12 @@ const TR: Record<Lang, Record<string, string>> = {
     build: "Construire",
     request: "Demander l'intégration",
     approve: "Approuver (4-eyes)",
+    schema: "Schéma",
+    saveSchema: "Enregistrer le schéma",
+    preview: "Aperçu",
+    invalidJson: "JSON invalide",
+    closeEditor: "Fermer",
+    schemaHint: "Schéma déclaratif (feuilles → éléments). Donnée, jamais du code.",
     reasonPrompt: "Raison de l'intégration (≥ 3 caractères) :",
     ticketPrompt: "Référence ticket (optionnel) :",
     loading: "Chargement…",
@@ -87,6 +94,12 @@ const TR: Record<Lang, Record<string, string>> = {
     build: "Build",
     request: "Request integration",
     approve: "Approve (4-eyes)",
+    schema: "Schema",
+    saveSchema: "Save schema",
+    preview: "Preview",
+    invalidJson: "Invalid JSON",
+    closeEditor: "Close",
+    schemaHint: "Declarative schema (sheets → elements). Data, never code.",
     reasonPrompt: "Integration reason (≥ 3 characters):",
     ticketPrompt: "Ticket reference (optional):",
     loading: "Loading…",
@@ -115,6 +128,12 @@ const TR: Record<Lang, Record<string, string>> = {
     build: "بناء",
     request: "طلب الدمج",
     approve: "موافقة (عينان)",
+    schema: "المخطط",
+    saveSchema: "حفظ المخطط",
+    preview: "معاينة",
+    invalidJson: "JSON غير صالح",
+    closeEditor: "إغلاق",
+    schemaHint: "مخطط تعريفي (صفحات → عناصر). بيانات، ليست كودًا.",
     reasonPrompt: "سبب الدمج (٣ أحرف على الأقل):",
     ticketPrompt: "مرجع التذكرة (اختياري):",
     loading: "جارٍ التحميل…",
@@ -242,6 +261,66 @@ export function ScreenAppAdminStudio(): React.ReactNode {
   async function approveIntegration(m: StudioModule): Promise<void> {
     await act(`/api/admin/platform/studio/modules/${m.id}/approve-integration`, {}, modules.reload);
   }
+
+  // ── Éditeur de schéma (modules lite) ──
+  const STARTER: SheetSchema = {
+    schema_version: 1,
+    sheets: [
+      {
+        id: "main",
+        title_ar: "الرئيسية",
+        title_en: "Main",
+        title_fr: "Principale",
+        elements: [
+          {
+            id: "name",
+            type: "text",
+            label_ar: "الاسم",
+            label_en: "Name",
+            label_fr: "Nom",
+          },
+        ],
+      },
+    ],
+  };
+  const [editor, setEditor] = React.useState<{ id: string; json: string } | null>(null);
+
+  async function openSchema(m: StudioModule): Promise<void> {
+    let initial: SheetSchema = STARTER;
+    try {
+      const r = await getJson<{ data: SheetSchema | null }>(
+        `/api/admin/platform/studio/modules/${m.id}/schema`,
+      );
+      if (r.data) initial = r.data;
+    } catch {
+      /* pas de schéma encore → gabarit de départ */
+    }
+    setEditor({ id: m.id, json: JSON.stringify(initial, null, 2) });
+  }
+
+  async function saveSchema(): Promise<void> {
+    if (!editor) return;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(editor.json);
+    } catch {
+      window.alert(L("invalidJson"));
+      return;
+    }
+    await act(`/api/admin/platform/studio/modules/${editor.id}/schema`, parsed, () => {
+      modules.reload();
+    });
+  }
+
+  // Aperçu live : parse du JSON courant de l'éditeur (null si invalide).
+  const previewSchema: SheetSchema | null = React.useMemo(() => {
+    if (!editor) return null;
+    try {
+      return JSON.parse(editor.json) as SheetSchema;
+    } catch {
+      return null;
+    }
+  }, [editor]);
 
   const labelInput = (k: string, field: keyof typeof form): React.ReactNode => (
     <label style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 12 }}>
@@ -401,6 +480,17 @@ export function ScreenAppAdminStudio(): React.ReactNode {
                     </td>
                     <td style={{ ...td, textAlign: "end" }}>
                       <div style={{ display: "inline-flex", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                        {m.state === "draft" && m.flavor === "lite" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void openSchema(m);
+                            }}
+                            style={btn}
+                          >
+                            {L("schema")}
+                          </button>
+                        )}
                         {m.state === "draft" && (
                           <button
                             type="button"
@@ -441,6 +531,73 @@ export function ScreenAppAdminStudio(): React.ReactNode {
             </tbody>
           </table>
         </div>
+
+        {/* ── Éditeur de schéma + aperçu live (modules lite) ── */}
+        {editor && (
+          <div style={{ ...card, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-1)" }}>
+                {L("schema")}
+              </span>
+              <button type="button" onClick={() => setEditor(null)} style={btn}>
+                {L("closeEditor")}
+              </button>
+            </div>
+            <span style={{ fontSize: 12, color: "var(--ink-4)" }}>{L("schemaHint")}</span>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                gap: 14,
+                alignItems: "start",
+              }}
+            >
+              <textarea
+                value={editor.json}
+                onChange={(e) => setEditor({ ...editor, json: e.target.value })}
+                spellCheck={false}
+                style={{
+                  ...fld,
+                  minHeight: 320,
+                  fontFamily: "var(--font-mono, monospace)",
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  resize: "vertical",
+                  direction: "ltr",
+                }}
+              />
+              <div
+                style={{
+                  border: "1px solid var(--line-soft)",
+                  borderRadius: 10,
+                  padding: 14,
+                  background: "var(--bg-cream)",
+                  minHeight: 320,
+                }}
+              >
+                <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginBottom: 10, textTransform: "uppercase" }}>
+                  {L("preview")}
+                </div>
+                {previewSchema ? (
+                  <StudioRenderer schema={previewSchema} lang={lg} />
+                ) : (
+                  <div style={{ color: "var(--rose)", fontSize: 13 }}>{L("invalidJson")}</div>
+                )}
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => {
+                  void saveSchema();
+                }}
+                style={{ ...btn, background: "var(--gold-deep)", color: "#fff", borderColor: "transparent" }}
+              >
+                {L("saveSchema")}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

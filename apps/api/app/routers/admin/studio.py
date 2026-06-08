@@ -32,6 +32,7 @@ from app.core.database import get_db
 from app.models.audit_log import AuditLog
 from app.models.studio import StudioIntegrationRequest, StudioModule
 from app.routers.admin.deps import require_platform_admin
+from app.routers.admin.studio_schema import SheetSchema
 
 logger = logging.getLogger(__name__)
 
@@ -294,6 +295,56 @@ async def get_module(
 ) -> ModuleDetailOut:
     module = await _get_module(db, module_id)
     return ModuleDetailOut(data=ModuleOut.model_validate(module))
+
+
+class SchemaOut(BaseModel):
+    success: bool = True
+    data: SheetSchema | None
+
+
+@studio_router.post("/modules/{module_id}/schema", response_model=ModuleDetailOut)
+async def set_schema(
+    module_id: uuid.UUID,
+    body: SheetSchema,
+    request: Request,
+    actor: uuid.UUID = Depends(require_platform_admin),
+    db: AsyncSession = Depends(get_db),
+) -> ModuleDetailOut:
+    """Attache/met à jour le schéma de feuille d'un module lite (donnée, jamais exécutée).
+
+    `body` est validé contre `SheetSchema` (422 si mal formé : type d'élément inconnu,
+    action hors liste blanche, slug invalide, tailles dépassées…). Éditable uniquement
+    tant que le module est `draft` (gelé après construction). Audit de la modification.
+    """
+    module = await _get_module(db, module_id)
+    if module.state != "draft":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="module_not_editable")
+    module.schema_json = body.model_dump()
+    db.add(
+        _audit(
+            request,
+            actor,
+            "studio:schema_set",
+            module.id,
+            {"sheets": len(body.sheets), "schema_version": body.schema_version},
+        )
+    )
+    await db.commit()
+    await db.refresh(module)
+    return ModuleDetailOut(data=ModuleOut.model_validate(module))
+
+
+@studio_router.get("/modules/{module_id}/schema", response_model=SchemaOut)
+async def get_schema(
+    module_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> SchemaOut:
+    """Renvoie le schéma de feuille du module (null s'il n'en a pas encore)."""
+    module = await _get_module(db, module_id)
+    if module.schema_json is None:
+        return SchemaOut(data=None)
+    # Re-validation défensive : un schéma stocké reste conforme avant d'être renvoyé.
+    return SchemaOut(data=SheetSchema.model_validate(module.schema_json))
 
 
 @studio_router.post("/modules/{module_id}/build", response_model=ModuleDetailOut)
