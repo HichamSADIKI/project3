@@ -228,3 +228,29 @@ Cloud Console / Apple Developer, URIs de callback, où placer `client_id` vs `cl
 Câblage : le service `api` lit tous les credentials via `env_file: .env` ; `docker-compose.yml`
 propage les `*_OAUTH_CLIENT_ID` au service `web` (le BFF en a besoin pour l'URL d'autorisation, le
 **secret reste côté API**). Il suffit donc de renseigner les variables dans `.env` (cf. `.env.example`).
+
+---
+
+# Géo-IP de la surveillance Self-Defense (GeoLite2 — optionnel)
+
+Le panneau de surveillance (`presence`) localise les IP des sessions actives **en local**, sans
+**aucun appel externe** (exigence PDPL — ne jamais fuiter les IP des utilisateurs vers un tiers).
+Tant que la base n'est pas déployée, `core/geoip.resolve()` **dégrade proprement** (coordonnées
+nulles) : la **liste** fonctionne, la **carte** n'affiche que ce qui est géolocalisé.
+
+Pour activer la géolocalisation réelle (étape **ops manuelle** — licence MaxMind) :
+
+1. Créer un compte MaxMind (gratuit) et générer une **clé de licence**, puis télécharger
+   **`GeoLite2-City.mmdb`** (CC BY-SA, redistribution restreinte → ne **pas** committer le fichier).
+2. Monter le `.mmdb` dans le conteneur `api` (volume) et pointer la variable :
+   ```yaml
+   # docker-compose.yml — service api
+   environment:
+     - GEOIP_DB_PATH=/data/geoip/GeoLite2-City.mmdb
+   volumes:
+     - ./infra/geoip:/data/geoip:ro   # y déposer GeoLite2-City.mmdb (git-ignoré)
+   ```
+3. Ajouter la dépendance Python `geoip2` à l'image API (`uv add geoip2`) puis rebuild `api`.
+4. Vérifier : un heartbeat depuis une IP publique doit renvoyer `geo_country`/`geo_city`/coords
+   non nuls dans `GET /api/v1/presence/active`. Aucun trafic sortant ne doit apparaître (lecture
+   100 % locale du `.mmdb`).
