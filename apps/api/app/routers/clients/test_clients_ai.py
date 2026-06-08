@@ -398,3 +398,138 @@ async def test_health_public(client: AsyncClient) -> None:
     r = await client.get("/api/v1/clients/ai/health")
     assert r.status_code == 200
     assert r.json()["module"] == "clients-ai"
+
+
+# ── C3 : garde PDPL (pur) ──────────────────────────────────────────────────
+
+
+def test_pdpl_safe_strips_sensitive_keys() -> None:
+    raw = {
+        "total": 5,
+        "by_type": {"individual": 5},
+        "emirates_id": "784-XXXX",
+        "IBAN": "AE07...",
+        "pdc": "chq-1",
+        "passport": "P123",
+    }
+    safe = ai_service.pdpl_safe(raw)
+    assert "total" in safe and "by_type" in safe
+    assert "emirates_id" not in safe
+    assert "IBAN" not in safe  # insensible à la casse
+    assert "pdc" not in safe
+    assert "passport" not in safe
+
+
+# ── C1 : envoi réel (intégration) ──────────────────────────────────────────
+
+
+class _FakeSendEmail:
+    """Capture les appels .delay sans toucher au broker Celery."""
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    def delay(self, **kwargs: object) -> None:
+        self.calls.append(kwargs)
+
+
+@pytest.mark.asyncio
+async def test_send_email_queues_real_send(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeSendEmail()
+    monkeypatch.setattr(ai_service, "send_email", fake)
+    admin, token = seed_admin
+    c = await create_client(
+        db_session,
+        admin.company_id,
+        ClientCreate(type="individual", first_name="Mail", email="mail@x.io"),
+    )
+    r = await client.post(
+        f"/api/v1/clients/ai/{c.id}/message/send",
+        json={"channel": "email", "locale": "fr", "purpose": "welcome"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["status"] == "queued"
+    assert data["channel"] == "email"
+    assert data["notification_id"]
+    # L'envoi a bien été enfilé vers l'email du client.
+    assert len(fake.calls) == 1
+    assert fake.calls[0]["to"] == "mail@x.io"
+
+
+@pytest.mark.asyncio
+async def test_send_whatsapp_requires_template(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeSendEmail()
+    monkeypatch.setattr(ai_service, "send_email", fake)
+    admin, token = seed_admin
+    c = await create_client(
+        db_session,
+        admin.company_id,
+        ClientCreate(type="individual", first_name="Wa", phone="+971500000000"),
+    )
+    r = await client.post(
+        f"/api/v1/clients/ai/{c.id}/message/send",
+        json={"channel": "whatsapp", "locale": "fr", "purpose": "follow_up"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["status"] == "template_required"
+    assert fake.calls == []  # aucun envoi simulé
+
+
+@pytest.mark.asyncio
+async def test_send_email_no_recipient(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake = _FakeSendEmail()
+    monkeypatch.setattr(ai_service, "send_email", fake)
+    admin, token = seed_admin
+    c = await create_client(
+        db_session, admin.company_id, ClientCreate(type="individual", first_name="NoMail")
+    )
+    r = await client.post(
+        f"/api/v1/clients/ai/{c.id}/message/send",
+        json={"channel": "email", "locale": "en", "purpose": "follow_up"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["status"] == "no_recipient"
+    assert fake.calls == []
+
+
+@pytest.mark.asyncio
+async def test_send_cross_tenant_returns_404(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(ai_service, "send_email", _FakeSendEmail())
+    admin, _ = seed_admin
+    c = await create_client(
+        db_session,
+        admin.company_id,
+        ClientCreate(type="individual", first_name="X", email="x@x.io"),
+    )
+    _, token_b = second_admin
+    r = await client.post(
+        f"/api/v1/clients/ai/{c.id}/message/send",
+        json={"channel": "email", "locale": "fr", "purpose": "follow_up"},
+        headers=_auth(token_b),
+    )
+    assert r.status_code == 404

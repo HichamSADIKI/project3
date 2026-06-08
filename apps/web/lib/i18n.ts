@@ -32,6 +32,7 @@ export type Translations = {
   aiagent_engine_ai: string; aiagent_engine_heuristic: string; aiagent_error: string; aiagent_loading: string;
   aiagent_score_label: string; aiagent_band: string; aiagent_risk_band: string;
   aiagent_recommended: string; aiagent_reply: string; aiagent_gv_eligible: string; aiagent_flags: string;
+  aiagent_send: string; aiagent_sent: string; aiagent_send_template: string; aiagent_send_no_recipient: string;
   nav_news: string;
   nav_buildings: string;
   nav_properties_map: string;
@@ -344,6 +345,7 @@ const ar: Translations = {
   aiagent_engine_ai: "ذكاء اصطناعي", aiagent_engine_heuristic: "إرشادي", aiagent_error: "خطأ، حاول مجددًا", aiagent_loading: "جارٍ…",
   aiagent_score_label: "الدرجة", aiagent_band: "التصنيف", aiagent_risk_band: "المخاطرة",
   aiagent_recommended: "إجراءات مقترحة", aiagent_reply: "الرد", aiagent_gv_eligible: "مؤهّل للإقامة الذهبية", aiagent_flags: "إشارات",
+  aiagent_send: "إرسال", aiagent_sent: "تم الإرسال ✓", aiagent_send_template: "يتطلب واتساب قالبًا معتمدًا", aiagent_send_no_recipient: "لا يوجد بريد إلكتروني لهذا العميل",
   nav_news: "الأخبار",
   nav_buildings: "المباني",
   nav_properties_map: "خريطة العقارات",
@@ -649,6 +651,7 @@ const en: Translations = {
   aiagent_engine_ai: "AI", aiagent_engine_heuristic: "Heuristic", aiagent_error: "Error, please retry", aiagent_loading: "Loading…",
   aiagent_score_label: "Score", aiagent_band: "Band", aiagent_risk_band: "Risk",
   aiagent_recommended: "Recommended actions", aiagent_reply: "Reply", aiagent_gv_eligible: "Golden Visa eligible", aiagent_flags: "Flags",
+  aiagent_send: "Send", aiagent_sent: "Sent ✓", aiagent_send_template: "WhatsApp requires an approved template", aiagent_send_no_recipient: "No email for this client",
   nav_news: "News",
   nav_buildings: "Buildings",
   nav_properties_map: "Properties map",
@@ -954,6 +957,7 @@ const fr: Translations = {
   aiagent_engine_ai: "IA", aiagent_engine_heuristic: "Heuristique", aiagent_error: "Erreur, réessayez", aiagent_loading: "Chargement…",
   aiagent_score_label: "Score", aiagent_band: "Bande", aiagent_risk_band: "Risque",
   aiagent_recommended: "Actions recommandées", aiagent_reply: "Réponse", aiagent_gv_eligible: "Éligible Golden Visa", aiagent_flags: "Signaux",
+  aiagent_send: "Envoyer", aiagent_sent: "Envoyé ✓", aiagent_send_template: "WhatsApp nécessite un modèle approuvé", aiagent_send_no_recipient: "Pas d'email pour ce client",
   nav_news: "Actualités",
   nav_buildings: "Bâtiments",
   nav_properties_map: "Carte des biens",

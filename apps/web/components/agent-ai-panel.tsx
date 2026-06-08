@@ -240,6 +240,29 @@ function EntityTab({
   // Champs message (clients secondary).
   const [channel, setChannel] = useState("whatsapp");
   const [purpose, setPurpose] = useState("follow_up");
+  // Envoi réel du message (C1).
+  const [sending, setSending] = useState(false);
+  const [sendStatus, setSendStatus] = useState<string | null>(null);
+
+  async function sendMessage(): Promise<void> {
+    if (!id.trim() || !res?.message) return;
+    setSending(true);
+    setSendStatus(null);
+    try {
+      const r = await postJson(`${base}/${encodeURIComponent(id.trim())}/message/send`, {
+        channel,
+        locale: lang,
+        purpose,
+        message: res.message,
+      });
+      const json = (await r.json()) as { data?: { status?: string } };
+      setSendStatus(r.ok ? (json.data?.status ?? "error") : "error");
+    } catch {
+      setSendStatus("error");
+    } finally {
+      setSending(false);
+    }
+  }
 
   // Résolution de la sous-route selon domaine + mode.
   function path(): { url: string; body: Record<string, string> } {
@@ -336,9 +359,34 @@ function EntityTab({
             </div>
           )}
           {res.message && (
-            <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
-              {res.message}
-            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
+                {res.message}
+              </p>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <button onClick={() => void sendMessage()} disabled={sending} style={primaryBtn}>
+                  {sending ? t.aiagent_loading : t.aiagent_send}
+                </button>
+                {sendStatus === "queued" && (
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--emerald, #2f9e6e)" }}>
+                    {t.aiagent_sent}
+                  </span>
+                )}
+                {sendStatus === "template_required" && (
+                  <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>
+                    {t.aiagent_send_template}
+                  </span>
+                )}
+                {sendStatus === "no_recipient" && (
+                  <span style={{ fontSize: 11.5, color: "var(--rose)" }}>
+                    {t.aiagent_send_no_recipient}
+                  </span>
+                )}
+                {sendStatus === "error" && (
+                  <span style={{ fontSize: 11.5, color: "var(--rose)" }}>{t.aiagent_error}</span>
+                )}
+              </div>
+            </div>
           )}
           <Chips label={t.aiagent_recommended} items={res.recommended_actions ?? []} />
           <Chips label={t.aiagent_flags} items={res.flags ?? []} />
