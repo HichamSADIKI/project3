@@ -97,3 +97,26 @@ class ClientChatData(BaseModel):
 class ClientChatOut(BaseModel):
     success: bool = True
     data: ClientChatData
+
+
+# ── Envoi réel d'un message (C1) ──────────────────────────────────────────
+
+
+class ClientSendMessageRequest(BaseModel):
+    channel: Literal["email", "whatsapp"] = "email"
+    locale: Locale = "fr"
+    purpose: Literal["follow_up", "proposal", "welcome", "visit"] = "follow_up"
+    # Message édité par l'agent ; si absent, le brouillon déterministe est utilisé.
+    message: str | None = Field(default=None, max_length=4000)
+
+
+class ClientSendData(BaseModel):
+    status: Literal["queued", "template_required", "no_recipient"]
+    channel: str
+    notification_id: uuid.UUID | None = None
+    detail: str | None = None
+
+
+class ClientSendOut(BaseModel):
+    success: bool = True
+    data: ClientSendData

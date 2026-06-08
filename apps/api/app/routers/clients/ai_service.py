@@ -21,12 +21,41 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core import gemini
 from app.models.client import Client
+from app.models.notification import Notification
 from app.routers.clients.ai_schemas import Locale
 from app.routers.clients.service import (
     GOLDEN_VISA_BUDGET_THRESHOLD,
     clients_segmentation,
     get_client,
 )
+from app.tasks.notifications import send_email
+
+# ── Garde PDPL : ne jamais transmettre de champ sensible à un LLM tiers ────
+# Emirates ID, IBAN, chèques post-datés (PDC), passeport, etc. ne doivent
+# JAMAIS quitter la plateforme vers Gemini (conformité PDPL UAE). Tout dict
+# sérialisé dans un prompt passe par `pdpl_safe`.
+PDPL_SENSITIVE_KEYS = frozenset(
+    {
+        "emirates_id",
+        "emiratesid",
+        "eid",
+        "iban",
+        "pdc",
+        "passport",
+        "passport_number",
+        "national_id",
+        "account_number",
+        "card_number",
+        "cvv",
+        "tax_id",
+    }
+)
+
+
+def pdpl_safe(data: dict[str, Any]) -> dict[str, Any]:
+    """Retire les clés sensibles (PDPL) d'un dict avant envoi à Gemini."""
+    return {k: v for k, v in data.items() if str(k).lower() not in PDPL_SENSITIVE_KEYS}
+
 
 # Seuil secondaire (clients « haut budget » sous le seuil Golden Visa).
 HIGH_BUDGET_THRESHOLD = Decimal("500000")
@@ -332,7 +361,7 @@ async def client_insights(
     engine = "heuristic"
     gen = await gemini.generate_text(
         "Write a 3-sentence executive summary of this client portfolio for an "
-        f"agency manager. Data: {summary}. Answer in locale={locale}.",
+        f"agency manager. Data: {pdpl_safe(summary)}. Answer in locale={locale}.",
         system_instruction="You are a concise UAE real-estate portfolio analyst.",
         locale=locale,
         max_chars=800,
@@ -395,7 +424,7 @@ async def client_chat(
     """Chat conversationnel scopé au portefeuille clients du tenant (Loi 1)."""
     summary = await clients_segmentation(db, company_id)
     context = portfolio_insights(summary, locale)
-    system = f"{_CHAT_SYSTEM}\n\nPortfolio summary (JSON): {summary}"
+    system = f"{_CHAT_SYSTEM}\n\nPortfolio summary (JSON): {pdpl_safe(summary)}"
     gen = await gemini.generate_chat(messages, system_instruction=system, locale=locale)
     if gen.get("text"):
         return {
@@ -406,3 +435,105 @@ async def client_chat(
     # Repli déterministe : on renvoie la synthèse du portefeuille.
     reply = " ".join([context["headline"], *context["bullets"]])
     return {"reply": reply, "engine": "heuristic", "context": {"total": context["total"]}}
+
+
+# ── Envoi réel d'un message au client (C1) ────────────────────────────────
+
+# Sujets e-mail localisés par intention (le corps = le message rédigé/édité).
+_EMAIL_SUBJECTS: dict[str, dict[str, str]] = {
+    "fr": {
+        "follow_up": "Suivi de votre projet",
+        "proposal": "Votre proposition immobilière",
+        "welcome": "Bienvenue chez Infinity",
+        "visit": "Planifier une visite",
+    },
+    "en": {
+        "follow_up": "Following up on your project",
+        "proposal": "Your property proposal",
+        "welcome": "Welcome to Infinity",
+        "visit": "Schedule a viewing",
+    },
+    "ar": {
+        "follow_up": "متابعة مشروعك",
+        "proposal": "عرضك العقاري",
+        "welcome": "أهلًا بك في إنفينيتي",
+        "visit": "تحديد موعد زيارة",
+    },
+}
+
+
+def _email_subject(locale: Locale, purpose: str) -> str:
+    subjects = _EMAIL_SUBJECTS.get(locale, _EMAIL_SUBJECTS["fr"])
+    return subjects.get(purpose, subjects["follow_up"])
+
+
+async def send_client_message(
+    db: AsyncSession,
+    company_id: uuid.UUID,
+    client_id: uuid.UUID,
+    channel: str,
+    locale: Locale,
+    purpose: str,
+    message: str | None = None,
+) -> dict[str, Any] | None:
+    """Envoie réellement un message au client (C1). None si hors tenant (404).
+
+    - **email** : crée une `Notification` (channel=email, pending) puis enfile
+      `send_email` (Celery). Le corps = `message` (édité par l'agent) ou, à
+      défaut, le brouillon déterministe. Statut `queued`.
+    - **whatsapp** : le texte libre n'est PAS autorisé par Meta hors fenêtre 24h
+      → statut `template_required` (aucun envoi simulé).
+    - pas de coordonnée → statut `no_recipient`.
+
+    Scoping `company_id` (Loi 1) via `get_client` ; anti-BOLA (404).
+    """
+    client = await get_client(db, company_id, client_id)
+    if client is None:
+        return None
+    text = (message or "").strip() or draft_message(client, channel, locale, purpose)
+
+    if channel == "whatsapp":
+        return {
+            "status": "template_required",
+            "channel": "whatsapp",
+            "notification_id": None,
+            "detail": "WhatsApp free-text is not allowed by Meta; use an approved template.",
+        }
+
+    # Canal e-mail (texte libre autorisé).
+    if not client.email:
+        return {
+            "status": "no_recipient",
+            "channel": "email",
+            "notification_id": None,
+            "detail": "client has no email address",
+        }
+
+    subject = _email_subject(locale, purpose)
+    notif = Notification(
+        id=uuid.uuid4(),
+        company_id=company_id,
+        recipient_party_id=client.id,
+        type="ai_outreach",
+        channel="email",
+        title=subject[:200],
+        body=text,
+        payload={"purpose": purpose, "source": "agent_ai", "locale": locale},
+        status="pending",
+    )
+    db.add(notif)
+    await db.commit()
+    # Enfile l'envoi après commit (ne pas enfiler si la tx échoue).
+    send_email.delay(
+        to=client.email,
+        subject=subject,
+        body=text,
+        notification_id=str(notif.id),
+        company_id=str(company_id),
+    )
+    return {
+        "status": "queued",
+        "channel": "email",
+        "notification_id": notif.id,
+        "detail": None,
+    }

@@ -26,6 +26,9 @@ from app.routers.clients.ai_schemas import (
     ClientMessageRequest,
     ClientScoreData,
     ClientScoreOut,
+    ClientSendData,
+    ClientSendMessageRequest,
+    ClientSendOut,
     Locale,
 )
 
@@ -121,3 +124,25 @@ async def message_endpoint(
     if data is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="client_not_found")
     return ClientMessageOut(data=ClientMessageData(**data))
+
+
+@router.post(
+    "/{client_id}/message/send",
+    response_model=ClientSendOut,
+    dependencies=[Depends(require_roles(*_AI_ROLES))],
+)
+async def send_message_endpoint(
+    client_id: uuid.UUID,
+    body: ClientSendMessageRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> ClientSendOut:
+    """Envoie réellement le message au client (email via Celery ; WhatsApp →
+    template requis). 404 si le client n'appartient pas au tenant (Loi 1/BOLA)."""
+    company_id = _get_company_id(request)
+    data = await ai_service.send_client_message(
+        db, company_id, client_id, body.channel, body.locale, body.purpose, body.message
+    )
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="client_not_found")
+    return ClientSendOut(data=ClientSendData(**data))
