@@ -31,6 +31,10 @@ export function POST(req: Request, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx, "POST");
 }
 
+export function PATCH(req: Request, ctx: Ctx): Promise<NextResponse> {
+  return forward(req, ctx, "PATCH");
+}
+
 export function DELETE(req: Request, ctx: Ctx): Promise<NextResponse> {
   return forward(req, ctx, "DELETE");
 }

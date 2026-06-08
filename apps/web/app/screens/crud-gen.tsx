@@ -16,7 +16,7 @@ import React from "react";
 import { Topbar } from "@/components/sgi-ui";
 import { StudioCrudForm } from "@/components/studio-crud-form";
 import { useLang } from "@/components/language-provider";
-import { getJson, postJson } from "@/lib/api-client";
+import { getJson, patchJson, postJson } from "@/lib/api-client";
 import { useApiList } from "@/lib/use-api-list";
 import { blankValues, fieldColumns, slugOf, type CrudColumn } from "@/lib/studio-crud";
 import type { SheetSchema } from "@/lib/studio-schema";
@@ -43,6 +43,9 @@ const TR: Record<Lang, Record<string, string>> = {
     open: "Ouvrir",
     back: "← Retour",
     create: "Créer",
+    edit: "Éditer",
+    save: "Enregistrer",
+    cancelEdit: "Annuler",
     delete: "Supprimer",
     rows: "Lignes",
     noRows: "Aucune ligne.",
@@ -59,6 +62,9 @@ const TR: Record<Lang, Record<string, string>> = {
     open: "Open",
     back: "← Back",
     create: "Create",
+    edit: "Edit",
+    save: "Save",
+    cancelEdit: "Cancel",
     delete: "Delete",
     rows: "Rows",
     noRows: "No rows.",
@@ -75,6 +81,9 @@ const TR: Record<Lang, Record<string, string>> = {
     open: "فتح",
     back: "← رجوع",
     create: "إنشاء",
+    edit: "تعديل",
+    save: "حفظ",
+    cancelEdit: "إلغاء",
     delete: "حذف",
     rows: "السجلات",
     noRows: "لا سجلات.",
@@ -123,6 +132,7 @@ export function ScreenAppAdminCrudGen(): React.ReactNode {
   const [rows, setRows] = React.useState<Row[]>([]);
   const [rowsState, setRowsState] = React.useState<"loading" | "ok" | "notDeployed">("loading");
   const [form, setForm] = React.useState<Record<string, FormValue>>({});
+  const [editId, setEditId] = React.useState<string | null>(null);
 
   async function loadRows(slug: string): Promise<void> {
     setRowsState("loading");
@@ -149,10 +159,11 @@ export function ScreenAppAdminCrudGen(): React.ReactNode {
     }
     setSel({ module: m, slug, cols });
     setForm(blankValues(cols));
+    setEditId(null);
     void loadRows(slug);
   }
 
-  async function createRow(): Promise<void> {
+  async function submitRow(): Promise<void> {
     if (!sel) return;
     const payload: Record<string, FormValue> = {};
     for (const c of sel.cols) {
@@ -160,14 +171,36 @@ export function ScreenAppAdminCrudGen(): React.ReactNode {
       if (c.type === "checkbox") payload[c.name] = v === true;
       else if (typeof v === "string" && v !== "") payload[c.name] = v;
     }
-    const res = await postJson(`/api/studio-gen/${sel.slug}/`, payload);
+    const url = editId
+      ? `/api/studio-gen/${sel.slug}/${encodeURIComponent(editId)}`
+      : `/api/studio-gen/${sel.slug}/`;
+    const res = editId ? await patchJson(url, payload) : await postJson(url, payload);
     if (!res.ok) {
       const j = (await res.json().catch(() => ({}))) as { detail?: string };
       window.alert(j.detail ?? `HTTP ${res.status}`);
       return;
     }
     setForm(blankValues(sel.cols));
+    setEditId(null);
     void loadRows(sel.slug);
+  }
+
+  function startEdit(row: Row): void {
+    if (!sel || typeof row.id !== "string") return;
+    const vals = blankValues(sel.cols);
+    for (const c of sel.cols) {
+      const v = row[c.name];
+      if (c.type === "checkbox") vals[c.name] = v === true;
+      else if (v !== null && v !== undefined) vals[c.name] = String(v);
+    }
+    setForm(vals);
+    setEditId(row.id);
+  }
+
+  function cancelEdit(): void {
+    if (!sel) return;
+    setForm(blankValues(sel.cols));
+    setEditId(null);
   }
 
   async function deleteRow(id: unknown): Promise<void> {
@@ -282,16 +315,21 @@ export function ScreenAppAdminCrudGen(): React.ReactNode {
                   lang={lg}
                   onChange={(name, value) => setForm((f) => ({ ...f, [name]: value }))}
                 />
-                <div>
+                <div style={{ display: "flex", gap: 10 }}>
                   <button
                     type="button"
                     onClick={() => {
-                      void createRow();
+                      void submitRow();
                     }}
                     style={{ ...btn, background: "var(--gold-deep)", color: "#fff", borderColor: "transparent" }}
                   >
-                    {L("create")}
+                    {editId ? L("save") : L("create")}
                   </button>
+                  {editId && (
+                    <button type="button" onClick={cancelEdit} style={btn}>
+                      {L("cancelEdit")}
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -336,15 +374,20 @@ export function ScreenAppAdminCrudGen(): React.ReactNode {
                               </td>
                             ))}
                             <td style={{ ...td, textAlign: "end" }}>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  void deleteRow(r.id);
-                                }}
-                                style={{ ...btn, color: "var(--rose)" }}
-                              >
-                                {L("delete")}
-                              </button>
+                              <div style={{ display: "inline-flex", gap: 8, justifyContent: "flex-end" }}>
+                                <button type="button" onClick={() => startEdit(r)} style={btn}>
+                                  {L("edit")}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    void deleteRow(r.id);
+                                  }}
+                                  style={{ ...btn, color: "var(--rose)" }}
+                                >
+                                  {L("delete")}
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
