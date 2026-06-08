@@ -26,6 +26,7 @@ from app.tasks import studio_orchestrator as orch
 from app.tasks.studio_orchestrator import (
     CommandNotAllowedError,
     _check_allowed,
+    _lintable_paths,
     _mount_main,
     _redact,
 )
@@ -64,6 +65,7 @@ def test_router_has_prefix_and_auth() -> None:
         ["git", "worktree", "add", "x", "origin/main"],
         ["git", "checkout", "-B", "b"],
         ["git", "add", "a", "b"],
+        ["git", "commit", "-m", "msg"],  # identité via env, jamais `git -c …`
         ["git", "push", "origin", "b"],
         ["gh", "pr", "create", "--base", "main"],
         ["uv", "run", "ruff", "check", "x"],
@@ -84,11 +86,24 @@ def test_check_allowed_accepts(argv: list[str]) -> None:
         ["uv", "run", "pytest"],
         ["bash", "-c", "evil"],
         ["git", "worktree", "--delete"],
+        ["git", "-c", "user.name=x", "commit", "-m", "msg"],  # `git -c …` hors allow-list
     ],
 )
 def test_check_allowed_rejects(argv: list[str]) -> None:
     with pytest.raises(CommandNotAllowedError):
         _check_allowed(argv)
+
+
+def test_lintable_paths_excludes_non_python() -> None:
+    paths = [
+        "apps/api/app/routers/x/router.py",
+        "apps/api/app/routers/x/CLAUDE.md",
+        "apps/api/migrations/versions/0068_x.py",
+    ]
+    assert _lintable_paths(paths) == [
+        "apps/api/app/routers/x/router.py",
+        "apps/api/migrations/versions/0068_x.py",
+    ]
 
 
 def test_redact_masks_token(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -132,6 +147,7 @@ def _make_fake_run(ruff_check_rc: int = 0):
     calls: list[list[str]] = []
 
     def fake(argv, cwd, *, timeout=180, env=None):  # noqa: ANN001, ANN003
+        orch._check_allowed(argv)  # valide l'argv RÉEL (comme le vrai _run)
         calls.append(argv)
         if argv[:3] == ["uv", "run", "ruff"] and "check" in argv:
             return (ruff_check_rc, "ruff check output")
@@ -155,6 +171,7 @@ def _patch_pipeline(monkeypatch: pytest.MonkeyPatch, *, ruff_check_rc: int = 0) 
         lambda wt, slug, schema: [
             f"apps/api/app/routers/{slug}/router.py",
             f"apps/api/app/routers/{slug}/test_{slug}.py",
+            f"apps/api/app/routers/{slug}/CLAUDE.md",  # non-.py : ne doit PAS aller à ruff
             "apps/api/app/main.py",
         ],
     )
@@ -210,6 +227,9 @@ async def test_run_codegen_job_happy_path(
     assert job.phase == "done"
     assert module.state == "pr_open"
     assert (job.pr_url or "").endswith("/pull/7")
+    # Régression e2e : ruff ne reçoit JAMAIS un fichier non-.py (le CLAUDE.md casserait le RADAR).
+    ruff_args = [a for c in orch._run.calls if c[:3] == ["uv", "run", "ruff"] for a in c]
+    assert ruff_args and not any(a.endswith(".md") for a in ruff_args)
 
 
 @pytest.mark.asyncio
