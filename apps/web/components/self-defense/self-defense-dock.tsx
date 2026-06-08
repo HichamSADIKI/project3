@@ -34,8 +34,7 @@ const MODE_COLOR: Record<SelfDefenseMode, string> = {
   avion: "#f59e0b", // amber/orange
   dome: "#ef4444", // red
 };
-// avion = mode « attaque » → épée ⚔️ (au lieu de l'avion) ; radar = surveillance, dome = bouclier.
-const MODE_EMOJI: Record<SelfDefenseMode, string> = { radar: "📡", avion: "⚔️", dome: "🛡️" };
+const MODE_EMOJI: Record<SelfDefenseMode, string> = { radar: "📡", avion: "✈️", dome: "🛡️" };
 
 const FAB = 56;
 const ORB = 48;
@@ -316,6 +315,8 @@ export function SelfDefenseDock(): React.ReactNode {
             </span>
             {`⚔️ ${L("armed")}`}
           </>
+        ) : menuOpen ? (
+          "⚔️"
         ) : (
           "🛡️"
         )}
