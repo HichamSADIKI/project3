@@ -30,7 +30,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.audit_log import AuditLog
-from app.models.studio import StudioIntegrationRequest, StudioModule
+from app.models.studio import StudioIntegrationRequest, StudioModule, StudioOrchestratorJob
 from app.routers.admin.deps import require_platform_admin
 from app.routers.admin.studio_ai import generate_sheet_schema
 from app.routers.admin.studio_schema import SheetSchema
@@ -393,21 +393,32 @@ async def build_module(
 ) -> ModuleDetailOut:
     """Lance le pipeline de construction.
 
-    Phase 0 : **dry-run stubbé** — aucun git/gh/subprocess. Simule le pipeline en
-    faisant transiter le module `draft → built → tested → audited` (transitions
-    validées par la machine à états) et stocke des rapports RADAR/CHASSEUR factices.
-    L'exécution réelle (Phase 3) sera déléguée au worker dédié `worker-studio` derrière
-    `STUDIO_CODEGEN_ENABLED` ; tant qu'elle n'existe pas, on refuse l'activation.
+    - **flavor `code` + `STUDIO_CODEGEN_ENABLED`** : délégué au worker dédié
+      `worker-studio` (l'API n'exécute JAMAIS git/gh — elle crée un `studio_orchestrator_jobs`
+      `requested` et enqueue `run_codegen_job`). Le module reste `draft` jusqu'à ce que le
+      worker le fasse avancer (`built→…→pr_open`). Suivi via `GET /modules/{id}/jobs`.
+    - **sinon (flag off, ou flavor `lite`)** : **dry-run** — simule `draft → built → tested →
+      audited` via la machine à états (les modules lite sont de la donnée, pas de codegen).
     """
     module = await _get_module(db, module_id)
     if module.state != "draft":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="module_not_draft")
-    if codegen_enabled():
-        # Garde-fou honnête : le worker Phase 3 n'existe pas encore.
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            detail="codegen_orchestrator_not_implemented",
+
+    if codegen_enabled() and module.flavor == "code":
+        # Délégation au worker isolé — l'API ne touche jamais git/gh.
+        job = StudioOrchestratorJob(
+            module_id=module.id, requested_by=actor, status="requested", phase="queued"
         )
+        db.add(job)
+        db.add(_audit(request, actor, "studio:codegen_requested", module.id, {"job": "queued"}))
+        await db.commit()
+        await db.refresh(job)
+        await db.refresh(module)
+        # Import tardif : évite tout cycle d'import routeur ↔ tâche.
+        from app.tasks.studio_orchestrator import run_codegen_job
+
+        run_codegen_job.delay(str(job.id))
+        return ModuleDetailOut(data=ModuleOut.model_validate(module))
 
     # Dry-run : on simule les étapes du pipeline via la machine à états.
     for dst in ("built", "tested", "audited"):
@@ -420,6 +431,50 @@ async def build_module(
     await db.commit()
     await db.refresh(module)
     return ModuleDetailOut(data=ModuleOut.model_validate(module))
+
+
+class JobOut(BaseModel):
+    id: uuid.UUID
+    module_id: uuid.UUID
+    kind: str
+    status: str
+    phase: str
+    detail: str | None
+    branch_name: str | None
+    pr_url: str | None
+    pr_number: int | None
+    radar_report: dict[str, Any] | None
+    chasseur_report: dict[str, Any] | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class JobListOut(BaseModel):
+    success: bool = True
+    data: list[JobOut]
+    meta: dict[str, Any]
+
+
+@studio_router.get("/modules/{module_id}/jobs", response_model=JobListOut)
+async def list_jobs(
+    module_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> JobListOut:
+    """Historique des jobs de génération de code du module (tri desc)."""
+    await _get_module(db, module_id)  # 404 si module inconnu
+    rows = (
+        (
+            await db.execute(
+                select(StudioOrchestratorJob)
+                .where(StudioOrchestratorJob.module_id == module_id)
+                .order_by(StudioOrchestratorJob.created_at.desc())
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return JobListOut(data=[JobOut.model_validate(j) for j in rows], meta={"total": len(rows)})
 
 
 @studio_router.post(

@@ -116,3 +116,45 @@ class StudioIntegrationRequest(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class StudioOrchestratorJob(Base, TimestampMixin):
+    """Job de génération de code (Phase 3) — journal d'un run du worker `worker-studio`.
+
+    Cross-tenant (plateforme) — pas de company_id. L'API n'insère qu'une ligne
+    `status='requested'` puis enqueue `run_codegen_job(job_id)` ; **seul** le worker
+    dédié (queue `studio`, profil compose éteint par défaut) la fait transiter
+    `requested → running → done|failed`. `phase` suit l'étape courante du pipeline
+    (scaffold/radar/chasseur/push/pr). Append-only, idempotent côté worker.
+    """
+
+    __tablename__ = "studio_orchestrator_jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('requested','running','done','failed')",
+            name="ck_studio_job_status",
+        ),
+        CheckConstraint(
+            "phase IN ('queued','scaffold','radar','chasseur','push','pr','done','failed')",
+            name="ck_studio_job_phase",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    module_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("studio_modules.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="codegen")
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="requested")
+    phase: Mapped[str] = mapped_column(String(20), nullable=False, default="queued")
+    requested_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    detail: Mapped[str | None] = mapped_column(String(4000), nullable=True)
+    radar_report: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    chasseur_report: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    branch_name: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    pr_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    pr_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    worktree_path: Mapped[str | None] = mapped_column(String(500), nullable=True)

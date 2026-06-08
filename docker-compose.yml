@@ -178,6 +178,36 @@ services:
       - docker-socket-proxy
     profiles: ["control"]
 
+  # ── Worker Celery DÉDIÉ à la génération de code (queue "studio", Phase 3) ──
+  # Seul service autorisé à exécuter git/gh. Démarré uniquement avec
+  # `--profile studio` ; n'agit que si STUDIO_CODEGEN_ENABLED=true ET avec un
+  # STUDIO_GH_TOKEN fine-grained (contents+pull_requests:write, JAMAIS merge).
+  # Maintient son PROPRE clone isolé dans le volume `studio_worktrees` (jamais le
+  # checkout hôte). N'auto-merge JAMAIS : au mieux il ouvre une PR.
+  worker-studio:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.studio
+    command: uv run celery -A app.tasks.celery_app worker -l info -Q studio
+    env_file: .env
+    environment:
+      - STUDIO_CODEGEN_ENABLED=${STUDIO_CODEGEN_ENABLED:-false}
+      - STUDIO_GH_TOKEN=${STUDIO_GH_TOKEN:-}
+      - STUDIO_REPO_URL=${STUDIO_REPO_URL:-}
+      - STUDIO_WORKTREE_BASE=/worktrees
+      - STUDIO_REPO_DIR=/worktrees/repo
+      - STUDIO_WORKER_APP_DIR=/app
+    volumes:
+      - ./apps/api/app:/app/app
+      - ./apps/api/scripts:/app/scripts
+      - studio_worktrees:/worktrees
+    networks:
+      - backend
+    depends_on:
+      - db
+      - valkey
+    profiles: ["studio"]
+
   # ── PostgreSQL + PostGIS ──────────────────────────────────────────────
   db:
     image: postgis/postgis:17-3.5
@@ -297,3 +327,4 @@ volumes:
   certbot_www:
   certbot_certs:
   asterisk_recordings:   # enregistrements PDPL (Asterisk MixMonitor → worker MinIO)
+  studio_worktrees:      # clone isolé + worktrees du worker-studio (Phase 3)

@@ -71,6 +71,8 @@ from app.routers.scraping.service import start_browser, stop_browser
 from app.routers.telephony.ami import start_ami_listener, stop_ami_listener
 from app.routers.vendors.ai_router import router as vendors_ai_router
 
+# >>> STUDIO_GENERATED_IMPORTS — ancre d'insertion du Studio de Modules (ne pas supprimer) <<<
+
 logger = logging.getLogger("app.startup")
 
 
@@ -281,6 +283,7 @@ app.include_router(presence.router, prefix="/api/v1")
 app.include_router(iam.router, prefix="/api/v1")
 # Webhook WhatsApp Cloud API inbound (sans auth JWT — appelé par Meta)
 app.include_router(inbox.inbox_webhook_router, prefix="/api/v1")
+# >>> STUDIO_GENERATED_INCLUDES — ancre d'insertion du Studio de Modules (ne pas supprimer) <<<
 
 
 @app.get("/health", tags=["System"])

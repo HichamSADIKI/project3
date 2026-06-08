@@ -253,18 +253,56 @@ async def test_build_dry_run_then_not_draft(client: AsyncClient, seed_platform_a
 
 
 @pytest.mark.asyncio
-async def test_build_blocked_when_codegen_enabled(
+async def test_build_lite_dry_run_when_flag_on(
     client: AsyncClient, seed_platform_admin, monkeypatch
 ) -> None:
-    """Flag codegen activé mais worker Phase 3 absent → 501 (garde-fou honnête)."""
+    """Flag on mais flavor `lite` → dry-run (lite = donnée, pas de codegen) → audited."""
     monkeypatch.setenv("STUDIO_CODEGEN_ENABLED", "true")
     _a, token = seed_platform_admin
     h = {AUTH: f"Bearer {token}"}
-    resp = await client.post(f"{BASE}/modules", json=_module_payload(), headers=h)
-    mid = resp.json()["data"]["id"]
+    mid = (
+        await client.post(f"{BASE}/modules", json=_module_payload(flavor="lite"), headers=h)
+    ).json()["data"]["id"]
     built = await client.post(f"{BASE}/modules/{mid}/build", headers=h)
-    assert built.status_code == 501
-    assert built.json()["detail"] == "codegen_orchestrator_not_implemented"
+    assert built.status_code == 200
+    assert built.json()["data"]["state"] == "audited"
+
+
+@pytest.mark.asyncio
+async def test_build_code_delegates_to_worker(
+    client: AsyncClient, seed_platform_admin, monkeypatch
+) -> None:
+    """Flag on + flavor `code` → crée un job `requested` + enqueue ; module reste `draft`.
+
+    L'API n'exécute jamais : on vérifie qu'elle délègue (delay appelé). Le worker est
+    monkeypatché pour ne pas dépendre du broker en test.
+    """
+    from app.tasks import studio_orchestrator as orch
+
+    monkeypatch.setenv("STUDIO_CODEGEN_ENABLED", "true")
+    enqueued: list[str] = []
+    monkeypatch.setattr(orch.run_codegen_job, "delay", lambda jid: enqueued.append(jid))
+
+    _a, token = seed_platform_admin
+    h = {AUTH: f"Bearer {token}"}
+    mid = (
+        await client.post(f"{BASE}/modules", json=_module_payload(flavor="code"), headers=h)
+    ).json()["data"]["id"]
+    built = await client.post(f"{BASE}/modules/{mid}/build", headers=h)
+    assert built.status_code == 200
+    assert built.json()["data"]["state"] == "draft"  # le worker fera avancer
+
+    jobs = await client.get(f"{BASE}/modules/{mid}/jobs", headers=h)
+    assert jobs.status_code == 200
+    assert jobs.json()["meta"]["total"] == 1
+    assert enqueued == [jobs.json()["data"][0]["id"]]
+
+
+@pytest.mark.asyncio
+async def test_jobs_requires_platform_admin(client: AsyncClient, seed_admin) -> None:
+    _admin, token = seed_admin
+    r = await client.get(f"{BASE}/modules/{uuid.uuid4()}/jobs", headers={AUTH: f"Bearer {token}"})
+    assert r.status_code == 403
 
 
 # ── Gouvernance 4-eyes ─────────────────────────────────────────────────────────
