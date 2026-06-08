@@ -128,8 +128,18 @@ export function ScreenLogin({ onLogin }: { onLogin: () => void }) {
       await apiLogin(loginVal.trim(), password);
       localStorage.setItem("sgi_last_login", new Date().toISOString());
       onLogin();
-    } catch {
-      setLoginError(t.error_creds);
+    } catch (err) {
+      // Distingue le rate-limit (5 tentatives / 15 min) des identifiants invalides.
+      const tooMany = err instanceof Error && err.message === "too_many_requests";
+      setLoginError(
+        tooMany
+          ? lang === "ar"
+            ? "محاولات كثيرة جدًا. أعد المحاولة خلال ١٥ دقيقة تقريبًا."
+            : lang === "fr"
+              ? "Trop de tentatives. Réessayez dans ~15 min."
+              : "Too many attempts. Try again in ~15 min."
+          : t.error_creds,
+      );
     } finally {
       setLoginLoading(false);
     }
