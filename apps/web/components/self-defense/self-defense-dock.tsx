@@ -37,8 +37,9 @@ const MODE_COLOR: Record<SelfDefenseMode, string> = {
 const MODE_EMOJI: Record<SelfDefenseMode, string> = { radar: "📡", avion: "✈️", dome: "🛡️" };
 
 const FAB = 56;
-const POS_KEY = "sgi_sd_fab_pos_v1";
-const DEFAULT_ANCHOR = { ie: 20, be: 88 };
+const POS_KEY = "sgi_sd_fab_pos_v2";
+// À GAUCHE du robot/softphone (qui sont à insetInlineEnd:20) pour être bien distinct.
+const DEFAULT_ANCHOR = { ie: 88, be: 88 };
 
 // Offsets de l'arc, relatifs à l'ancre du FAB (préservent la forme en demi-cercle).
 const ARC: { mode: SelfDefenseMode; die: number; dbe: number }[] = [
