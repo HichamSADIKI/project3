@@ -313,7 +313,7 @@ export function SelfDefenseDock(): React.ReactNode {
             >
               ✓
             </span>
-            {`${MODE_EMOJI[mode]} ${L("armed")}`}
+            {`⚔️ ${L("armed")}`}
           </>
         ) : (
           "🛡️"
