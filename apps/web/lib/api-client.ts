@@ -34,16 +34,29 @@ function summonAssistantOnError(): void {
   }
 }
 
-/** Extrait un code d'erreur lisible du corps JSON d'une réponse non-ok. */
+/**
+ * Extrait un code/message d'erreur LISIBLE du corps JSON d'une réponse non-ok.
+ * Tolère un `detail` non-string : liste d'erreurs FastAPI (422) → 1er `msg`,
+ * objet → son `msg`, sinon repli — pour ne JAMAIS afficher « [object Object] ».
+ */
 export async function extractError(
   res: Response,
   fallback = "load_failed",
 ): Promise<string> {
   const data = (await res.json().catch(() => ({}))) as {
-    detail?: string;
-    error?: string;
+    detail?: unknown;
+    error?: unknown;
   };
-  return data.detail ?? data.error ?? fallback;
+  const raw = data.detail ?? data.error;
+  if (typeof raw === "string") return raw;
+  if (Array.isArray(raw)) {
+    const first = raw[0] as { msg?: string } | undefined;
+    return first?.msg ?? fallback;
+  }
+  if (raw && typeof raw === "object") {
+    return (raw as { msg?: string }).msg ?? fallback;
+  }
+  return fallback;
 }
 
 /**

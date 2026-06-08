@@ -149,7 +149,7 @@ export function ScreenAppAdminUsers(): React.ReactNode {
   const L = (k: string): string => TR[lg][k] ?? TR.fr[k] ?? k;
 
   const { items, loading, error, reload } = useApiList<AdminUser>(
-    "/api/admin/appadmin/users?limit=200",
+    "/api/admin/appadmin/users?limit=100",
   );
 
   const [query, setQuery] = useState("");
