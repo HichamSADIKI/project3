@@ -44,16 +44,19 @@ const TR: Record<Lang, Record<string, string>> = {
     title: "Surveillance", users: "Utilisateurs", ips: "Adresses IP", regions: "Régions",
     categories: "Catégories", subcategories: "Sous-catégories", pages: "Pages",
     advanced: "Avancé", active: "actives", none: "Aucune session active.", unknown: "inconnu",
+    list: "Liste", map: "Carte",
   },
   en: {
     title: "Surveillance", users: "Users", ips: "IP addresses", regions: "Regions",
     categories: "Categories", subcategories: "Subcategories", pages: "Pages",
     advanced: "Advanced", active: "active", none: "No active session.", unknown: "unknown",
+    list: "List", map: "Map",
   },
   ar: {
     title: "المراقبة", users: "المستخدمون", ips: "عناوين IP", regions: "المناطق",
     categories: "الفئات", subcategories: "الفئات الفرعية", pages: "الصفحات",
     advanced: "متقدم", active: "نشطة", none: "لا جلسات نشطة.", unknown: "غير معروف",
+    list: "قائمة", map: "خريطة",
   },
 };
 
@@ -162,7 +165,7 @@ export function SurveillancePanel(): React.ReactNode {
             <input type="checkbox" checked={advanced} onChange={(e) => setAdvanced(e.target.checked)} />
             {L("advanced")}
           </label>
-          <ViewToggle view={view} onChange={setView} />
+          <ViewToggle view={view} onChange={setView} listLabel={L("list")} mapLabel={L("map")} />
         </div>
       </div>
 
