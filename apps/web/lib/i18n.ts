@@ -23,6 +23,15 @@ export type Translations = {
   nav_erp: string; nav_workspace: string; nav_audit: string;
   nav_backoffice: string; nav_hr: string; nav_it: string; nav_finance: string; nav_accounting: string; nav_bank: string; nav_marketing: string;
   nav_fournisseurs: string; nav_fournisseurs_fiches: string; nav_fournisseurs_validation: string;
+  nav_clients_ai: string; nav_fournisseurs_ai: string;
+  aiagent_clients_title: string; aiagent_vendors_title: string;
+  aiagent_clients_sub: string; aiagent_vendors_sub: string;
+  aiagent_tab_insights: string; aiagent_tab_score: string; aiagent_tab_message: string;
+  aiagent_tab_validation: string; aiagent_tab_chat: string;
+  aiagent_run: string; aiagent_ask: string; aiagent_id_placeholder: string; aiagent_ask_placeholder: string;
+  aiagent_engine_ai: string; aiagent_engine_heuristic: string; aiagent_error: string; aiagent_loading: string;
+  aiagent_score_label: string; aiagent_band: string; aiagent_risk_band: string;
+  aiagent_recommended: string; aiagent_reply: string; aiagent_gv_eligible: string; aiagent_flags: string;
   nav_news: string;
   nav_buildings: string;
   nav_properties_map: string;
@@ -325,6 +334,16 @@ const ar: Translations = {
   nav_erp: "نظام ERP", nav_workspace: "بيئة العمل", nav_audit: "المراجعة",
   nav_backoffice: "الإدارة الداخلية", nav_hr: "الموارد البشرية", nav_it: "تقنية المعلومات", nav_finance: "المالية", nav_accounting: "المحاسبة", nav_bank: "التسوية البنكية", nav_marketing: "التسويق",
   nav_fournisseurs: "المورّدون", nav_fournisseurs_fiches: "بطاقات المورّدين", nav_fournisseurs_validation: "اعتماد المورّدين",
+  nav_clients_ai: "وكيل ذكي", nav_fournisseurs_ai: "وكيل ذكي",
+  aiagent_clients_title: "وكيل الذكاء الاصطناعي — العملاء", aiagent_vendors_title: "وكيل الذكاء الاصطناعي — المورّدون",
+  aiagent_clients_sub: "تحليل المحفظة، تأهيل العملاء وصياغة الرسائل",
+  aiagent_vendors_sub: "موثوقية الشبكة، تقييم المخاطر والمساعدة في الاعتماد",
+  aiagent_tab_insights: "نظرة عامة", aiagent_tab_score: "التأهيل", aiagent_tab_message: "رسالة",
+  aiagent_tab_validation: "الاعتماد", aiagent_tab_chat: "محادثة",
+  aiagent_run: "تشغيل", aiagent_ask: "إرسال", aiagent_id_placeholder: "معرّف (UUID)", aiagent_ask_placeholder: "اطرح سؤالاً…",
+  aiagent_engine_ai: "ذكاء اصطناعي", aiagent_engine_heuristic: "إرشادي", aiagent_error: "خطأ، حاول مجددًا", aiagent_loading: "جارٍ…",
+  aiagent_score_label: "الدرجة", aiagent_band: "التصنيف", aiagent_risk_band: "المخاطرة",
+  aiagent_recommended: "إجراءات مقترحة", aiagent_reply: "الرد", aiagent_gv_eligible: "مؤهّل للإقامة الذهبية", aiagent_flags: "إشارات",
   nav_news: "الأخبار",
   nav_buildings: "المباني",
   nav_properties_map: "خريطة العقارات",
@@ -620,6 +639,16 @@ const en: Translations = {
   nav_erp: "ERP", nav_workspace: "Workspace", nav_audit: "Audit",
   nav_backoffice: "Back Office", nav_hr: "HR", nav_it: "IT", nav_finance: "Finance", nav_accounting: "Accounting", nav_bank: "Bank reconciliation", nav_marketing: "Marketing",
   nav_fournisseurs: "Suppliers", nav_fournisseurs_fiches: "Supplier records", nav_fournisseurs_validation: "Vendor approval",
+  nav_clients_ai: "AI Agent", nav_fournisseurs_ai: "AI Agent",
+  aiagent_clients_title: "AI Agent — Clients", aiagent_vendors_title: "AI Agent — Suppliers",
+  aiagent_clients_sub: "Portfolio insights, lead qualification and message drafting",
+  aiagent_vendors_sub: "Network reliability, risk scoring and onboarding assist",
+  aiagent_tab_insights: "Overview", aiagent_tab_score: "Qualification", aiagent_tab_message: "Message",
+  aiagent_tab_validation: "Validation", aiagent_tab_chat: "Chat",
+  aiagent_run: "Run", aiagent_ask: "Send", aiagent_id_placeholder: "ID (UUID)", aiagent_ask_placeholder: "Ask a question…",
+  aiagent_engine_ai: "AI", aiagent_engine_heuristic: "Heuristic", aiagent_error: "Error, please retry", aiagent_loading: "Loading…",
+  aiagent_score_label: "Score", aiagent_band: "Band", aiagent_risk_band: "Risk",
+  aiagent_recommended: "Recommended actions", aiagent_reply: "Reply", aiagent_gv_eligible: "Golden Visa eligible", aiagent_flags: "Flags",
   nav_news: "News",
   nav_buildings: "Buildings",
   nav_properties_map: "Properties map",
@@ -915,6 +944,16 @@ const fr: Translations = {
   nav_erp: "ERP", nav_workspace: "Espace de travail", nav_audit: "Audit",
   nav_backoffice: "Back Office", nav_hr: "RH", nav_it: "IT", nav_finance: "Finance", nav_accounting: "Comptabilité", nav_bank: "Rapprochement bancaire", nav_marketing: "Marketing",
   nav_fournisseurs: "Fournisseurs", nav_fournisseurs_fiches: "Fiches fournisseurs", nav_fournisseurs_validation: "Validation fournisseurs",
+  nav_clients_ai: "Agent AI", nav_fournisseurs_ai: "Agent AI",
+  aiagent_clients_title: "Agent AI — Clients", aiagent_vendors_title: "Agent AI — Fournisseurs",
+  aiagent_clients_sub: "Synthèse du portefeuille, qualification des clients et brouillons de messages",
+  aiagent_vendors_sub: "Fiabilité du parc, score de risque et aide à la validation",
+  aiagent_tab_insights: "Synthèse", aiagent_tab_score: "Qualification", aiagent_tab_message: "Message",
+  aiagent_tab_validation: "Validation", aiagent_tab_chat: "Chat",
+  aiagent_run: "Lancer", aiagent_ask: "Envoyer", aiagent_id_placeholder: "Identifiant (UUID)", aiagent_ask_placeholder: "Posez une question…",
+  aiagent_engine_ai: "IA", aiagent_engine_heuristic: "Heuristique", aiagent_error: "Erreur, réessayez", aiagent_loading: "Chargement…",
+  aiagent_score_label: "Score", aiagent_band: "Bande", aiagent_risk_band: "Risque",
+  aiagent_recommended: "Actions recommandées", aiagent_reply: "Réponse", aiagent_gv_eligible: "Éligible Golden Visa", aiagent_flags: "Signaux",
   nav_news: "Actualités",
   nav_buildings: "Bâtiments",
   nav_properties_map: "Carte des biens",

@@ -61,6 +61,8 @@ import { ScreenOrders } from "./screens/orders";
 import { ScreenClients } from "./screens/clients";
 import { ScreenClientsPersonne } from "./screens/clients-personne";
 import { ScreenClientsSociete } from "./screens/clients-societe";
+import { ScreenClientsAI } from "./screens/clients-ai";
+import { ScreenFournisseursAI } from "./screens/fournisseurs-ai";
 import { ScreenTravail } from "./screens/travail";
 import { ScreenMarketing } from "./screens/marketing";
 import { ScreenSectorCRM } from "./screens/sector-crm";
@@ -99,8 +101,8 @@ type ScreenKey =
   | "erp" | "workspace" | "audit" | "backoffice" | "hr" | "it"
   | "appadmin_users" | "appadmin_audit" | "appadmin_alerts" | "appadmin_infra" | "appadmin_backups" | "appadmin_honeytokens" | "appadmin_self_defense"
   | "finance" | "accounting" | "bank_recon" | "marketing" | "report" | "parametres"
-  | "clients" | "personne" | "societe"
-  | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation";
+  | "clients" | "personne" | "societe" | "clients_ai"
+  | "fournisseurs" | "fournisseurs_fiches" | "fournisseurs_validation" | "fournisseurs_ai";
 
 type ScreenProps = {
   onNavigateToClient?: (name: string) => void;
@@ -207,6 +209,8 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   // Fournisseurs (catégorie placée avant Clients)
   "fournisseurs":            (p) => <ScreenFournisseurs onNavigate={p.onNavigate} />,
   "fournisseurs_fiches":     (_) => <ScreenFournisseursFiches />,
+  "fournisseurs_ai":         (_) => <ScreenFournisseursAI />,
+  "clients_ai":              (_) => <ScreenClientsAI />,
   "fournisseurs_validation": (_) => <ScreenFournisseurValidation />,
 
   // Client screens
