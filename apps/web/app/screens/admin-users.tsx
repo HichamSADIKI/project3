@@ -51,6 +51,8 @@ const TR: Record<Lang, Record<string, string>> = {
     save: "Enregistrer",
     saveFailed: "Échec de l'enregistrement",
     isActive: "Compte actif",
+    password: "Nouveau mot de passe",
+    passwordHint: "Laisser vide = inchangé",
     search: "Rechercher (e-mail, nom)…",
   },
   en: {
@@ -69,6 +71,8 @@ const TR: Record<Lang, Record<string, string>> = {
     save: "Save",
     saveFailed: "Save failed",
     isActive: "Account active",
+    password: "New password",
+    passwordHint: "Leave blank = unchanged",
     search: "Search (email, name)…",
   },
   ar: {
@@ -87,6 +91,8 @@ const TR: Record<Lang, Record<string, string>> = {
     save: "حفظ",
     saveFailed: "فشل الحفظ",
     isActive: "الحساب نشط",
+    password: "كلمة مرور جديدة",
+    passwordHint: "اتركه فارغًا = دون تغيير",
     search: "بحث (البريد، الاسم)…",
   },
 };
@@ -149,7 +155,7 @@ export function ScreenAppAdminUsers(): React.ReactNode {
   const L = (k: string): string => TR[lg][k] ?? TR.fr[k] ?? k;
 
   const { items, loading, error, reload } = useApiList<AdminUser>(
-    "/api/admin/appadmin/users?limit=200",
+    "/api/admin/appadmin/users?limit=100",
   );
 
   const [query, setQuery] = useState("");
@@ -168,17 +174,19 @@ export function ScreenAppAdminUsers(): React.ReactNode {
     role: string;
     status: string;
     is_active: boolean;
+    password: string;
   }>({
     role: "agent",
     status: "active",
     is_active: true,
+    password: "",
   });
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   function openEdit(u: AdminUser): void {
     setEditing(u);
-    setForm({ role: u.role, status: u.status, is_active: u.is_active });
+    setForm({ role: u.role, status: u.status, is_active: u.is_active, password: "" });
     setFormError(null);
   }
 
@@ -191,6 +199,7 @@ export function ScreenAppAdminUsers(): React.ReactNode {
         role: form.role,
         status: form.status,
         is_active: form.is_active,
+        ...(form.password.trim() ? { password: form.password.trim() } : {}),
       });
       if (!res.ok) {
         setFormError(await extractError(res, "save_failed"));
@@ -397,6 +406,16 @@ export function ScreenAppAdminUsers(): React.ReactNode {
             <option value="1">{L("yes")}</option>
             <option value="0">{L("no")}</option>
           </select>
+        </Field>
+        <Field label={L("password")}>
+          <input
+            type="password"
+            value={form.password}
+            placeholder={L("passwordHint")}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            style={fieldInput}
+            autoComplete="new-password"
+          />
         </Field>
       </CreateModal>
     </div>

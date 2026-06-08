@@ -275,8 +275,8 @@ export function ScreenAppAdminSelfDefense(): React.ReactNode {
                 padding: "8px 18px",
                 borderRadius: 10,
                 border: "none",
-                background: "var(--ink)",
-                color: "#fff",
+                background: "var(--gold)",
+                color: "#1A1610",
                 fontWeight: 700,
                 cursor: busy ? "wait" : "pointer",
               }}

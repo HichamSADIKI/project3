@@ -14,11 +14,12 @@ from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select
 from sqlalchemy import text as sql_text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.auth import hash_password
 from app.core.deps import get_db_session
 from app.models.user import User
 from app.routers.admin.deps import require_admin, require_admin_write
@@ -69,6 +70,8 @@ class UserUpdate(BaseModel):
     role: UserRoleLiteral | None = None
     status: UserStatusLiteral | None = None
     is_active: bool | None = None
+    # Réinitialisation du mot de passe par un admin (haché côté serveur, jamais stocké en clair).
+    password: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class GroupOut(BaseModel):
@@ -224,6 +227,9 @@ async def update_user_endpoint(
         user.status = fields["status"]
     if "is_active" in fields and fields["is_active"] is not None:
         user.is_active = fields["is_active"]
+    if fields.get("password"):
+        # Réinitialisation par un admin : haché bcrypt, jamais stocké/renvoyé en clair.
+        user.hashed_password = hash_password(fields["password"])
 
     await db.commit()
     await db.refresh(user)
