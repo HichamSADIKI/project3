@@ -9,7 +9,11 @@ import { AgentAiPanel } from "@/components/agent-ai-panel";
 /** Écran « Agent AI — Clients » : synthèse du portefeuille, qualification d'un
  *  client, brouillon de message (AR/EN/FR) et copilote conversationnel. Câblé
  *  sur /clients/ai/* (scoping company_id côté backend — Loi 1). CSS logique. */
-export function ScreenClientsAI(): React.ReactNode {
+export function ScreenClientsAI({
+  onNavigate,
+}: {
+  onNavigate?: (screen: string) => void;
+}): React.ReactNode {
   const t = useT();
   const bp = useBreakpoint();
   const isMob = bp === "mobile";
@@ -28,7 +32,7 @@ export function ScreenClientsAI(): React.ReactNode {
           {t.aiagent_clients_sub}
         </p>
         <div style={{ maxWidth: 820 }}>
-          <AgentAiPanel domain="clients" />
+          <AgentAiPanel domain="clients" onNavigate={onNavigate} />
         </div>
       </div>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useT, useLang } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
@@ -126,7 +126,76 @@ function Chips({ label, items }: { label: string; items: string[] }): React.Reac
   );
 }
 
-export function AgentAiPanel({ domain }: { domain: AgentDomain }): React.ReactNode {
+// C2 — cible de navigation par action recommandée (clé d'écran de page.tsx).
+// Une action sans cible reste une puce d'information (non cliquable).
+const ACTION_TARGET: Record<string, string> = {
+  // Clients
+  schedule_visit: "realestate_agenda",
+  propose_golden_visa: "realestate_golden_visa",
+  send_proposal: "realestate_vente",
+  follow_up_call: "crm",
+  follow_up: "crm",
+  nurture_sequence: "crm",
+  collect_contact: "personne",
+  qualify_needs: "personne",
+  // Fournisseurs
+  complete_verification: "fournisseurs_validation",
+  request_trade_licence: "fournisseurs_fiches",
+  request_insurance: "fournisseurs_fiches",
+  review_performance: "fournisseurs_fiches",
+  collect_first_rating: "fournisseurs_fiches",
+};
+
+function RecommendedActions({
+  label,
+  items,
+  onNavigate,
+}: {
+  label: string;
+  items: string[];
+  onNavigate?: (screen: string) => void;
+}): React.ReactNode {
+  if (!items.length) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+      <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--ink-4)" }}>{label}</span>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {items.map((a) => {
+          const target = ACTION_TARGET[a];
+          const clickable = Boolean(target && onNavigate);
+          return (
+            <button
+              key={a}
+              type="button"
+              onClick={clickable ? () => onNavigate?.(target) : undefined}
+              disabled={!clickable}
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: clickable ? "#1A1610" : "var(--ink)",
+                background: clickable ? "var(--gold-ghost)" : "var(--line-soft)",
+                border: clickable ? "1px solid var(--gold)" : "1px solid transparent",
+                borderRadius: 999,
+                padding: "3px 10px",
+                cursor: clickable ? "pointer" : "default",
+              }}
+            >
+              {clickable ? `${a} →` : a}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+export function AgentAiPanel({
+  domain,
+  onNavigate,
+}: {
+  domain: AgentDomain;
+  onNavigate?: (screen: string) => void;
+}): React.ReactNode {
   const t = useT();
   const { lang } = useLang();
   const [tab, setTab] = useState<Tab>("insights");
@@ -158,9 +227,11 @@ export function AgentAiPanel({ domain }: { domain: AgentDomain }): React.ReactNo
       </div>
 
       {tab === "insights" && <InsightsTab base={base} lang={lang} />}
-      {tab === "entity" && <EntityTab base={base} domain={domain} lang={lang} mode="entity" />}
+      {tab === "entity" && (
+        <EntityTab base={base} domain={domain} lang={lang} mode="entity" onNavigate={onNavigate} />
+      )}
       {tab === "secondary" && (
-        <EntityTab base={base} domain={domain} lang={lang} mode="secondary" />
+        <EntityTab base={base} domain={domain} lang={lang} mode="secondary" onNavigate={onNavigate} />
       )}
       {tab === "chat" && <ChatTab base={base} lang={lang} />}
     </div>
@@ -226,11 +297,13 @@ function EntityTab({
   domain,
   lang,
   mode,
+  onNavigate,
 }: {
   base: string;
   domain: AgentDomain;
   lang: string;
   mode: "entity" | "secondary";
+  onNavigate?: (screen: string) => void;
 }): React.ReactNode {
   const t = useT();
   const [id, setId] = useState("");
@@ -240,12 +313,18 @@ function EntityTab({
   // Champs message (clients secondary).
   const [channel, setChannel] = useState("whatsapp");
   const [purpose, setPurpose] = useState("follow_up");
-  // Envoi réel du message (C1).
+  // Envoi réel du message (C1) — brouillon éditable avant envoi (humain dans la boucle).
+  const [draftMsg, setDraftMsg] = useState("");
   const [sending, setSending] = useState(false);
   const [sendStatus, setSendStatus] = useState<string | null>(null);
 
+  // Recharge le brouillon éditable quand un nouveau message est généré.
+  useEffect(() => {
+    if (res?.message) setDraftMsg(res.message);
+  }, [res?.message]);
+
   async function sendMessage(): Promise<void> {
-    if (!id.trim() || !res?.message) return;
+    if (!id.trim() || !draftMsg.trim()) return;
     setSending(true);
     setSendStatus(null);
     try {
@@ -253,7 +332,7 @@ function EntityTab({
         channel,
         locale: lang,
         purpose,
-        message: res.message,
+        message: draftMsg,
       });
       const json = (await r.json()) as { data?: { status?: string } };
       setSendStatus(r.ok ? (json.data?.status ?? "error") : "error");
@@ -360,9 +439,23 @@ function EntityTab({
           )}
           {res.message && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink)", whiteSpace: "pre-wrap" }}>
-                {res.message}
-              </p>
+              <textarea
+                value={draftMsg}
+                onChange={(e) => setDraftMsg(e.target.value)}
+                rows={4}
+                style={{
+                  width: "100%",
+                  resize: "vertical",
+                  padding: "8px 10px",
+                  border: "1px solid var(--line)",
+                  borderRadius: 8,
+                  background: "var(--bg)",
+                  color: "var(--ink)",
+                  fontSize: 12.5,
+                  fontFamily: "inherit",
+                  textAlign: "start",
+                }}
+              />
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                 <button onClick={() => void sendMessage()} disabled={sending} style={primaryBtn}>
                   {sending ? t.aiagent_loading : t.aiagent_send}
@@ -388,7 +481,11 @@ function EntityTab({
               </div>
             </div>
           )}
-          <Chips label={t.aiagent_recommended} items={res.recommended_actions ?? []} />
+          <RecommendedActions
+            label={t.aiagent_recommended}
+            items={res.recommended_actions ?? []}
+            onNavigate={onNavigate}
+          />
           <Chips label={t.aiagent_flags} items={res.flags ?? []} />
           <Chips label={t.aiagent_flags} items={res.blocking_issues ?? []} />
           <Chips label={t.aiagent_flags} items={res.warnings ?? []} />

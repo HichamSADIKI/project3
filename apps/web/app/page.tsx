@@ -209,8 +209,8 @@ const SCREEN_REGISTRY: Record<ScreenKey, (props: ScreenProps) => React.ReactNode
   // Fournisseurs (catégorie placée avant Clients)
   "fournisseurs":            (p) => <ScreenFournisseurs onNavigate={p.onNavigate} />,
   "fournisseurs_fiches":     (_) => <ScreenFournisseursFiches />,
-  "fournisseurs_ai":         (_) => <ScreenFournisseursAI />,
-  "clients_ai":              (_) => <ScreenClientsAI />,
+  "fournisseurs_ai":         (p) => <ScreenFournisseursAI onNavigate={p.onNavigate} />,
+  "clients_ai":              (p) => <ScreenClientsAI onNavigate={p.onNavigate} />,
   "fournisseurs_validation": (_) => <ScreenFournisseurValidation />,
 
   // Client screens
