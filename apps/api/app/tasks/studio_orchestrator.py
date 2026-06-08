@@ -111,6 +111,15 @@ def _git_identity() -> tuple[str, str]:
     )
 
 
+def _lintable_paths(paths: list[str]) -> list[str]:
+    """Chemins à passer à ruff : Python uniquement. PUR (testable).
+
+    Un fichier non-`.py` (ex. le `CLAUDE.md` généré) déclenche « Markdown formatting is
+    experimental » → `ruff format` rc≠0 → ferait échouer tout le RADAR.
+    """
+    return [p for p in paths if p.endswith(".py")]
+
+
 # ── Exécution maîtrisée ─────────────────────────────────────────────────────────
 
 
@@ -336,7 +345,8 @@ def run_codegen_job(self, job_id: str) -> dict[str, object]:  # noqa: ANN001
             job.phase = "radar"
             db.commit()
             gen_paths = [p for p in paths if p != "apps/api/app/main.py"]
-            gen_abs = [str(wt / p) for p in gen_paths]
+            # Ruff ne lint/formate QUE le Python (un .md généré casserait le RADAR).
+            gen_abs = [str(wt / p) for p in _lintable_paths(gen_paths)]
             app_dir = worker_app_dir()
             # `--fix` : trie les imports + retire les inutiles du code généré (I/F401),
             # puis `format` (mise en forme). Les vérifications ci-dessous restent strictes.
@@ -390,19 +400,18 @@ def run_codegen_job(self, job_id: str) -> dict[str, object]:  # noqa: ANN001
             db.commit()
             name, email = _git_identity()
             _run(["git", "add", *paths], cwd=wt, timeout=60)
+            # Identité via env (pas `git -c …` : garderait la whitelist d'argv hors allow-list).
             rc, out = _run(
-                [
-                    "git",
-                    "-c",
-                    f"user.name={name}",
-                    "-c",
-                    f"user.email={email}",
-                    "commit",
-                    "-m",
-                    f"feat(studio): module généré {slug} (squelette)",
-                ],
+                ["git", "commit", "-m", f"feat(studio): module généré {slug} (squelette)"],
                 cwd=wt,
                 timeout=60,
+                env={
+                    **os.environ,
+                    "GIT_AUTHOR_NAME": name,
+                    "GIT_AUTHOR_EMAIL": email,
+                    "GIT_COMMITTER_NAME": name,
+                    "GIT_COMMITTER_EMAIL": email,
+                },
             )
             if rc != 0:
                 _cleanup_worktree(wt)
