@@ -12,7 +12,7 @@ export type Translations = {
   nav_contract: string; nav_rental: string; nav_realestate: string;
   nav_re_sec_commercial: string; nav_re_sec_patrimoine: string;
   nav_re_sec_tiers: string; nav_re_sec_finance: string; nav_re_sec_support: string;
-  nav_appadmin: string; nav_appadmin_users: string; nav_appadmin_audit: string; nav_appadmin_alerts: string; nav_appadmin_infra: string; nav_appadmin_backups: string; nav_appadmin_honeytokens: string; nav_appadmin_self_defense: string; nav_appadmin_studio: string;
+  nav_appadmin: string; nav_appadmin_users: string; nav_appadmin_audit: string; nav_appadmin_alerts: string; nav_appadmin_infra: string; nav_appadmin_backups: string; nav_appadmin_honeytokens: string; nav_appadmin_self_defense: string; nav_appadmin_studio: string; nav_appadmin_crudgen: string;
   nav_admin: string; nav_tourisme: string; nav_sante: string;
   nav_assurance: string; nav_banques: string; nav_amazon: string; nav_consultants: string;
   nav_visa: string;
@@ -325,7 +325,7 @@ const ar: Translations = {
   nav_contract: "العقود", nav_rental: "الإيجارات", nav_realestate: "العقارات",
   nav_re_sec_commercial: "التجاري", nav_re_sec_patrimoine: "الممتلكات",
   nav_re_sec_tiers: "الأطراف", nav_re_sec_finance: "المالية", nav_re_sec_support: "الدعم والإدارة",
-  nav_appadmin: "إدارة التطبيق", nav_appadmin_users: "المستخدمون والصلاحيات", nav_appadmin_audit: "التدقيق والأمان", nav_appadmin_alerts: "التنبيهات", nav_appadmin_infra: "الخوادم والشبكة", nav_appadmin_backups: "النسخ الاحتياطي", nav_appadmin_honeytokens: "الرموز الخادعة", nav_appadmin_self_defense: "الدفاع الذاتي", nav_appadmin_studio: "استوديو الوحدات",
+  nav_appadmin: "إدارة التطبيق", nav_appadmin_users: "المستخدمون والصلاحيات", nav_appadmin_audit: "التدقيق والأمان", nav_appadmin_alerts: "التنبيهات", nav_appadmin_infra: "الخوادم والشبكة", nav_appadmin_backups: "النسخ الاحتياطي", nav_appadmin_honeytokens: "الرموز الخادعة", nav_appadmin_self_defense: "الدفاع الذاتي", nav_appadmin_studio: "استوديو الوحدات", nav_appadmin_crudgen: "الوحدات (البيانات)",
   nav_admin: "الإدارات", nav_tourisme: "السياحة", nav_sante: "الصحة",
   nav_assurance: "التأمين", nav_banques: "البنوك", nav_amazon: "أمازون", nav_consultants: "المستشارون",
   nav_visa: "التأشيرة الذهبية",
@@ -632,7 +632,7 @@ const en: Translations = {
   nav_contract: "Contracts", nav_rental: "Rentals", nav_realestate: "Real Estate",
   nav_re_sec_commercial: "Commercial", nav_re_sec_patrimoine: "Properties",
   nav_re_sec_tiers: "Parties", nav_re_sec_finance: "Finance", nav_re_sec_support: "Support & Admin",
-  nav_appadmin: "App Administration", nav_appadmin_users: "Users & Permissions", nav_appadmin_audit: "Audit & Security", nav_appadmin_alerts: "Alerts", nav_appadmin_infra: "Servers & Network", nav_appadmin_backups: "Backups", nav_appadmin_honeytokens: "Honeytokens", nav_appadmin_self_defense: "Self-Defense", nav_appadmin_studio: "Module Studio",
+  nav_appadmin: "App Administration", nav_appadmin_users: "Users & Permissions", nav_appadmin_audit: "Audit & Security", nav_appadmin_alerts: "Alerts", nav_appadmin_infra: "Servers & Network", nav_appadmin_backups: "Backups", nav_appadmin_honeytokens: "Honeytokens", nav_appadmin_self_defense: "Self-Defense", nav_appadmin_studio: "Module Studio", nav_appadmin_crudgen: "Modules (data)",
   nav_admin: "Administrations", nav_tourisme: "Tourism", nav_sante: "Health",
   nav_assurance: "Insurance", nav_banques: "Banks", nav_amazon: "Amazon", nav_consultants: "Consultants",
   nav_visa: "Golden Visa",
@@ -939,7 +939,7 @@ const fr: Translations = {
   nav_contract: "Contrats", nav_rental: "Locations", nav_realestate: "Immobilier",
   nav_re_sec_commercial: "Commercial", nav_re_sec_patrimoine: "Patrimoine",
   nav_re_sec_tiers: "Tiers", nav_re_sec_finance: "Finance", nav_re_sec_support: "Support & Admin",
-  nav_appadmin: "Administration application", nav_appadmin_users: "Utilisateurs & permissions", nav_appadmin_audit: "Audit & sécurité", nav_appadmin_alerts: "Alertes", nav_appadmin_infra: "Serveurs & réseau", nav_appadmin_backups: "Sauvegardes", nav_appadmin_honeytokens: "Honeytokens", nav_appadmin_self_defense: "Self-Defense", nav_appadmin_studio: "Studio de Modules",
+  nav_appadmin: "Administration application", nav_appadmin_users: "Utilisateurs & permissions", nav_appadmin_audit: "Audit & sécurité", nav_appadmin_alerts: "Alertes", nav_appadmin_infra: "Serveurs & réseau", nav_appadmin_backups: "Sauvegardes", nav_appadmin_honeytokens: "Honeytokens", nav_appadmin_self_defense: "Self-Defense", nav_appadmin_studio: "Studio de Modules", nav_appadmin_crudgen: "Modules (données)",
   nav_admin: "Administrations", nav_tourisme: "Tourisme", nav_sante: "Santé",
   nav_assurance: "Assurance", nav_banques: "Banques", nav_amazon: "Amazone", nav_consultants: "Consultants",
   nav_visa: "Visa Doré",
