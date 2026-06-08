@@ -21,7 +21,9 @@ import { Topbar } from "@/components/sgi-ui";
 import { useLang } from "@/components/language-provider";
 import { useApiList } from "@/lib/use-api-list";
 import { getJson, postJson } from "@/lib/api-client";
-import { StudioRenderer, type SheetSchema } from "@/components/studio-renderer";
+import { StudioRenderer } from "@/components/studio-renderer";
+import { StudioBuilder } from "@/components/studio-builder";
+import { type SheetSchema, emptySchema, normalizeSchema } from "@/lib/studio-schema";
 
 type Lang = "ar" | "en" | "fr";
 
@@ -69,6 +71,10 @@ const TR: Record<Lang, Record<string, string>> = {
     aiGenerate: "✨ Générer (IA)",
     aiPrompt: "Décris l'écran à générer :",
     aiFallback: "IA indisponible — schéma de base généré.",
+    modeVisual: "Visuel",
+    modeJson: "JSON",
+    fixJson: "JSON invalide — corrige-le ou repars d'un schéma vierge.",
+    startBlank: "Schéma vierge",
     reasonPrompt: "Raison de l'intégration (≥ 3 caractères) :",
     ticketPrompt: "Référence ticket (optionnel) :",
     loading: "Chargement…",
@@ -106,6 +112,10 @@ const TR: Record<Lang, Record<string, string>> = {
     aiGenerate: "✨ Generate (AI)",
     aiPrompt: "Describe the screen to generate:",
     aiFallback: "AI unavailable — base schema generated.",
+    modeVisual: "Visual",
+    modeJson: "JSON",
+    fixJson: "Invalid JSON — fix it or start from a blank schema.",
+    startBlank: "Blank schema",
     reasonPrompt: "Integration reason (≥ 3 characters):",
     ticketPrompt: "Ticket reference (optional):",
     loading: "Loading…",
@@ -143,6 +153,10 @@ const TR: Record<Lang, Record<string, string>> = {
     aiGenerate: "✨ توليد (ذكاء اصطناعي)",
     aiPrompt: "صف الشاشة المراد توليدها:",
     aiFallback: "الذكاء الاصطناعي غير متاح — تم توليد مخطط أساسي.",
+    modeVisual: "مرئي",
+    modeJson: "JSON",
+    fixJson: "JSON غير صالح — صحّحه أو ابدأ بمخطط فارغ.",
+    startBlank: "مخطط فارغ",
     reasonPrompt: "سبب الدمج (٣ أحرف على الأقل):",
     ticketPrompt: "مرجع التذكرة (اختياري):",
     loading: "جارٍ التحميل…",
@@ -293,6 +307,7 @@ export function ScreenAppAdminStudio(): React.ReactNode {
     ],
   };
   const [editor, setEditor] = React.useState<{ id: string; json: string } | null>(null);
+  const [builderMode, setBuilderMode] = React.useState(true); // Visuel par défaut
 
   async function openSchema(m: StudioModule): Promise<void> {
     let initial: SheetSchema = STARTER;
@@ -309,14 +324,17 @@ export function ScreenAppAdminStudio(): React.ReactNode {
 
   async function saveSchema(): Promise<void> {
     if (!editor) return;
-    let parsed: unknown;
+    let parsed: SheetSchema;
     try {
-      parsed = JSON.parse(editor.json);
+      parsed = JSON.parse(editor.json) as SheetSchema;
     } catch {
       window.alert(L("invalidJson"));
       return;
     }
-    await act(`/api/admin/platform/studio/modules/${editor.id}/schema`, parsed, () => {
+    // Normalise (ids non vides + uniques, champs cohérents par type) avant l'envoi.
+    const payload = normalizeSchema(parsed);
+    await act(`/api/admin/platform/studio/modules/${editor.id}/schema`, payload, () => {
+      setEditor({ id: editor.id, json: JSON.stringify(payload, null, 2) });
       modules.reload();
     });
   }
@@ -566,9 +584,25 @@ export function ScreenAppAdminStudio(): React.ReactNode {
               <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-1)" }}>
                 {L("schema")}
               </span>
-              <button type="button" onClick={() => setEditor(null)} style={btn}>
-                {L("closeEditor")}
-              </button>
+              <div style={{ display: "inline-flex", gap: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setBuilderMode(true)}
+                  style={builderMode ? { ...btn, background: "var(--ink-1)", color: "#fff", borderColor: "transparent" } : btn}
+                >
+                  {L("modeVisual")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBuilderMode(false)}
+                  style={!builderMode ? { ...btn, background: "var(--ink-1)", color: "#fff", borderColor: "transparent" } : btn}
+                >
+                  {L("modeJson")}
+                </button>
+                <button type="button" onClick={() => setEditor(null)} style={btn}>
+                  {L("closeEditor")}
+                </button>
+              </div>
             </div>
             <span style={{ fontSize: 12, color: "var(--ink-4)" }}>{L("schemaHint")}</span>
             <div
@@ -579,20 +613,45 @@ export function ScreenAppAdminStudio(): React.ReactNode {
                 alignItems: "start",
               }}
             >
-              <textarea
-                value={editor.json}
-                onChange={(e) => setEditor({ ...editor, json: e.target.value })}
-                spellCheck={false}
-                style={{
-                  ...fld,
-                  minHeight: 320,
-                  fontFamily: "var(--font-mono, monospace)",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  resize: "vertical",
-                  direction: "ltr",
-                }}
-              />
+              {builderMode ? (
+                previewSchema ? (
+                  <StudioBuilder
+                    value={previewSchema}
+                    lang={lg}
+                    onChange={(next) =>
+                      setEditor({ id: editor.id, json: JSON.stringify(next, null, 2) })
+                    }
+                  />
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10, fontSize: 13 }}>
+                    <span style={{ color: "var(--rose)" }}>{L("fixJson")}</span>
+                    <button
+                      type="button"
+                      style={btn}
+                      onClick={() =>
+                        setEditor({ id: editor.id, json: JSON.stringify(emptySchema(), null, 2) })
+                      }
+                    >
+                      {L("startBlank")}
+                    </button>
+                  </div>
+                )
+              ) : (
+                <textarea
+                  value={editor.json}
+                  onChange={(e) => setEditor({ ...editor, json: e.target.value })}
+                  spellCheck={false}
+                  style={{
+                    ...fld,
+                    minHeight: 320,
+                    fontFamily: "var(--font-mono, monospace)",
+                    fontSize: 12,
+                    lineHeight: 1.5,
+                    resize: "vertical",
+                    direction: "ltr",
+                  }}
+                />
+              )}
               <div
                 style={{
                   border: "1px solid var(--line-soft)",
