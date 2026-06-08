@@ -141,6 +141,12 @@ class ColumnSpec(NamedTuple):
     py_type: str
     nullable: bool
     default: str | None
+    check_values: tuple[str, ...] = ()  # valeurs autorisées (select) → CHECK IN (...)
+
+
+# Charset sûr pour les valeurs d'option (évite tout échappement SQL dans le CHECK).
+# Une valeur hors charset → le CHECK est omis (la colonne reste un String simple).
+_SAFE_OPT = re.compile(r"^[A-Za-z0-9_.\- ]+$")
 
 
 def _class_name(slug: str) -> str:
@@ -168,7 +174,14 @@ def column_specs(schema: dict[str, Any]) -> list[ColumnSpec]:
                 name, i = f"{base}_{i}", i + 1
             used.add(name)
             nullable = el.get("type") != "checkbox" and not bool(el.get("required"))
-            cols.append(ColumnSpec(name, orm_type, mig_type, py_type, nullable, default))
+            check_values: tuple[str, ...] = ()
+            if el.get("type") == "select":
+                vals = [str(o.get("value", "")) for o in (el.get("options") or [])]
+                if vals and all(_SAFE_OPT.match(v) for v in vals):
+                    check_values = tuple(vals)
+            cols.append(
+                ColumnSpec(name, orm_type, mig_type, py_type, nullable, default, check_values)
+            )
     return cols
 
 
@@ -214,7 +227,7 @@ class __CLS__(Base, TimestampMixin, TenantMixin, SoftDeleteMixin):
     """Entité générée. RLS via company_id (Loi 1) ; mixins → company_id/timestamps/deleted_at."""
 
     __tablename__ = "studio_gen___SLUG__"
-
+__TABLEARGS__
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 __COLS__
 '''
@@ -513,8 +526,20 @@ def _fill(tmpl: str, slug: str, **extra: str) -> str:
     return out
 
 
+def _in_list(c: ColumnSpec) -> str:
+    return ", ".join(f"'{v}'" for v in c.check_values)
+
+
+def _ck_name(slug: str, c: ColumnSpec) -> str:
+    return f"ck_studio_gen_{slug}_{c.name}"[:63]  # borne identifiant Postgres
+
+
 def render_model(slug: str, cols: list[ColumnSpec]) -> str:
-    sa_types = ", ".join(sorted({c.orm_type.split("(")[0] for c in cols})) or "String"
+    type_names = {c.orm_type.split("(")[0] for c in cols}
+    checks = [c for c in cols if c.check_values]
+    if checks:
+        type_names.add("CheckConstraint")
+    sa_types = ", ".join(sorted(type_names)) or "String"
     lines = []
     for c in cols:
         opt = " | None" if c.nullable else ""
@@ -522,8 +547,21 @@ def render_model(slug: str, cols: list[ColumnSpec]) -> str:
         if c.default is not None:
             args += f", default={c.default}"
         lines.append(f"    {c.name}: Mapped[{c.py_type}{opt}] = mapped_column({args})")
+    if checks:
+        cc = ",\n".join(
+            f'        CheckConstraint("{c.name} IN ({_in_list(c)})", name="{_ck_name(slug, c)}")'
+            for c in checks
+        )
+        table_args = f"    __table_args__ = (\n{cc},\n    )"
+    else:
+        table_args = ""
     return _fill(
-        _MODEL_TMPL, slug, EXTRA=_extra_py_imports(cols), SATYPES=sa_types, COLS="\n".join(lines)
+        _MODEL_TMPL,
+        slug,
+        EXTRA=_extra_py_imports(cols),
+        SATYPES=sa_types,
+        COLS="\n".join(lines),
+        TABLEARGS=table_args,
     )
 
 
@@ -568,6 +606,9 @@ def render_migration(slug: str, cols: list[ColumnSpec], new_rev: str, down_rev: 
         if c.default == "False":
             args += ', server_default=sa.text("false")'
         defs.append(f"        sa.Column({args}),")
+    for c in (col for col in cols if col.check_values):
+        ck = f'"{c.name} IN ({_in_list(c)})", name="{_ck_name(slug, c)}"'
+        defs.append(f"        sa.CheckConstraint({ck}),")
     body = _fill(_MIGRATION_TMPL, slug, MIGCOLS="\n".join(defs))
     return body.replace("__REV__", new_rev).replace("__DOWN__", down_rev)
 

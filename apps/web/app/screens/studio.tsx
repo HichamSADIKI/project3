@@ -41,6 +41,18 @@ type StudioModule = {
   created_at: string;
 };
 
+type Job = {
+  id: string;
+  status: string; // requested | running | done | failed
+  phase: string;
+  detail?: string | null;
+  branch_name?: string | null;
+  pr_url?: string | null;
+  radar_report?: Record<string, unknown> | null;
+  chasseur_report?: Record<string, unknown> | null;
+  created_at: string;
+};
+
 const TR: Record<Lang, Record<string, string>> = {
   fr: {
     title: "Studio de Modules",
@@ -67,6 +79,10 @@ const TR: Record<Lang, Record<string, string>> = {
     preview: "Aperçu",
     invalidJson: "JSON invalide",
     closeEditor: "Fermer",
+    jobs: "Jobs (codegen)",
+    noJobs: "Aucun job pour ce module.",
+    jobBranch: "Branche",
+    jobPr: "PR",
     schemaHint: "Schéma déclaratif (feuilles → éléments). Donnée, jamais du code.",
     aiGenerate: "✨ Générer (IA)",
     aiPrompt: "Décris l'écran à générer :",
@@ -108,6 +124,10 @@ const TR: Record<Lang, Record<string, string>> = {
     preview: "Preview",
     invalidJson: "Invalid JSON",
     closeEditor: "Close",
+    jobs: "Jobs (codegen)",
+    noJobs: "No job for this module.",
+    jobBranch: "Branch",
+    jobPr: "PR",
     schemaHint: "Declarative schema (sheets → elements). Data, never code.",
     aiGenerate: "✨ Generate (AI)",
     aiPrompt: "Describe the screen to generate:",
@@ -149,6 +169,10 @@ const TR: Record<Lang, Record<string, string>> = {
     preview: "معاينة",
     invalidJson: "JSON غير صالح",
     closeEditor: "إغلاق",
+    jobs: "مهام (التوليد)",
+    noJobs: "لا مهمة لهذه الوحدة.",
+    jobBranch: "الفرع",
+    jobPr: "PR",
     schemaHint: "مخطط تعريفي (صفحات → عناصر). بيانات، ليست كودًا.",
     aiGenerate: "✨ توليد (ذكاء اصطناعي)",
     aiPrompt: "صف الشاشة المراد توليدها:",
@@ -308,6 +332,16 @@ export function ScreenAppAdminStudio(): React.ReactNode {
   };
   const [editor, setEditor] = React.useState<{ id: string; json: string } | null>(null);
   const [builderMode, setBuilderMode] = React.useState(true); // Visuel par défaut
+  const [jobsPanel, setJobsPanel] = React.useState<{ id: string; items: Job[] } | null>(null);
+
+  async function openJobs(m: StudioModule): Promise<void> {
+    try {
+      const r = await getJson<{ data: Job[] }>(`/api/admin/platform/studio/modules/${m.id}/jobs`);
+      setJobsPanel({ id: m.id, items: r.data ?? [] });
+    } catch {
+      setJobsPanel({ id: m.id, items: [] });
+    }
+  }
 
   async function openSchema(m: StudioModule): Promise<void> {
     let initial: SheetSchema = STARTER;
@@ -569,6 +603,17 @@ export function ScreenAppAdminStudio(): React.ReactNode {
                             </button>
                           </>
                         )}
+                        {m.flavor === "code" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void openJobs(m);
+                            }}
+                            style={btn}
+                          >
+                            {L("jobs")}
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -576,6 +621,65 @@ export function ScreenAppAdminStudio(): React.ReactNode {
             </tbody>
           </table>
         </div>
+
+        {/* ── Jobs de génération de code (modules code) ── */}
+        {jobsPanel && (
+          <div style={{ ...card, padding: 18, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div
+              style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink-1)" }}>
+                {L("jobs")}
+              </span>
+              <button type="button" onClick={() => setJobsPanel(null)} style={btn}>
+                {L("closeEditor")}
+              </button>
+            </div>
+            {jobsPanel.items.length === 0 ? (
+              <div style={{ fontSize: 13, color: "var(--ink-4)" }}>{L("noJobs")}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {jobsPanel.items.map((j) => (
+                  <div
+                    key={j.id}
+                    style={{
+                      border: "1px solid var(--line-soft)",
+                      borderRadius: 10,
+                      padding: 12,
+                      background: "var(--bg-cream)",
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      gap: 12,
+                    }}
+                  >
+                    <Badge kind={j.status} label={`${j.status} · ${j.phase}`} />
+                    {j.branch_name && (
+                      <span className="tnum" style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                        {L("jobBranch")}: {j.branch_name}
+                      </span>
+                    )}
+                    {j.pr_url && (
+                      <a
+                        href={j.pr_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontSize: 12, fontWeight: 600, color: "var(--gold-deep)" }}
+                      >
+                        {L("jobPr")} ↗
+                      </a>
+                    )}
+                    {j.detail && (
+                      <span style={{ fontSize: 11.5, color: "var(--ink-4)", flex: 1, minWidth: 0 }}>
+                        {j.detail}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Éditeur de schéma + aperçu live (modules lite) ── */}
         {editor && (
