@@ -321,6 +321,11 @@ def run_codegen_job(self, job_id: str) -> dict[str, object]:  # noqa: ANN001
             rc, out = _run(["git", "checkout", "-B", branch], cwd=wt, timeout=60)
             if rc != 0:
                 return _finish(db, job, module, "failed", "scaffold", f"checkout:{out}")
+            # Pré-check collision : un module (router) du même slug existe déjà → échec clair
+            # en amont (plutôt qu'un échec opaque en CI de la PR sur create_table/duplicate dir).
+            if (wt / f"apps/api/app/routers/{slug}").exists():
+                _cleanup_worktree(wt)
+                return _finish(db, job, module, "failed", "scaffold", f"module_slug_exists:{slug}")
             paths = _write_generated(wt, slug, module.schema_json)
             _advance(module, "built")
             db.commit()

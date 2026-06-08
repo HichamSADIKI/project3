@@ -273,3 +273,33 @@ async def test_run_codegen_job_idempotent(
 
     result = await _run_job(str(job_id))
     assert result["status"] == "skipped"
+
+
+@pytest.mark.asyncio
+async def test_run_codegen_job_slug_collision(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch, tmp_path
+) -> None:
+    """3B+ : si un module (router) du même slug existe déjà → échec clair `module_slug_exists`."""
+    from app.routers.admin.studio_templates import module_slug
+
+    module_id, job_id = await _seed_code_module_and_job(db_session)
+    _patch_pipeline(monkeypatch)
+    monkeypatch.setenv("STUDIO_WORKTREE_BASE", str(tmp_path))
+    module = (
+        await db_session.execute(select(StudioModule).where(StudioModule.id == module_id))
+    ).scalar_one()
+    slug = module_slug(module.key)
+    # Pré-crée le worktree + le dossier router en collision (chemin déterministe).
+    wt = tmp_path / f"wt-{slug}-{str(job_id)[:8]}"
+    (wt / "apps/api/app/routers" / slug).mkdir(parents=True)
+
+    await _run_job(str(job_id))
+
+    db_session.expire_all()
+    job = (
+        await db_session.execute(
+            select(StudioOrchestratorJob).where(StudioOrchestratorJob.id == job_id)
+        )
+    ).scalar_one()
+    assert job.status == "failed"
+    assert "module_slug_exists" in (job.detail or "")
