@@ -291,6 +291,9 @@ async def compute_effective(
     db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
 ) -> dict[str, Effective]:
     await ensure_seeded(db, company_id)
+    # Auto-réparation de la baseline avant de charger les sujets → l'éventuel
+    # rattachement au groupe de rôle est pris en compte dès cette résolution.
+    await ensure_role_group_membership(db, company_id, user_id)
     nodes = await load_nodes(db, company_id)
     refs, id_to_key, _ = _refs_and_maps(nodes)
     subjects = await load_user_subjects(db, company_id, user_id)
@@ -407,6 +410,51 @@ async def ensure_seeded(db: AsyncSession, company_id: uuid.UUID) -> None:
         if gid is not None:
             db.add(GroupMember(group_id=gid, user_id=uid, company_id=company_id))
     await db.commit()
+
+
+async def ensure_role_group_membership(
+    db: AsyncSession, company_id: uuid.UUID, user_id: uuid.UUID
+) -> bool:
+    """Auto-réparation : garantit que l'utilisateur staff est membre du groupe
+    système de son rôle (baseline RBAC), idempotent. Renvoie True si rattaché.
+
+    `ensure_seeded` n'assigne les utilisateurs **existants** qu'au tout premier
+    bootstrap (early-return ensuite) ; un compte créé/seedé plus tard naîtrait
+    « aveugle ». Appelé sur le chemin de résolution (`compute_effective`), ce
+    correctif rattache chaque compte à sa baseline dès son prochain chargement.
+    Rôle non-staff (partner/client → pas de `sys-{role}`) → no-op.
+    """
+    role = (
+        await db.execute(
+            select(User.role).where(
+                User.id == user_id,
+                User.company_id == company_id,
+                User.deleted_at.is_(None),
+            )
+        )
+    ).scalar_one_or_none()
+    if role is None:
+        return False
+    sys_group_id = (
+        await db.execute(
+            select(Group.id).where(Group.company_id == company_id, Group.slug == f"sys-{role}")
+        )
+    ).scalar_one_or_none()
+    if sys_group_id is None:
+        return False
+    already = (
+        await db.execute(
+            select(GroupMember.user_id).where(
+                GroupMember.group_id == sys_group_id,
+                GroupMember.user_id == user_id,
+            )
+        )
+    ).scalar_one_or_none()
+    if already is not None:
+        return False
+    db.add(GroupMember(group_id=sys_group_id, user_id=user_id, company_id=company_id))
+    await db.commit()
+    return True
 
 
 # ── CRUD groupes ─────────────────────────────────────────────────────────────────
