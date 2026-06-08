@@ -29,6 +29,7 @@ export type Translations = {
   aiagent_tab_insights: string; aiagent_tab_score: string; aiagent_tab_message: string;
   aiagent_tab_validation: string; aiagent_tab_chat: string;
   aiagent_run: string; aiagent_ask: string; aiagent_id_placeholder: string; aiagent_ask_placeholder: string;
+  aiagent_search_placeholder: string;
   aiagent_engine_ai: string; aiagent_engine_heuristic: string; aiagent_error: string; aiagent_loading: string;
   aiagent_score_label: string; aiagent_band: string; aiagent_risk_band: string;
   aiagent_recommended: string; aiagent_reply: string; aiagent_gv_eligible: string; aiagent_flags: string;
@@ -342,6 +343,7 @@ const ar: Translations = {
   aiagent_tab_insights: "نظرة عامة", aiagent_tab_score: "التأهيل", aiagent_tab_message: "رسالة",
   aiagent_tab_validation: "الاعتماد", aiagent_tab_chat: "محادثة",
   aiagent_run: "تشغيل", aiagent_ask: "إرسال", aiagent_id_placeholder: "معرّف (UUID)", aiagent_ask_placeholder: "اطرح سؤالاً…",
+  aiagent_search_placeholder: "ابحث عن عميل أو مورّد بالاسم…",
   aiagent_engine_ai: "ذكاء اصطناعي", aiagent_engine_heuristic: "إرشادي", aiagent_error: "خطأ، حاول مجددًا", aiagent_loading: "جارٍ…",
   aiagent_score_label: "الدرجة", aiagent_band: "التصنيف", aiagent_risk_band: "المخاطرة",
   aiagent_recommended: "إجراءات مقترحة", aiagent_reply: "الرد", aiagent_gv_eligible: "مؤهّل للإقامة الذهبية", aiagent_flags: "إشارات",
@@ -648,6 +650,7 @@ const en: Translations = {
   aiagent_tab_insights: "Overview", aiagent_tab_score: "Qualification", aiagent_tab_message: "Message",
   aiagent_tab_validation: "Validation", aiagent_tab_chat: "Chat",
   aiagent_run: "Run", aiagent_ask: "Send", aiagent_id_placeholder: "ID (UUID)", aiagent_ask_placeholder: "Ask a question…",
+  aiagent_search_placeholder: "Search a client or supplier by name…",
   aiagent_engine_ai: "AI", aiagent_engine_heuristic: "Heuristic", aiagent_error: "Error, please retry", aiagent_loading: "Loading…",
   aiagent_score_label: "Score", aiagent_band: "Band", aiagent_risk_band: "Risk",
   aiagent_recommended: "Recommended actions", aiagent_reply: "Reply", aiagent_gv_eligible: "Golden Visa eligible", aiagent_flags: "Flags",
@@ -954,6 +957,7 @@ const fr: Translations = {
   aiagent_tab_insights: "Synthèse", aiagent_tab_score: "Qualification", aiagent_tab_message: "Message",
   aiagent_tab_validation: "Validation", aiagent_tab_chat: "Chat",
   aiagent_run: "Lancer", aiagent_ask: "Envoyer", aiagent_id_placeholder: "Identifiant (UUID)", aiagent_ask_placeholder: "Posez une question…",
+  aiagent_search_placeholder: "Rechercher un client ou un fournisseur par nom…",
   aiagent_engine_ai: "IA", aiagent_engine_heuristic: "Heuristique", aiagent_error: "Erreur, réessayez", aiagent_loading: "Chargement…",
   aiagent_score_label: "Score", aiagent_band: "Bande", aiagent_risk_band: "Risque",
   aiagent_recommended: "Actions recommandées", aiagent_reply: "Réponse", aiagent_gv_eligible: "Éligible Golden Visa", aiagent_flags: "Signaux",
