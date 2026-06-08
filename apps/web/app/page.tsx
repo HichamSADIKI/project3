@@ -82,6 +82,8 @@ import { SoftphoneDock } from "@/components/softphone/softphone-dock";
 import { AssistantDock } from "@/components/assistant/assistant-dock";
 import { SelfDefenseDock } from "@/components/self-defense/self-defense-dock";
 import { SelfDefenseOverlay } from "@/components/self-defense/self-defense-overlay";
+import { SurveillancePanel } from "@/components/self-defense/surveillance-panel";
+import { usePresenceHeartbeat } from "@/lib/use-presence";
 import { PermissionsProvider, useNavGate } from "@/lib/permissions";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -243,6 +245,8 @@ function GatedScreen({ screen, children }: { screen: string; children: React.Rea
 export default function App() {
   const t = useT();
   const [screen, setScreen] = useState<string>("login");
+  // Présence live (heartbeat) pour la surveillance Self-Defense — page courante.
+  usePresenceHeartbeat({ category: domainOfScreen(NAV_ENTRIES, screen) ?? null, page: screen });
   const [confirmedDeals, setConfirmedDeals] = useState<ConfirmedDeal[]>([]);
   const [clientSearch, setClientSearch] = useState<string>("");
   // Pré-remplissage poussé par l'assistant (action guidée profonde), ciblé par écran.
@@ -305,6 +309,7 @@ export default function App() {
       {/* Self-Defense : bouton + menu demi-cercle (dock) et overlay teinte/gel/verrouillage. */}
       <SelfDefenseDock />
       <SelfDefenseOverlay />
+      <SurveillancePanel />
     </>
   );
 
