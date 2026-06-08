@@ -8,7 +8,11 @@ les deux gardes ni les deux jeux de tables.
 | Périmètre | Préfixe | Garde (au niveau routeur) | Données | Loi 1 |
 |---|---|---|---|---|
 | **App-admin** (tenant) | `/api/v1/admin/{users,audit,alerts}` | `require_admin` (admin\|manager) ; écritures sensibles → `require_admin_write` (admin) | `admin_alert_rules`, `admin_alert_events` (company_id + RLS) | ✅ scopé tenant |
-| **Infra-admin** (plateforme) | `/api/v1/admin/platform/*` | `require_platform_admin` (lit `users.is_platform_admin` en DB) | `infra_services`, `infra_actions`, `backup_runs`, `infra_remediation_rules` (**PAS** de company_id) | ❌ exception documentée (cross-tenant) |
+| **Infra-admin** (plateforme) | `/api/v1/admin/platform/*` | `require_platform_admin` (lit `users.is_platform_admin` en DB) | `infra_services`, `infra_actions`, `backup_runs`, `infra_remediation_rules`, `studio_*`, lecture `audit_logs` (**PAS** de company_id) | ❌ exception documentée (cross-tenant) |
+
+> Le périmètre plateforme héberge aussi le **Studio de Modules** (`/platform/studio`,
+> `studio.py`) et le **superviseur de sécurité** (`/platform/security`, `security.py`,
+> lecture seule). Voir [docs/architecture/studio.md](../../../../../docs/architecture/studio.md).
 
 - Les gardes sont posées **au niveau du routeur** (`dependencies=[Depends(...)]`), jamais
   par-route → aucune route ne peut être accidentellement nue.
@@ -32,6 +36,7 @@ prod dans [DEPLOYMENT.md](../../../../../DEPLOYMENT.md).
 | `BACKUP_TRIGGER_ENABLED` | `pg_dump` réel | `backups.py` → `backups.run_backup` | `pg_dump` dans l'image worker, `BACKUP_DIR` |
 | `RESTORE_ENABLED` | `pg_restore` réel | `backups.py` → `backups.execute_restore` | `pg_restore`/`psql` worker, `RESTORE_TARGET_DB` |
 | `AUTO_REMEDIATION_ENABLED` | beat alerte Prometheus → action D2 | `infra_control.auto_remediate` | Prometheus + `INFRA_CONTROL_ENABLED` |
+| `STUDIO_CODEGEN_ENABLED` | génération de code réelle (git/gh) | `studio_orchestrator.run_codegen_job` | profil compose `studio` (worker-studio) + `STUDIO_GH_TOKEN` fine-grained (no-merge) + `STUDIO_REPO_URL` |
 
 ## Pièges & invariants
 
@@ -52,9 +57,15 @@ prod dans [DEPLOYMENT.md](../../../../../DEPLOYMENT.md).
   (`name` == job Prometheus ; `compose_service` == label docker-compose).
 - Tables plateforme sans company_id → **ne jamais** les exposer sans `require_platform_admin`,
   **jamais** via le middleware tenant.
+- **Studio de Modules** (`studio.py`, `studio_orchestrator.py`, worker `worker-studio`) : même
+  doctrine fail-secure que l'infra (profil compose éteint par défaut + flag + whitelist d'argv
+  `shell=False` + clone isolé). **Jamais d'auto-merge** : au mieux le worker ouvre une PR
+  (gate « GO #PR » humaine). Le **superviseur de sécurité** (`security.py`) lit `audit_logs`
+  (sans RLS) en cross-tenant — lecture seule. Détails : [docs/architecture/studio.md](../../../../../docs/architecture/studio.md).
 
 ## Migrations
 
 `0048_admin_console` (socle + `is_platform_admin` + tables) · `0051_infra_compose_service`
 (colonne `compose_service`) · `0053_infra_remediation_rules` (auto-rem) · `0056_backup_runs_kind_restore`
-(autorise `kind='restore'`).
+(autorise `kind='restore'`) · `0066_studio_modules` (Studio : modules + 4-eyes) ·
+`0067_studio_orchestrator_jobs` (jobs du worker codegen).
