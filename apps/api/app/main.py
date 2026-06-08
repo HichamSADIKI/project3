@@ -66,8 +66,10 @@ from app.routers import (
     vendors,
     workflows,
 )
+from app.routers.clients.ai_router import router as clients_ai_router
 from app.routers.scraping.service import start_browser, stop_browser
 from app.routers.telephony.ami import start_ami_listener, stop_ami_listener
+from app.routers.vendors.ai_router import router as vendors_ai_router
 
 logger = logging.getLogger("app.startup")
 
@@ -186,6 +188,10 @@ app.add_middleware(
 app.include_router(auth, prefix="/api/v1")
 # Fournisseurs (prestataires) — catégorie placée AVANT clients : gestion des
 # fiches fournisseurs (réutilise le module vendors / party-role fournisseur).
+# Agent AI (sous-routes /vendors/ai et /clients/ai) — montées AVANT les routers
+# parents pour lever toute ambiguïté de résolution de route.
+app.include_router(vendors_ai_router, prefix="/api/v1")
+app.include_router(clients_ai_router, prefix="/api/v1")
 app.include_router(vendors, prefix="/api/v1")
 app.include_router(clients, prefix="/api/v1")
 app.include_router(properties, prefix="/api/v1")

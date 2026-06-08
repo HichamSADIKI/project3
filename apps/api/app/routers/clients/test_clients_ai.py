@@ -169,3 +169,232 @@ def test_draft_message_company_uses_company_name() -> None:
     c = _client(type="company", company_name="Acme FZE", first_name=None, last_name=None)
     msg = ai_service.draft_message(c, "email", "en", "welcome")
     assert "Acme FZE" in msg
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Couche 2 — intégration HTTP + Red-Team cross-tenant (Loi 1) / anti-BOLA.
+# (Postgres réel : exécuter en conteneur.)
+# ══════════════════════════════════════════════════════════════════════════
+
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth import encode_jwt, hash_password
+from app.models.company import Company
+from app.models.user import User, UserRole, UserStatus
+from app.routers.clients.schemas import ClientCreate
+from app.routers.clients.service import create_client
+
+
+@pytest.fixture(autouse=True)
+def _no_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force le mode heuristique (pas de clé Gemini) → tests déterministes, pas
+    de réseau. L'engine attendu est donc toujours 'heuristic'."""
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _make_user_token(db: AsyncSession, company: Company, role: str) -> str:
+    user = User(
+        id=uuid.uuid4(),
+        company_id=company.id,
+        email=f"u-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("Pass!23"),
+        full_name="Role User",
+        role=role,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    return encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(company.id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_insights_http(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    admin, token = seed_admin
+    await create_client(
+        db_session,
+        admin.company_id,
+        ClientCreate(type="individual", first_name="A", budget_max=Decimal("2500000")),
+    )
+    r = await client.post("/api/v1/clients/ai/insights", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["total"] >= 1
+    assert data["engine"] == "heuristic"
+
+
+@pytest.mark.asyncio
+async def test_score_http_and_cross_tenant(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+) -> None:
+    admin, token = seed_admin
+    c = await create_client(
+        db_session,
+        admin.company_id,
+        ClientCreate(
+            type="individual",
+            first_name="Hot",
+            budget_max=Decimal("3000000"),
+            preferred_property_type="villa",
+            preferred_location="Palm Jumeirah",
+            phone="1",
+            email="h@x.io",
+        ),
+    )
+    r = await client.post(f"/api/v1/clients/ai/{c.id}/score", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    d = r.json()["data"]
+    assert d["band"] == "hot"
+    assert d["golden_visa_eligible"] is True
+
+    # 💡 Red-Team Loi 1 : le tenant B ne doit JAMAIS atteindre le client du tenant A.
+    _, token_b = second_admin
+    rx = await client.post(f"/api/v1/clients/ai/{c.id}/score", headers=_auth(token_b))
+    assert rx.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_message_http_and_cross_tenant(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+) -> None:
+    admin, token = seed_admin
+    c = await create_client(
+        db_session, admin.company_id, ClientCreate(type="individual", first_name="Lina")
+    )
+    r = await client.post(
+        f"/api/v1/clients/ai/{c.id}/message",
+        json={"channel": "whatsapp", "locale": "fr", "purpose": "follow_up"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert "Lina" in r.json()["data"]["message"]
+
+    _, token_b = second_admin
+    rx = await client.post(
+        f"/api/v1/clients/ai/{c.id}/message",
+        json={"channel": "whatsapp", "locale": "fr", "purpose": "follow_up"},
+        headers=_auth(token_b),
+    )
+    assert rx.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_chat_http(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _, token = seed_admin
+    r = await client.post(
+        "/api/v1/clients/ai/chat",
+        json={"messages": [{"role": "user", "content": "Résume mon portefeuille"}], "locale": "fr"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["reply"]
+
+
+@pytest.mark.asyncio
+async def test_score_unknown_returns_404(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _, token = seed_admin
+    r = await client.post(f"/api/v1/clients/ai/{uuid.uuid4()}/score", headers=_auth(token))
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_ai_requires_auth(client: AsyncClient) -> None:
+    # Sans identité : require_roles refuse (403) avant la vérif tenant (401).
+    r = await client.post("/api/v1/clients/ai/insights")
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_ai_forbidden_for_client_role(
+    client: AsyncClient, seed_company: Company, db_session: AsyncSession
+) -> None:
+    token = await _make_user_token(db_session, seed_company, UserRole.CLIENT.value)
+    r = await client.post("/api/v1/clients/ai/insights", headers=_auth(token))
+    assert r.status_code == 403
+
+
+# ── Chemin d'enrichissement Gemini (monkeypatch) + health ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_score_uses_gemini_when_available(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_text(*a: object, **k: object) -> dict[str, str]:
+        return {"text": "Résumé IA", "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(ai_service.gemini, "generate_text", fake_text)
+    admin, _ = seed_admin
+    c = await create_client(
+        db_session,
+        admin.company_id,
+        ClientCreate(type="individual", first_name="Z", budget_max=Decimal("2500000")),
+    )
+    out = await ai_service.client_score(db_session, admin.company_id, c.id, "fr")
+    assert out is not None
+    assert out["engine"] == "gemini-2.5-flash"
+    assert out["narrative"] == "Résumé IA"
+
+
+@pytest.mark.asyncio
+async def test_insights_and_message_use_gemini(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_text(*a: object, **k: object) -> dict[str, str]:
+        return {"text": "Synthèse IA", "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(ai_service.gemini, "generate_text", fake_text)
+    admin, _ = seed_admin
+    c = await create_client(
+        db_session, admin.company_id, ClientCreate(type="individual", first_name="Y")
+    )
+    ins = await ai_service.client_insights(db_session, admin.company_id, "ar")
+    assert ins["engine"] == "gemini-2.5-flash"
+    msg = await ai_service.client_message(
+        db_session, admin.company_id, c.id, "email", "en", "welcome"
+    )
+    assert msg is not None and msg["engine"] == "gemini-2.5-flash"
+
+
+@pytest.mark.asyncio
+async def test_chat_uses_gemini(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_chat(*a: object, **k: object) -> dict[str, str]:
+        return {"text": "Réponse IA", "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(ai_service.gemini, "generate_chat", fake_chat)
+    admin, _ = seed_admin
+    out = await ai_service.client_chat(
+        db_session, admin.company_id, [{"role": "user", "content": "salut"}], "fr"
+    )
+    assert out["engine"] == "gemini-2.5-flash"
+    assert out["reply"] == "Réponse IA"
+
+
+@pytest.mark.asyncio
+async def test_health_public(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/clients/ai/health")
+    assert r.status_code == 200
+    assert r.json()["module"] == "clients-ai"

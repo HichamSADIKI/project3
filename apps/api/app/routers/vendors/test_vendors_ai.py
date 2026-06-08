@@ -178,3 +178,214 @@ def test_parc_insights_counts() -> None:
 def test_parc_insights_localised(locale: str) -> None:
     out = ai_service.parc_insights({"total": 0}, locale)  # type: ignore[arg-type]
     assert isinstance(out["headline"], str) and out["headline"]
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Couche 2 — intégration HTTP + Red-Team cross-tenant (Loi 1) / anti-BOLA.
+# ══════════════════════════════════════════════════════════════════════════
+
+from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.auth import encode_jwt, hash_password
+from app.models.client import Client
+from app.models.company import Company
+from app.models.party_vendor import Vendor
+from app.models.user import User, UserRole, UserStatus
+
+
+@pytest.fixture(autouse=True)
+def _no_gemini(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Force le mode heuristique (pas de clé Gemini) → tests déterministes."""
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+
+
+def _auth(token: str) -> dict[str, str]:
+    return {"Authorization": f"Bearer {token}"}
+
+
+async def _create_vendor(db: AsyncSession, company_id: uuid.UUID, **kw: object) -> uuid.UUID:
+    party = Client(id=uuid.uuid4(), company_id=company_id, type="company", company_name="Vendor Co")
+    db.add(party)
+    await db.flush()
+    fields: dict[str, object] = {
+        "vendor_type": "maintenance",
+        "categories": ["maintenance"],
+        "verification_status": "verified",
+        "is_active": True,
+        "trade_licence_number": "TL-1",
+        "trade_licence_expiry": date(2030, 1, 1),
+        "rating_avg": Decimal("4.8"),
+        "rating_count": 20,
+        "on_time_rate": Decimal("95"),
+        "jobs_completed": 50,
+        "jobs_cancelled": 1,
+    }
+    fields.update(kw)
+    db.add(Vendor(company_id=company_id, party_id=party.id, **fields))
+    await db.commit()
+    return party.id
+
+
+async def _make_user_token(db: AsyncSession, company: Company, role: str) -> str:
+    user = User(
+        id=uuid.uuid4(),
+        company_id=company.id,
+        email=f"u-{uuid.uuid4().hex[:8]}@sgi.test",
+        hashed_password=hash_password("Pass!23"),
+        full_name="Role User",
+        role=role,
+        status=UserStatus.ACTIVE.value,
+        is_active=True,
+    )
+    db.add(user)
+    await db.commit()
+    return encode_jwt(
+        {
+            "sub": str(user.id),
+            "company_id": str(company.id),
+            "role": user.role,
+            "status": user.status,
+            "email": user.email,
+        }
+    )
+
+
+@pytest.mark.asyncio
+async def test_insights_http(
+    client: AsyncClient, seed_admin: tuple[User, str], db_session: AsyncSession
+) -> None:
+    admin, token = seed_admin
+    await _create_vendor(db_session, admin.company_id)
+    r = await client.post("/api/v1/vendors/ai/insights", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    data = r.json()["data"]
+    assert data["total"] >= 1
+    assert data["engine"] == "heuristic"
+
+
+@pytest.mark.asyncio
+async def test_risk_http_and_cross_tenant(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+) -> None:
+    admin, token = seed_admin
+    pid = await _create_vendor(db_session, admin.company_id)
+    r = await client.post(f"/api/v1/vendors/ai/{pid}/risk", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    d = r.json()["data"]
+    assert d["risk_band"] == "low"
+    assert 0 <= d["score"] <= 100
+
+    # 💡 Red-Team Loi 1 : tenant B ne doit pas atteindre le fournisseur du tenant A.
+    _, token_b = second_admin
+    rx = await client.post(f"/api/v1/vendors/ai/{pid}/risk", headers=_auth(token_b))
+    assert rx.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_validation_http_and_cross_tenant(
+    client: AsyncClient,
+    seed_admin: tuple[User, str],
+    second_admin: tuple[Company, str],
+    db_session: AsyncSession,
+) -> None:
+    admin, token = seed_admin
+    pid = await _create_vendor(
+        db_session,
+        admin.company_id,
+        verification_status="pending",
+        trade_licence_number=None,
+        trade_licence_expiry=None,
+        categories=[],
+    )
+    r = await client.post(f"/api/v1/vendors/ai/{pid}/validation", headers=_auth(token))
+    assert r.status_code == 200, r.text
+    d = r.json()["data"]
+    assert d["recommendation"] == "request_documents"
+    assert "missing_trade_licence_number" in d["blocking_issues"]
+
+    _, token_b = second_admin
+    rx = await client.post(f"/api/v1/vendors/ai/{pid}/validation", headers=_auth(token_b))
+    assert rx.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_chat_http(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _, token = seed_admin
+    r = await client.post(
+        "/api/v1/vendors/ai/chat",
+        json={"messages": [{"role": "user", "content": "État du parc ?"}], "locale": "fr"},
+        headers=_auth(token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()["data"]["reply"]
+
+
+@pytest.mark.asyncio
+async def test_risk_unknown_returns_404(client: AsyncClient, seed_admin: tuple[User, str]) -> None:
+    _, token = seed_admin
+    r = await client.post(f"/api/v1/vendors/ai/{uuid.uuid4()}/risk", headers=_auth(token))
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_ai_requires_auth(client: AsyncClient) -> None:
+    # Sans identité : require_roles refuse (403) avant la vérif tenant (401).
+    r = await client.post("/api/v1/vendors/ai/insights")
+    assert r.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_ai_forbidden_for_client_role(
+    client: AsyncClient, seed_company: Company, db_session: AsyncSession
+) -> None:
+    token = await _make_user_token(db_session, seed_company, UserRole.CLIENT.value)
+    r = await client.post("/api/v1/vendors/ai/insights", headers=_auth(token))
+    assert r.status_code == 403
+
+
+# ── Chemin d'enrichissement Gemini (monkeypatch) + health ──────────────────
+
+
+@pytest.mark.asyncio
+async def test_risk_and_validation_use_gemini(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_text(*a: object, **k: object) -> dict[str, str]:
+        return {"text": "Analyse IA", "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(ai_service.gemini, "generate_text", fake_text)
+    admin, _ = seed_admin
+    pid = await _create_vendor(db_session, admin.company_id)
+    risk = await ai_service.vendor_risk(db_session, admin.company_id, pid, "fr")
+    assert risk is not None and risk["engine"] == "gemini-2.5-flash"
+    val = await ai_service.vendor_validation(db_session, admin.company_id, pid, "en")
+    assert val is not None and val["engine"] == "gemini-2.5-flash"
+    ins = await ai_service.vendors_insights(db_session, admin.company_id, "ar")
+    assert ins["engine"] == "gemini-2.5-flash"
+
+
+@pytest.mark.asyncio
+async def test_chat_uses_gemini(
+    seed_admin: tuple[User, str], db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_chat(*a: object, **k: object) -> dict[str, str]:
+        return {"text": "Réponse IA", "engine": "gemini-2.5-flash"}
+
+    monkeypatch.setattr(ai_service.gemini, "generate_chat", fake_chat)
+    admin, _ = seed_admin
+    out = await ai_service.vendor_chat(
+        db_session, admin.company_id, [{"role": "user", "content": "salut"}], "fr"
+    )
+    assert out["engine"] == "gemini-2.5-flash"
+    assert out["reply"] == "Réponse IA"
+
+
+@pytest.mark.asyncio
+async def test_health_public(client: AsyncClient) -> None:
+    r = await client.get("/api/v1/vendors/ai/health")
+    assert r.status_code == 200
+    assert r.json()["module"] == "vendors-ai"
