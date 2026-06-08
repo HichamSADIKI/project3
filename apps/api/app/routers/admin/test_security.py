@@ -16,6 +16,8 @@ from app.models.studio import StudioIntegrationRequest, StudioModule, StudioOrch
 from app.routers.admin.security import (
     _SECURITY_PREFIXES,
     aggregate_by_prefix,
+    daily_series,
+    day_keys,
     prefix_of,
 )
 
@@ -47,6 +49,35 @@ def test_aggregate_by_prefix() -> None:
     assert out["honeytoken:"]["count_7d"] == 4
     assert out["studio:"]["count_7d"] == 0  # bucket à zéro présent
     assert len(out) == len(_SECURITY_PREFIXES)
+
+
+def test_day_keys() -> None:
+    from datetime import date
+
+    keys = day_keys(date(2026, 6, 8), 7)
+    assert keys == [
+        "2026-06-02",
+        "2026-06-03",
+        "2026-06-04",
+        "2026-06-05",
+        "2026-06-06",
+        "2026-06-07",
+        "2026-06-08",
+    ]
+
+
+def test_daily_series() -> None:
+    keys = ["2026-06-07", "2026-06-08"]
+    rows = [
+        ("self_defense:locked", "2026-06-08", 2),
+        ("self_defense:code_fail", "2026-06-08", 1),
+        ("honeytoken:access", "2026-06-07", 4),
+        ("other:x", "2026-06-08", 9),  # ignoré
+    ]
+    out = {s["prefix"]: s for s in daily_series(rows, _SECURITY_PREFIXES, keys)}
+    assert out["self_defense:"]["counts"] == [0, 3]  # 2+1 le 08
+    assert out["honeytoken:"]["counts"] == [4, 0]
+    assert out["studio:"]["counts"] == [0, 0]
 
 
 # ── Garde plateforme ────────────────────────────────────────────────────────────
@@ -119,3 +150,9 @@ async def test_overview_aggregates(
     assert data["studio"]["jobs_failed"] >= 1
     assert data["studio"]["modules_total"] >= 1
     assert "draft" in data["studio"]["modules_by_state"]
+    # Série temporelle : 7 jours, un bucket par préfixe, total cohérent.
+    ts = data["timeseries"]
+    assert len(ts["days"]) == 7
+    sd = next(s for s in ts["series"] if s["prefix"] == "self_defense:")
+    assert len(sd["counts"]) == 7
+    assert sum(sd["counts"]) >= 1
