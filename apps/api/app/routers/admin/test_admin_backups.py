@@ -311,9 +311,14 @@ def test_recreate_target_db_command_drops_and_creates() -> None:
     assert "psql" in cmd[0]
     # se connecte à la base de maintenance, pas à la cible
     assert cmd[cmd.index("--dbname") + 1] == "postgres"
-    sql = cmd[-1]
-    assert 'DROP DATABASE IF EXISTS "sgi_restore_check"' in sql
-    assert 'CREATE DATABASE "sgi_restore_check"' in sql
+    # Régression : DROP et CREATE DATABASE dans des `-c` SÉPARÉS (chacun sa transaction).
+    # Un seul `-c "DROP …; CREATE …"` échoue « cannot run inside a transaction block ».
+    c_values = [cmd[i + 1] for i, a in enumerate(cmd) if a == "-c"]
+    assert len(c_values) == 2
+    assert any(v.startswith('DROP DATABASE IF EXISTS "sgi_restore_check"') for v in c_values)
+    assert any(v.startswith('CREATE DATABASE "sgi_restore_check"') for v in c_values)
+    # aucun `-c` ne combine les deux commandes (le bug d'origine).
+    assert not any("DROP" in v and "CREATE" in v for v in c_values)
 
 
 def test_restore_guard_refuses_live_db(monkeypatch: pytest.MonkeyPatch) -> None:

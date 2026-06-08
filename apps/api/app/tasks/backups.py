@@ -83,9 +83,12 @@ def recreate_target_db_command(target_db: str) -> list[str]:
 
     Helper PUR (testable). Uniquement la base cible jetable — jamais la live (garde
     en amont dans `_restore_guard`). `target_db` est validé `^[A-Za-z0-9_]+$`.
+
+    DROP/CREATE DATABASE ne peuvent PAS tourner dans une transaction → DEUX `-c`
+    séparés (un seul `-c "DROP …; CREATE …"` échoue : « cannot run inside a
+    transaction block »). Chaque `-c` est exécuté dans sa propre transaction.
     """
     exe = shutil.which("psql") or "psql"
-    sql = f'DROP DATABASE IF EXISTS "{target_db}"; CREATE DATABASE "{target_db}";'
     return [
         exe,
         "--host",
@@ -99,7 +102,9 @@ def recreate_target_db_command(target_db: str) -> list[str]:
         "-v",
         "ON_ERROR_STOP=1",
         "-c",
-        sql,
+        f'DROP DATABASE IF EXISTS "{target_db}";',
+        "-c",
+        f'CREATE DATABASE "{target_db}";',
     ]
 
 
