@@ -152,7 +152,7 @@ def _patch_pipeline(monkeypatch: pytest.MonkeyPatch, *, ruff_check_rc: int = 0) 
     monkeypatch.setattr(
         orch,
         "_write_generated",
-        lambda wt, slug: [
+        lambda wt, slug, schema: [
             f"apps/api/app/routers/{slug}/router.py",
             f"apps/api/app/routers/{slug}/test_{slug}.py",
             "apps/api/app/main.py",
