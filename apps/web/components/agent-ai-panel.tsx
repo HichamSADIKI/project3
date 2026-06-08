@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 
+import { EntitySearchInput } from "@/components/entity-search-input";
 import { useT, useLang } from "@/components/language-provider";
 import type { Translations } from "@/lib/i18n";
 import { postJson } from "@/lib/api-client";
@@ -13,6 +14,53 @@ import { postJson } from "@/lib/api-client";
 // n'envoie jamais de tenant.
 
 export type AgentDomain = "clients" | "vendors";
+
+// Localisation des jetons métier (bandes, actions, objets, drapeaux…).
+// Les jetons absents retombent sur une forme « humanisée » (snake_case → texte).
+const TOK: Record<string, { ar: string; en: string; fr: string }> = {
+  // Bandes de score / risque
+  hot: { ar: "ساخن", en: "Hot", fr: "Chaud" },
+  warm: { ar: "دافئ", en: "Warm", fr: "Tiède" },
+  cold: { ar: "بارد", en: "Cold", fr: "Froid" },
+  low: { ar: "منخفض", en: "Low", fr: "Faible" },
+  medium: { ar: "متوسط", en: "Medium", fr: "Moyen" },
+  high: { ar: "مرتفع", en: "High", fr: "Élevé" },
+  // Recommandations de validation
+  approve: { ar: "اعتماد", en: "Approve", fr: "Approuver" },
+  request_documents: { ar: "طلب مستندات", en: "Request documents", fr: "Demander des documents" },
+  review: { ar: "مراجعة", en: "Review", fr: "À revoir" },
+  reject: { ar: "رفض", en: "Reject", fr: "Rejeter" },
+  // Actions recommandées
+  propose_golden_visa: { ar: "اقتراح الإقامة الذهبية", en: "Propose Golden Visa", fr: "Proposer Golden Visa" },
+  schedule_visit: { ar: "تحديد زيارة", en: "Schedule visit", fr: "Planifier une visite" },
+  send_proposal: { ar: "إرسال عرض", en: "Send proposal", fr: "Envoyer une proposition" },
+  follow_up_call: { ar: "مكالمة متابعة", en: "Follow-up call", fr: "Appel de suivi" },
+  follow_up: { ar: "متابعة", en: "Follow up", fr: "Relance" },
+  nurture_sequence: { ar: "تسلسل رعاية", en: "Nurture sequence", fr: "Séquence de nurturing" },
+  collect_contact: { ar: "جمع جهة الاتصال", en: "Collect contact", fr: "Collecter un contact" },
+  qualify_needs: { ar: "تحديد الاحتياجات", en: "Qualify needs", fr: "Qualifier le besoin" },
+  complete_verification: { ar: "إكمال التحقق", en: "Complete verification", fr: "Compléter la vérification" },
+  request_trade_licence: { ar: "طلب الرخصة التجارية", en: "Request trade licence", fr: "Demander la licence" },
+  request_insurance: { ar: "طلب التأمين", en: "Request insurance", fr: "Demander l'assurance" },
+  review_performance: { ar: "مراجعة الأداء", en: "Review performance", fr: "Revoir la performance" },
+  collect_first_rating: { ar: "أول تقييم", en: "Collect first rating", fr: "Recueillir une note" },
+  eligible_for_jobs: { ar: "مؤهل للمهام", en: "Eligible for jobs", fr: "Éligible aux missions" },
+  // Objets de message
+  proposal: { ar: "عرض", en: "Proposal", fr: "Proposition" },
+  welcome: { ar: "ترحيب", en: "Welcome", fr: "Bienvenue" },
+  visit: { ar: "زيارة", en: "Visit", fr: "Visite" },
+  performance_review: { ar: "مراجعة الأداء", en: "Performance review", fr: "Revue de performance" },
+};
+
+function humanize(key: string): string {
+  return key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, " ");
+}
+
+function tok(key: string, lang: string): string {
+  const entry = TOK[key];
+  if (!entry) return humanize(key);
+  return entry[lang as "ar" | "en" | "fr"] ?? entry.en;
+}
 
 type Tab = "insights" | "entity" | "secondary" | "message" | "chat";
 
@@ -103,7 +151,15 @@ function EngineBadge({ engine }: { engine: string }): React.ReactNode {
   );
 }
 
-function Chips({ label, items }: { label: string; items: string[] }): React.ReactNode {
+function Chips({
+  label,
+  items,
+  lang,
+}: {
+  label: string;
+  items: string[];
+  lang: string;
+}): React.ReactNode {
   if (!items.length) return null;
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
@@ -121,7 +177,7 @@ function Chips({ label, items }: { label: string; items: string[] }): React.Reac
               padding: "3px 10px",
             }}
           >
-            {a}
+            {tok(a, lang)}
           </span>
         ))}
       </div>
@@ -152,10 +208,12 @@ const ACTION_TARGET: Record<string, string> = {
 function RecommendedActions({
   label,
   items,
+  lang,
   onNavigate,
 }: {
   label: string;
   items: string[];
+  lang: string;
   onNavigate?: (screen: string) => void;
 }): React.ReactNode {
   if (!items.length) return null;
@@ -183,7 +241,7 @@ function RecommendedActions({
                 cursor: clickable ? "pointer" : "default",
               }}
             >
-              {clickable ? `${a} →` : a}
+              {clickable ? `${tok(a, lang)} →` : tok(a, lang)}
             </button>
           );
         })}
@@ -397,11 +455,12 @@ function EntityTab({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
-        <input
-          value={id}
-          onChange={(e) => setId(e.target.value)}
-          placeholder={t.aiagent_id_placeholder}
-          style={inputStyle}
+        <EntitySearchInput
+          placeholder={t.aiagent_search_placeholder}
+          onSelect={(sid) => {
+            setId(sid);
+            setRes(null);
+          }}
         />
         {showMessageFields && (
           <>
@@ -412,7 +471,7 @@ function EntityTab({
             <select value={purpose} onChange={(e) => setPurpose(e.target.value)} style={inputStyle}>
               {PURPOSES.map((p) => (
                 <option key={p} value={p}>
-                  {p}
+                  {tok(p, lang)}
                 </option>
               ))}
             </select>
@@ -430,12 +489,12 @@ function EntityTab({
               {t.aiagent_score_label} : <strong>{res.score}/100</strong>
               {res.band && (
                 <span style={{ marginInlineStart: 8 }}>
-                  {t.aiagent_band} : {res.band}
+                  {t.aiagent_band} : {tok(res.band, lang)}
                 </span>
               )}
               {res.risk_band && (
                 <span style={{ marginInlineStart: 8 }}>
-                  {t.aiagent_risk_band} : {res.risk_band}
+                  {t.aiagent_risk_band} : {tok(res.risk_band, lang)}
                 </span>
               )}
             </div>
@@ -447,7 +506,7 @@ function EntityTab({
           )}
           {res.recommendation && (
             <div style={{ fontSize: 13, color: "var(--ink)" }}>
-              {t.aiagent_tab_validation} : <strong>{res.recommendation}</strong>
+              {t.aiagent_tab_validation} : <strong>{tok(res.recommendation, lang)}</strong>
             </div>
           )}
           {res.message && (
@@ -497,11 +556,12 @@ function EntityTab({
           <RecommendedActions
             label={t.aiagent_recommended}
             items={res.recommended_actions ?? []}
+            lang={lang}
             onNavigate={onNavigate}
           />
-          <Chips label={t.aiagent_flags} items={res.flags ?? []} />
-          <Chips label={t.aiagent_flags} items={res.blocking_issues ?? []} />
-          <Chips label={t.aiagent_flags} items={res.warnings ?? []} />
+          <Chips label={t.aiagent_flags} items={res.flags ?? []} lang={lang} />
+          <Chips label={t.aiagent_flags} items={res.blocking_issues ?? []} lang={lang} />
+          <Chips label={t.aiagent_flags} items={res.warnings ?? []} lang={lang} />
           {res.narrative && (
             <p style={{ margin: 0, fontSize: 12.5, color: "var(--ink-4)", whiteSpace: "pre-wrap" }}>
               {res.narrative}
