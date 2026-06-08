@@ -64,6 +64,9 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "Chargement…",
     error: "Échec du chargement.",
     none: "—",
+    refresh: "Rafraîchir",
+    updatedAt: "maj",
+    all: "Tous",
   },
   en: {
     title: "Security",
@@ -86,6 +89,9 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "Loading…",
     error: "Failed to load.",
     none: "—",
+    refresh: "Refresh",
+    updatedAt: "updated",
+    all: "All",
   },
   ar: {
     title: "الأمن",
@@ -108,6 +114,9 @@ const TR: Record<Lang, Record<string, string>> = {
     loading: "جارٍ التحميل…",
     error: "فشل التحميل.",
     none: "—",
+    refresh: "تحديث",
+    updatedAt: "حُدّث",
+    all: "الكل",
   },
 };
 
@@ -174,23 +183,29 @@ export function ScreenAppAdminSecurity(): React.ReactNode {
 
   const [data, setData] = React.useState<Overview | null>(null);
   const [state, setState] = React.useState<"loading" | "ok" | "error">("loading");
+  const [updatedAt, setUpdatedAt] = React.useState<string>("");
+  const [recentFilter, setRecentFilter] = React.useState<string | null>(null);
+
+  const load = React.useCallback(async (): Promise<void> => {
+    try {
+      const r = await getJson<{ data: Overview }>("/api/admin/platform/security/overview");
+      setData(r.data);
+      setState("ok");
+      setUpdatedAt(new Date().toLocaleTimeString(lg, { hour: "2-digit", minute: "2-digit" }));
+    } catch {
+      setState("error");
+    }
+  }, [lg]);
 
   React.useEffect(() => {
-    let cancelled = false;
-    getJson<{ data: Overview }>("/api/admin/platform/security/overview")
-      .then((r) => {
-        if (!cancelled) {
-          setData(r.data);
-          setState("ok");
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setState("error");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  const recent = data
+    ? recentFilter
+      ? data.recent.filter((e) => e.action.startsWith(recentFilter))
+      : data.recent
+    : [];
 
   const grid: React.CSSProperties = {
     display: "grid",
@@ -200,7 +215,33 @@ export function ScreenAppAdminSecurity(): React.ReactNode {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-      <Topbar title={L("title")} />
+      <Topbar title={L("title")}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+          {updatedAt && (
+            <span className="tnum" style={{ fontSize: 11.5, color: "var(--ink-4)" }}>
+              {L("updatedAt")} {updatedAt}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              void load();
+            }}
+            style={{
+              fontSize: 12,
+              fontWeight: 600,
+              padding: "6px 14px",
+              borderRadius: 8,
+              border: "1px solid var(--line-soft)",
+              background: "var(--bg-paper)",
+              color: "var(--ink)",
+              cursor: "pointer",
+            }}
+          >
+            ↻ {L("refresh")}
+          </button>
+        </div>
+      </Topbar>
       <div
         style={{
           flex: 1,
@@ -257,6 +298,32 @@ export function ScreenAppAdminSecurity(): React.ReactNode {
             {/* Événements récents */}
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <span style={sectionTitle}>{L("recent")}</span>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {[{ prefix: null, label: L("all") }, ...data.events.map((e) => ({ prefix: e.prefix, label: e.label }))].map(
+                  (chip) => {
+                    const active = recentFilter === chip.prefix;
+                    return (
+                      <button
+                        key={chip.prefix ?? "all"}
+                        type="button"
+                        onClick={() => setRecentFilter(chip.prefix)}
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 600,
+                          padding: "5px 12px",
+                          borderRadius: 999,
+                          cursor: "pointer",
+                          border: "1px solid var(--line-soft)",
+                          background: active ? "var(--ink-1)" : "var(--bg-paper)",
+                          color: active ? "#fff" : "var(--ink-2)",
+                        }}
+                      >
+                        {chip.label}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
               <div style={{ ...card, overflow: "hidden" }}>
                 <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
                   <thead>
@@ -268,14 +335,14 @@ export function ScreenAppAdminSecurity(): React.ReactNode {
                     </tr>
                   </thead>
                   <tbody>
-                    {data.recent.length === 0 && (
+                    {recent.length === 0 && (
                       <tr>
                         <td colSpan={4} style={{ ...td, textAlign: "center", color: "var(--ink-4)" }}>
                           {L("none")}
                         </td>
                       </tr>
                     )}
-                    {data.recent.map((e, i) => (
+                    {recent.map((e, i) => (
                       <tr key={i} style={{ borderTop: "1px solid var(--line-soft)" }}>
                         <td style={{ ...td, color: "var(--ink-1)", fontWeight: 600 }}>{e.action}</td>
                         <td className="tnum" style={{ ...td, fontSize: 11.5 }}>
