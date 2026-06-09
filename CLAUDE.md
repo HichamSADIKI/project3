@@ -12,6 +12,11 @@ Multi-tenant SaaS platform: property catalogue · sales · rentals · CRM · con
 - Languages: Arabic RTL (primary) · English · French
 - Currency: AED (dirham) — always Latin numerals
 
+> **Master brief.** [docs/PROJECT_MASTER_PROMPT.md](docs/PROJECT_MASTER_PROMPT.md) is the single
+> document that describes the whole solution (mission, 3 Laws, modules, business rules) end-to-end —
+> read it to understand or extend the platform without missing an invariant. Production go-live
+> gotcha (set `APP_DB_PASSWORD` so Law 1 RLS is enforced) is in [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Commands
 
 ```bash
@@ -20,6 +25,8 @@ make up               # Start all containers
 make down             # Stop all containers
 make logs s=api       # Stream FastAPI logs
 make healthcheck      # Verify all services
+make monitoring       # Start opt-in observability stack (Prometheus/Alertmanager/Grafana)
+make monitoring-down  # Stop the observability stack
 
 # Database
 make migrate          # Alembic upgrade head
@@ -30,6 +37,7 @@ make backup           # pg_dump compressed → ./backups/
 pnpm dev                        # All frontend apps (Turborepo)
 pnpm dev --filter=sgi-web       # Backoffice only (port 5001 local · 3000 in Docker)
 pnpm dev --filter=@sgi/portal   # Public portal only (port 3001)
+pnpm typecheck                  # tsc --noEmit across all frontend apps (Turborepo)
 
 # Mobile (apps/mobile uses npm — separate lockfile, Expo 51 + Expo Router)
 cd apps/mobile && npm install
