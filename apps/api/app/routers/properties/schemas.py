@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class PropertyCreate(BaseModel):
@@ -40,8 +40,16 @@ class PropertyCreate(BaseModel):
     furnished: bool = False
     parking_spaces: int = Field(0, ge=0)
     amenities: list[str] = []
+    images: list[str] = Field(default_factory=list)
     is_featured: bool = False
     agent_id: uuid.UUID | None = None
+
+    @field_validator("images")
+    @classmethod
+    def _http_images_only(cls, v: list[str]) -> list[str]:
+        """Ne garde que des URLs http(s) (anti-XSS si rendu en <img src>),
+        cap à 30. Utile pour les fiches importées depuis une annonce."""
+        return [u for u in v if isinstance(u, str) and u.startswith(("http://", "https://"))][:30]
 
 
 class PropertyUpdate(BaseModel):

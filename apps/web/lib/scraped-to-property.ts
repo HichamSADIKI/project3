@@ -31,6 +31,7 @@ export type PropertyDraft = {
   bathrooms?: number;
   city?: string;
   district?: string;
+  images?: string[];
 };
 
 // Doit rester synchronisé avec le pattern backend PropertyCreate.type.
@@ -99,6 +100,13 @@ export function scrapedToPropertyDraft(
 
   const district = s.community?.trim();
   if (district) draft.district = district.slice(0, 150);
+
+  // Images de l'annonce : on ne garde que des URLs http(s) (le backend re-valide
+  // et cape à 30). Permet de pré-remplir la galerie de la fiche importée.
+  const images = (s.images ?? []).filter(
+    (u) => typeof u === "string" && /^https?:\/\//.test(u),
+  );
+  if (images.length > 0) draft.images = images.slice(0, 30);
 
   return { draft };
 }
