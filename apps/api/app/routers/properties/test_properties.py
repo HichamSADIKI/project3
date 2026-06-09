@@ -14,11 +14,34 @@ from sqlalchemy import func, select
 from app.models.company import Company
 from app.models.property import Property
 
-from .schemas import PropertyUpdate
+from .schemas import PropertyCreate, PropertyUpdate
 from .service import update_property
 
 DUBAI_LAT = 25.197197
 DUBAI_LNG = 55.274376
+
+
+def test_property_create_filters_non_http_images_and_caps() -> None:
+    """Le validateur images ne garde que des URLs http(s) (anti-XSS) et cape à 30."""
+    p = PropertyCreate(
+        type="apartment",
+        price=Decimal("1000000"),
+        images=[
+            "https://cdn/a.jpg",
+            "http://cdn/b.png",
+            "javascript:alert(1)",
+            "data:image/png;base64,xxx",
+            "",
+        ],
+    )
+    assert p.images == ["https://cdn/a.jpg", "http://cdn/b.png"]
+
+    capped = PropertyCreate(
+        type="apartment",
+        price=Decimal("1"),
+        images=[f"https://cdn/{i}.jpg" for i in range(50)],
+    )
+    assert len(capped.images) == 30
 
 
 async def _coords(db, property_id: uuid.UUID) -> tuple[float | None, float | None]:

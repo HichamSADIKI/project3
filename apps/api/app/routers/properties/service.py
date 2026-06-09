@@ -201,6 +201,7 @@ async def create_property(
         furnished=data.furnished,
         parking_spaces=data.parking_spaces,
         amenities=data.amenities,
+        images=data.images,
         is_featured=data.is_featured,
         agent_id=data.agent_id,
     )

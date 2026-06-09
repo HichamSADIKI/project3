@@ -75,6 +75,23 @@ describe("scrapedToPropertyDraft", () => {
     expect(r.draft.district).toBe("Marina");
   });
 
+  it("keeps only http(s) images and caps them", () => {
+    const r = scrapedToPropertyDraft(
+      make({
+        price: "1",
+        images: ["https://cdn/x.jpg", "http://cdn/y.png", "javascript:alert(1)", "data:foo", ""],
+      }),
+    );
+    if (!("draft" in r)) throw new Error("expected draft");
+    expect(r.draft.images).toEqual(["https://cdn/x.jpg", "http://cdn/y.png"]);
+  });
+
+  it("omits images when none are valid", () => {
+    const r = scrapedToPropertyDraft(make({ price: "1", images: ["ftp://x", "not-a-url"] }));
+    if (!("draft" in r)) throw new Error("expected draft");
+    expect(r.draft.images).toBeUndefined();
+  });
+
   it("omits optional fields that are empty or unparseable", () => {
     const r = scrapedToPropertyDraft(make({ price: "750000" }));
     if (!("draft" in r)) throw new Error("expected draft");
