@@ -37,7 +37,7 @@ function mandateAlert(end: string | null): { expired: boolean; days: number; col
 export function ScreenRealEstateOwners() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Owner>("/api/admin/owners?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
   const { busy, error: actErr, run } = useRowAction(() => {});
 
   function genStatement(id: string) {

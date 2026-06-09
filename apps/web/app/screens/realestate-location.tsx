@@ -128,7 +128,7 @@ export function ScreenRealEstateLocation() {
 function ListingsTab({ t }: { t: Translations }) {
   const { lang } = useLang();
   const { items, loading, error, reload } = useApiList<Listing>("/api/admin/leasing/listings?limit=100");
-  const { items: units } = useApiList<UnitOpt>("/api/admin/units?limit=200");
+  const { items: units } = useApiList<UnitOpt>("/api/admin/units?limit=100");
   const social = useApiList<SocialPost>("/api/admin/social/posts?listing_type=rent&limit=500");
   const socialByListing = React.useMemo(() => {
     const m: Record<string, SocialPost[]> = {};
@@ -282,7 +282,7 @@ function ListingsTab({ t }: { t: Translations }) {
 
 function ApplicationsTab({ t }: { t: Translations }) {
   const { items, loading, error, reload } = useApiList<Application>("/api/admin/leasing/applications?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);

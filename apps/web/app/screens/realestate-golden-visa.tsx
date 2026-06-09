@@ -136,7 +136,7 @@ export function ScreenRealEstateGoldenVisa(): React.ReactNode {
   // Clients (dropdown + map id→nom).
   const [clients, setClients] = useState<ClientLite[]>([]);
   useEffect(() => {
-    getJson<{ data: ClientLite[] }>("/api/admin/clients?limit=200")
+    getJson<{ data: ClientLite[] }>("/api/admin/clients?limit=100")
       .then((r) => setClients(r.data ?? []))
       .catch(() => setClients([]));
   }, []);

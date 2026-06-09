@@ -47,8 +47,9 @@ export function ScreenRealEstateWebsite() {
   const t = useT();
   const { lang } = useLang();
 
-  const sales = useApiList<SaleListing>("/api/admin/sales/listings?limit=200");
-  const rents = useApiList<RentListing>("/api/admin/leasing/listings?limit=200");
+  // limit=100 = plafond de pagination de l'API (Query le=100) — au-delà → 422.
+  const sales = useApiList<SaleListing>("/api/admin/sales/listings?limit=100");
+  const rents = useApiList<RentListing>("/api/admin/leasing/listings?limit=100");
   const reloadAll = () => { sales.reload(); rents.reload(); };
 
   const [deal, setDeal] = useState<"all" | "sale" | "rent">("all");

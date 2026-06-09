@@ -48,8 +48,8 @@ export function ScreenRealEstateContracts({
 } = {}) {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Contract>("/api/admin/contracts?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
-  const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
+  const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
   // Génération + téléchargement du PDF du contrat (WeasyPrint côté backend).

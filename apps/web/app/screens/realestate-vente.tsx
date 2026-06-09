@@ -90,7 +90,7 @@ const refCell: React.CSSProperties = { padding: "13px 16px", fontWeight: 600, co
 
 function MandatesTab({ t }: { t: Translations }) {
   const { items, loading, error, reload } = useApiList<Mandate>("/api/admin/sales/mandates?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);
@@ -324,7 +324,7 @@ function ListingsTab({ t }: { t: Translations }) {
 
 function OffersTab({ t }: { t: Translations }) {
   const { items, loading, error, reload } = useApiList<Offer>("/api/admin/sales/offers?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);

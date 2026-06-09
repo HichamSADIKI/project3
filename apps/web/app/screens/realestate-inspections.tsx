@@ -92,7 +92,7 @@ export function ScreenRealEstateInspections(): React.ReactNode {
   // Unités (dropdown + map id→n°).
   const [units, setUnits] = useState<UnitLite[]>([]);
   useEffect(() => {
-    getJson<{ data: UnitLite[] }>("/api/admin/units?limit=200")
+    getJson<{ data: UnitLite[] }>("/api/admin/units?limit=100")
       .then((r) => setUnits(r.data ?? []))
       .catch(() => setUnits([]));
   }, []);
