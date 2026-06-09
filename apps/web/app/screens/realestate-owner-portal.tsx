@@ -44,7 +44,7 @@ export function ScreenRealEstateOwnerPortal() {
   const { lang } = useLang();
   const lg = (lang as Lang) in LOC ? (lang as Lang) : "fr";
   const LL = (k: string): string => LOC[lg][k] ?? LOC.fr[k] ?? k;
-  const { items: owners } = useApiList<OwnerOpt>("/api/admin/owners?limit=200");
+  const { items: owners } = useApiList<OwnerOpt>("/api/admin/owners?limit=100");
   const [tab, setTab] = useState<"statements" | "commissions">("statements");
   const [selId, setSelId] = useState<string | null>(null);
   const [statements, setStatements] = useState<Statement[]>([]);

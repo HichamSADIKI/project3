@@ -104,7 +104,7 @@ export function ScreenAppAdminHoneytokens(): React.ReactNode {
   const lg = (lang as Lang) in TR ? (lang as Lang) : "fr";
   const L = (k: string): string => TR[lg][k] ?? TR.fr[k] ?? k;
 
-  const tokens = useApiList<Honeytoken>("/api/admin/honeytokens?limit=200");
+  const tokens = useApiList<Honeytoken>("/api/admin/honeytokens?limit=100");
 
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ kind: KINDS[0] as string, label: "" });

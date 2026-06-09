@@ -58,7 +58,7 @@ type Unit = {
 export function ScreenRealEstateUnits() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Unit>("/api/admin/units?limit=100");
-  const { items: buildings } = useApiList<BuildingOpt>("/api/admin/buildings?limit=200");
+  const { items: buildings } = useApiList<BuildingOpt>("/api/admin/buildings?limit=100");
   const vacant = items.filter(u => u.status === "vacant").length;
 
   const [open, setOpen] = useState(false);

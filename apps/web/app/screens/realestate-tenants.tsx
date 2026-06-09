@@ -62,7 +62,7 @@ function loyaltyColor(n: number): string {
 export function ScreenRealEstateTenants() {
   const t = useT();
   const { items, loading, error, reload } = useApiList<Tenant>("/api/admin/tenants?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
   const verified = items.filter(x => x.kyc_status === "verified").length;
 

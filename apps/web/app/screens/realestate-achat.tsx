@@ -115,7 +115,7 @@ export function ScreenRealEstateAchat() {
 
 function MandatesTab({ t }: { t: Translations }) {
   const { items, loading, error, reload } = useApiList<Mandate>("/api/admin/acquisitions/mandates?limit=100");
-  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=200");
+  const { items: clients } = useApiList<ClientOpt>("/api/admin/clients?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);
@@ -272,8 +272,8 @@ function MandatesTab({ t }: { t: Translations }) {
 
 function OffersTab({ t }: { t: Translations }) {
   const { items, loading, error, reload } = useApiList<Offer>("/api/admin/acquisitions/offers?limit=100");
-  const { items: mandates } = useApiList<Mandate>("/api/admin/acquisitions/mandates?limit=200");
-  const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=200");
+  const { items: mandates } = useApiList<Mandate>("/api/admin/acquisitions/mandates?limit=100");
+  const { items: properties } = useApiList<PropertyOpt>("/api/admin/properties?limit=100");
   const { busy, error: actErr, run } = useRowAction(reload);
 
   const [open, setOpen] = useState(false);

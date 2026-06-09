@@ -1020,7 +1020,7 @@ export function ScreenClientsPersonne({ onDealConfirmed, initialSearch }: { onDe
   const [refreshTick, setRefreshTick] = useState(0);
   useEffect(() => {
     const ctrl = new AbortController();
-    fetch("/api/admin/clients?type=individual&limit=200", {
+    fetch("/api/admin/clients?type=individual&limit=100", {
       signal: ctrl.signal,
       cache: "no-store",
     })

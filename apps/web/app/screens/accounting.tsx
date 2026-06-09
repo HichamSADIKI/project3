@@ -94,7 +94,7 @@ export function ScreenAccounting(): React.ReactNode {
   const statusLabel = (s: string): string => L(s === "void" ? "void_s" : s);
 
   const [view, setView] = useState<"accounts" | "entries" | "balance">("accounts");
-  const accounts = useApiList<Account>("/api/admin/accounting/accounts?limit=200");
+  const accounts = useApiList<Account>("/api/admin/accounting/accounts?limit=100");
   const entries = useApiList<EntryItem>("/api/admin/accounting/entries?limit=100");
   const [trial, setTrial] = useState<Trial | null>(null);
 
